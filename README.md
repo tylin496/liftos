@@ -33,3 +33,4 @@ node scripts/dev-server.mjs
 ```
 
 Open `http://127.0.0.1:8765/` and sign in with an allowed Google account.
+# liftos
