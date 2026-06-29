@@ -182,6 +182,7 @@ export interface ExercisePatch {
   assisted_mode?: boolean;
   archived?: boolean;
   sort_order?: number;
+  image_url?: string | null;
 }
 
 export async function updateExercise(slug: string, patch: ExercisePatch): Promise<Exercise> {
@@ -209,6 +210,49 @@ export async function deleteExerciseAndLogs(slug: string): Promise<void> {
   await supabase.from("training_logs").delete().eq("exercise_slug", slug);
   const { error } = await supabase.from("exercises").delete().eq("slug", slug);
   if (error) throw error;
+}
+
+// ─── Image upload ─────────────────────────────────────────────────────────────
+
+async function compressImageToBlob(file: File, maxDim = 1200): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d")!;
+      if (file.type !== "image/png") {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (!blob) reject(new Error("compress failed"));
+        else resolve(blob);
+      }, "image/png");
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load failed")); };
+    img.src = url;
+  });
+}
+
+/** Upload a photo for an exercise to Supabase Storage and persist the URL. */
+export async function uploadExerciseImage(slug: string, file: File): Promise<string> {
+  const userId = await currentUserId();
+  const blob = await compressImageToBlob(file);
+  const path = `${userId}/${slug}.png`;
+  const { error } = await supabase.storage
+    .from("exercise-images")
+    .upload(path, blob, { upsert: true, contentType: "image/png" });
+  if (error) throw error;
+  const { data } = supabase.storage.from("exercise-images").getPublicUrl(path);
+  const url = `${data.publicUrl}?v=${Date.now()}`;
+  await updateExercise(slug, { image_url: url });
+  return url;
 }
 
 // ─── Stretches (localStorage) ─────────────────────────────────────────────────

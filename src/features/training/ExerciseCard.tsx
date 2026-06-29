@@ -12,6 +12,7 @@ import {
   deleteLog,
   updateLog,
   updateExercise,
+  uploadExerciseImage,
   type Exercise,
   type TrainingLog,
 } from "./api";
@@ -27,7 +28,11 @@ import {
   computeHistDelta,
   filterByTime,
   timelineDate,
+  buildStagnationView,
+  fmtInspectorDate,
   type TimeFilter,
+  type StagnationView,
+  type TrendResult,
 } from "./logic";
 import { ToastProvider as _ToastProvider, useToast as _useToast } from "@shared/components/Toast";
 export const ToastProvider = _ToastProvider;
@@ -1090,6 +1095,98 @@ function InlineEditAssistedEntry({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Stagnation components
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TREND_ARROWS: Record<string, string> = { recovering: "↑", stable: "→", declining: "↓", uncertain: "⚠" };
+const TREND_LABELS: Record<string, string> = { recovering: "Recovering", stable: "Stable", declining: "Declining", uncertain: "Data Check" };
+
+function AnimatedNumber({ value, decimals = 0, trimZeros = false }: { value: number; decimals?: number; trimZeros?: boolean }) {
+  const [display, setDisplay] = useState(value);
+  const prevRef = useRef(value);
+  const rafRef = useRef(0);
+  useEffect(() => {
+    const from = prevRef.current;
+    const to = value;
+    prevRef.current = value;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (from === to || reduce) { setDisplay(to); return; }
+    const dur = 480;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(from + (to - from) * eased);
+      if (p < 1) rafRef.current = requestAnimationFrame(tick);
+      else setDisplay(to);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [value]);
+  const text = display.toFixed(decimals);
+  return <>{trimZeros ? text.replace(/\.0+$/, "") : text}</>;
+}
+
+function StagnationBadge({ view, open, onToggle }: { view: StagnationView | null; open: boolean; onToggle: () => void }) {
+  if (!view) return null;
+  const { pct, status, showPR, prLabel, label, expandable, t } = view;
+  return (
+    <div
+      className={`stagnation-badge stagnation-${status}${showPR ? " stagnation-at-pr" : ""}${expandable ? " stagnation-expandable" : ""}`}
+      onClick={expandable ? onToggle : undefined}
+      role={expandable ? "button" : undefined}
+      aria-expanded={expandable ? open : undefined}
+      tabIndex={expandable ? 0 : undefined}
+      onKeyDown={expandable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } } : undefined}
+    >
+      <span className="stagnation-head">
+        <span className="stagnation-label">{label}</span>
+        <span className="stagnation-pct">
+          {showPR ? prLabel : <><AnimatedNumber value={pct * 100} decimals={1} trimZeros />% of PR</>}
+        </span>
+        {expandable && <span className="stagnation-expand-hint" aria-hidden="true" />}
+      </span>
+      {t && (
+        <span className={`stagnation-trend stagnation-trend-${t.trend}`}>
+          {TREND_ARROWS[t.trend]} {TREND_LABELS[t.trend]}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function StagnationDetail({ view, open }: { view: StagnationView | null; open: boolean }) {
+  if (!view) return null;
+  const { status, prFmt, prDate, reason, needsExplaining, t } = view;
+  return (
+    <>
+      {!open && needsExplaining && reason && (
+        <div className={`stagnation-hint stagnation-hint-${status}`}>{reason}</div>
+      )}
+      {open && prFmt && (
+        <div className={`stagnation-detail${reason ? " has-reason" : ""}`}>
+          {reason && <span className="stagnation-reason">{reason}</span>}
+          <span className="stagnation-baseline">
+            <span className="baseline-label">{reason ? "vs baseline" : "Baseline"}</span>
+            <span className="baseline-entry">{prFmt}</span>
+            {prDate && <span className="baseline-date">{prDate}</span>}
+          </span>
+        </div>
+      )}
+      {(t as TrendResult | null)?.trend === "uncertain" && (t as TrendResult).refDate && (t as TrendResult).lastDate && (
+        <div className="data-check-detail">
+          <span className="data-check-label">Jump detected</span>
+          <span className="data-check-row">
+            <span className="data-check-dates">{fmtInspectorDate((t as TrendResult).refDate!)} → {fmtInspectorDate((t as TrendResult).lastDate!)}</span>
+            <span className="data-check-pct">{Math.round(Math.abs((t as TrendResult).change) * 100)}%</span>
+          </span>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ExerciseCard
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1127,12 +1224,18 @@ export function ExerciseCard({
   const [renaming, setRenaming] = useState(false);
   const [prFlash, setPrFlash] = useState(false);
   const [newLogId, setNewLogId] = useState<string | null>(null);
+  const [retOpen, setRetOpen] = useState(false);
+  const [deletedLogIds, setDeletedLogIds] = useState<Set<string>>(new Set());
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
 
   const [metaTarget, setMetaTarget] = useState(exercise.target ?? "");
   const [metaNote, setMetaNote] = useState(exercise.note ?? "");
 
   const menuRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setMetaTarget(exercise.target ?? "");
@@ -1151,9 +1254,16 @@ export function ExerciseCard({
   }, [menuOpen]);
 
   // logs come newest-first from Supabase; reverse for stats (asc)
-  const logsAsc = useMemo(() => [...logs].reverse(), [logs]);
-  const filteredAsc = useMemo(() => filterByTime(logsAsc, timeFilter), [logsAsc, timeFilter]);
+  // Exclude optimistically-deleted entries from display
+  const effectiveLogs = useMemo(
+    () => (deletedLogIds.size ? logs.filter((l) => !deletedLogIds.has(l.id)) : logs),
+    [logs, deletedLogIds],
+  );
+  const effectiveLogsAsc = useMemo(() => [...effectiveLogs].reverse(), [effectiveLogs]);
+  const filteredAsc = useMemo(() => filterByTime(effectiveLogsAsc, timeFilter), [effectiveLogsAsc, timeFilter]);
   const stats = useMemo(() => computeStats(filteredAsc), [filteredAsc]);
+  // Stagnation uses ALL logs (unfiltered, undeleted) for all-time PR accuracy
+  const stagView = useMemo(() => buildStagnationView(effectiveLogsAsc), [effectiveLogsAsc]);
 
   // For display: newest first
   const filteredDesc = useMemo(() => [...filteredAsc].reverse(), [filteredAsc]);
@@ -1233,15 +1343,29 @@ export function ExerciseCard({
     }
   }
 
-  async function handleDelete(log: TrainingLog) {
-    try {
-      await deleteLog(log.id);
-      setEditId(null);
-      toast("Entry deleted", "info", 3000);
-      onLogged();
-    } catch (err) {
-      toast(String((err as Error)?.message ?? err), "error");
-    }
+  function handleDelete(log: TrainingLog) {
+    let undone = false;
+    const UNDO_MS = 5000;
+    setDeletedLogIds((prev) => new Set([...prev, log.id]));
+    setEditId(null);
+    const commit = setTimeout(async () => {
+      if (undone) return;
+      try {
+        await deleteLog(log.id);
+        onLogged();
+      } catch (err) {
+        setDeletedLogIds((prev) => { const s = new Set(prev); s.delete(log.id); return s; });
+        toast(String((err as Error)?.message ?? err), "error");
+      }
+    }, UNDO_MS);
+    toast("Entry deleted", "info", UNDO_MS, {
+      label: "Undo",
+      onClick: () => {
+        undone = true;
+        clearTimeout(commit);
+        setDeletedLogIds((prev) => { const s = new Set(prev); s.delete(log.id); return s; });
+      },
+    });
   }
 
   async function archiveExercise() {
@@ -1262,7 +1386,30 @@ export function ExerciseCard({
   const sc = defaultSetCount(exercise);
   const best = stats.best;
   const bestParsed = best?.log.raw ? parse(best.log.raw) : null;
-  const imgSrc = `${import.meta.env.BASE_URL}images/${exercise.split}/${exercise.slug}.png`;
+  const imgSrc = localImageUrl
+    ?? exercise.image_url
+    ?? `${import.meta.env.BASE_URL}images/${exercise.split}/${exercise.slug}.png`;
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const blob = URL.createObjectURL(file);
+    setLocalImageUrl(blob);
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const url = await uploadExerciseImage(exercise.slug, file);
+      onUpdate({ ...exercise, image_url: url });
+      URL.revokeObjectURL(blob);
+      setLocalImageUrl(null);
+    } catch (err) {
+      setUploadError(String((err as Error)?.message ?? err));
+      setLocalImageUrl(null);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  }
 
   return (
     <article className="ex-card" ref={cardRef}>
@@ -1303,14 +1450,13 @@ export function ExerciseCard({
             <button
               type="button"
               className="card-menu-item"
+              disabled={uploading}
               onClick={() => {
-                updateExercise(exercise.slug, { assisted_mode: !exercise.assisted_mode })
-                  .then((ex) => onUpdate(ex))
-                  .catch(() => {});
+                fileInputRef.current?.click();
                 setMenuOpen(false);
               }}
             >
-              {exercise.assisted_mode ? "✓ Assisted mode" : "Assisted mode"}
+              {uploading ? "Uploading…" : "Upload photo"}
             </button>
             <div className="card-menu-sep" />
             <button
@@ -1325,6 +1471,13 @@ export function ExerciseCard({
             </button>
           </div>
         )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={handleImageUpload}
+        />
       </div>
 
       {/* ── Title block ── */}
@@ -1377,6 +1530,7 @@ export function ExerciseCard({
       {/* ── Body: PR + image ── */}
       <div className="ex-body">
         <div className="ex-body-content">
+          {uploadError && <div className="upload-error">{uploadError}</div>}
           <div className={`ex-pr-inline${prFlash ? " pr-just-set" : ""}`}>
             {bestParsed && Number.isFinite(bestParsed.weight) ? (
               <div className="pr-top-row">
@@ -1396,6 +1550,8 @@ export function ExerciseCard({
               <span className="pr-empty">no PR yet</span>
             )}
           </div>
+          <StagnationBadge view={stagView} open={retOpen} onToggle={() => setRetOpen((v) => !v)} />
+          <StagnationDetail view={stagView} open={retOpen} />
         </div>
         <div className="ex-ident-wrap">
           <SmartImage src={imgSrc} alt="" className="ex-ident" />
@@ -1549,7 +1705,7 @@ export function ExerciseCard({
 
       {/* ── Log set form or button ── */}
       {adding ? (
-        exercise.assisted_mode ? (
+        logs[0]?.kind === "assisted" ? (
           <AddAssistedForm
             setCount={sc}
             lastLog={logs[0] ?? null}
