@@ -22,6 +22,7 @@
 
 /* ── Segmented sub-nav ───────────────────────────────────────────────── */
 .seg {
+  position: relative;
   display: flex;
   gap: 2px;
   padding: 3px;
@@ -30,7 +31,25 @@
   margin-bottom: var(--space-3);
 }
 
+/* sliding pill behind the active item */
+.seg-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px - (var(--seg-n, 3) - 1) * 2px) / var(--seg-n, 3));
+  background: var(--bg-card);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  transform: translateX(calc(var(--seg-idx, 0) * (100% + 2px)));
+  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+}
+
 .seg-item {
+  position: relative;
+  z-index: 1;
   flex: 1;
   border: none;
   background: none;
@@ -39,13 +58,11 @@
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink-3);
-  transition: background 0.15s, color 0.15s;
+  transition: color 0.18s;
 }
 
 .seg-item.is-active {
-  background: var(--bg-card);
   color: var(--ink);
-  box-shadow: var(--shadow-sm);
 }
 
 .seg-count {
@@ -1919,19 +1936,23 @@
 }
 
 
-/* ── Day navigation slide animation ─────────────────────────────────── */
+/* ── Day navigation carousel ─────────────────────────────────────────── */
+.daily-card {
+  overflow: hidden;
+}
+
 @keyframes slide-from-right {
-  from { opacity: 0; transform: translateX(36px); }
+  from { opacity: 0; transform: translateX(52%); }
   to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes slide-from-left {
-  from { opacity: 0; transform: translateX(-36px); }
+  from { opacity: 0; transform: translateX(-52%); }
   to   { opacity: 1; transform: translateX(0); }
 }
 
-.daily-card.day-nav-forward  { animation: slide-from-right 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-.daily-card.day-nav-backward { animation: slide-from-left  280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.dc-slide.day-nav-forward  { animation: slide-from-right 300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.dc-slide.day-nav-backward { animation: slide-from-left  300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 
 /* ── Nutrition loading skeletons ─────────────────────────────────────── */
