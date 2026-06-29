@@ -170,7 +170,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, "127.0.0.1", () => {
   const hasGoogle = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.SESSION_SECRET);
   const devBypass = process.env.DEV_BYPASS_AUTH === "1";
-  console.log(`Calorie tracker dev server: http://127.0.0.1:${PORT}/`);
+  console.log(`LiftOS dev server: http://127.0.0.1:${PORT}/`);
   if (devBypass) {
     console.log("Auth: DEV_BYPASS_AUTH=1 (auto signed-in as dev@local on localhost)");
   } else if (hasGoogle) {

@@ -1,4 +1,4 @@
-# Calorie Tracker
+# LiftOS
 
 A small calorie and protein tracker backed by a Notion database through Vercel API routes.
 

@@ -1,0 +1,43 @@
+import type { User } from "@shared/lib/auth";
+import { signOut } from "@shared/lib/auth";
+import logoUrl from "@shared/assets/logo.png";
+import type { TabId } from "./TabBar";
+import { useHeaderAction } from "./HeaderActionContext";
+
+const TITLES: Record<TabId, string> = {
+  overview: "LiftOS",
+  training: "Training",
+  nutrition: "Nutrition",
+  health: "Health",
+};
+
+export function Header({ user, tab }: { user: User; tab: TabId }) {
+  const avatar = user.user_metadata?.avatar_url as string | undefined;
+  const isOverview = tab === "overview";
+  const { action } = useHeaderAction();
+
+  return (
+    <header className="shell-header">
+      {isOverview ? (
+        <span className="shell-brand">
+          <img className="shell-logo" src={logoUrl} alt="" width={24} height={24} />
+          <span className="shell-title">LiftOS</span>
+        </span>
+      ) : (
+        <span className="shell-tab-title">{TITLES[tab]}</span>
+      )}
+      <div className="shell-header-right">
+        {action}
+        <button className="shell-user" onClick={() => void signOut()} title="Sign out">
+          {avatar ? (
+            <img src={avatar} alt="" className="shell-avatar" />
+          ) : (
+            <span className="shell-avatar shell-avatar--fallback">
+              {(user.email ?? "?")[0]?.toUpperCase()}
+            </span>
+          )}
+        </button>
+      </div>
+    </header>
+  );
+}

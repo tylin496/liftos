@@ -1,4 +1,4 @@
-// In-memory mock for the Calorie Tracker API.
+// In-memory mock for the LiftOS API.
 // Used by scripts/dev-server.mjs when NOTION_TOKEN is missing so the UI is
 // fully interactive locally without a real Notion database.
 

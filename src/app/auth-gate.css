@@ -1,0 +1,65 @@
+.auth-gate {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
+  padding: var(--space-8) var(--space-6);
+}
+
+.auth-logo {
+  width: 76px;
+  height: 76px;
+  display: block;
+  margin: 0 auto var(--space-3);
+}
+
+.auth-brand {
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.auth-tagline {
+  margin: var(--space-2) 0 var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+
+.auth-google {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: 600;
+  transition: transform 0.12s var(--press-ease);
+}
+
+.auth-google:active {
+  transform: scale(var(--tap-scale));
+}
+
+.auth-google:disabled {
+  opacity: 0.6;
+}
+
+.auth-error {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--bad);
+}

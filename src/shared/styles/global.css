@@ -1,0 +1,50 @@
+@import "./tokens.css";
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+  transition: background-color 0.25s;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  overflow-x: clip;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (prefers-color-scheme: light) {
+  html,
+  body {
+    background:
+      radial-gradient(circle at 50% -180px, rgba(224, 101, 24, 0.1), transparent 360px),
+      linear-gradient(180deg, #ffffff 0, #f5f5f7 320px);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  html,
+  body {
+    background:
+      radial-gradient(circle at 50% -180px, rgba(255, 138, 61, 0.16), transparent 360px),
+      linear-gradient(180deg, #101012 0, #000000 320px);
+    background-color: #000000;
+  }
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100dvh;
+}

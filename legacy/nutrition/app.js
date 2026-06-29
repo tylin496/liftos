@@ -2,14 +2,14 @@ let TDEE = 2705;
 let PROTEIN_TARGET = 180;
 let DEFICIT_TARGET = 500;
 const API_BASE = (() => {
-  if (typeof window === "undefined") return "https://calorie-tracker-omega-ten.vercel.app";
+  if (typeof window === "undefined") return "https://LiftOS-omega-ten.vercel.app";
   const { hostname, origin } = window.location;
   if (hostname === "localhost" || hostname === "127.0.0.1") return origin;
-  return "https://calorie-tracker-omega-ten.vercel.app";
+  return "https://LiftOS-omega-ten.vercel.app";
 })();
 
 const GOOGLE_CLIENT_ID = window.CALORIE_TRACKER_CONFIG?.GOOGLE_CLIENT_ID || "";
-const GOOGLE_REDIRECT_URI = "https://tylin496.github.io/calorie-tracker/";
+const GOOGLE_REDIRECT_URI = "https://tylin496.github.io/LiftOS/";
 const OAUTH_STATE_KEY = "calorieTracker/oauth-state";
 
 let authUser = null;

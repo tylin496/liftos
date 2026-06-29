@@ -2,7 +2,14 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Calorie Tracker Dev Server",
+      "name": "LiftOS Vite",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "LiftOS Mock API",
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/dev-server.mjs"],
       "port": 8765,

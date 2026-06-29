@@ -1,0 +1,104 @@
+.health {
+  gap: var(--space-3);
+}
+
+/* ── TDEE hero ───────────────────────────────────────────────────────── */
+.health-tdee-num {
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  margin: var(--space-1) 0;
+}
+
+.health-unit {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-left: 0.4ch;
+}
+
+.health-conf {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.health-stars {
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  margin-left: 0.4ch;
+}
+
+.health-tdee-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.health-tdee-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.health-k {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-4);
+}
+
+.health-v {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Metric cards ────────────────────────────────────────────────────── */
+.health-metric-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.health-metric-label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.health-metric-val {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.health-metric-val--empty {
+  color: var(--ink-4);
+}
+
+.health-metric-change {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Sparkline ───────────────────────────────────────────────────────── */
+.spark {
+  width: 100%;
+  height: 28px;
+  display: block;
+  color: var(--accent);
+}
+
+.spark--empty {
+  background: var(--bg-soft);
+  border-radius: 6px;
+  opacity: 0.5;
+}
