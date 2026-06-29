@@ -1804,24 +1804,24 @@
 .ntb-bar-kcal {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, #5ac8fa 62%, var(--bg-card)),
-    color-mix(in srgb, var(--accent) 62%, var(--bg-card))
+    color-mix(in srgb, #5ac8fa 58%, var(--bg-soft)),
+    color-mix(in srgb, var(--accent) 58%, var(--bg-soft))
   );
 }
 
 .ntb-bar-kcal.surplus {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--bad) 58%, var(--bg-card)),
-    color-mix(in srgb, var(--bad) 70%, var(--bg-card))
+    color-mix(in srgb, var(--bad) 55%, var(--bg-soft)),
+    color-mix(in srgb, var(--bad) 60%, var(--bg-soft))
   );
 }
 
 .ntb-bar-prot {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, #63e195 62%, var(--bg-card)),
-    color-mix(in srgb, #34c759 62%, var(--bg-card))
+    color-mix(in srgb, #63e195 58%, var(--bg-soft)),
+    color-mix(in srgb, #34c759 58%, var(--bg-soft))
   );
 }
 
