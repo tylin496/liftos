@@ -225,11 +225,12 @@
 .page-card {
   background: var(--bg-card);
   border: 1px solid var(--rule);
-  border-radius: var(--radius);
+  border-radius: 14px;
   box-shadow: var(--shadow-sm);
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
   padding: var(--space-5);
+  animation: rise-in 420ms ease both;
 }
 
 /* ── Skeleton loading ───────────────────────────────────────────────── */

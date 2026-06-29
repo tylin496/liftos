@@ -10,7 +10,7 @@
 
   /* ── Surface layers ───────────────────────────────────────────────── */
   --bg: #eef0f4;
-  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-card: rgba(255, 255, 255, 0.88);
   --bg-soft: #eceef3;
   --bg-input: rgba(255, 255, 255, 0.88);
 
@@ -61,10 +61,10 @@
   /* ── Radii & shadows ──────────────────────────────────────────────── */
   --radius: 18px;
   --radius-sm: 10px;
-  --shadow-sm: 0 2px 8px rgba(28, 36, 60, 0.06), 0 1px 2px rgba(28, 36, 60, 0.04);
+  --shadow-sm: 0 1px 1px rgba(17, 24, 39, 0.04), 0 4px 10px -2px rgba(17, 24, 39, 0.05), 0 12px 28px -8px rgba(17, 24, 39, 0.07), 0 28px 60px -32px rgba(17, 24, 39, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.92);
   --shadow-md: 0 12px 30px rgba(28, 36, 60, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 
-  --card-blur: blur(12px);
+  --card-blur: blur(22px);
   --press-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --tap-scale: 0.97;
@@ -80,7 +80,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #1a1a1a;
-    --bg-card: rgba(30, 30, 33, 0.78);
+    --bg-card: rgba(30, 30, 33, 0.82);
     --bg-soft: #2c2c2e;
     --bg-input: rgba(30, 30, 33, 0.88);
     --ink: #f5f5f7;
@@ -97,7 +97,7 @@
     --bad: #ff6b6b;
     --gold: #ffbf3f;
     --card-blur: blur(22px);
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.4), 0 8px 22px -6px rgba(0, 0, 0, 0.42), 0 22px 50px -18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     --shadow-md: 0 18px 42px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
     --focus-ring: 0 0 0 3px rgba(224, 101, 24, 0.32);
   }
