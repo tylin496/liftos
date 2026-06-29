@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson } from "@shared/lib/copyAllData";
+import { useTabActivity } from "@app/layout/TabActivityContext";
 import { supabase } from "@shared/lib/supabase";
 import {
   ensureSeeded,
@@ -483,6 +484,7 @@ function ArchivedSection({
 function TrainingPageInner() {
   const toast = useToast();
   const confirm = useConfirm();
+  const activity = useTabActivity();
 
   const [split, setSplit] = useState<SplitId>("push");
   const prevSplitIdx = useRef(0);
@@ -544,6 +546,12 @@ function TrainingPageInner() {
     };
   }, [reloadAll]);
 
+  // Background re-fetch when user navigates back to this tab
+  useEffect(() => {
+    if (activity === 0) return;
+    reloadAll();
+  }, [activity, reloadAll]);
+
   // Persist stretches
   useEffect(() => {
     saveStretches(stretches);
@@ -575,23 +583,31 @@ function TrainingPageInner() {
   }
 
   async function handleMoveUp(slug: string) {
-    const list = activeExercises;
-    const idx = list.findIndex((e) => e.slug === slug);
-    if (idx <= 0) return;
-    const slugs = list.map((e) => e.slug);
-    [slugs[idx - 1], slugs[idx]] = [slugs[idx], slugs[idx - 1]];
-    await reorderExercises(slugs);
-    await reloadAll();
+    try {
+      const list = activeExercises;
+      const idx = list.findIndex((e) => e.slug === slug);
+      if (idx <= 0) return;
+      const slugs = list.map((e) => e.slug);
+      [slugs[idx - 1], slugs[idx]] = [slugs[idx], slugs[idx - 1]];
+      await reorderExercises(slugs);
+      await reloadAll();
+    } catch (err) {
+      toast(String((err as Error)?.message ?? err), "error");
+    }
   }
 
   async function handleMoveDown(slug: string) {
-    const list = activeExercises;
-    const idx = list.findIndex((e) => e.slug === slug);
-    if (idx < 0 || idx >= list.length - 1) return;
-    const slugs = list.map((e) => e.slug);
-    [slugs[idx], slugs[idx + 1]] = [slugs[idx + 1], slugs[idx]];
-    await reorderExercises(slugs);
-    await reloadAll();
+    try {
+      const list = activeExercises;
+      const idx = list.findIndex((e) => e.slug === slug);
+      if (idx < 0 || idx >= list.length - 1) return;
+      const slugs = list.map((e) => e.slug);
+      [slugs[idx], slugs[idx + 1]] = [slugs[idx + 1], slugs[idx]];
+      await reorderExercises(slugs);
+      await reloadAll();
+    } catch (err) {
+      toast(String((err as Error)?.message ?? err), "error");
+    }
   }
 
   async function handleRestore(slug: string) {
@@ -635,7 +651,12 @@ function TrainingPageInner() {
     >
       {/* ── Top row: seg + copy ── */}
       <div className="tr-top-row">
-        <div className="seg" role="tablist">
+        <div
+          className="seg"
+          role="tablist"
+          style={{ "--seg-idx": splitIds.indexOf(split), "--seg-n": splitIds.length } as React.CSSProperties}
+        >
+          <span className="seg-thumb" aria-hidden />
           {SPLITS.map((s) => {
             const count = (exercises ?? []).filter((e) => e.split === s.id && !e.archived).length;
             return (

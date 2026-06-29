@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getConfig, saveConfig, type NutritionConfig } from "./api";
 import { fetchHealthData } from "@features/health/api";
+import { useTabActivity } from "@app/layout/TabActivityContext";
 import { TodayView } from "./today";
 import { HistoryView } from "./history";
 import { ProgramsView } from "./programs";
@@ -15,6 +16,7 @@ export function NutritionPage() {
   const [error, setError] = useState<string | null>(null);
   const [date, setDate] = useState(defaultLogDate());
   const [entryVersion, setEntryVersion] = useState(0);
+  const activity = useTabActivity();
 
   useEffect(() => {
     Promise.all([getConfig(), fetchHealthData(30).catch(() => null)])
@@ -29,7 +31,7 @@ export function NutritionPage() {
         }
       })
       .catch((e) => setError(String(e?.message ?? e)));
-  }, []);
+  }, [activity]);
 
   useCopyButton(buildAllDataJson);
 

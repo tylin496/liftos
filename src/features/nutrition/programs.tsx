@@ -6,6 +6,7 @@ import {
   PHASE_NAMES,
   type NutritionConfig,
 } from "./api";
+import { useToast } from "@shared/components/Toast";
 
 export function ProgramsView({
   config,
@@ -14,6 +15,7 @@ export function ProgramsView({
   config: NutritionConfig;
   onSaved: (c: NutritionConfig) => void;
 }) {
+  const toast = useToast();
   const targets = targetsFromConfig(config);
   const { defs: savedDefs, activeIndex: savedActiveIndex } = phaseDefsFromConfig(config);
 
@@ -52,6 +54,7 @@ export function ProgramsView({
       });
       onSaved(updated);
       setActiveIndex(index);
+      toast(`${PHASE_NAMES[index]} activated`, "success");
     } catch (e) {
       setError(String((e as Error)?.message ?? e));
     } finally {
@@ -70,6 +73,7 @@ export function ProgramsView({
       });
       onSaved(updated);
       setEditing(false);
+      toast("Program saved", "success");
     } catch (e) {
       setError(String((e as Error)?.message ?? e));
     } finally {

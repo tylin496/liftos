@@ -1203,8 +1203,8 @@ export interface ExerciseCardProps {
   timeFilter: TimeFilter;
   onLogged: () => void;
   onUpdate: (patch: Partial<Exercise>) => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
+  onMoveUp?: () => Promise<void>;
+  onMoveDown?: () => Promise<void>;
   isFirst?: boolean;
   isLast?: boolean;
 }
@@ -1236,6 +1236,7 @@ export function ExerciseCard({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+  const [isMoving, setIsMoving] = useState(false);
 
   const [metaTarget, setMetaTarget] = useState(exercise.target ?? "");
   const [metaNote, setMetaNote] = useState(exercise.note ?? "");
@@ -1433,32 +1434,40 @@ export function ExerciseCard({
           className={`card-menu-btn${menuOpen ? " menu-on" : ""}`}
           onClick={() => setMenuOpen((v) => !v)}
           aria-label="Exercise options"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
         >
           ⋯
         </button>
         {menuOpen && (
-          <div className="card-menu-popup">
+          <div className="card-menu-popup" role="menu">
             <button
               type="button"
               className="card-menu-item"
-              disabled={!!isFirst}
-              onClick={() => {
-                onMoveUp?.();
+              disabled={!!isFirst || isMoving}
+              onClick={async () => {
                 setMenuOpen(false);
+                if (!onMoveUp) return;
+                setIsMoving(true);
+                try { await onMoveUp(); } catch { /* page handles error */ }
+                finally { setIsMoving(false); }
               }}
             >
-              ↑ Move up
+              {isMoving ? "Moving…" : "↑ Move up"}
             </button>
             <button
               type="button"
               className="card-menu-item"
-              disabled={!!isLast}
-              onClick={() => {
-                onMoveDown?.();
+              disabled={!!isLast || isMoving}
+              onClick={async () => {
                 setMenuOpen(false);
+                if (!onMoveDown) return;
+                setIsMoving(true);
+                try { await onMoveDown(); } catch { /* page handles error */ }
+                finally { setIsMoving(false); }
               }}
             >
-              ↓ Move down
+              {isMoving ? "Moving…" : "↓ Move down"}
             </button>
             <button
               type="button"

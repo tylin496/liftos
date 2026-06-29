@@ -3,6 +3,7 @@ import { fetchHealthData, type BodyMetric, type HealthData } from "./api";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson } from "@shared/lib/copyAllData";
 import { useCountUp } from "@shared/hooks/useCountUp";
+import { useTabActivity } from "@app/layout/TabActivityContext";
 import "./health.css";
 
 type MetricKey = "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal";
@@ -244,6 +245,7 @@ export function HealthPage() {
   const [range, setRange] = useState<RangeKey>("6M");
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const activity = useTabActivity();
 
   const { days, bucketDays } = RANGES.find((r) => r.key === range)!;
 
@@ -253,6 +255,12 @@ export function HealthPage() {
       .then(setData)
       .catch((e) => setError(String(e?.message ?? e)));
   }, [days]);
+
+  // Background re-fetch when returning to this tab (no skeleton — keeps old data)
+  useEffect(() => {
+    if (activity === 0) return;
+    fetchHealthData(days).then(setData).catch(() => {});
+  }, [activity, days]);
 
   useCopyButton(() => buildAllDataJson(days));
 

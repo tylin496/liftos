@@ -4,6 +4,7 @@ import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { buildAllDataJson } from "@shared/lib/copyAllData";
 import { useNav } from "@app/layout/NavContext";
+import { useTabActivity } from "@app/layout/TabActivityContext";
 import "./overview.css";
 
 const MONTH_ABBR = [
@@ -169,6 +170,7 @@ function StrengthCard({ s }: { s: StrengthSummary }) {
           <span
             className="ov-strength-pill ov-strength-pill-good"
             style={{ animationDelay: "80ms" }}
+            aria-label={`Improving: ${s.improving} exercise${s.improving !== 1 ? "s" : ""}`}
           >
             ↑{s.improving}
           </span>
@@ -177,6 +179,7 @@ function StrengthCard({ s }: { s: StrengthSummary }) {
           <span
             className="ov-strength-pill ov-strength-pill-stable"
             style={{ animationDelay: "160ms" }}
+            aria-label={`Stable: ${s.stable} exercise${s.stable !== 1 ? "s" : ""}`}
           >
             →{s.stable}
           </span>
@@ -185,6 +188,7 @@ function StrengthCard({ s }: { s: StrengthSummary }) {
           <span
             className="ov-strength-pill ov-strength-pill-watch"
             style={{ animationDelay: "240ms" }}
+            aria-label={`Needs attention: ${s.watch} exercise${s.watch !== 1 ? "s" : ""}`}
           >
             ↓{s.watch}
           </span>
@@ -211,12 +215,13 @@ function StrengthCard({ s }: { s: StrengthSummary }) {
 export function OverviewPage() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const activity = useTabActivity();
 
   useEffect(() => {
     fetchOverview()
       .then(setData)
       .catch((e) => setError(String(e?.message ?? e)));
-  }, []);
+  }, [activity]);
 
   useCopyButton(buildAllDataJson);
 

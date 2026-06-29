@@ -8,6 +8,7 @@ import { Header } from "./Header";
 import { TabBar, type TabId } from "./TabBar";
 import { HeaderActionProvider } from "./HeaderActionContext";
 import { NavContext } from "./NavContext";
+import { TabActivityContext } from "./TabActivityContext";
 import "./layout.css";
 
 const PAGES: Record<TabId, () => JSX.Element> = {
@@ -21,13 +22,22 @@ const TAB_ORDER: TabId[] = ["overview", "training", "nutrition", "health"];
 
 export function Shell({ session }: { session: Session }) {
   const [tab, setTab] = useState<TabId>("overview");
+  // Pages that have been visited at least once — we keep them mounted
+  const [visited, setVisited] = useState<Set<TabId>>(new Set(["overview"]));
+  // Incremented each time the user navigates TO a tab — pages re-fetch on change
+  const [tabVersions, setTabVersions] = useState<Record<TabId, number>>(
+    { overview: 0, training: 0, nutrition: 0, health: 0 },
+  );
 
   function switchTab(next: TabId) {
-    if (next !== tab) navigator.vibrate?.(12);
+    if (next !== tab) {
+      navigator.vibrate?.(12);
+      setVisited((prev) => new Set([...prev, next]));
+      setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
+    }
     setTab(next);
     window.scrollTo({ top: 0, behavior: "instant" });
   }
-  const Page = PAGES[tab];
   const contentRef = useRef<HTMLElement | null>(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -86,7 +96,17 @@ export function Shell({ session }: { session: Session }) {
         <div className="shell">
           <Header user={session.user} tab={tab} />
           <main ref={contentRef} className="shell-content">
-            <Page />
+            {TAB_ORDER.map((tabId) => {
+              if (!visited.has(tabId)) return null;
+              const Page = PAGES[tabId];
+              return (
+                <TabActivityContext.Provider key={tabId} value={tabVersions[tabId]}>
+                  <div style={tabId !== tab ? { display: "none" } : undefined}>
+                    <Page />
+                  </div>
+                </TabActivityContext.Provider>
+              );
+            })}
           </main>
           <TabBar active={tab} onChange={switchTab} />
         </div>
