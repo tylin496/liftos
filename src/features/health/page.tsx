@@ -62,6 +62,12 @@ export function HealthPage() {
 
   useCopyButton(() => {
     if (!data) return "";
+    const COPY_KEY: Record<MetricKey, string> = {
+      weight_kg: "weight",
+      body_fat_pct: "bodyFat",
+      active_energy_kcal: "activeEnergy",
+      resting_energy_kcal: "restingEnergy",
+    };
     const metricsObj: Record<string, unknown> = {};
     for (const spec of METRICS) {
       const s = series(data.metrics, spec.key);
@@ -69,12 +75,12 @@ export function HealthPage() {
       const latest = s.at(-1)!;
       const first = s[0];
       const avg = s.reduce((sum, p) => sum + p.value, 0) / s.length;
-      metricsObj[spec.key] = {
+      metricsObj[COPY_KEY[spec.key]] = {
         latest: +fmt(latest.value, spec.decimals).replace(",", ""),
-        latest_date: latest.date,
-        change_30d: +(latest.value - first.value).toFixed(spec.decimals),
-        avg_30d: +avg.toFixed(spec.decimals),
-        data_points: s.length,
+        latestDate: latest.date,
+        change30d: +(latest.value - first.value).toFixed(spec.decimals),
+        avg30d: +avg.toFixed(spec.decimals),
+        dataPoints: s.length,
       };
     }
     const allDates = [...new Set(data.metrics.map((m) => m.metric_date))].sort();
@@ -82,19 +88,20 @@ export function HealthPage() {
       const row = data.metrics.find((m) => m.metric_date === date);
       return {
         date,
-        weight_kg: row?.weight_kg ?? null,
-        body_fat_pct: row?.body_fat_pct ?? null,
-        active_energy_kcal: row?.active_energy_kcal ?? null,
-        resting_energy_kcal: row?.resting_energy_kcal ?? null,
+        weight: row?.weight_kg ?? null,
+        bodyFat: row?.body_fat_pct ?? null,
+        activeEnergy: row?.active_energy_kcal ?? null,
+        restingEnergy: row?.resting_energy_kcal ?? null,
       };
     });
     return JSON.stringify({
       source: "LiftOS",
-      type: "health_metrics",
+      schema: 1,
+      type: "health",
       date: new Date().toISOString().slice(0, 10),
-      period_days: 30,
-      tdee_kcal: data.tdee?.tdee != null ? Math.round(data.tdee.tdee) : null,
-      tdee_data_points: data.tdee?.dataPoints ?? null,
+      periodDays: 30,
+      tdee: data.tdee?.tdee != null ? Math.round(data.tdee.tdee) : null,
+      tdeeDataPoints: data.tdee?.dataPoints ?? null,
       summary: metricsObj,
       timeline,
     }, null, 2);

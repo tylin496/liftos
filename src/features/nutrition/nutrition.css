@@ -379,6 +379,14 @@
   box-shadow: var(--focus-ring);
 }
 
+.nutri-field-auto {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  padding: var(--space-3) 0;
+}
+
 .nutri-save {
   margin-top: var(--space-1);
   padding: var(--space-4);

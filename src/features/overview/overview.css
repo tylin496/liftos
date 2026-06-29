@@ -63,11 +63,7 @@
 }
 
 .ov-bar-fill.protein {
-  background: var(--good);
-}
-
-.ov-bar-fill.over {
-  background: var(--bad);
+  background: var(--accent-2);
 }
 
 .ov-no-entry {

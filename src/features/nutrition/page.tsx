@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { getConfig, getEntries, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
+import { getConfig, getEntries, saveConfig, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
+import { fetchHealthData } from "@features/health/api";
 import { TodayView } from "./today";
 import { HistoryView } from "./history";
 import { ProgramsView } from "./programs";
@@ -25,7 +26,8 @@ function fmtNutritionText(entries: NutritionEntry[], config: NutritionConfig | n
     : null;
   return JSON.stringify({
     source: "LiftOS",
-    type: "nutrition_history",
+    schema: 1,
+    type: "nutrition",
     date: new Date().toISOString().slice(0, 10),
     targets: targets ? {
       calories: targets.calorieTarget,
@@ -34,8 +36,8 @@ function fmtNutritionText(entries: NutritionEntry[], config: NutritionConfig | n
     } : null,
     summary: {
       days: sorted.length,
-      avg_calories: avgCalories,
-      avg_protein: avgProtein,
+      avgCalories,
+      avgProtein,
     },
     entries: sorted.map((e) => ({
       date: e.entry_date,
@@ -52,10 +54,23 @@ export function NutritionPage() {
   const [recentEntries, setRecentEntries] = useState<NutritionEntry[]>([]);
 
   useEffect(() => {
-    getConfig().then(setConfig).catch((e) => setError(String(e?.message ?? e)));
     const today = new Date().toISOString().slice(0, 10);
     const from = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
     getEntries(from, today).then(setRecentEntries).catch(() => {});
+
+    Promise.all([
+      getConfig(),
+      fetchHealthData(30).catch(() => null),
+    ]).then(([cfg, health]) => {
+      const healthTdee = health?.tdee?.tdee;
+      if (healthTdee != null && healthTdee !== cfg.tdee) {
+        saveConfig({ tdee: healthTdee })
+          .then((updated) => setConfig(updated))
+          .catch(() => setConfig({ ...cfg, tdee: healthTdee }));
+      } else {
+        setConfig(cfg);
+      }
+    }).catch((e) => setError(String(e?.message ?? e)));
   }, []);
 
   useCopyButton(() => fmtNutritionText(recentEntries, config));

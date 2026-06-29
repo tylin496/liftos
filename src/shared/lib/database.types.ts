@@ -106,8 +106,6 @@ export type Database = {
       }
       nutrition_config: {
         Row: {
-          active_phase_index: number
-          cut_start_date: string | null
           phase_deficits: Json
           protein_target: number
           tdee: number
@@ -115,8 +113,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          active_phase_index?: number
-          cut_start_date?: string | null
           phase_deficits?: Json
           protein_target?: number
           tdee?: number
@@ -124,8 +120,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          active_phase_index?: number
-          cut_start_date?: string | null
           phase_deficits?: Json
           protein_target?: number
           tdee?: number
@@ -139,9 +133,6 @@ export type Database = {
           calorie_target: number | null
           calories: number | null
           created_at: string
-          cut_phase_index: number | null
-          cut_phase_name: string | null
-          cut_start_date: string | null
           deficit_target: number | null
           entry_date: string
           id: string
@@ -155,9 +146,6 @@ export type Database = {
           calorie_target?: number | null
           calories?: number | null
           created_at?: string
-          cut_phase_index?: number | null
-          cut_phase_name?: string | null
-          cut_start_date?: string | null
           deficit_target?: number | null
           entry_date: string
           id?: string
@@ -171,9 +159,6 @@ export type Database = {
           calorie_target?: number | null
           calories?: number | null
           created_at?: string
-          cut_phase_index?: number | null
-          cut_phase_name?: string | null
-          cut_start_date?: string | null
           deficit_target?: number | null
           entry_date?: string
           id?: string

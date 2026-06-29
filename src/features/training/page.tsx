@@ -23,7 +23,7 @@ import {
   useToast,
   useConfirm,
 } from "./ExerciseCard";
-import { computeStats } from "./logic";
+import { computeStats, epley1RM } from "./logic";
 import { parse, score, formatRepsDisplay } from "./parser";
 import type { TimeFilter } from "./logic";
 import "./training.css";
@@ -587,16 +587,20 @@ function TrainingPageInner() {
         name: ex.name,
         target: ex.target ?? null,
         note: ex.note ?? null,
-        pr_e1rm_kg: pr ? +score(pr) : null,
-        pr_raw: stats.best?.log.raw ?? null,
+        pr: pr ? {
+          e1rm: +epley1RM(score(pr), pr.reps).toFixed(1),
+          raw: stats.best?.log.raw ?? null,
+        } : null,
         logs: exLogs.map((l) => {
           const p = l.raw ? parse(l.raw) : null;
+          const w = p ? +score(p).toFixed(2) : null;
           return {
             date: l.log_date,
             raw: l.raw,
-            weight_kg: p ? +score(p) : null,
+            weight: w,
             reps: p?.reps ?? null,
-            assist_kg: p?.assisted ?? null,
+            e1rm: p && w != null ? +epley1RM(w, p.reps).toFixed(1) : null,
+            assist: p?.assisted ? +p.assisted.assist.toFixed(2) : null,
             note: l.note ?? null,
           };
         }),
@@ -606,15 +610,16 @@ function TrainingPageInner() {
       name: s.name,
       note: s.note ?? null,
     }));
-    const prsCount = exerciseData.filter((e) => e.pr_e1rm_kg != null).length;
+    const prsCount = exerciseData.filter((e) => e.pr != null).length;
     return JSON.stringify({
       source: "LiftOS",
-      type: "training_session",
+      schema: 1,
+      type: "training",
       date: new Date().toISOString().slice(0, 10),
       split: splitName,
       summary: {
         exercises: exerciseData.length,
-        with_pr_data: prsCount,
+        trackedExercises: prsCount,
       },
       exercises: exerciseData,
       stretches: strList,

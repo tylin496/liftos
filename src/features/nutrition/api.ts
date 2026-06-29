@@ -24,7 +24,6 @@ export async function getConfig(): Promise<NutritionConfig> {
         tdee: DEFAULTS.tdee,
         protein_target: DEFAULTS.proteinTarget,
         phase_deficits: [DEFAULTS.deficitTarget],
-        active_phase_index: 0,
       },
       { onConflict: "user_id", ignoreDuplicates: true },
     );
@@ -104,7 +103,6 @@ export async function saveEntry(
     calorie_target: t.calorieTarget,
     protein_target: t.proteinTarget,
     deficit_target: t.deficitTarget,
-    cut_phase_name: t.cutPhaseName,
   };
   const { data, error } = await supabase
     .from("nutrition_entries")

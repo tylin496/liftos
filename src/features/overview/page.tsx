@@ -73,7 +73,7 @@ function NutritionCard({ data }: NutritionCardProps) {
         {kcalTarget > 0 && (
           <div className="ov-bar-track">
             <div
-              className={`ov-bar-fill${kcalPct >= 100 ? " over" : ""}`}
+              className="ov-bar-fill"
               style={{ width: `${kcalPct}%` }}
             />
           </div>
@@ -93,7 +93,7 @@ function NutritionCard({ data }: NutritionCardProps) {
         {proteinTarget > 0 && (
           <div className="ov-bar-track">
             <div
-              className={`ov-bar-fill protein${proteinPct >= 100 ? " over" : ""}`}
+              className="ov-bar-fill protein"
               style={{ width: `${proteinPct}%` }}
             />
           </div>
@@ -172,6 +172,7 @@ export function OverviewPage() {
     const s = data.strength;
     return JSON.stringify({
       source: "LiftOS",
+      schema: 1,
       type: "overview",
       date: new Date().toISOString().slice(0, 10),
       today: {

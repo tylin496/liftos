@@ -183,17 +183,14 @@
 
 .ex-ident-wrap {
   flex-shrink: 0;
-  width: 72px;
-  height: 72px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--bg-soft);
+  width: 120px;
+  height: 120px;
 }
 
 .ex-ident {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 

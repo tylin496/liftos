@@ -11,17 +11,16 @@ export function ProgramsView({
 }) {
   const raw = config.phase_deficits;
   const initDeficit = Array.isArray(raw) ? raw[0] : (raw ?? 500);
+  const initCalorieTarget = Math.max(0, config.tdee - (Array.isArray(raw) ? raw[0] : (raw ?? 500)));
 
-  const [tdee, setTdee] = useState(String(config.tdee));
   const [protein, setProtein] = useState(String(config.protein_target));
-  const [deficit, setDeficit] = useState(String(initDeficit));
+  const [calorieTarget, setCalorieTarget] = useState(String(initCalorieTarget));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
-  const tdeeNum = Number(tdee) || 0;
-  const deficitNum = Number(deficit) || 0;
-  const calorieTarget = Math.max(0, Math.round(tdeeNum - deficitNum));
+  const calorieTargetNum = Math.max(0, Number(calorieTarget) || 0);
+  const deficitNum = Math.max(0, Math.round(config.tdee - calorieTargetNum));
   const phaseName = phaseFromDeficit(deficitNum);
 
   async function handleSave() {
@@ -29,10 +28,9 @@ export function ProgramsView({
     setError(null);
     try {
       const updated = await saveConfig({
-        tdee: Math.round(tdeeNum),
+        tdee: config.tdee,
         protein_target: Math.round(Number(protein) || 0),
-        phase_deficits: [Math.round(deficitNum)],
-        active_phase_index: 0,
+        phase_deficits: [deficitNum],
       });
       onSaved(updated);
       setSavedAt(Date.now());
@@ -47,15 +45,10 @@ export function ProgramsView({
     <div className="nutri">
       <section className="page-card nutri-form">
         <p className="page-eyebrow">Maintenance</p>
-        <label className="nutri-field">
+        <div className="nutri-field">
           <span>TDEE (kcal/day)</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={tdee}
-            onChange={(e) => setTdee(e.target.value)}
-          />
-        </label>
+          <span className="nutri-field-auto">{config.tdee.toLocaleString()} · auto</span>
+        </div>
         <label className="nutri-field">
           <span>Protein target (g)</span>
           <input
@@ -70,17 +63,17 @@ export function ProgramsView({
       <section className="page-card nutri-form">
         <p className="page-eyebrow">Cut target</p>
         <label className="nutri-field">
-          <span>Daily deficit (kcal)</span>
+          <span>Calorie target (kcal/day)</span>
           <input
             type="number"
             inputMode="numeric"
-            value={deficit}
-            onChange={(e) => setDeficit(e.target.value)}
+            value={calorieTarget}
+            onChange={(e) => setCalorieTarget(e.target.value)}
           />
         </label>
         <div className="prog-phase-derived">
           <span className="prog-phase-name">{phaseName}</span>
-          <span className="prog-phase-target">{calorieTarget.toLocaleString()} kcal/day</span>
+          <span className="prog-phase-target">−{deficitNum.toLocaleString()} kcal deficit</span>
         </div>
       </section>
 
