@@ -2,30 +2,120 @@
   gap: var(--space-3);
 }
 
-/* ── Range selector ──────────────────────────────────────────────────── */
+/* ── Range selector (Apple Health segmented pill) ──────────────────── */
 .health-range {
   display: flex;
-  gap: var(--space-1);
-  padding: 0 var(--space-1);
+  background: var(--bg-soft);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
 }
 
 .health-range-btn {
   flex: 1;
-  padding: var(--space-1) 0;
+  padding: 6px 0;
   font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 600;
   border: none;
   border-radius: 8px;
-  background: var(--bg-soft);
+  background: transparent;
   color: var(--ink-3);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
 .health-range-btn--active {
-  background: var(--accent);
-  color: #fff;
+  background: var(--bg-card);
+  color: var(--ink-1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Metric card header: AVERAGE + big number + date range ──────────── */
+.health-metric-eyebrow {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-4);
+  margin: 0 0 2px;
+}
+
+.health-metric-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 0;
+}
+
+.health-metric-val {
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1);
+  line-height: 1;
+}
+
+.health-unit {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.health-metric-val--empty {
+  color: var(--ink-4);
+}
+
+.health-metric-daterange {
+  font-size: var(--text-xs);
+  color: var(--ink-4);
+  margin: 2px 0 var(--space-3);
+}
+
+/* ── Metric label + change row ──────────────────────────────────────── */
+.health-metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.health-metric-label {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+
+.health-metric-change {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--bg-soft);
+  color: var(--ink-3);
+}
+
+.health-metric-change--up {
+  color: #e05252;
+  background: rgba(224, 82, 82, 0.1);
+}
+
+.health-metric-change--down {
+  color: #34c759;
+  background: rgba(52, 199, 89, 0.1);
+}
+
+/* ── Line Chart ─────────────────────────────────────────────────────── */
+.health-chart {
+  width: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.health-chart-wrap {
+  width: 100%;
+  margin: 0 0 var(--space-1);
 }
 
 /* ── TDEE hero ───────────────────────────────────────────────────────── */
@@ -36,31 +126,19 @@
   font-variant-numeric: tabular-nums;
   color: var(--accent);
   margin: var(--space-1) 0;
+  line-height: 1;
 }
 
-.health-unit {
+.health-tdee-num .health-unit {
   font-size: var(--text-base);
-  font-weight: 600;
   color: var(--ink-3);
-  margin-left: 0.4ch;
-}
-
-.health-conf {
-  margin: 0 0 var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-}
-
-.health-stars {
-  color: var(--gold);
-  letter-spacing: 0.1em;
-  margin-left: 0.4ch;
 }
 
 .health-tdee-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 .health-tdee-grid > div {
@@ -81,59 +159,4 @@
   font-size: var(--text-lg);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-}
-
-/* ── Metric cards ────────────────────────────────────────────────────── */
-.health-metric-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: var(--space-2);
-}
-
-.health-metric-label {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--ink-2);
-}
-
-.health-metric-val {
-  font-size: var(--text-2xl);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.health-metric-val--empty {
-  color: var(--ink-4);
-}
-
-.health-metric-avg-label {
-  margin: 0 0 var(--space-2);
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-4);
-}
-
-.health-metric-change {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Sparkline ───────────────────────────────────────────────────────── */
-.spark {
-  width: 100%;
-  height: 28px;
-  display: block;
-  color: var(--accent);
-}
-
-.spark--empty {
-  background: var(--bg-soft);
-  border-radius: 6px;
-  opacity: 0.5;
 }

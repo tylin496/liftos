@@ -128,15 +128,13 @@
 /* Sliding orange pill indicator */
 .tabbar-indicator {
   position: absolute;
-  top: 6px;
-  left: 0;
+  top: 0;
+  left: calc(var(--tab-idx, 0) * 25% + 10px);
   width: calc(25% - 20px);
   height: 3px;
   background: var(--accent);
   border-radius: 999px;
-  margin-left: 10px;
-  transform: translateX(calc(var(--tab-idx, 0) * calc(100% + 20px)));
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 

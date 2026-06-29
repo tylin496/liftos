@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { getEntry, saveEntry, deleteEntry, targetsFromConfig, type NutritionConfig } from "./api";
 import { defaultLogDate, getCalorieResult, getProteinResult, toDateStr } from "./logic";
 import { useToast } from "@shared/components/Toast";
@@ -126,7 +127,7 @@ function NutriCalendar({
     );
   })();
 
-  return (
+  return createPortal(
     <>
       <div className="ncal-backdrop" onClick={onClose} />
       <div className="ncal-panel" role="dialog" aria-modal aria-label="Date picker">
@@ -193,7 +194,8 @@ function NutriCalendar({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 
@@ -267,7 +269,7 @@ function EntryOverlay({
     }
   }
 
-  return (
+  return createPortal(
     <>
       <div className="entry-backdrop" onClick={onClose} />
       <div className="entry-sheet" role="dialog" aria-modal aria-label="Log entry">
@@ -323,7 +325,8 @@ function EntryOverlay({
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 
