@@ -660,7 +660,15 @@ export function TodayView({
                   inputMode="numeric"
                   value={calories}
                   placeholder="0"
-                  onChange={(e) => setCalories(e.target.value)}
+                  onChange={(e) => {
+                    let digits = e.target.value.replace(/\D/g, "");
+                    if (digits.length > 4) digits = digits.slice(0, 4);
+                    setCalories(digits);
+                    if (digits.length === 4) {
+                      protInputRef.current?.focus();
+                      protInputRef.current?.select();
+                    }
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       if (editField === "calories") {
@@ -684,7 +692,14 @@ export function TodayView({
                   inputMode="numeric"
                   value={protein}
                   placeholder="0"
-                  onChange={(e) => setProtein(e.target.value)}
+                  onChange={(e) => {
+                    let digits = e.target.value.replace(/\D/g, "");
+                    if (digits.length > 3) digits = digits.slice(0, 3);
+                    setProtein(digits);
+                    if (digits.length === 3) {
+                      handleSave();
+                    }
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSave();
                     if (e.key === "Escape") { haptic("tap"); setEditField(null); }
