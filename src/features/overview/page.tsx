@@ -36,16 +36,21 @@ function fmtWeightDelta(
 // bars that animate 0 → target with a slight overshoot on mount.
 
 function HeroCard({ data }: { data: OverviewData }) {
-  const { today, nutritionTargets } = data;
+  const { today, nutritionTargets, tdee } = data;
 
   const kcal = today?.calories ?? 0;
   const protein = today?.protein ?? 0;
   const kcalTarget = nutritionTargets?.calorieTarget ?? 0;
   const proteinTarget = nutritionTargets?.proteinTarget ?? 0;
 
+  // Energy balance vs maintenance: negative = deficit (on track for a cut)
+  const showBalance = tdee != null && today != null;
+  const balance = showBalance ? kcal - (tdee as number) : 0;
+
   // Hooks before any early return (React rules)
   const kcalCount = useCountUp(kcal, 700);
   const proteinCount = useCountUp(protein, 600);
+  const balanceCount = useCountUp(balance, 800);
 
   // Trigger bar spring after one frame so the 0 → pct% transition plays
   const [barsReady, setBarsReady] = useState(false);
@@ -72,6 +77,7 @@ function HeroCard({ data }: { data: OverviewData }) {
       <p className="ov-hero-eyebrow">Today · {fmtDate()}</p>
 
       <div className="ov-hero-row">
+        <span className="ov-hero-label">Calories</span>
         <div className="ov-hero-values">
           <span className="ov-hero-num">{kcalCount.toLocaleString()}</span>
           {kcalTarget > 0 && (
@@ -89,6 +95,7 @@ function HeroCard({ data }: { data: OverviewData }) {
       </div>
 
       <div className="ov-hero-row">
+        <span className="ov-hero-label">Protein</span>
         <div className="ov-hero-values">
           <span className="ov-hero-num">{proteinCount}</span>
           {proteinTarget > 0 && (
@@ -104,6 +111,16 @@ function HeroCard({ data }: { data: OverviewData }) {
           </div>
         )}
       </div>
+
+      {showBalance && (
+        <div className="ov-hero-balance">
+          <span className="ov-hero-label">{balance <= 0 ? "Deficit" : "Surplus"}</span>
+          <span className={`ov-hero-balance-num ${balance <= 0 ? "good" : "bad"}`}>
+            {balance > 0 ? "+" : balance < 0 ? "−" : ""}
+            {Math.abs(balanceCount).toLocaleString()} kcal
+          </span>
+        </div>
+      )}
     </section>
   );
 }
@@ -215,6 +232,7 @@ export function OverviewPage() {
         <section className="page-card ov-hero loading-card">
           <p className="ov-hero-eyebrow">Today · {fmtDate()}</p>
           <div className="ov-hero-row">
+            <span className="ov-hero-label">Calories</span>
             <div className="ov-hero-values">
               <span className="ov-hero-num">0,000</span>
               <span className="ov-hero-denom">/ 0,000 kcal</span>
@@ -224,6 +242,7 @@ export function OverviewPage() {
             </div>
           </div>
           <div className="ov-hero-row">
+            <span className="ov-hero-label">Protein</span>
             <div className="ov-hero-values">
               <span className="ov-hero-num">000</span>
               <span className="ov-hero-denom">/ 000 g</span>
@@ -231,6 +250,10 @@ export function OverviewPage() {
             <div className="ov-bar-track">
               <div className="ov-bar-fill protein" style={{ width: "35%", opacity: 0.3 }} />
             </div>
+          </div>
+          <div className="ov-hero-balance">
+            <span className="ov-hero-label">Deficit</span>
+            <span className="ov-hero-balance-num good">−000 kcal</span>
           </div>
         </section>
 
@@ -243,7 +266,7 @@ export function OverviewPage() {
           <div className="ov-stat loading-card">
             <span className="ov-stat-label">TDEE</span>
             <span className="ov-stat-val">0,000</span>
-            <span className="ov-stat-sub">kcal / day</span>
+            <span className="ov-stat-sub">auto · kcal/day</span>
           </div>
         </div>
 
@@ -291,7 +314,7 @@ export function OverviewPage() {
           {data.tdee != null ? (
             <>
               <span className="ov-stat-val">{tdeeCount.toLocaleString()}</span>
-              <span className="ov-stat-sub">kcal / day</span>
+              <span className="ov-stat-sub">auto · kcal/day</span>
             </>
           ) : (
             <>

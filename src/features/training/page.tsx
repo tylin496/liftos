@@ -679,6 +679,7 @@ function TrainingPageInner() {
                     </div>
                   </div>
                 </div>
+                <div className="ex-ident-wrap" />
               </div>
               <div className="ex-history">
                 {[0, 1, 2].map((j) => (
