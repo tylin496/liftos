@@ -621,9 +621,41 @@ function TrainingPageInner() {
       )}
 
       {!exercises && !error && (
-        <section className="page-card">
-          <p className="page-note">Loading…</p>
-        </section>
+        <>
+          {[0, 1, 2].map((i) => (
+            <article key={i} className="ex-card loading-card">
+              <div className="ex-title-block">
+                <div className="ex-title-row">
+                  <h3 className="ex-name">Exercise Name</h3>
+                </div>
+                <div className="ex-meta-row" />
+              </div>
+              <div className="ex-body">
+                <div className="ex-body-content">
+                  <div className="ex-pr-inline">
+                    <div className="pr-top-row">
+                      <span className="pr-weight">00.0 kg</span>
+                      <span className="pr-meta mono">×00</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="ex-history">
+                {[0, 1, 2].map((j) => (
+                  <div key={j} className="hist-row">
+                    <span className="hist-date">
+                      <span className="hist-date-mon">JAN</span>
+                      <span className="hist-date-day mono">00</span>
+                    </span>
+                    <span className="hist-expr">
+                      <span className="hist-expr-row">00.0 kg × 00</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </>
       )}
 
       {/* ── Exercise cards ── */}

@@ -385,10 +385,23 @@ export function TodayView({ config }: { config: NutritionConfig }) {
   }
 
   async function handleDelete() {
+    const savedCal = calories;
+    const savedProt = protein;
+    const savedDate = date;
     await deleteEntry(date);
     setCalories("");
     setProtein("");
-    toast("Entry deleted", "info");
+    toast("Entry deleted", "info", 5000, {
+      label: "Undo",
+      onClick: () => {
+        saveEntry(savedDate, { calories: Number(savedCal) || 0, protein: Number(savedProt) || 0 }, config)
+          .then(() => {
+            if (date === savedDate) { setCalories(savedCal); setProtein(savedProt); }
+            toast("Restored", "success");
+          })
+          .catch((e) => toast(String((e as Error)?.message ?? e), "error"));
+      },
+    });
   }
 
   const pillState = calResult.isSurplus ? "surplus" : calResult.state;

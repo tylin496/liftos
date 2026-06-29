@@ -229,21 +229,33 @@ export function HealthPage() {
   return (
     <div className="page health">
       {/* TDEE hero — fixed windows, independent of period selector */}
-      <section className="page-card health-tdee">
+      <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
         <p className="page-eyebrow">CURRENT TDEE</p>
         {!data ? (
-          <p className="page-note">Loading…</p>
+          <>
+            <div className="health-tdee-num">
+              <span className="health-tdee-val">0,000</span>
+              <span className="health-unit"> kcal/day</span>
+            </div>
+            <details className="health-tdee-method">
+              <summary>
+                Calculated from<br />
+                30-day Resting Avg + 14-day Active Avg
+              </summary>
+            </details>
+          </>
         ) : tdee?.tdee != null ? (
           <>
             <div className="health-tdee-num">
               <AnimatedTdee value={tdee.tdee} />
               <span className="health-unit"> kcal/day</span>
             </div>
-            <p className="health-tdee-method">
-              Calculated from<br />
-              30-day Resting Avg + 14-day Active Avg
-            </p>
-            <hr className="health-tdee-divider" />
+            <details className="health-tdee-method">
+              <summary>
+                Calculated from<br />
+                30-day Resting Avg + 14-day Active Avg
+              </summary>
+              <hr className="health-tdee-divider" />
             <div className="health-tdee-components">
               <div className="health-tdee-component">
                 <span className="health-tdee-component-label">Resting</span>
@@ -264,6 +276,7 @@ export function HealthPage() {
                 </span>
               </div>
             </div>
+            </details>
           </>
         ) : (
           <p className="page-note">
@@ -284,6 +297,25 @@ export function HealthPage() {
           </button>
         ))}
       </div>
+
+      {/* Skeleton metric cards — shown while data loads */}
+      {!data && METRICS.map((spec) => (
+        <section key={spec.key} className="page-card health-metric loading-card">
+          <div className="health-metric-head">
+            <span className="health-metric-label">{spec.label}</span>
+            <span className="health-metric-change">+0.0 {spec.unit}</span>
+          </div>
+          <p className="health-metric-eyebrow">AVERAGE</p>
+          <div className="health-metric-hero">
+            <span className="health-metric-val">0.0</span>
+            <span className="health-unit">{spec.unit}</span>
+          </div>
+          <p className="health-metric-daterange">Jan 2026 – Jun 2026</p>
+          <div className="health-chart-wrap">
+            <div className="skel" style={{ height: 80, marginTop: 8, borderRadius: 4 }} />
+          </div>
+        </section>
+      ))}
 
       {/* Metric cards — Apple Health style */}
       {cards.map(({ spec, bucketed, avg7d, change, dateRange, readingCount }) => {
