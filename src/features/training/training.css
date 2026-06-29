@@ -22,6 +22,11 @@
 }
 
 /* ── Exercise card ───────────────────────────────────────────────────────────*/
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .ex-card {
   position: relative;
   background: var(--bg-card);
@@ -29,7 +34,19 @@
   box-shadow: var(--shadow-sm);
   padding: var(--space-4);
   overflow: visible;
+  animation: card-enter 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* Stagger each card by 45ms */
+.ex-card:nth-child(1)  { animation-delay:   0ms; }
+.ex-card:nth-child(2)  { animation-delay:  45ms; }
+.ex-card:nth-child(3)  { animation-delay:  90ms; }
+.ex-card:nth-child(4)  { animation-delay: 135ms; }
+.ex-card:nth-child(5)  { animation-delay: 180ms; }
+.ex-card:nth-child(6)  { animation-delay: 225ms; }
+.ex-card:nth-child(7)  { animation-delay: 270ms; }
+.ex-card:nth-child(8)  { animation-delay: 315ms; }
+.ex-card:nth-child(n+9){ animation-delay: 360ms; }
 
 /* ── Card menu ───────────────────────────────────────────────────────────────*/
 .ex-card-menu {
@@ -61,6 +78,11 @@
   color: var(--ink);
 }
 
+@keyframes menu-pop {
+  from { opacity: 0; transform: scale(0.97) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 .card-menu-popup {
   position: absolute;
   top: calc(100% + 4px);
@@ -72,6 +94,7 @@
   box-shadow: var(--shadow-md);
   padding: var(--space-1) 0;
   z-index: 100;
+  animation: menu-pop 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .card-menu-item {
@@ -198,6 +221,8 @@
   flex-shrink: 0;
   width: 120px;
   height: 120px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
 }
 
 .ex-ident {
@@ -205,6 +230,11 @@
   height: 100%;
   object-fit: contain;
   display: block;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ex-ident-wrap:hover .ex-ident {
+  transform: scale(1.05);
 }
 
 /* ── PR display ──────────────────────────────────────────────────────────────*/
@@ -215,8 +245,38 @@
   padding: var(--space-1) 0;
 }
 
+@keyframes pr-pop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.06); }
+  65%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pr-sheen {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
 .ex-pr-inline.pr-just-set {
   background: rgba(200, 117, 0, 0.12);
+  animation: pr-pop 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.ex-pr-inline.pr-just-set::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 200, 80, 0.35) 50%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  animation: pr-sheen 1s ease forwards;
+  pointer-events: none;
 }
 
 .pr-top-row {
@@ -286,9 +346,16 @@
   margin-left: calc(-1 * var(--space-2));
 }
 
+@keyframes row-edit-in {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
+  50%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
 .hist-row.is-editing {
   background: var(--bg-soft);
   border-radius: var(--radius-sm);
+  animation: row-edit-in 180ms ease;
 }
 
 .hist-row.is-editing .hist-actions button {
@@ -488,6 +555,16 @@
 }
 
 /* ── Log form ────────────────────────────────────────────────────────────────*/
+@keyframes add-form-in {
+  from { opacity: 0; transform: translateY(8px) scaleY(0.97); }
+  to   { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+
+@keyframes log-zone-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .add-form.log-redesign {
   display: flex;
   flex-direction: column;
@@ -495,7 +572,19 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--rule);
   margin-top: var(--space-2);
+  animation: add-form-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: top center;
 }
+
+.add-form.log-redesign > * {
+  animation: log-zone-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.add-form.log-redesign > *:nth-child(1) { animation-delay:  50ms; }
+.add-form.log-redesign > *:nth-child(2) { animation-delay: 100ms; }
+.add-form.log-redesign > *:nth-child(3) { animation-delay: 150ms; }
+.add-form.log-redesign > *:nth-child(4) { animation-delay: 200ms; }
+.add-form.log-redesign > *:nth-child(n+5) { animation-delay: 250ms; }
 
 .log-topbar {
   display: flex;
@@ -1295,6 +1384,7 @@
   box-shadow: var(--shadow-md);
   padding: var(--space-1) 0;
   z-index: 50;
+  animation: menu-pop 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .stretch-menu-item {

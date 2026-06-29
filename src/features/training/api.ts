@@ -263,6 +263,20 @@ export interface StretchItem {
   id: string;
   name: string;
   note?: string;
+  image_url?: string;
+}
+
+/** Upload a photo for a stretch to Supabase Storage. Returns the public URL. */
+export async function uploadStretchImage(id: string, file: File): Promise<string> {
+  const userId = await currentUserId();
+  const blob = await compressImageToBlob(file);
+  const path = `${userId}/stretches/${id}.png`;
+  const { error } = await supabase.storage
+    .from("exercise-images")
+    .upload(path, blob, { upsert: true, contentType: "image/png" });
+  if (error) throw error;
+  const { data } = supabase.storage.from("exercise-images").getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
 }
 
 const DEFAULT_STRETCHES: Record<SplitId, StretchItem[]> = {

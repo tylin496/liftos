@@ -12,6 +12,7 @@ import {
   deleteExerciseAndLogs,
   loadStretches,
   saveStretches,
+  uploadStretchImage,
   type Exercise,
   type TrainingLog,
   type StretchItem,
@@ -50,18 +51,17 @@ function fmtWeightNum(n: number): string {
 // SmartStretchImage
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SmartStretchImage({ split, stretchId }: { split: SplitId; stretchId: string }) {
-  const [ok, setOk] = useState(true);
-  const src = `${import.meta.env.BASE_URL}images/${split}/stretches/${stretchId}.png`;
-  useEffect(() => setOk(true), [src]);
-  if (!ok) return null;
+function SmartStretchImage({ split, stretchId, imageUrl }: { split: SplitId; stretchId: string; imageUrl?: string }) {
+  const staticSrc = `${import.meta.env.BASE_URL}images/${split}/stretches/${stretchId}.png`;
+  const [src, setSrc] = useState(imageUrl ?? staticSrc);
+  useEffect(() => setSrc(imageUrl ?? staticSrc), [imageUrl, staticSrc]);
   return (
     <img
       src={src}
       alt=""
       className="stretch-card-img"
       loading="lazy"
-      onError={() => setOk(false)}
+      onError={() => { if (src !== staticSrc) setSrc(staticSrc); }}
     />
   );
 }
@@ -85,7 +85,29 @@ function StretchCard({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(stretch.name);
   const [note, setNote] = useState(stretch.note ?? "");
+  const [uploading, setUploading] = useState(false);
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const blob = URL.createObjectURL(file);
+    setLocalImageUrl(blob);
+    setUploading(true);
+    try {
+      const url = await uploadStretchImage(stretch.id, file);
+      URL.revokeObjectURL(blob);
+      setLocalImageUrl(null);
+      onSave({ image_url: url });
+    } catch {
+      setLocalImageUrl(null);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  }
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -115,7 +137,7 @@ function StretchCard({
 
   return (
     <article className="stretch-card">
-      <SmartStretchImage split={split} stretchId={stretchSlug} />
+      <SmartStretchImage split={split} stretchId={stretchSlug} imageUrl={localImageUrl ?? stretch.image_url} />
       {editing ? (
         <div className="stretch-edit-form">
           <input
@@ -167,6 +189,17 @@ function StretchCard({
                 </button>
                 <button
                   type="button"
+                  className="stretch-menu-item"
+                  disabled={uploading}
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                    setMenuOpen(false);
+                  }}
+                >
+                  {uploading ? "Uploading…" : "Upload photo"}
+                </button>
+                <button
+                  type="button"
                   className="stretch-menu-item danger"
                   onClick={() => {
                     setMenuOpen(false);
@@ -180,6 +213,13 @@ function StretchCard({
           </div>
         </>
       )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleImageUpload}
+      />
     </article>
   );
 }
@@ -689,6 +729,14 @@ function TrainingPageInner() {
         ))}
       </div>
 
+      {/* ── Archived ── */}
+      <ArchivedSection
+        exercises={archivedExercises}
+        logs={logs}
+        onRestore={handleRestore}
+        onDelete={handleDeleteArchived}
+      />
+
       {/* ── Add exercise ── */}
       <div className="add-exercise">
         {addingExercise ? (
@@ -707,14 +755,6 @@ function TrainingPageInner() {
         )}
       </div>
 
-      {/* ── Archived ── */}
-      <ArchivedSection
-        exercises={archivedExercises}
-        logs={logs}
-        onRestore={handleRestore}
-        onDelete={handleDeleteArchived}
-      />
-
       {/* ── Stretches ── */}
       <StretchList
         split={split}
@@ -731,7 +771,7 @@ function TrainingPageInner() {
             className={`filter-btn${timeFilter === f ? " on" : ""}`}
             onClick={() => setTimeFilter(f)}
           >
-            {f === "3mo" ? "3M" : f === "year" ? "Year" : "All"}
+            {f === "3mo" ? "3M" : f === "year" ? "Y" : "All"}
           </button>
         ))}
       </div>
