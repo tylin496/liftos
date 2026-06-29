@@ -14,6 +14,10 @@
 .tr-slide-left  { animation: slide-from-right 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
 .tr-slide-right { animation: slide-from-left  0.28s cubic-bezier(0.22, 1, 0.36, 1); }
 
+/* suppress card-enter when the whole list is sliding horizontally */
+.tr-slide-left .ex-card,
+.tr-slide-right .ex-card { animation: none; }
+
 /* ── Exercise list ───────────────────────────────────────────────────────────*/
 .tr-list {
   display: flex;
