@@ -20,7 +20,6 @@ const TAB_ORDER: TabId[] = ["overview", "training", "nutrition", "health"];
 
 export function Shell({ session }: { session: Session }) {
   const [tab, setTab] = useState<TabId>("overview");
-  const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const Page = PAGES[tab];
   const contentRef = useRef<HTMLElement | null>(null);
   const touchStartX = useRef(0);
@@ -56,14 +55,8 @@ export function Shell({ session }: { session: Session }) {
       if (Math.abs(dx) < 44) return;
       setTab((prev) => {
         const idx = TAB_ORDER.indexOf(prev);
-        if (dx < 0 && idx < TAB_ORDER.length - 1) {
-          setSlideDir("left");
-          return TAB_ORDER[idx + 1];
-        }
-        if (dx > 0 && idx > 0) {
-          setSlideDir("right");
-          return TAB_ORDER[idx - 1];
-        }
+        if (dx < 0 && idx < TAB_ORDER.length - 1) return TAB_ORDER[idx + 1];
+        if (dx > 0 && idx > 0) return TAB_ORDER[idx - 1];
         return prev;
       });
     }
@@ -78,26 +71,14 @@ export function Shell({ session }: { session: Session }) {
     };
   }, []);
 
-  function changeTab(id: TabId) {
-    const fromIdx = TAB_ORDER.indexOf(tab);
-    const toIdx = TAB_ORDER.indexOf(id);
-    setSlideDir(toIdx > fromIdx ? "left" : "right");
-    setTab(id);
-  }
-
   return (
     <HeaderActionProvider>
       <div className="shell">
         <Header user={session.user} tab={tab} />
-        <main
-          ref={contentRef}
-          className={`shell-content${slideDir ? ` shell-slide-${slideDir}` : ""}`}
-          key={tab}
-          onAnimationEnd={() => setSlideDir(null)}
-        >
+        <main ref={contentRef} className="shell-content">
           <Page />
         </main>
-        <TabBar active={tab} onChange={changeTab} />
+        <TabBar active={tab} onChange={setTab} />
       </div>
     </HeaderActionProvider>
   );

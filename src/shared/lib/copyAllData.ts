@@ -6,11 +6,11 @@ import { computeStats, epley1RM } from "@features/training/logic";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
 
-export async function buildAllDataJson(): Promise<string> {
+export async function buildAllDataJson(healthDays = 90): Promise<string> {
   const today = new Date().toISOString().slice(0, 10);
 
   const [health, nutritionConfig, nutritionEntries, exercises, logsBySlug] = await Promise.all([
-    fetchHealthData(90).catch(() => null),
+    fetchHealthData(healthDays).catch(() => null),
     getConfig().catch(() => null),
     getEntries("2000-01-01", today).catch(() => []),
     fetchExercises().catch(() => []),
@@ -130,7 +130,7 @@ export async function buildAllDataJson(): Promise<string> {
       type: "all",
       date: today,
       health: {
-        periodDays: 90,
+        periodDays: healthDays,
         tdee: tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null,
         /** Resting energy averaged over 30 days; active energy averaged over 14 days. */
         tdeeRestingDays: tdeeEst.restingDays,

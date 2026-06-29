@@ -431,19 +431,17 @@ export function TodayView({ config }: { config: NutritionConfig }) {
 
       {/* Unified daily card — tap to log */}
       <button
-        className={`page-card nutri-hero nutri-tap-card${savedPulse ? " saved-pulse" : ""}`}
+        className={`page-card nutri-hero nutri-tap-card${savedPulse ? " saved-pulse" : ""}${loading ? " loading-card" : ""}`}
         onClick={() => !loading && setEntryOpen(true)}
         aria-label="Log nutrition"
         disabled={loading}
       >
-        {/* Status pill — only visible after an entry exists */}
-        {hasEntry && (
-          <div className="nutri-pill-row">
-            <span className={`nutri-pill nutri-pill-${pillState}`}>
-              {pillLabel(calResult.state, calResult.isSurplus)}
-            </span>
-          </div>
-        )}
+        {/* Status pill — always rendered to reserve height; hidden until entry exists */}
+        <div className={`nutri-pill-row${!hasEntry ? " nutri-pill-row--empty" : ""}`}>
+          <span className={`nutri-pill nutri-pill-${hasEntry ? pillState : "under"}`}>
+            {hasEntry ? pillLabel(calResult.state, calResult.isSurplus) : "On Plan"}
+          </span>
+        </div>
 
         {/* Calorie hero — shows actual kcal consumed, coloured by state */}
         <div className={`nutri-hero-num-row state-${calResult.state}`}>

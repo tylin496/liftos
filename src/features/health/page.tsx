@@ -22,17 +22,44 @@ const METRICS: MetricSpec[] = [
 ];
 
 type RangeKey = "30D" | "90D" | "6M" | "1Y";
-const RANGES: { key: RangeKey; days: number }[] = [
-  { key: "30D", days: 30 },
-  { key: "90D", days: 90 },
-  { key: "6M", days: 180 },
-  { key: "1Y", days: 365 },
+const RANGES: { key: RangeKey; days: number; bucketDays: number }[] = [
+  { key: "30D", days: 30,  bucketDays: 1  },
+  { key: "90D", days: 90,  bucketDays: 3  },
+  { key: "6M",  days: 180, bucketDays: 7  },
+  { key: "1Y",  days: 365, bucketDays: 30 },
 ];
 
 function series(metrics: BodyMetric[], key: MetricKey) {
   return metrics
     .map((m) => ({ date: m.metric_date, value: m[key] as number | null }))
     .filter((p): p is { date: string; value: number } => p.value != null);
+}
+
+/**
+ * Bucket a series into fixed-size time windows and return the average per bucket.
+ * Each bucket is identified by its start date (floor to bucketDays boundary from
+ * the epoch). Buckets with no data are dropped.
+ */
+function bucketSeries(
+  pts: { date: string; value: number }[],
+  bucketDays: number,
+): number[] {
+  if (!pts.length) return [];
+  if (bucketDays <= 1) return pts.map((p) => p.value);
+
+  const MS = 86400000;
+  const buckets = new Map<number, number[]>();
+  for (const p of pts) {
+    const dayIndex = Math.floor(new Date(p.date + "T12:00:00").getTime() / (MS * bucketDays));
+    if (!buckets.has(dayIndex)) buckets.set(dayIndex, []);
+    buckets.get(dayIndex)!.push(p.value);
+  }
+  return [...buckets.keys()]
+    .sort((a, b) => a - b)
+    .map((k) => {
+      const vals = buckets.get(k)!;
+      return vals.reduce((s, v) => s + v, 0) / vals.length;
+    });
 }
 
 /** Rolling N-day average ending at the last point in `pts`. */
@@ -82,7 +109,7 @@ export function HealthPage() {
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const days = RANGES.find((r) => r.key === range)!.days;
+  const { days, bucketDays } = RANGES.find((r) => r.key === range)!;
 
   useEffect(() => {
     setData(null);
@@ -91,7 +118,7 @@ export function HealthPage() {
       .catch((e) => setError(String(e?.message ?? e)));
   }, [days]);
 
-  useCopyButton(buildAllDataJson);
+  useCopyButton(() => buildAllDataJson(days));
 
   const tdee = data?.tdee;
 
@@ -103,9 +130,10 @@ export function HealthPage() {
       const first = s[0];
       const latest = s.at(-1);
       const change = latest && first ? latest.value - first.value : null;
-      return { spec, values: s.map((p) => p.value), avg7d, latest, change };
+      const sparkValues = bucketSeries(s, bucketDays);
+      return { spec, sparkValues, avg7d, latest, change, readingCount: s.length };
     });
-  }, [data]);
+  }, [data, bucketDays]);
 
   if (error) {
     return (
@@ -134,7 +162,7 @@ export function HealthPage() {
 
       {/* TDEE from Apple Health */}
       <section className="page-card health-tdee">
-        <p className="page-eyebrow">TDEE · 30d resting + 14d active avg</p>
+        <p className="page-eyebrow">TDEE · Resting (30d avg) + Active (14d avg)</p>
         {!data ? (
           <p className="page-note">Loading…</p>
         ) : tdee?.tdee != null ? (
@@ -145,20 +173,20 @@ export function HealthPage() {
             </div>
             <div className="health-tdee-grid">
               <div>
-                <span className="health-k">Resting</span>
+                <span className="health-k">Resting (30d avg)</span>
                 <span className="health-v">{tdee.avgResting?.toLocaleString()} kcal</span>
               </div>
               <div>
-                <span className="health-k">Active</span>
+                <span className="health-k">Active (14d avg)</span>
                 <span className="health-v">{tdee.avgActive?.toLocaleString()} kcal</span>
               </div>
               <div>
-                <span className="health-k">Resting window</span>
-                <span className="health-v">{tdee.restingDays} days</span>
+                <span className="health-k">Resting days</span>
+                <span className="health-v">{tdee.restingDays}</span>
               </div>
               <div>
-                <span className="health-k">Active window</span>
-                <span className="health-v">{tdee.activeDays} days</span>
+                <span className="health-k">Active days</span>
+                <span className="health-v">{tdee.activeDays}</span>
               </div>
             </div>
           </>
@@ -170,7 +198,7 @@ export function HealthPage() {
       </section>
 
       {/* Metric history cards */}
-      {cards.map(({ spec, values, avg7d, change }) => (
+      {cards.map(({ spec, sparkValues, avg7d, change, readingCount }) => (
         <section className="page-card health-metric" key={spec.key}>
           <div className="health-metric-head">
             <span className="health-metric-label">{spec.label}</span>
@@ -186,11 +214,11 @@ export function HealthPage() {
           {avg7d != null && (
             <p className="health-metric-avg-label">7-day avg</p>
           )}
-          <Sparkline values={values} />
-          {change != null && values.length >= 2 && (
+          <Sparkline values={sparkValues} />
+          {change != null && readingCount >= 2 && (
             <p className="health-metric-change">
               {change > 0 ? "+" : ""}
-              {fmt(change, spec.decimals)} {spec.unit} over {values.length} readings
+              {fmt(change, spec.decimals)} {spec.unit} over {readingCount} readings
             </p>
           )}
         </section>

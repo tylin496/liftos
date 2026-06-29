@@ -212,40 +212,61 @@ export function OverviewPage() {
   if (!data) {
     return (
       <div className="page">
-        <section className="page-card ov-hero">
-          <div className="skel skel-line--sm" style={{ width: "120px", marginBottom: "16px" }} />
-          <div className="skel skel-num" style={{ width: "160px", marginBottom: "8px" }} />
-          <div className="skel skel-bar" style={{ width: "100%", marginBottom: "20px" }} />
-          <div className="skel skel-num" style={{ width: "100px", marginBottom: "8px" }} />
-          <div className="skel skel-bar" style={{ width: "100%" }} />
-        </section>
-        <div className="ov-grid-2">
-          <div className="ov-stat">
-            <div className="skel skel-line--sm" style={{ width: "50px", marginBottom: "8px" }} />
-            <div className="skel skel-num" style={{ width: "70px" }} />
+        <section className="page-card ov-hero loading-card">
+          <p className="ov-hero-eyebrow">Today · {fmtDate()}</p>
+          <div className="ov-hero-row">
+            <div className="ov-hero-values">
+              <span className="ov-hero-num">0,000</span>
+              <span className="ov-hero-denom">/ 0,000 kcal</span>
+            </div>
+            <div className="ov-bar-track">
+              <div className="ov-bar-fill" style={{ width: "35%", opacity: 0.3 }} />
+            </div>
           </div>
-          <div className="ov-stat">
-            <div className="skel skel-line--sm" style={{ width: "40px", marginBottom: "8px" }} />
-            <div className="skel skel-num" style={{ width: "80px" }} />
+          <div className="ov-hero-row">
+            <div className="ov-hero-values">
+              <span className="ov-hero-num">000</span>
+              <span className="ov-hero-denom">/ 000 g</span>
+            </div>
+            <div className="ov-bar-track">
+              <div className="ov-bar-fill protein" style={{ width: "35%", opacity: 0.3 }} />
+            </div>
+          </div>
+        </section>
+
+        <div className="ov-grid-2">
+          <div className="ov-stat loading-card">
+            <span className="ov-stat-label">Weight</span>
+            <span className="ov-stat-val">+0.0 kg</span>
+            <span className="ov-stat-sub">vs 7 days ago</span>
+          </div>
+          <div className="ov-stat loading-card">
+            <span className="ov-stat-label">TDEE</span>
+            <span className="ov-stat-val">0,000</span>
+            <span className="ov-stat-sub">kcal / day</span>
           </div>
         </div>
-        <section className="page-card ov-strength">
-          <div className="skel skel-line--sm" style={{ width: "80px", marginBottom: "12px" }} />
-          <div className="skel skel-line--lg" style={{ width: "110px", marginBottom: "6px" }} />
-          <div className="skel skel-line--sm" style={{ width: "80px", marginBottom: "16px" }} />
-          <div style={{ display: "flex", gap: "8px" }}>
-            <div className="skel skel-line--sm" style={{ width: "40px", borderRadius: "99px" }} />
-            <div className="skel skel-line--sm" style={{ width: "32px", borderRadius: "99px" }} />
+
+        <section className="page-card ov-strength loading-card">
+          <p className="ov-card-eyebrow">Performance</p>
+          <p className="ov-strength-dominant">Stable</p>
+          <p className="ov-strength-count">0 exercises</p>
+          <div className="ov-strength-pills">
+            <span className="ov-strength-pill ov-strength-pill-good">↑0</span>
+            <span className="ov-strength-pill ov-strength-pill-stable">→0</span>
           </div>
         </section>
+
         <div className="ov-grid-2">
-          <div className="ov-stat">
-            <div className="skel skel-line--sm" style={{ width: "50px", marginBottom: "8px" }} />
-            <div className="skel skel-num" style={{ width: "30px" }} />
+          <div className="ov-stat loading-card">
+            <span className="ov-stat-label">Training</span>
+            <span className="ov-stat-val">0</span>
+            <span className="ov-stat-sub">sessions this week</span>
           </div>
-          <div className="ov-stat">
-            <div className="skel skel-line--sm" style={{ width: "30px", marginBottom: "8px" }} />
-            <div className="skel skel-num" style={{ width: "40px" }} />
+          <div className="ov-stat loading-card">
+            <span className="ov-stat-label">PRs</span>
+            <span className="ov-stat-val">+0</span>
+            <span className="ov-stat-sub">this month</span>
           </div>
         </div>
       </div>

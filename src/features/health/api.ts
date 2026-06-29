@@ -40,9 +40,12 @@ export async function fetchHealthData(days = 30): Promise<HealthData> {
   const fetchDays = Math.max(days, 30);
   const allMetrics = await fetchBodyMetrics(fetchDays);
 
+  const cutoff30 = sinceDate(30);
   const cutoff14 = sinceDate(14);
   const tdee = estimateTdee(
-    allMetrics.map((m) => ({ resting: m.resting_energy_kcal })),
+    allMetrics
+      .filter((m) => m.metric_date >= cutoff30)
+      .map((m) => ({ resting: m.resting_energy_kcal })),
     allMetrics
       .filter((m) => m.metric_date >= cutoff14)
       .map((m) => ({ active: m.active_energy_kcal })),

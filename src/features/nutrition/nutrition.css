@@ -258,8 +258,7 @@
 .nutri-datenav {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
+  justify-content: space-between;
   padding: var(--space-1) 0 var(--space-2);
 }
 
@@ -1136,4 +1135,35 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+/* ── Skeleton loading state ──────────────────────────────────────────────── */
+
+.loading-card .nutri-hero-num,
+.loading-card .nutri-hero-unit-lg,
+.loading-card .nutri-settle-delta,
+.loading-card .nutri-settle-note,
+.loading-card .nutri-protein-num,
+.loading-card .nutri-protein-unit {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
+    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
+  ) !important;
+  background-size: 300% 100% !important;
+  border-radius: 0.3em !important;
+  animation: skel-shimmer 2.2s ease-in-out infinite !important;
+}
+
+.loading-card .nutri-empty {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: transparent !important;
+}
+
+.nutri-pill-row--empty {
+  visibility: hidden;
 }
