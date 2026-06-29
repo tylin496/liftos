@@ -31,7 +31,7 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
   },
   {
     id: "nutrition",
-    label: "Macro",
+    label: "Nutrition",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M3 2v7c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2V2" />
