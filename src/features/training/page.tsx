@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
+import { buildAllDataJson } from "@shared/lib/copyAllData";
 import { supabase } from "@shared/lib/supabase";
 import {
   ensureSeeded,
@@ -23,7 +24,7 @@ import {
   useToast,
   useConfirm,
 } from "./ExerciseCard";
-import { computeStats, epley1RM } from "./logic";
+import { computeStats } from "./logic";
 import { parse, score, formatRepsDisplay } from "./parser";
 import type { TimeFilter } from "./logic";
 import "./training.css";
@@ -583,56 +584,7 @@ function TrainingPageInner() {
     setStretches((prev) => ({ ...prev, [split]: items }));
   }
 
-  function buildCopyText() {
-    const splitName = SPLITS.find((s) => s.id === split)?.name ?? split;
-    const exerciseData = activeExercises.map((ex) => {
-      const exLogs = [...(logs[ex.slug] ?? [])].reverse(); // asc
-      const stats = computeStats(exLogs);
-      const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
-      return {
-        name: ex.name,
-        target: ex.target ?? null,
-        note: ex.note ?? null,
-        pr: pr ? {
-          e1rm: +epley1RM(score(pr), pr.reps).toFixed(1),
-          raw: stats.best?.log.raw ?? null,
-        } : null,
-        logs: exLogs.map((l) => {
-          const p = l.raw ? parse(l.raw) : null;
-          const w = p ? +score(p).toFixed(2) : null;
-          return {
-            date: l.log_date,
-            raw: l.raw,
-            weight: w,
-            reps: p?.reps ?? null,
-            e1rm: p && w != null ? +epley1RM(w, p.reps).toFixed(1) : null,
-            assist: p?.assisted ? +p.assisted.assist.toFixed(2) : null,
-            note: l.note ?? null,
-          };
-        }),
-      };
-    });
-    const strList = (stretches[split] ?? []).map((s) => ({
-      name: s.name,
-      note: s.note ?? null,
-    }));
-    const prsCount = exerciseData.filter((e) => e.pr != null).length;
-    return JSON.stringify({
-      source: "LiftOS",
-      schema: 1,
-      type: "training",
-      date: new Date().toISOString().slice(0, 10),
-      split: splitName,
-      summary: {
-        exercises: exerciseData.length,
-        trackedExercises: prsCount,
-      },
-      exercises: exerciseData,
-      stretches: strList,
-    }, null, 2);
-  }
-
-  useCopyButton(buildCopyText);
+  useCopyButton(buildAllDataJson);
 
   return (
     <div

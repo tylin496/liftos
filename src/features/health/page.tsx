@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchHealthData, type BodyMetric, type HealthData } from "./api";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
+import { buildAllDataJson } from "@shared/lib/copyAllData";
 import "./health.css";
 
 type MetricKey = "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal";
@@ -60,52 +61,7 @@ export function HealthPage() {
       .catch((e) => setError(String(e?.message ?? e)));
   }, []);
 
-  useCopyButton(() => {
-    if (!data) return "";
-    const COPY_KEY: Record<MetricKey, string> = {
-      weight_kg: "weight",
-      body_fat_pct: "bodyFat",
-      active_energy_kcal: "activeEnergy",
-      resting_energy_kcal: "restingEnergy",
-    };
-    const metricsObj: Record<string, unknown> = {};
-    for (const spec of METRICS) {
-      const s = series(data.metrics, spec.key);
-      if (!s.length) continue;
-      const latest = s.at(-1)!;
-      const first = s[0];
-      const avg = s.reduce((sum, p) => sum + p.value, 0) / s.length;
-      metricsObj[COPY_KEY[spec.key]] = {
-        latest: +fmt(latest.value, spec.decimals).replace(",", ""),
-        latestDate: latest.date,
-        change30d: +(latest.value - first.value).toFixed(spec.decimals),
-        avg30d: +avg.toFixed(spec.decimals),
-        dataPoints: s.length,
-      };
-    }
-    const allDates = [...new Set(data.metrics.map((m) => m.metric_date))].sort();
-    const timeline = allDates.map((date) => {
-      const row = data.metrics.find((m) => m.metric_date === date);
-      return {
-        date,
-        weight: row?.weight_kg ?? null,
-        bodyFat: row?.body_fat_pct ?? null,
-        activeEnergy: row?.active_energy_kcal ?? null,
-        restingEnergy: row?.resting_energy_kcal ?? null,
-      };
-    });
-    return JSON.stringify({
-      source: "LiftOS",
-      schema: 1,
-      type: "health",
-      date: new Date().toISOString().slice(0, 10),
-      periodDays: 30,
-      tdee: data.tdee?.tdee != null ? Math.round(data.tdee.tdee) : null,
-      tdeeDataPoints: data.tdee?.dataPoints ?? null,
-      summary: metricsObj,
-      timeline,
-    }, null, 2);
-  });
+  useCopyButton(buildAllDataJson);
 
   const tdee = data?.tdee;
 

@@ -3,7 +3,7 @@ import { useHeaderAction } from "@app/layout/HeaderActionContext";
 import { CopyIcon, CheckIcon } from "@shared/components/CopyIcon";
 import "./copyButton.css";
 
-export function useCopyButton(getText: () => string) {
+export function useCopyButton(getText: () => string | Promise<string>) {
   const { setAction } = useHeaderAction();
   const [copied, setCopied] = useState(false);
   const getTextRef = useRef(getText);
@@ -12,7 +12,7 @@ export function useCopyButton(getText: () => string) {
   useEffect(() => {
     async function handleCopy() {
       try {
-        await navigator.clipboard.writeText(getTextRef.current());
+        await navigator.clipboard.writeText(await getTextRef.current());
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchOverview, type OverviewData, type StrengthSummary } from "./api";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
+import { buildAllDataJson } from "@shared/lib/copyAllData";
 import "./overview.css";
 
 const MONTH_ABBR = [
@@ -166,37 +167,7 @@ export function OverviewPage() {
       .catch((e) => setError(String(e?.message ?? e)));
   }, []);
 
-  useCopyButton(() => {
-    if (!data) return "";
-    const t = data.today;
-    const s = data.strength;
-    return JSON.stringify({
-      source: "LiftOS",
-      schema: 1,
-      type: "overview",
-      date: new Date().toISOString().slice(0, 10),
-      today: {
-        calories: t?.calories ?? null,
-        protein: t?.protein ?? null,
-      },
-      weight: {
-        latest: data.weightLatest,
-        change7d: data.weightLatest != null && data.weightWeekAgo != null
-          ? +((data.weightLatest - data.weightWeekAgo).toFixed(2))
-          : null,
-      },
-      tdee: data.tdee != null ? Math.round(data.tdee) : null,
-      training: {
-        sessions: data.sessionsThisWeek,
-        prs: data.prThisMonth,
-        trend: {
-          improving: s.improving,
-          stable: s.stable,
-          watch: s.watch,
-        },
-      },
-    }, null, 2);
-  });
+  useCopyButton(buildAllDataJson);
 
   if (error) {
     return (
