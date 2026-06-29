@@ -20,6 +20,11 @@ const TAB_ORDER: TabId[] = ["overview", "training", "nutrition", "health"];
 
 export function Shell({ session }: { session: Session }) {
   const [tab, setTab] = useState<TabId>("overview");
+
+  function switchTab(next: TabId) {
+    setTab(next);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
   const Page = PAGES[tab];
   const contentRef = useRef<HTMLElement | null>(null);
   const touchStartX = useRef(0);
@@ -55,9 +60,11 @@ export function Shell({ session }: { session: Session }) {
       if (Math.abs(dx) < 44) return;
       setTab((prev) => {
         const idx = TAB_ORDER.indexOf(prev);
-        if (dx < 0 && idx < TAB_ORDER.length - 1) return TAB_ORDER[idx + 1];
-        if (dx > 0 && idx > 0) return TAB_ORDER[idx - 1];
-        return prev;
+        let next = prev;
+        if (dx < 0 && idx < TAB_ORDER.length - 1) next = TAB_ORDER[idx + 1];
+        else if (dx > 0 && idx > 0) next = TAB_ORDER[idx - 1];
+        if (next !== prev) window.scrollTo({ top: 0, behavior: "instant" });
+        return next;
       });
     }
 
@@ -78,7 +85,7 @@ export function Shell({ session }: { session: Session }) {
         <main ref={contentRef} className="shell-content">
           <Page />
         </main>
-        <TabBar active={tab} onChange={setTab} />
+        <TabBar active={tab} onChange={switchTab} />
       </div>
     </HeaderActionProvider>
   );

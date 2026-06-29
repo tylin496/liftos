@@ -228,6 +228,50 @@ export function HealthPage() {
 
   return (
     <div className="page health">
+      {/* TDEE hero — fixed windows, independent of period selector */}
+      <section className="page-card health-tdee">
+        <p className="page-eyebrow">CURRENT TDEE</p>
+        {!data ? (
+          <p className="page-note">Loading…</p>
+        ) : tdee?.tdee != null ? (
+          <>
+            <div className="health-tdee-num">
+              <AnimatedTdee value={tdee.tdee} />
+              <span className="health-unit"> kcal/day</span>
+            </div>
+            <p className="health-tdee-method">
+              Calculated from<br />
+              30-day Resting Avg + 14-day Active Avg
+            </p>
+            <hr className="health-tdee-divider" />
+            <div className="health-tdee-components">
+              <div className="health-tdee-component">
+                <span className="health-tdee-component-label">Resting</span>
+                <span className="health-tdee-component-val">
+                  {tdee.avgResting?.toLocaleString()} kcal/day
+                </span>
+                <span className="health-tdee-component-window">
+                  {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
+                </span>
+              </div>
+              <div className="health-tdee-component">
+                <span className="health-tdee-component-label">Active</span>
+                <span className="health-tdee-component-val">
+                  {tdee.avgActive?.toLocaleString()} kcal/day
+                </span>
+                <span className="health-tdee-component-window">
+                  {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"}
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="page-note">
+            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
+          </p>
+        )}
+      </section>
+
       {/* Range selector — Apple Health segmented pill */}
       <div className="health-range">
         {RANGES.map((r) => (
@@ -240,43 +284,6 @@ export function HealthPage() {
           </button>
         ))}
       </div>
-
-      {/* TDEE hero */}
-      <section className="page-card health-tdee">
-        <p className="page-eyebrow">TDEE · Resting (30d avg) + Active (14d avg)</p>
-        {!data ? (
-          <p className="page-note">Loading…</p>
-        ) : tdee?.tdee != null ? (
-          <>
-            <div className="health-tdee-num">
-              <AnimatedTdee value={tdee.tdee} />
-              <span className="health-unit"> kcal/day</span>
-            </div>
-            <div className="health-tdee-grid">
-              <div>
-                <span className="health-k">Resting (30d avg)</span>
-                <span className="health-v">{tdee.avgResting?.toLocaleString()} kcal</span>
-              </div>
-              <div>
-                <span className="health-k">Active (14d avg)</span>
-                <span className="health-v">{tdee.avgActive?.toLocaleString()} kcal</span>
-              </div>
-              <div>
-                <span className="health-k">Resting days</span>
-                <span className="health-v">{tdee.restingDays}</span>
-              </div>
-              <div>
-                <span className="health-k">Active days</span>
-                <span className="health-v">{tdee.activeDays}</span>
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="page-note">
-            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
-          </p>
-        )}
-      </section>
 
       {/* Metric cards — Apple Health style */}
       {cards.map(({ spec, bucketed, avg7d, change, dateRange, readingCount }) => {

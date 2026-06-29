@@ -8,6 +8,9 @@
 html {
   scroll-behavior: smooth;
   transition: background-color 0.25s;
+  /* Always reserve room for the vertical scrollbar so the centered content
+     doesn't jump horizontally when switching between short/tall tabs. */
+  scrollbar-gutter: stable;
 }
 
 html,

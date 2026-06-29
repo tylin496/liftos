@@ -1262,7 +1262,7 @@ export function ExerciseCard({
   const sc = defaultSetCount(exercise);
   const best = stats.best;
   const bestParsed = best?.log.raw ? parse(best.log.raw) : null;
-  const imgSrc = `/images/${exercise.split}/${exercise.slug}.png`;
+  const imgSrc = `${import.meta.env.BASE_URL}images/${exercise.split}/${exercise.slug}.png`;
 
   return (
     <article className="ex-card" ref={cardRef}>

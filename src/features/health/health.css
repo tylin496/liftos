@@ -134,20 +134,32 @@
   color: var(--ink-3);
 }
 
-.health-tdee-grid {
+.health-tdee-method {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  margin: var(--space-2) 0 var(--space-3);
+  line-height: 1.5;
+}
+
+.health-tdee-divider {
+  border: none;
+  border-top: 1px solid var(--ink-5, #e5e5ea);
+  margin: 0 0 var(--space-3);
+}
+
+.health-tdee-components {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
-  margin-top: var(--space-3);
 }
 
-.health-tdee-grid > div {
+.health-tdee-component {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.health-k {
+.health-tdee-component-label {
   font-size: var(--text-2xs);
   font-weight: 600;
   text-transform: uppercase;
@@ -155,8 +167,13 @@
   color: var(--ink-4);
 }
 
-.health-v {
+.health-tdee-component-val {
   font-size: var(--text-lg);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.health-tdee-component-window {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
 }

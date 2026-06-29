@@ -52,7 +52,7 @@ function fmtWeightNum(n: number): string {
 
 function SmartStretchImage({ split, stretchId }: { split: SplitId; stretchId: string }) {
   const [ok, setOk] = useState(true);
-  const src = `/images/${split}/stretches/${stretchId}.png`;
+  const src = `${import.meta.env.BASE_URL}images/${split}/stretches/${stretchId}.png`;
   useEffect(() => setOk(true), [src]);
   if (!ok) return null;
   return (
