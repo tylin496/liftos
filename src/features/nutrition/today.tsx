@@ -318,6 +318,7 @@ export function TodayView({
   const [deleting, setDeleting] = useState(false);
   const [savedPulse, setSavedPulse] = useState(false);
   const [celebration, setCelebration] = useState<"logged" | "double-hit" | null>(null);
+  const [navDir, setNavDir] = useState<"forward" | "backward" | null>(null);
 
   const calInputRef = useRef<HTMLInputElement>(null);
   const protInputRef = useRef<HTMLInputElement>(null);
@@ -334,6 +335,7 @@ export function TodayView({
     let active = true;
     setLoading(true);
     setEditField(null);
+    const t = setTimeout(() => setNavDir(null), 320);
     getEntry(date)
       .then((entry) => {
         if (!active) return;
@@ -347,7 +349,7 @@ export function TodayView({
         toast(String(e?.message ?? e), "error");
         setLoading(false);
       });
-    return () => { active = false; };
+    return () => { active = false; clearTimeout(t); };
   }, [date]);
 
   // Count-up animation after load
@@ -379,10 +381,10 @@ export function TodayView({
       if (e.key === "ArrowLeft") {
         e.preventDefault();
         const prev = shiftDate(date, -1);
-        if (prev >= MIN_DATE) { haptic("select"); onDateChange(prev); }
+        if (prev >= MIN_DATE) { haptic("select"); navigate(prev); }
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
-        if (!isToday) { haptic("select"); onDateChange(shiftDate(date, 1)); }
+        if (!isToday) { haptic("select"); navigate(shiftDate(date, 1)); }
       } else if (e.key === "Escape" && editField !== null) {
         e.preventDefault();
         setEditField(null);
@@ -427,10 +429,10 @@ export function TodayView({
       const dy = e.changedTouches[0].clientY - startY;
       if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) return;
       if (dx < 0 && !isToday) {
-        haptic("select"); onDateChange(shiftDate(date, 1));
+        haptic("select"); navigate(shiftDate(date, 1));
       } else if (dx > 0) {
         const prev = shiftDate(date, -1);
-        if (prev >= MIN_DATE) { haptic("select"); onDateChange(prev); }
+        if (prev >= MIN_DATE) { haptic("select"); navigate(prev); }
       }
     }
 
@@ -451,6 +453,15 @@ export function TodayView({
   const calResult = getCalorieResult(calNum, targets.tdee, targets.deficitTarget);
   const protResult = getProteinResult(protNum, targets.proteinTarget);
   const doubleHit = calResult.state === "on-plan" && protResult.celebrated;
+
+  function navigate(to: string) {
+    const dir = to > date ? "forward" : "backward";
+    setNavDir(null);
+    requestAnimationFrame(() => {
+      setNavDir(dir);
+      onDateChange(to);
+    });
+  }
 
   function openEdit(field: "calories" | "protein") {
     haptic("tap");
@@ -581,7 +592,7 @@ export function TodayView({
           disabled={shiftDate(date, -1) < MIN_DATE}
           onClick={() => {
             const prev = shiftDate(date, -1);
-            if (prev >= MIN_DATE) { haptic("select"); onDateChange(prev); }
+            if (prev >= MIN_DATE) { haptic("select"); navigate(prev); }
           }}
         >‹</button>
         <button
@@ -597,7 +608,7 @@ export function TodayView({
           aria-label="Next day"
           disabled={isToday}
           onClick={() => {
-            if (!isToday) { haptic("select"); onDateChange(shiftDate(date, 1)); }
+            if (!isToday) { haptic("select"); navigate(shiftDate(date, 1)); }
           }}
         >›</button>
       </nav>
@@ -611,6 +622,7 @@ export function TodayView({
           !hasEntry ? "is-empty" : "",
           doubleHit ? "double-hit" : "",
           savedPulse ? "saved-pulse" : "",
+          navDir === "forward" ? "day-nav-forward" : navDir === "backward" ? "day-nav-backward" : "",
         ].filter(Boolean).join(" ")}
       >
         <div className="daily-card-top">
