@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getEntry, saveEntry, targetsFromConfig, type NutritionConfig } from "./api";
+import { getEntry, saveEntry, deleteEntry, targetsFromConfig, type NutritionConfig } from "./api";
 import { defaultLogDate, getCalorieResult, getProteinResult, toDateStr } from "./logic";
+import { useToast } from "@shared/components/Toast";
 
 const MIN_DATE = "2026-02-09";
 const INITIAL_HISTORY_MONTHS = 6;
@@ -93,7 +94,6 @@ function NutriCalendar({
     const grid = gridRef.current;
     if (!grid) return;
 
-    // update month label
     const markers = [...grid.querySelectorAll<HTMLButtonElement>(".ncal-day[data-month]")];
     const refY = grid.getBoundingClientRect().top + grid.getBoundingClientRect().height * 0.45;
     let current = markers[0];
@@ -103,7 +103,6 @@ function NutriCalendar({
     }
     if (current?.dataset.month) setVisibleMonth(current.dataset.month);
 
-    // extend history when near top
     if (!isExtendingRef.current && grid.scrollTop <= 96) {
       const earliest = grid.querySelector<HTMLButtonElement>(".ncal-day[data-date]");
       if (!earliest?.dataset.date || earliest.dataset.date <= MIN_DATE) return;
@@ -213,14 +212,131 @@ function labelFor(date: string): string {
   });
 }
 
+function EntryOverlay({
+  date,
+  initialCalories,
+  initialProtein,
+  hasEntry,
+  onSave,
+  onDelete,
+  onClose,
+}: {
+  date: string;
+  initialCalories: string;
+  initialProtein: string;
+  hasEntry: boolean;
+  onSave: (calories: string, protein: string) => Promise<void>;
+  onDelete: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const [calories, setCalories] = useState(initialCalories);
+  const [protein, setProtein] = useState(initialProtein);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const calRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    calRef.current?.focus();
+    calRef.current?.select();
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await onSave(calories, protein);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await onDelete();
+      onClose();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="entry-backdrop" onClick={onClose} />
+      <div className="entry-sheet" role="dialog" aria-modal aria-label="Log entry">
+        <div className="entry-sheet-handle" />
+
+        <div className="entry-sheet-date">{labelFor(date)}</div>
+
+        <div className="entry-fields">
+          <label className="entry-field">
+            <span className="entry-field-label">Calories</span>
+            <div className="entry-field-row">
+              <input
+                ref={calRef}
+                type="number"
+                inputMode="numeric"
+                value={calories}
+                placeholder="0"
+                onChange={(e) => setCalories(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              />
+              <span className="entry-field-unit">kcal</span>
+            </div>
+          </label>
+
+          <label className="entry-field">
+            <span className="entry-field-label">Protein</span>
+            <div className="entry-field-row">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={protein}
+                placeholder="0"
+                onChange={(e) => setProtein(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              />
+              <span className="entry-field-unit">g</span>
+            </div>
+          </label>
+        </div>
+
+        <button
+          className="nutri-save"
+          onClick={handleSave}
+          disabled={saving || deleting}
+        >
+          {saving ? "Saving…" : hasEntry ? "Update" : "Save"}
+        </button>
+
+        <div className="entry-sheet-secondary">
+          <button className="entry-cancel-btn" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          {hasEntry && (
+            <button
+              className="entry-delete-btn"
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting || saving}
+            >
+              {deleting ? "Deleting…" : "Delete entry"}
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function TodayView({ config }: { config: NutritionConfig }) {
+  const toast = useToast();
   const [date, setDate] = useState(defaultLogDate());
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [entryOpen, setEntryOpen] = useState(false);
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -234,7 +350,7 @@ export function TodayView({ config }: { config: NutritionConfig }) {
       })
       .catch((e) => {
         if (!active) return;
-        setError(String(e?.message ?? e));
+        toast(String(e?.message ?? e), "error");
         setLoading(false);
       });
     return () => {
@@ -247,106 +363,110 @@ export function TodayView({ config }: { config: NutritionConfig }) {
   const protNum = Number(protein) || 0;
   const calResult = getCalorieResult(calNum, targets.tdee, targets.deficitTarget);
   const protResult = getProteinResult(protNum, targets.proteinTarget);
+  const hasEntry = calories !== "" || protein !== "";
 
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-    try {
-      await saveEntry(date, { calories: calNum, protein: protNum }, config);
-    } catch (e) {
-      setError(String((e as Error)?.message ?? e));
-    } finally {
-      setSaving(false);
-    }
+  async function handleSave(cal: string, prot: string) {
+    const calN = Number(cal) || 0;
+    const protN = Number(prot) || 0;
+    await saveEntry(date, { calories: calN, protein: protN }, config);
+    setCalories(cal);
+    setProtein(prot);
+    toast("Saved", "success");
+  }
+
+  async function handleDelete() {
+    await deleteEntry(date);
+    setCalories("");
+    setProtein("");
+    toast("Entry deleted", "info");
   }
 
   return (
     <>
-    {calendarOpen && (
-      <NutriCalendar
-        selected={date}
-        todayStr={defaultLogDate()}
-        onSelect={setDate}
-        onClose={() => setCalendarOpen(false)}
-      />
-    )}
-    <div className="nutri">
-      <div className="nutri-datenav">
-        <button className="nutri-navbtn" onClick={() => setDate(shiftDate(date, -1))}>
-          ‹
-        </button>
-        <button className="nutri-date" onClick={() => setCalendarOpen(true)}>
-          {labelFor(date)}
-        </button>
+      {calendarOpen && (
+        <NutriCalendar
+          selected={date}
+          todayStr={defaultLogDate()}
+          onSelect={setDate}
+          onClose={() => setCalendarOpen(false)}
+        />
+      )}
+      {entryOpen && (
+        <EntryOverlay
+          date={date}
+          initialCalories={calories}
+          initialProtein={protein}
+          hasEntry={hasEntry}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          onClose={() => setEntryOpen(false)}
+        />
+      )}
+      <div className="nutri">
+        <div className="nutri-datenav">
+          <button className="nutri-navbtn" onClick={() => setDate(shiftDate(date, -1))}>
+            ‹
+          </button>
+          <button className="nutri-date" onClick={() => setCalendarOpen(true)}>
+            {labelFor(date)}
+          </button>
+          <button
+            className="nutri-navbtn"
+            onClick={() => setDate(shiftDate(date, 1))}
+            disabled={date >= defaultLogDate()}
+          >
+            ›
+          </button>
+        </div>
+
         <button
-          className="nutri-navbtn"
-          onClick={() => setDate(shiftDate(date, 1))}
-          disabled={date >= defaultLogDate()}
+          className="page-card nutri-hero nutri-tap-card"
+          onClick={() => !loading && setEntryOpen(true)}
+          aria-label="Edit calories"
+          disabled={loading}
         >
-          ›
+          <p className="page-eyebrow">{calResult.status}</p>
+          <div className={`nutri-bignum state-${calResult.state}`}>
+            {calNum === 0 && !hasEntry
+              ? <span className="nutri-empty">—</span>
+              : calResult.isSurplus
+                ? `+${calResult.surplus.toLocaleString()}`
+                : `−${calResult.deficit.toLocaleString()}`}
+            <span className="nutri-unit">kcal</span>
+          </div>
+          <p className="page-note">
+            {calNum.toLocaleString()} / {targets.calorieTarget.toLocaleString()} kcal target ·
+            TDEE {targets.tdee.toLocaleString()}
+          </p>
+          <div className="nutri-bar">
+            <div
+              className={`nutri-bar-fill state-${calResult.state}`}
+              style={{ width: `${calResult.progress}%` }}
+            />
+          </div>
+        </button>
+
+        <button
+          className="page-card nutri-tap-card"
+          onClick={() => !loading && setEntryOpen(true)}
+          aria-label="Edit protein"
+          disabled={loading}
+        >
+          <p className="page-eyebrow">Protein</p>
+          <p className="nutri-protein">
+            {protNum === 0 && !hasEntry
+              ? <span className="nutri-empty">—</span>
+              : protNum}
+            {" "}<span className="nutri-unit">/ {targets.proteinTarget} g</span>
+          </p>
+          <div className="nutri-bar">
+            <div
+              className={`nutri-bar-fill ${protResult.celebrated ? "state-on-plan" : "state-under"}`}
+              style={{ width: `${protResult.progress}%` }}
+            />
+          </div>
         </button>
       </div>
-
-      <section className="page-card nutri-hero">
-        <p className="page-eyebrow">{calResult.status}</p>
-        <div className={`nutri-bignum state-${calResult.state}`}>
-          {calResult.isSurplus
-            ? `+${calResult.surplus.toLocaleString()}`
-            : `−${calResult.deficit.toLocaleString()}`}
-          <span className="nutri-unit">kcal</span>
-        </div>
-        <p className="page-note">
-          {calNum.toLocaleString()} / {targets.calorieTarget.toLocaleString()} kcal target ·
-          TDEE {targets.tdee.toLocaleString()}
-        </p>
-        <div className="nutri-bar">
-          <div
-            className={`nutri-bar-fill state-${calResult.state}`}
-            style={{ width: `${calResult.progress}%` }}
-          />
-        </div>
-      </section>
-
-      <section className="page-card">
-        <p className="page-eyebrow">Protein</p>
-        <p className="nutri-protein">
-          {protNum} <span className="nutri-unit">/ {targets.proteinTarget} g</span>
-        </p>
-        <div className="nutri-bar">
-          <div
-            className={`nutri-bar-fill ${protResult.celebrated ? "state-on-plan" : "state-under"}`}
-            style={{ width: `${protResult.progress}%` }}
-          />
-        </div>
-      </section>
-
-      <section className="page-card nutri-form">
-        <label className="nutri-field">
-          <span>Calories</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={calories}
-            placeholder="0"
-            onChange={(e) => setCalories(e.target.value)}
-          />
-        </label>
-        <label className="nutri-field">
-          <span>Protein (g)</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={protein}
-            placeholder="0"
-            onChange={(e) => setProtein(e.target.value)}
-          />
-        </label>
-        <button className="nutri-save" onClick={handleSave} disabled={saving || loading}>
-          {saving ? "Saving…" : `Save ${labelFor(date)}`}
-        </button>
-        {error && <p className="auth-error">{error}</p>}
-      </section>
-    </div>
     </>
   );
 }

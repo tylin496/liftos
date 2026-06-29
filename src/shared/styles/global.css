@@ -48,3 +48,99 @@ button {
 #root {
   min-height: 100dvh;
 }
+
+/* ── Toast tray ──────────────────────────────────────────────────────────────*/
+.toast-tray {
+  position: fixed;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-3));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 200;
+  pointer-events: none;
+  align-items: center;
+  width: max-content;
+  max-width: calc(100vw - var(--space-8));
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 24px;
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  pointer-events: all;
+  cursor: pointer;
+  animation: toast-in 0.22s var(--reveal-ease) both;
+  white-space: nowrap;
+}
+
+.toast-exit {
+  animation: toast-out 0.22s ease both;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(6px) scale(0.95); }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes save-pulse {
+  0%   { box-shadow: var(--shadow-sm); }
+  35%  { box-shadow: 0 0 0 5px color-mix(in srgb, var(--good) 22%, transparent), var(--shadow-sm); }
+  100% { box-shadow: var(--shadow-sm); }
+}
+
+@keyframes btn-shine {
+  0%   { background-position: 200% center; }
+  55%  { background-position: -200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes skel-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes progress-fill {
+  from { width: 0%; }
+}
+
+.toast-success { background: var(--good); color: #fff; }
+.toast-pr      { background: var(--gold); color: #fff; }
+.toast-info    { background: var(--ink-2); color: var(--bg); }
+.toast-error   { background: var(--bad); color: #fff; }
+
+.toast-msg { flex: 1; }
+
+.toast-action {
+  background: rgba(255, 255, 255, 0.25);
+  border: none;
+  border-radius: 20px;
+  padding: 3px 10px;
+  color: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.toast-action:hover {
+  background: rgba(255, 255, 255, 0.38);
+}

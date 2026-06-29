@@ -112,3 +112,13 @@ export async function saveEntry(
   if (error) throw error;
   return data;
 }
+
+export async function deleteEntry(date: string): Promise<void> {
+  const userId = await currentUserId();
+  const { error } = await supabase
+    .from("nutrition_entries")
+    .delete()
+    .eq("user_id", userId)
+    .eq("entry_date", date);
+  if (error) throw error;
+}

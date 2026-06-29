@@ -146,6 +146,14 @@
   gap: var(--space-3);
 }
 
+/* Staggered card entry when a tab mounts */
+.page > *:nth-child(1) { animation: rise-in 0.34s var(--reveal-ease) both; animation-delay: 0ms; }
+.page > *:nth-child(2) { animation: rise-in 0.34s var(--reveal-ease) both; animation-delay: 50ms; }
+.page > *:nth-child(3) { animation: rise-in 0.34s var(--reveal-ease) both; animation-delay: 95ms; }
+.page > *:nth-child(4) { animation: rise-in 0.34s var(--reveal-ease) both; animation-delay: 135ms; }
+.page > *:nth-child(5) { animation: rise-in 0.34s var(--reveal-ease) both; animation-delay: 165ms; }
+.page > *:nth-child(n+6) { animation: rise-in 0.34s var(--reveal-ease) both; animation-delay: 185ms; }
+
 .page-card {
   background: var(--bg-card);
   border: 1px solid var(--rule);
@@ -155,6 +163,25 @@
   -webkit-backdrop-filter: var(--card-blur);
   padding: var(--space-5);
 }
+
+/* ── Skeleton loading ───────────────────────────────────────────────── */
+.skel {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-soft) 25%,
+    color-mix(in srgb, var(--bg-soft) 60%, var(--bg-card)) 50%,
+    var(--bg-soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.8s ease-in-out infinite;
+}
+
+.skel-line { height: 14px; }
+.skel-line--sm { height: 11px; }
+.skel-line--lg { height: 20px; }
+.skel-num  { height: 34px; border-radius: 8px; }
+.skel-bar  { height: 8px;  border-radius: 999px; }
 
 .page-eyebrow {
   font-size: var(--text-2xs);

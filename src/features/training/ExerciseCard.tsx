@@ -28,90 +28,9 @@ import {
   timelineDate,
   type TimeFilter,
 } from "./logic";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Toast system
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface ToastAction {
-  label: string;
-  onClick: () => void;
-}
-
-type ToastType = "success" | "pr" | "info" | "error";
-
-interface ToastItem {
-  id: number;
-  msg: string;
-  type: ToastType;
-  action: ToastAction | null;
-  exiting: boolean;
-}
-
-type AddToastFn = (
-  msg: string,
-  type?: ToastType,
-  duration?: number,
-  action?: ToastAction | null,
-) => number;
-
-const ToastContext = createContext<AddToastFn | null>(null);
-
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-
-  const addToast = useCallback<AddToastFn>(
-    (msg, type = "success", duration = 3000, action = null) => {
-      const id = Date.now() + Math.random();
-      setToasts((t) => [...t, { id, msg, type: type as ToastType, action: action ?? null, exiting: false }]);
-      setTimeout(() => {
-        setToasts((t) => t.map((x) => (x.id === id ? { ...x, exiting: true } : x)));
-        setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 300);
-      }, duration);
-      return id;
-    },
-    [],
-  );
-
-  const dismiss = useCallback((id: number) => {
-    setToasts((t) => t.map((x) => (x.id === id ? { ...x, exiting: true } : x)));
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 300);
-  }, []);
-
-  return (
-    <ToastContext.Provider value={addToast}>
-      {children}
-      <div className="toast-tray" aria-live="polite">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`toast toast-${t.type}${t.exiting ? " toast-exit" : ""}`}
-            onClick={() => dismiss(t.id)}
-          >
-            <span className="toast-msg">{t.msg}</span>
-            {t.action && (
-              <button
-                type="button"
-                className="toast-action"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  t.action!.onClick();
-                  dismiss(t.id);
-                }}
-              >
-                {t.action.label}
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-    </ToastContext.Provider>
-  );
-}
-
-export function useToast() {
-  return useContext(ToastContext)!;
-}
+import { ToastProvider as _ToastProvider, useToast as _useToast } from "@shared/components/Toast";
+export const ToastProvider = _ToastProvider;
+export const useToast = _useToast;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Confirm dialog

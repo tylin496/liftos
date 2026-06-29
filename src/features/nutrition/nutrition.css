@@ -360,6 +360,7 @@
   border-radius: 999px;
   background: currentColor;
   transition: width 0.4s var(--reveal-ease);
+  animation: progress-fill 0.52s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 /* ── Form ────────────────────────────────────────────────────────────── */
@@ -404,6 +405,8 @@
 }
 
 .nutri-save {
+  position: relative;
+  overflow: hidden;
   margin-top: var(--space-1);
   padding: var(--space-4);
   border: none;
@@ -412,15 +415,41 @@
   color: #fff;
   font-size: var(--text-base);
   font-weight: 700;
-  transition: transform 0.12s var(--press-ease);
+  transition: transform 0.12s var(--press-ease), opacity 0.15s;
 }
 
-.nutri-save:active {
+.nutri-save::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 65%
+  );
+  background-size: 200% 100%;
+  animation: btn-shine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .nutri-save:not(:disabled):hover {
+    filter: brightness(1.08);
+  }
+}
+
+.nutri-save:not(:disabled):active {
   transform: scale(var(--tap-scale));
 }
 
 .nutri-save:disabled {
   opacity: 0.55;
+}
+
+/* ── Save pulse: flash the hero card on successful save ─────────────── */
+.nutri-hero.saved-pulse {
+  animation: save-pulse 700ms var(--reveal-ease) both;
 }
 
 /* ── Nutrition calendar modal ────────────────────────────────────────── */
