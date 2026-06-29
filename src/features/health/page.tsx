@@ -88,6 +88,18 @@ function LineChart({
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(320);
+
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w) setW(Math.round(w));
+    });
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   if (points.length < 2) {
     return (
@@ -97,7 +109,6 @@ function LineChart({
     );
   }
 
-  const W = 320;
   const H = 80;
   const PAD = { top: 8, bottom: 20, left: 4, right: 4 };
   const innerW = W - PAD.left - PAD.right;
@@ -149,13 +160,12 @@ function LineChart({
   const tipAnchor = hx < 40 ? "start" : hx > W - 40 ? "end" : "middle";
 
   return (
-    <div className="health-chart-wrap">
+    <div className="health-chart-wrap" ref={wrapRef}>
       <svg
         ref={svgRef}
         className="health-chart"
         viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        style={{ height: H, touchAction: "none" }}
+        style={{ width: "100%", height: H, touchAction: "none" }}
         onPointerMove={(e) => findNearest(e.clientX)}
         onPointerLeave={() => setHovered(null)}
         onTouchStart={(e) => findNearest(e.touches[0].clientX)}
