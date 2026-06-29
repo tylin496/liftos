@@ -1808,7 +1808,7 @@
   background: linear-gradient(
     180deg,
     color-mix(in srgb, #5ac8fa 58%, var(--bg-soft)),
-    color-mix(in srgb, var(--accent) 58%, var(--bg-soft))
+    color-mix(in srgb, #007aff 58%, var(--bg-soft))
   );
 }
 
@@ -1830,11 +1830,11 @@
 
 /* Selected day: vivid colours + glow */
 .nutri-trend-col.is-selected .ntb-bar-kcal {
-  background: linear-gradient(180deg, #5ac8fa, var(--accent));
+  background: linear-gradient(180deg, #5ac8fa, #007aff);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, #ffffff 34%, transparent),
-    0 8px 18px color-mix(in srgb, var(--accent) 22%, transparent),
-    0 0 10px color-mix(in srgb, var(--accent) 16%, transparent);
+    0 8px 18px color-mix(in srgb, #007aff 22%, transparent),
+    0 0 10px color-mix(in srgb, #007aff 16%, transparent);
 }
 
 .nutri-trend-col.is-selected .ntb-bar-kcal.surplus {
