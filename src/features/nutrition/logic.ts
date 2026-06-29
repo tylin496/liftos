@@ -115,7 +115,7 @@ export interface DayInput {
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
-export type Consistency = "Stable" | "Moderate" | "Variable";
+export type Consistency = "Building" | "Stable" | "Moderate" | "Variable";
 
 export interface WeeklyStats {
   logged: number;
@@ -134,7 +134,9 @@ export function weeklyStats(days: DayInput[]): WeeklyStats {
   const totalDeficit = nets.reduce((a, b) => a + b, 0);
 
   let consistency: Consistency | null = null;
-  if (nets.length >= 3) {
+  if (nets.length > 0 && nets.length < 3) {
+    consistency = "Building";
+  } else if (nets.length >= 3) {
     const avg = mean(nets);
     const mad = mean(nets.map((n) => Math.abs(n - avg)));
     consistency = mad < 250 ? "Stable" : mad < 500 ? "Moderate" : "Variable";

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { getEntries, type NutritionEntry } from "./api";
+import { getEntries, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
 import {
   formatFatLossKg,
   getCalorieResult,
+  getProteinResult,
   monthlyStats,
   toDateStr,
   weeklyStats,
@@ -10,6 +11,11 @@ import {
 } from "./logic";
 
 const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
+
+function haptic(kind: "tap" | "select" = "tap") {
+  if (!navigator.vibrate) return;
+  navigator.vibrate(kind === "select" ? 12 : 8);
+}
 
 function toInput(e: NutritionEntry): DayInput {
   return {
@@ -22,9 +28,22 @@ function toInput(e: NutritionEntry): DayInput {
   };
 }
 
-export function HistoryView() {
+export function HistoryView({
+  config,
+  date,
+  onDateChange,
+  entryVersion,
+}: {
+  config: NutritionConfig;
+  date: string;
+  onDateChange: (date: string) => void;
+  entryVersion: number;
+}) {
   const [entries, setEntries] = useState<NutritionEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+
+  const defaultTargets = useMemo(() => targetsFromConfig(config), [config]);
 
   useEffect(() => {
     const to = toDateStr(new Date());
@@ -33,13 +52,12 @@ export function HistoryView() {
     getEntries(toDateStr(fromD), to)
       .then(setEntries)
       .catch((e) => setError(String(e?.message ?? e)));
-  }, []);
+  }, [entryVersion]);
 
   const { week, month, trend7, todayStr } = useMemo(() => {
     const todayStr = toDateStr(new Date());
     const inputs = (entries ?? []).map(toInput);
 
-    // Build a 7-slot window: today and the 6 days before it
     const trend7: DayInput[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -54,19 +72,36 @@ export function HistoryView() {
           tdee: null,
           deficitTarget: null,
           proteinTarget: null,
-        }
+        },
       );
     }
 
     const logged7 = trend7.filter((d) => d.calories != null);
-
-    return {
-      week: weeklyStats(logged7),
-      month: monthlyStats(inputs),
-      trend7,
-      todayStr,
-    };
+    return { week: weeklyStats(logged7), month: monthlyStats(inputs), trend7, todayStr };
   }, [entries]);
+
+  async function handleCopyWeek() {
+    haptic("tap");
+    const logged = trend7.filter((d) => d.calories != null);
+    if (logged.length === 0) return;
+    const lines = [
+      `Week (${trend7[0].date} → ${trend7[6].date}):`,
+      `Avg cal: ${week.avgCalories.toLocaleString()} kcal · Avg protein: ${week.avgProtein}g`,
+      ...logged.map((d) => {
+        const dateLabel = new Date(d.date + "T12:00:00").toLocaleDateString("en-US", {
+          weekday: "short", month: "short", day: "numeric",
+        });
+        return `  ${dateLabel}: ${d.calories?.toLocaleString()} kcal, ${d.protein}g`;
+      }),
+    ];
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopyState("copied");
+      setTimeout(() => setCopyState("idle"), 1800);
+    } catch {
+      /* ignore */
+    }
+  }
 
   if (error) {
     return (
@@ -84,9 +119,6 @@ export function HistoryView() {
     );
   }
 
-  const maxCal = Math.max(1, ...trend7.map((d) => d.calories ?? 0));
-
-  // Adherence colour threshold
   const adherenceState =
     month.adherencePct >= 80 ? "on-plan" : month.adherencePct >= 60 ? "over" : "surplus";
 
@@ -96,60 +128,112 @@ export function HistoryView() {
       <section className="page-card">
         <div className="nutri-section-head">
           <p className="page-eyebrow" style={{ margin: 0 }}>This Week</p>
-          {week.consistency && (
-            <span className={`hist-badge badge-${week.consistency.toLowerCase()}`}>
-              {week.consistency}
-            </span>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            {week.consistency && (
+              <span className={`hist-badge badge-${week.consistency.toLowerCase()}`}>
+                {week.consistency}
+              </span>
+            )}
+            {week.logged > 0 && (
+              <button
+                className="hist-copy-btn"
+                type="button"
+                aria-label="Copy week summary"
+                onClick={handleCopyWeek}
+              >
+                {copyState === "copied" ? "✓" : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* 7-day calorie trend bars */}
+        {/* Dual-bar 7-day trend */}
         <div className="nutri-trend">
           {trend7.map((d, i) => {
             const dayDate = new Date(d.date + "T12:00:00");
             const dayLabel = WEEKDAY_NARROW[dayDate.getDay()];
             const isToday = d.date === todayStr;
+            const isSelected = d.date === date;
             const hasCal = d.calories != null;
+            const hasProtein = d.protein != null;
+
+            const calTarget = d.tdee != null && d.deficitTarget != null
+              ? Math.max(1, d.tdee - d.deficitTarget)
+              : defaultTargets.calorieTarget;
+            const protTarget = d.proteinTarget ?? defaultTargets.proteinTarget;
 
             const calResult = hasCal
-              ? getCalorieResult(
-                  d.calories!,
-                  d.tdee ?? undefined,
-                  d.deficitTarget ?? undefined
-                )
+              ? getCalorieResult(d.calories!, d.tdee ?? undefined, d.deficitTarget ?? undefined)
+              : null;
+            const protResult = hasProtein
+              ? getProteinResult(d.protein!, d.proteinTarget ?? undefined)
               : null;
 
-            const barPct = hasCal
-              ? Math.max(8, Math.round((d.calories! / maxCal) * 100))
+            const kcalPct = hasCal
+              ? Math.max(7, Math.round(Math.min(100, (d.calories! / Math.max(1, calTarget)) * 100)))
+              : 0;
+            const protPct = hasProtein
+              ? Math.max(7, Math.round(Math.min(100, (d.protein! / Math.max(1, protTarget)) * 100)))
               : 0;
 
-            const barState = calResult
-              ? calResult.isSurplus
-                ? "surplus"
-                : calResult.state
-              : "missing";
+            const isSurplus = calResult?.isSurplus ?? false;
+            const doubleHit = calResult?.state === "on-plan" && protResult?.celebrated;
 
             return (
-              <div className="nutri-trend-col" key={d.date}>
-                <div className="nutri-trend-bars">
-                  {hasCal ? (
-                    <div
-                      className={`nutri-trend-bar is-${barState}`}
-                      style={
-                        {
-                          height: `${barPct}%`,
-                          "--bar-index": i,
-                        } as React.CSSProperties
-                      }
-                    />
-                  ) : (
-                    <div className="nutri-trend-bar is-missing" />
+              <button
+                key={d.date}
+                className={[
+                  "nutri-trend-col",
+                  isSelected ? "is-selected" : "",
+                  isToday ? "is-today-col" : "",
+                  !hasCal ? "is-missing" : "",
+                  doubleHit ? "is-double-hit" : "",
+                ].filter(Boolean).join(" ")}
+                type="button"
+                aria-label={`${d.date}${hasCal ? `: ${d.calories?.toLocaleString()} kcal, ${d.protein}g` : ": no entry"}`}
+                onClick={() => { haptic("select"); onDateChange(d.date); }}
+              >
+                {/* Value labels */}
+                <div className="ntb-values">
+                  {hasCal && (
+                    <>
+                      <span className="ntb-val-kcal">{d.calories?.toLocaleString()}</span>
+                      {hasProtein && <span className="ntb-val-prot">{d.protein}g</span>}
+                    </>
                   )}
                 </div>
+
+                {/* Bars */}
+                <div className="nutri-trend-bars">
+                  {hasCal || hasProtein ? (
+                    <div className="ntb-pair" style={{ "--bar-index": i } as React.CSSProperties}>
+                      <div
+                        className={`ntb-bar ntb-bar-kcal${isSurplus ? " surplus" : ""}`}
+                        style={{ height: hasCal ? `${kcalPct}%` : "7px" }}
+                      />
+                      <div
+                        className={`ntb-bar ntb-bar-prot${doubleHit ? " celebrated" : ""}`}
+                        style={{ height: hasProtein ? `${protPct}%` : "7px" }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="ntb-pair ntb-pair--missing" style={{ "--bar-index": i } as React.CSSProperties}>
+                      <div className="ntb-bar ntb-bar--missing" />
+                      <div className="ntb-bar ntb-bar--missing" />
+                    </div>
+                  )}
+                </div>
+
                 <span className={`nutri-trend-day${isToday ? " is-today" : ""}`}>
                   {dayLabel}
                 </span>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -187,7 +271,6 @@ export function HistoryView() {
           <span className="nutri-month-count">{month.logged} logged</span>
         </div>
 
-        {/* Adherence hero */}
         <div className="nutri-adherence-hero">
           <span className={`nutri-adherence-num state-${adherenceState}`}>
             {month.adherencePct}
@@ -198,7 +281,6 @@ export function HistoryView() {
           </div>
         </div>
 
-        {/* Distribution bar */}
         <div className="hist-dist">
           {(["surplus", "under", "on-plan", "over", "extreme"] as const).map((s) => (
             <div
@@ -210,7 +292,6 @@ export function HistoryView() {
           ))}
         </div>
 
-        {/* Stats grid */}
         <div className="hist-stats" style={{ marginTop: "var(--space-4)" }}>
           <div>
             <span className="health-k">On-plan days</span>

@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
-import { saveConfig, targetsFromConfig, type NutritionConfig } from "./api";
-import { phaseFromDeficit } from "./logic";
+import {
+  saveConfig,
+  targetsFromConfig,
+  phaseDefsFromConfig,
+  PHASE_NAMES,
+  type NutritionConfig,
+} from "./api";
 
 export function ProgramsView({
   config,
@@ -10,32 +15,58 @@ export function ProgramsView({
   onSaved: (c: NutritionConfig) => void;
 }) {
   const targets = targetsFromConfig(config);
+  const { defs: savedDefs, activeIndex: savedActiveIndex } = phaseDefsFromConfig(config);
 
   const [editing, setEditing] = useState(false);
   const [protein, setProtein] = useState(String(config.protein_target));
-  const [calorieTarget, setCalorieTarget] = useState(String(targets.calorieTarget));
+  const [phaseDefs, setPhaseDefs] = useState<number[]>(savedDefs);
+  const [activeIndex, setActiveIndex] = useState(savedActiveIndex);
+  const [savingIndex, setSavingIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync inputs when config changes (e.g. after save)
   useEffect(() => {
-    const t = targetsFromConfig(config);
+    const { defs, activeIndex: ai } = phaseDefsFromConfig(config);
     setProtein(String(config.protein_target));
-    setCalorieTarget(String(t.calorieTarget));
+    setPhaseDefs(defs);
+    setActiveIndex(ai);
   }, [config]);
 
-  const calorieTargetNum = Math.max(0, Number(calorieTarget) || 0);
-  const deficitNum = Math.max(0, Math.round(config.tdee - calorieTargetNum));
-  const phaseName = phaseFromDeficit(deficitNum);
+  function updatePhaseDef(index: number, value: string) {
+    const n = Math.max(0, Number(value) || 0);
+    setPhaseDefs((prev) => {
+      const next = [...prev];
+      next[index] = n;
+      return next;
+    });
+  }
 
-  async function handleSave() {
+  async function activatePhase(index: number) {
+    setSavingIndex(index);
+    setError(null);
+    try {
+      const newPhaseDeficits = [...phaseDefs, index] as unknown as number[];
+      const updated = await saveConfig({
+        protein_target: Math.round(Number(protein) || config.protein_target),
+        phase_deficits: newPhaseDeficits as any,
+      });
+      onSaved(updated);
+      setActiveIndex(index);
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    } finally {
+      setSavingIndex(null);
+    }
+  }
+
+  async function handleSaveEdits() {
     setSaving(true);
     setError(null);
     try {
+      const newPhaseDeficits = [...phaseDefs, activeIndex] as unknown as number[];
       const updated = await saveConfig({
-        tdee: config.tdee,
-        protein_target: Math.round(Number(protein) || 0),
-        phase_deficits: [deficitNum],
+        protein_target: Math.round(Number(protein) || config.protein_target),
+        phase_deficits: newPhaseDeficits as any,
       });
       onSaved(updated);
       setEditing(false);
@@ -46,6 +77,8 @@ export function ProgramsView({
     }
   }
 
+  const activeCalTarget = Math.max(0, Math.round(config.tdee - phaseDefs[activeIndex]));
+
   return (
     <section className="page-card">
       <div className="nutri-section-head">
@@ -53,19 +86,16 @@ export function ProgramsView({
         <button
           className="nutri-section-toggle"
           type="button"
-          onClick={() => {
-            setEditing((v) => !v);
-            setError(null);
-          }}
+          onClick={() => { setEditing((v) => !v); setError(null); }}
         >
           {editing ? "Done" : "Edit"}
         </button>
       </div>
 
-      {/* Summary grid — always visible */}
+      {/* Summary grid */}
       <div className="nutri-prog-summary">
         <div className="nutri-prog-item">
-          <span className="nutri-prog-val">{targets.calorieTarget.toLocaleString()}</span>
+          <span className="nutri-prog-val">{activeCalTarget.toLocaleString()}</span>
           <span className="nutri-prog-label">Cal Target</span>
         </div>
         <div className="nutri-prog-item">
@@ -77,12 +107,12 @@ export function ProgramsView({
           <span className="nutri-prog-label">TDEE</span>
         </div>
         <div className="nutri-prog-item">
-          <span className="nutri-prog-val is-text">{targets.cutPhaseName}</span>
+          <span className="nutri-prog-val is-text">{PHASE_NAMES[activeIndex]}</span>
           <span className="nutri-prog-label">Phase</span>
         </div>
       </div>
 
-      {/* Edit form — revealed by toggle */}
+      {/* Edit panel */}
       {editing && (
         <div className="nutri-prog-edit">
           <div className="nutri-divider" />
@@ -97,23 +127,54 @@ export function ProgramsView({
             />
           </label>
 
-          <label className="nutri-field">
-            <span>Calorie target (kcal/day)</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={calorieTarget}
-              onChange={(e) => setCalorieTarget(e.target.value)}
-            />
-          </label>
-
-          <div className="prog-phase-derived">
-            <span className="prog-phase-name">{phaseName}</span>
-            <span className="prog-phase-target">−{deficitNum.toLocaleString()} kcal deficit</span>
+          {/* 4 Cut Phases */}
+          <div className="prog-phases-heading">Cut phases</div>
+          <div className="prog-phases">
+            {PHASE_NAMES.map((name, i) => {
+              const isActive = i === activeIndex;
+              const calTarget = Math.max(0, Math.round(config.tdee - phaseDefs[i]));
+              const isSaving = savingIndex === i;
+              return (
+                <div key={name} className={`prog-phase${isActive ? " is-active" : ""}`}>
+                  <div className="prog-phase-main">
+                    <span className="prog-phase-name">{name}</span>
+                    <span className="prog-phase-target">{calTarget.toLocaleString()} kcal/day</span>
+                  </div>
+                  <div className="prog-deficit">
+                    <span className="prog-deficit-label">deficit</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={phaseDefs[i]}
+                      onChange={(e) => updatePhaseDef(i, e.target.value)}
+                      aria-label={`${name} deficit`}
+                    />
+                  </div>
+                  {!isActive && (
+                    <button
+                      className="prog-activate-btn"
+                      type="button"
+                      onClick={() => activatePhase(i)}
+                      disabled={isSaving || saving}
+                    >
+                      {isSaving ? "…" : "Activate"}
+                    </button>
+                  )}
+                  {isActive && (
+                    <span className="prog-active-badge">Active</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          <button className="nutri-save" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save program"}
+          <button
+            className="nutri-save"
+            onClick={handleSaveEdits}
+            disabled={saving}
+            style={{ marginTop: "var(--space-2)" }}
+          >
+            {saving ? "Saving…" : "Save changes"}
           </button>
 
           {error && <p className="auth-error">{error}</p>}

@@ -7,11 +7,14 @@ import { ProgramsView } from "./programs";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson } from "@shared/lib/copyAllData";
 import { ToastProvider } from "@shared/components/Toast";
+import { defaultLogDate } from "./logic";
 import "./nutrition.css";
 
 export function NutritionPage() {
   const [config, setConfig] = useState<NutritionConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [date, setDate] = useState(defaultLogDate());
+  const [entryVersion, setEntryVersion] = useState(0);
 
   useEffect(() => {
     Promise.all([getConfig(), fetchHealthData(30).catch(() => null)])
@@ -47,8 +50,18 @@ export function NutritionPage() {
 
         {config && (
           <>
-            <TodayView config={config} />
-            <HistoryView />
+            <TodayView
+              config={config}
+              date={date}
+              onDateChange={setDate}
+              onSaved={() => setEntryVersion((v) => v + 1)}
+            />
+            <HistoryView
+              config={config}
+              date={date}
+              onDateChange={setDate}
+              entryVersion={entryVersion}
+            />
             <ProgramsView config={config} onSaved={setConfig} />
           </>
         )}

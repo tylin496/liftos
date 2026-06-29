@@ -9,10 +9,42 @@ const INITIAL_HISTORY_MONTHS = 6;
 const HISTORY_CHUNK_MONTHS = 3;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+// ── Haptic ────────────────────────────────────────────────────────────────────
+const HAPTIC: Record<string, number | number[]> = {
+  tap: 8,
+  select: 12,
+  success: [18, 30, 18],
+  warning: [28, 40, 28],
+  error: [50, 40, 50],
+};
+function haptic(kind: keyof typeof HAPTIC = "tap") {
+  if (!navigator.vibrate) return;
+  navigator.vibrate(HAPTIC[kind] as number | number[]);
+}
+
+// ── Count-up animation ────────────────────────────────────────────────────────
+function animateCountUp(el: HTMLElement, target: number) {
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    el.textContent = Math.round(target).toLocaleString();
+    return;
+  }
+  const DURATION = 500;
+  const start = performance.now();
+  function step(now: number) {
+    const t = Math.min(1, (now - start) / DURATION);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(target * eased).toLocaleString();
+    if (t < 1) requestAnimationFrame(step);
+    else el.textContent = Math.round(target).toLocaleString();
+  }
+  requestAnimationFrame(step);
+}
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
 function buildCalendarWeeks(
   todayStr: string,
   historyMonths: number,
-  selectedDate: string
+  selectedDate: string,
 ): { dateStr: string; dayOfMonth: number; isMonthStart: boolean; dayMonth: string }[][] {
   const today = new Date(todayStr + "T12:00:00");
   const historyAnchor = new Date(today.getFullYear(), today.getMonth() - historyMonths, 1);
@@ -72,7 +104,7 @@ function NutriCalendar({
 
   const weeks = useMemo(
     () => buildCalendarWeeks(todayStr, historyMonths, selected),
-    [todayStr, historyMonths, selected]
+    [todayStr, historyMonths, selected],
   );
 
   const scrollToSelected = useCallback(() => {
@@ -94,7 +126,6 @@ function NutriCalendar({
   function handleScroll() {
     const grid = gridRef.current;
     if (!grid) return;
-
     const markers = [...grid.querySelectorAll<HTMLButtonElement>(".ncal-day[data-month]")];
     const refY = grid.getBoundingClientRect().top + grid.getBoundingClientRect().height * 0.45;
     let current = markers[0];
@@ -103,7 +134,6 @@ function NutriCalendar({
       else break;
     }
     if (current?.dataset.month) setVisibleMonth(current.dataset.month);
-
     if (!isExtendingRef.current && grid.scrollTop <= 96) {
       const earliest = grid.querySelector<HTMLButtonElement>(".ncal-day[data-date]");
       if (!earliest?.dataset.date || earliest.dataset.date <= MIN_DATE) return;
@@ -136,10 +166,7 @@ function NutriCalendar({
           <button
             className="ncal-today-btn"
             type="button"
-            onClick={() => {
-              onSelect(todayStr);
-              onClose();
-            }}
+            onClick={() => { onSelect(todayStr); onClose(); }}
           >
             Today
           </button>
@@ -148,9 +175,7 @@ function NutriCalendar({
           </button>
         </div>
         <div className="ncal-weekdays">
-          {WEEKDAYS.map((d) => (
-            <span key={d}>{d}</span>
-          ))}
+          {WEEKDAYS.map((d) => <span key={d}>{d}</span>)}
         </div>
         <div className="ncal-grid" ref={gridRef} onScroll={handleScroll}>
           <div className="ncal-grid-inner">
@@ -180,10 +205,7 @@ function NutriCalendar({
                       data-day-month={dayMonth}
                       {...(isMonthStart ? { "data-month": dayMonth } : {})}
                       disabled={isFuture || isTooEarly}
-                      onClick={() => {
-                        onSelect(dateStr);
-                        onClose();
-                      }}
+                      onClick={() => { onSelect(dateStr); onClose(); }}
                     >
                       {dayOfMonth}
                     </button>
@@ -199,6 +221,7 @@ function NutriCalendar({
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function shiftDate(date: string, days: number): string {
   const d = new Date(date + "T12:00:00");
   d.setDate(d.getDate() + days);
@@ -206,333 +229,570 @@ function shiftDate(date: string, days: number): string {
 }
 
 function labelFor(date: string): string {
-  if (date === defaultLogDate() || date === toDateStr(new Date())) return "Today";
-  return new Date(date + "T12:00:00").toLocaleDateString(undefined, {
+  const today = defaultLogDate();
+  if (date === today) {
+    const weekday = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+    return `${weekday} · Today`;
+  }
+  return new Date(date + "T12:00:00").toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
   });
 }
 
-function pillLabel(state: string, isSurplus: boolean): string {
-  if (isSurplus) return "Surplus";
-  if (state === "on-plan") return "On Plan";
-  if (state === "over" || state === "extreme") return "Over";
-  return "Under";
-}
-
-function EntryOverlay({
-  date,
-  initialCalories,
-  initialProtein,
-  hasEntry,
-  onSave,
-  onDelete,
-  onClose,
+// ── Delete confirmation dialog ────────────────────────────────────────────────
+function DeleteConfirm({
+  dateLabel,
+  onConfirm,
+  onCancel,
 }: {
-  date: string;
-  initialCalories: string;
-  initialProtein: string;
-  hasEntry: boolean;
-  onSave: (calories: string, protein: string) => Promise<void>;
-  onDelete: () => Promise<void>;
-  onClose: () => void;
+  dateLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
 }) {
-  const [calories, setCalories] = useState(initialCalories);
-  const [protein, setProtein] = useState(initialProtein);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const calRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    calRef.current?.focus();
-    calRef.current?.select();
-  }, []);
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      await onSave(calories, protein);
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete() {
-    setDeleting(true);
-    try {
-      await onDelete();
-      onClose();
-    } finally {
-      setDeleting(false);
-    }
-  }
-
   return createPortal(
     <>
-      <div className="entry-backdrop" onClick={onClose} />
-      <div className="entry-sheet" role="dialog" aria-modal aria-label="Log entry">
-        <div className="entry-sheet-handle" />
-        <div className="entry-sheet-date">{labelFor(date)}</div>
-        <div className="entry-fields">
-          <label className="entry-field">
-            <span className="entry-field-label">Calories</span>
-            <div className="entry-field-row">
-              <input
-                ref={calRef}
-                type="number"
-                inputMode="numeric"
-                value={calories}
-                placeholder="0"
-                onChange={(e) => setCalories(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSave()}
-              />
-              <span className="entry-field-unit">kcal</span>
-            </div>
-          </label>
-          <label className="entry-field">
-            <span className="entry-field-label">Protein</span>
-            <div className="entry-field-row">
-              <input
-                type="number"
-                inputMode="numeric"
-                value={protein}
-                placeholder="0"
-                onChange={(e) => setProtein(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSave()}
-              />
-              <span className="entry-field-unit">g</span>
-            </div>
-          </label>
+      <div className="dc-backdrop" onClick={onCancel} />
+      <section className="dc-panel" role="dialog" aria-modal aria-label="Confirm delete">
+        <div className="dc-body">
+          <strong>Delete entry?</strong>
+          <p>This removes {dateLabel}&rsquo;s calories and protein.</p>
         </div>
-        <button className="nutri-save" onClick={handleSave} disabled={saving || deleting}>
-          {saving ? "Saving…" : hasEntry ? "Update" : "Save"}
-        </button>
-        <div className="entry-sheet-secondary">
-          <button className="entry-cancel-btn" type="button" onClick={onClose}>
-            Cancel
-          </button>
-          {hasEntry && (
-            <button
-              className="entry-delete-btn"
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting || saving}
-            >
-              {deleting ? "Deleting…" : "Delete entry"}
-            </button>
-          )}
+        <div className="dc-actions">
+          <button className="dc-cancel" type="button" onClick={onCancel}>Cancel</button>
+          <button className="dc-delete" type="button" onClick={onConfirm}>Delete</button>
         </div>
-      </div>
+      </section>
     </>,
     document.body,
   );
 }
 
-export function TodayView({ config }: { config: NutritionConfig }) {
+// ── Celebration confetti ──────────────────────────────────────────────────────
+function Celebration({ variant }: { variant: "logged" | "double-hit" }) {
+  const count = variant === "double-hit" ? 34 : 18;
+  return createPortal(
+    <div
+      className={`save-celebration${variant === "double-hit" ? " double-hit" : ""}`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="celeb-confetti" aria-hidden>
+        {Array.from({ length: count }, (_, i) => (
+          <span key={i} style={{ "--i": i } as React.CSSProperties} />
+        ))}
+      </div>
+      <div className="celeb-card">
+        <span className="celeb-icon" aria-hidden>{variant === "double-hit" ? "★" : "✓"}</span>
+        <strong>{variant === "double-hit" ? "Double hit!" : "Logged"}</strong>
+        <span className="celeb-sub">
+          {variant === "double-hit" ? "Deficit and protein on track" : "Entry saved"}
+        </span>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// ── TodayView ─────────────────────────────────────────────────────────────────
+export function TodayView({
+  config,
+  date,
+  onDateChange,
+  onSaved,
+}: {
+  config: NutritionConfig;
+  date: string;
+  onDateChange: (date: string) => void;
+  onSaved?: () => void;
+}) {
   const toast = useToast();
-  const [date, setDate] = useState(defaultLogDate());
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [entryOpen, setEntryOpen] = useState(false);
+  const [editField, setEditField] = useState<"calories" | "protein" | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [savedPulse, setSavedPulse] = useState(false);
+  const [celebration, setCelebration] = useState<"logged" | "double-hit" | null>(null);
 
+  const calInputRef = useRef<HTMLInputElement>(null);
+  const protInputRef = useRef<HTMLInputElement>(null);
+  const calNumRef = useRef<HTMLElement>(null);
+  const protNumRef = useRef<HTMLElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const pendingCountUp = useRef(false);
+
+  const todayStr = defaultLogDate();
+  const isToday = date === todayStr;
+
+  // Load entry when date changes
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setEditField(null);
     getEntry(date)
       .then((entry) => {
         if (!active) return;
         setCalories(entry?.calories != null ? String(entry.calories) : "");
         setProtein(entry?.protein != null ? String(entry.protein) : "");
         setLoading(false);
+        pendingCountUp.current = true;
       })
       .catch((e) => {
         if (!active) return;
         toast(String(e?.message ?? e), "error");
         setLoading(false);
       });
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [date]);
+
+  // Count-up animation after load
+  useEffect(() => {
+    if (loading || !pendingCountUp.current) return;
+    pendingCountUp.current = false;
+    const calN = Number(calories);
+    const protN = Number(protein);
+    if (calNumRef.current && calN > 0) animateCountUp(calNumRef.current, calN);
+    if (protNumRef.current && protN > 0) animateCountUp(protNumRef.current, protN);
+  }, [loading]);
+
+  // Focus right input when edit opens
+  useEffect(() => {
+    if (editField === "calories") {
+      setTimeout(() => { calInputRef.current?.focus(); calInputRef.current?.select(); }, 40);
+    } else if (editField === "protein") {
+      setTimeout(() => { protInputRef.current?.focus(); protInputRef.current?.select(); }, 40);
+    }
+  }, [editField]);
+
+  // Keyboard arrow navigation
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (editField !== null || calendarOpen || deleteConfirmOpen) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      const active = document.activeElement;
+      if (active?.matches("input, textarea, select") || (active as HTMLElement)?.isContentEditable) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const prev = shiftDate(date, -1);
+        if (prev >= MIN_DATE) { haptic("select"); onDateChange(prev); }
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        if (!isToday) { haptic("select"); onDateChange(shiftDate(date, 1)); }
+      } else if (e.key === "Escape" && editField !== null) {
+        e.preventDefault();
+        setEditField(null);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [date, editField, calendarOpen, deleteConfirmOpen, isToday, onDateChange]);
+
+  // Swipe gesture for day navigation
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let startX = 0, startY = 0, tracking = false, cancelled = false;
+    const THRESHOLD = 56;
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      tracking = false;
+      cancelled = false;
+    }
+    function onTouchMove(e: TouchEvent) {
+      if (e.touches.length !== 1 || cancelled) return;
+      if (editField !== null || calendarOpen || deleteConfirmOpen) { cancelled = true; return; }
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (!tracking) {
+        if (Math.abs(dy) > Math.abs(dx) * 1.3 && (Math.abs(dy) > 8 || Math.abs(dx) > 8)) {
+          cancelled = true; return;
+        }
+        if (Math.abs(dx) > 8) tracking = true;
+        else return;
+      }
+      e.preventDefault();
+    }
+    function onTouchEnd(e: TouchEvent) {
+      if (!tracking) { tracking = false; cancelled = false; return; }
+      tracking = false; cancelled = false;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      if (dx < 0 && !isToday) {
+        haptic("select"); onDateChange(shiftDate(date, 1));
+      } else if (dx > 0) {
+        const prev = shiftDate(date, -1);
+        if (prev >= MIN_DATE) { haptic("select"); onDateChange(prev); }
+      }
+    }
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [date, editField, calendarOpen, deleteConfirmOpen, isToday, onDateChange]);
 
   const targets = useMemo(() => targetsFromConfig(config), [config]);
   const calNum = Number(calories) || 0;
   const protNum = Number(protein) || 0;
+  const hasEntry = calories !== "" || protein !== "";
   const calResult = getCalorieResult(calNum, targets.tdee, targets.deficitTarget);
   const protResult = getProteinResult(protNum, targets.proteinTarget);
-  const hasEntry = calories !== "" || protein !== "";
+  const doubleHit = calResult.state === "on-plan" && protResult.celebrated;
 
-  // Progress toward calorie budget (0–100%), not deficit progress
-  const calorieProgress =
-    targets.calorieTarget > 0
-      ? Math.min(100, Math.round((calNum / targets.calorieTarget) * 100))
-      : 0;
+  function openEdit(field: "calories" | "protein") {
+    haptic("tap");
+    setEditField(field);
+  }
 
-  async function handleSave(cal: string, prot: string) {
-    const calN = Number(cal) || 0;
-    const protN = Number(prot) || 0;
-    await saveEntry(date, { calories: calN, protein: protN }, config);
-    setCalories(cal);
-    setProtein(prot);
-    toast("Saved", "success");
-    setSavedPulse(true);
-    setTimeout(() => setSavedPulse(false), 750);
+  async function handleSave() {
+    if (saving) return;
+    const calN = Number(calories) || 0;
+    const protN = Number(protein) || 0;
+    setSaving(true);
+    try {
+      await saveEntry(date, { calories: calN, protein: protN }, config);
+      setSavedPulse(true);
+      setTimeout(() => setSavedPulse(false), 750);
+      haptic("success");
+      setEditField(null);
+      pendingCountUp.current = true;
+      onSaved?.();
+
+      const calRes = getCalorieResult(calN, targets.tdee, targets.deficitTarget);
+      const protRes = getProteinResult(protN, targets.proteinTarget);
+      const variant = calRes.state === "on-plan" && protRes.celebrated ? "double-hit" : "logged";
+      setCelebration(variant);
+      setTimeout(() => setCelebration(null), 2000);
+    } catch (e) {
+      haptic("error");
+      toast(String((e as Error)?.message ?? e), "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete() {
-    const savedCal = calories;
-    const savedProt = protein;
-    const savedDate = date;
-    await deleteEntry(date);
-    setCalories("");
-    setProtein("");
-    toast("Entry deleted", "info", 5000, {
-      label: "Undo",
-      onClick: () => {
-        saveEntry(savedDate, { calories: Number(savedCal) || 0, protein: Number(savedProt) || 0 }, config)
-          .then(() => {
-            if (date === savedDate) { setCalories(savedCal); setProtein(savedProt); }
-            toast("Restored", "success");
-          })
-          .catch((e) => toast(String((e as Error)?.message ?? e), "error"));
-      },
-    });
+    if (deleting) return;
+    setDeleteConfirmOpen(false);
+    setDeleting(true);
+    try {
+      await deleteEntry(date);
+      setCalories("");
+      setProtein("");
+      haptic("warning");
+      onSaved?.();
+    } catch (e) {
+      haptic("error");
+      toast(String((e as Error)?.message ?? e), "error");
+    } finally {
+      setDeleting(false);
+    }
   }
 
-  const pillState = calResult.isSurplus ? "surplus" : calResult.state;
+  async function handleCopyToday() {
+    if (!hasEntry) return;
+    haptic("tap");
+    const deficit = targets.tdee - calNum;
+    const defStr = deficit >= 0 ? `-${deficit.toLocaleString()}` : `+${Math.abs(deficit).toLocaleString()}`;
+    const text = `${labelFor(date)}: ${calNum.toLocaleString()} kcal, ${protNum}g protein (${defStr} vs TDEE)`;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      toast("Copy failed", "error");
+    }
+  }
+
+  // Calorie note
+  const calNote = (() => {
+    if (!hasEntry) return `Target ${targets.calorieTarget.toLocaleString()} kcal`;
+    if (calResult.isSurplus) return `+${calResult.surplus.toLocaleString()} kcal surplus`;
+    if (calResult.state === "under") {
+      const short = targets.deficitTarget - calResult.deficit;
+      return `${short.toLocaleString()} kcal short`;
+    }
+    if (calResult.state === "on-plan") return calResult.isPerfect ? "Perfect!" : "On plan ✓";
+    if (calResult.state === "over") {
+      const below = calResult.deficit - targets.deficitTarget;
+      return `${below.toLocaleString()} kcal below budget`;
+    }
+    if (calResult.state === "extreme") return "Consider eating more";
+    return "";
+  })();
+
+  // Protein note
+  const protNote = (() => {
+    if (!hasEntry) return `Target ${targets.proteinTarget}g`;
+    const delta = protNum - targets.proteinTarget;
+    if (Math.abs(delta) <= 2) return "Perfect!";
+    if (delta > 0) return `+${delta}g above target`;
+    return `${Math.abs(delta)}g to go`;
+  })();
+
+  const calTone = hasEntry
+    ? calResult.isSurplus ? "state-surplus"
+    : calResult.state === "extreme" ? "state-extreme"
+    : calResult.state === "on-plan" ? "state-on-plan"
+    : calResult.state === "over" ? "state-over"
+    : ""
+    : "";
+
+  const isEditing = editField !== null;
 
   return (
-    <>
+    <div ref={containerRef}>
       {calendarOpen && (
         <NutriCalendar
           selected={date}
-          todayStr={defaultLogDate()}
-          onSelect={setDate}
+          todayStr={todayStr}
+          onSelect={(d) => { haptic("select"); onDateChange(d); }}
           onClose={() => setCalendarOpen(false)}
         />
       )}
-      {entryOpen && (
-        <EntryOverlay
-          date={date}
-          initialCalories={calories}
-          initialProtein={protein}
-          hasEntry={hasEntry}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          onClose={() => setEntryOpen(false)}
+
+      {deleteConfirmOpen && (
+        <DeleteConfirm
+          dateLabel={labelFor(date)}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteConfirmOpen(false)}
         />
       )}
 
+      {celebration && <Celebration variant={celebration} />}
+
       {/* Date navigation */}
-      <div className="nutri-datenav">
-        <button className="nutri-navbtn" onClick={() => setDate(shiftDate(date, -1))}>
-          ‹
-        </button>
-        <button className="nutri-date" onClick={() => setCalendarOpen(true)}>
+      <nav className="nutri-datenav" aria-label="Diet day navigation">
+        <button
+          className="nutri-navbtn"
+          type="button"
+          aria-label="Previous day"
+          disabled={shiftDate(date, -1) < MIN_DATE}
+          onClick={() => {
+            const prev = shiftDate(date, -1);
+            if (prev >= MIN_DATE) { haptic("select"); onDateChange(prev); }
+          }}
+        >‹</button>
+        <button
+          className="nutri-date"
+          type="button"
+          onClick={() => { haptic("tap"); setCalendarOpen(true); }}
+        >
           {labelFor(date)}
         </button>
         <button
           className="nutri-navbtn"
-          onClick={() => setDate(shiftDate(date, 1))}
-          disabled={date >= defaultLogDate()}
-        >
-          ›
-        </button>
-      </div>
+          type="button"
+          aria-label="Next day"
+          disabled={isToday}
+          onClick={() => {
+            if (!isToday) { haptic("select"); onDateChange(shiftDate(date, 1)); }
+          }}
+        >›</button>
+      </nav>
 
-      {/* Unified daily card — tap to log */}
-      <button
-        className={`page-card nutri-hero nutri-tap-card${savedPulse ? " saved-pulse" : ""}${loading ? " loading-card" : ""}`}
-        onClick={() => !loading && setEntryOpen(true)}
-        aria-label="Log nutrition"
-        disabled={loading}
+      {/* Daily card */}
+      <section
+        className={[
+          "page-card daily-card",
+          loading ? "loading-card" : "",
+          isEditing ? "is-editing" : "",
+          !hasEntry ? "is-empty" : "",
+          doubleHit ? "double-hit" : "",
+          savedPulse ? "saved-pulse" : "",
+        ].filter(Boolean).join(" ")}
       >
-        {/* Status pill — always rendered to reserve height; hidden until entry exists */}
-        <div className={`nutri-pill-row${!hasEntry ? " nutri-pill-row--empty" : ""}`}>
-          <span className={`nutri-pill nutri-pill-${hasEntry ? pillState : "under"}`}>
-            {hasEntry ? pillLabel(calResult.state, calResult.isSurplus) : "On Plan"}
-          </span>
-        </div>
-
-        {/* Calorie hero — shows actual kcal consumed, coloured by state */}
-        <div className={`nutri-hero-num-row state-${calResult.state}`}>
-          <span className="nutri-hero-num">
-            {calNum === 0 && !hasEntry ? (
-              <span className="nutri-empty">—</span>
-            ) : (
-              calNum.toLocaleString()
+        <div className="daily-card-top">
+          <h2 className="daily-card-heading">{isToday ? "Today" : "This Day"}</h2>
+          <div className="daily-card-top-right">
+            {!hasEntry && !isEditing && (
+              <span className="dc-pill dc-pill--empty">No entry</span>
             )}
-          </span>
-          <span className="nutri-hero-unit-lg">kcal</span>
-        </div>
-
-        {/* Calorie settlement: progress bar + deficit/surplus label */}
-        <div className="nutri-settle">
-          <div className="nutri-settle-head">
-            <span className="nutri-settle-label">Calories</span>
-            <span className={`nutri-settle-delta state-${calResult.state}`}>
-              {hasEntry
-                ? calResult.isSurplus
-                  ? `+${calResult.surplus.toLocaleString()} surplus`
-                  : `−${calResult.deficit.toLocaleString()} deficit`
-                : `Target ${targets.calorieTarget.toLocaleString()} kcal`}
-            </span>
-          </div>
-          <div className="nutri-bar">
-            <div
-              className={`nutri-bar-fill state-${calResult.state}`}
-              style={{ width: `${hasEntry ? calorieProgress : 0}%` }}
-            />
-          </div>
-          <span className="nutri-settle-note">
-            {hasEntry
-              ? `${calNum.toLocaleString()} / ${targets.calorieTarget.toLocaleString()} kcal · TDEE ${targets.tdee.toLocaleString()}`
-              : `TDEE ${targets.tdee.toLocaleString()} kcal`}
-          </span>
-        </div>
-
-        {/* Divider */}
-        <div className="nutri-divider" />
-
-        {/* Protein section */}
-        <div className="nutri-protein-section">
-          <div className="nutri-settle-head">
-            <span className="nutri-settle-label">Protein</span>
-            <span
-              className={`nutri-settle-delta${protResult.celebrated ? " state-on-plan" : ""}`}
-            >
-              {hasEntry
-                ? protResult.celebrated
-                  ? "Goal met ✓"
-                  : `${Math.round(Math.max(0, targets.proteinTarget - protNum))}g to go`
-                : `Target ${targets.proteinTarget}g`}
-            </span>
-          </div>
-          <div className="nutri-protein-num-row">
-            <span
-              className={`nutri-protein-num${protResult.celebrated ? " state-on-plan" : ""}`}
-            >
-              {protNum === 0 && !hasEntry ? (
-                <span className="nutri-empty">—</span>
-              ) : (
-                protNum
-              )}
-            </span>
-            <span className="nutri-protein-unit">/ {targets.proteinTarget} g</span>
-          </div>
-          <div className="nutri-bar" style={{ marginTop: "var(--space-2)" }}>
-            <div
-              className={`nutri-bar-fill ${protResult.celebrated ? "state-on-plan" : "state-under"}`}
-              style={{ width: `${hasEntry ? protResult.progress : 0}%` }}
-            />
+            {hasEntry && !isEditing && (
+              <button
+                className="dc-copy-btn"
+                type="button"
+                aria-label="Copy today's summary"
+                onClick={handleCopyToday}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+            )}
           </div>
         </div>
-      </button>
-    </>
+
+        {isEditing ? (
+          /* ── Inline entry form ── */
+          <div className="settlement-form">
+            <label className="sf-input-card">
+              <span className="sf-label">Calories</span>
+              <div className="sf-row">
+                <input
+                  ref={calInputRef}
+                  type="number"
+                  inputMode="numeric"
+                  value={calories}
+                  placeholder="0"
+                  onChange={(e) => setCalories(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      if (editField === "calories") {
+                        setEditField("protein");
+                      } else {
+                        handleSave();
+                      }
+                    }
+                    if (e.key === "Escape") { haptic("tap"); setEditField(null); }
+                  }}
+                />
+                <span className="sf-unit">kcal</span>
+              </div>
+            </label>
+            <label className="sf-input-card">
+              <span className="sf-label">Protein</span>
+              <div className="sf-row">
+                <input
+                  ref={protInputRef}
+                  type="number"
+                  inputMode="numeric"
+                  value={protein}
+                  placeholder="0"
+                  onChange={(e) => setProtein(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSave();
+                    if (e.key === "Escape") { haptic("tap"); setEditField(null); }
+                  }}
+                />
+                <span className="sf-unit">g</span>
+              </div>
+            </label>
+            <div className="sf-actions">
+              <button
+                className="nutri-save"
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? "Saving…" : hasEntry ? "Update entry" : isToday ? "Commit today" : "Save entry"}
+              </button>
+              <div className="sf-secondary">
+                {hasEntry && (
+                  <button
+                    className="sf-delete-link"
+                    type="button"
+                    onClick={() => { haptic("warning"); setDeleteConfirmOpen(true); setEditField(null); }}
+                  >
+                    Delete entry
+                  </button>
+                )}
+                <button
+                  className="sf-cancel-link"
+                  type="button"
+                  onClick={() => { haptic("tap"); setEditField(null); }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ── Stat rows ── */
+          <div className="daily-metrics">
+            {hasEntry ? (
+              <>
+                <button
+                  className="stat-row"
+                  type="button"
+                  aria-label="Edit calories"
+                  onClick={() => openEdit("calories")}
+                >
+                  <span className="stat-main">
+                    <span ref={calNumRef} className={`stat-number ${calTone}`}>
+                      {calNum.toLocaleString()}
+                    </span>
+                    <span className="stat-unit">kcal</span>
+                    {doubleHit && (
+                      <span className="dc-pill dc-pill--gold">Double hit</span>
+                    )}
+                  </span>
+                  <span className="stat-label">Calories</span>
+                  <span className={`stat-note${calResult.isSurplus || calResult.state === "extreme" ? " stat-note--warn" : calResult.state === "on-plan" ? " stat-note--good" : ""}`}>
+                    {calNote}
+                  </span>
+                </button>
+                <button
+                  className="stat-row"
+                  type="button"
+                  aria-label="Edit protein"
+                  onClick={() => openEdit("protein")}
+                >
+                  <span className="stat-main">
+                    <span ref={protNumRef} className={`stat-number${protResult.celebrated ? " state-on-plan" : ""}`}>
+                      {protNum}
+                    </span>
+                    <span className="stat-unit">g</span>
+                    {protResult.celebrated && !doubleHit && (
+                      <span className="dc-pill dc-pill--green">On track</span>
+                    )}
+                  </span>
+                  <span className="stat-label">Protein</span>
+                  <span className={`stat-note${protResult.celebrated ? " stat-note--good" : ""}`}>
+                    {protNote}
+                  </span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="stat-row stat-row--empty"
+                  type="button"
+                  aria-label="Log calories"
+                  onClick={() => openEdit("calories")}
+                >
+                  <span className="stat-number--empty">—</span>
+                  <span className="stat-right">
+                    <span className="stat-unit">kcal</span>
+                    <span className="stat-meta">
+                      <span className="stat-label">Calories</span>
+                      <span className="stat-note">Target {targets.calorieTarget.toLocaleString()} kcal</span>
+                    </span>
+                  </span>
+                </button>
+                <button
+                  className="stat-row stat-row--empty"
+                  type="button"
+                  aria-label="Log protein"
+                  onClick={() => openEdit("protein")}
+                >
+                  <span className="stat-number--empty">—</span>
+                  <span className="stat-right">
+                    <span className="stat-unit">g</span>
+                    <span className="stat-meta">
+                      <span className="stat-label">Protein</span>
+                      <span className="stat-note">Target {targets.proteinTarget}g</span>
+                    </span>
+                  </span>
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

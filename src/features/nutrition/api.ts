@@ -5,6 +5,9 @@ import { DEFAULTS, phaseFromDeficit } from "./logic";
 export type NutritionEntry = Database["public"]["Tables"]["nutrition_entries"]["Row"];
 export type NutritionConfig = Database["public"]["Tables"]["nutrition_config"]["Row"];
 
+export const PHASE_NAMES = ["Aggressive Cut", "Moderate Cut", "Cruise", "Maintenance"] as const;
+export const DEFAULT_PHASE_DEFICITS = [805, 655, 455, 150] as const;
+
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) throw error ?? new Error("Not signed in");
@@ -14,8 +17,6 @@ async function currentUserId(): Promise<string> {
 /** Fetch the user's config, creating a default row on first use. */
 export async function getConfig(): Promise<NutritionConfig> {
   const userId = await currentUserId();
-  // Ensure a row exists. ignoreDuplicates makes this a no-op when one already
-  // does — safe against concurrent calls (e.g. React StrictMode double-mount).
   const { error: upErr } = await supabase
     .from("nutrition_config")
     .upsert(
@@ -52,10 +53,17 @@ export async function saveConfig(
   return data;
 }
 
-/** Derived targets for a given config. Phase is inferred from the deficit. */
+/** Derived targets for a given config. Supports legacy [deficit] and new [p0,p1,p2,p3,activeIdx] formats. */
 export function targetsFromConfig(config: NutritionConfig) {
   const raw = config.phase_deficits as number | number[];
-  const deficitTarget = Number((Array.isArray(raw) ? raw[0] : raw) ?? DEFAULTS.deficitTarget);
+  const nums = (Array.isArray(raw) ? raw : [raw]).map(Number).filter((n) => isFinite(n));
+  let deficitTarget: number;
+  if (nums.length >= 5) {
+    const activeIdx = Math.max(0, Math.min(3, Math.round(nums[4])));
+    deficitTarget = nums[activeIdx] ?? DEFAULTS.deficitTarget;
+  } else {
+    deficitTarget = nums[0] ?? DEFAULTS.deficitTarget;
+  }
   return {
     tdee: config.tdee,
     proteinTarget: config.protein_target,
@@ -63,6 +71,29 @@ export function targetsFromConfig(config: NutritionConfig) {
     calorieTarget: Math.max(0, Math.round(config.tdee - deficitTarget)),
     cutPhaseName: phaseFromDeficit(deficitTarget),
   };
+}
+
+/** Extract all 4 phase deficits and the active phase index from config. */
+export function phaseDefsFromConfig(config: NutritionConfig): { defs: number[]; activeIndex: number } {
+  const raw = config.phase_deficits as number | number[];
+  const nums = (Array.isArray(raw) ? raw : [raw]).map(Number).filter((n) => isFinite(n));
+
+  if (nums.length >= 5) {
+    return {
+      defs: nums.slice(0, 4),
+      activeIndex: Math.max(0, Math.min(3, Math.round(nums[4]))),
+    };
+  }
+
+  // Legacy: expand to 4 default phases, placing active deficit in the closest slot
+  const activeDef = nums[0] ?? DEFAULTS.deficitTarget;
+  const defs = [...DEFAULT_PHASE_DEFICITS] as number[];
+  const closestIdx = defs.reduce(
+    (bestI, d, i) => (Math.abs(d - activeDef) < Math.abs(defs[bestI] - activeDef) ? i : bestI),
+    0,
+  );
+  defs[closestIdx] = activeDef;
+  return { defs, activeIndex: closestIdx };
 }
 
 export async function getEntry(date: string): Promise<NutritionEntry | null> {
