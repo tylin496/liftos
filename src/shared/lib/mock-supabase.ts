@@ -3,11 +3,10 @@
 // backed by an in-memory store so write operations work across the session.
 
 const DEV_USER_ID = "00000000-0000-0000-0000-000000000001";
-const TODAY = "2026-06-30";
 
 function daysAgo(n: number): string {
-  const d = new Date(TODAY + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() - n);
+  const d = new Date();
+  d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
 }
 

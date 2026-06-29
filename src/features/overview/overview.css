@@ -300,27 +300,6 @@
   100% { opacity: 1; transform: translateX(0); }
 }
 
-/* ─── Skeleton loading state ─────────────────────────────────────────────── */
-
-.loading-card .ov-hero-num,
-.loading-card .ov-hero-denom,
-.loading-card .ov-hero-balance-num,
-.loading-card .ov-stat-val,
-.loading-card .ov-strength-dominant,
-.loading-card .ov-strength-count,
-.loading-card .ov-strength-pill {
-  color: transparent !important;
-  -webkit-text-fill-color: transparent !important;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
-    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
-    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
-  ) !important;
-  background-size: 300% 100% !important;
-  border-radius: 0.3em !important;
-  animation: skel-shimmer 2.2s ease-in-out infinite !important;
-}
 
 /* ─── Card eyebrow (shared) ──────────────────────────────────────────────── */
 

@@ -486,7 +486,10 @@ function TrainingPageInner() {
   const confirm = useConfirm();
   const activity = useTabActivity();
 
-  const [split, setSplit] = useState<SplitId>("push");
+  const [split, setSplit] = useState<SplitId>(() => {
+    const saved = sessionStorage.getItem("tr-split");
+    return (saved && SPLITS.some((s) => s.id === saved) ? saved : "push") as SplitId;
+  });
   const prevSplitIdx = useRef(0);
   const splitIds = useMemo(() => SPLITS.map((s) => s.id), []);
   const [exercises, setExercises] = useState<Exercise[] | null>(null);
@@ -518,6 +521,7 @@ function TrainingPageInner() {
   function changeSplit(id: SplitId) {
     prevSplitIdx.current = splitIds.indexOf(split);
     setSplit(id);
+    sessionStorage.setItem("tr-split", id);
   }
 
   const reloadAll = useCallback(async () => {

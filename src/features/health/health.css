@@ -202,29 +202,3 @@
   color: var(--ink-3);
 }
 
-/* ── Skeleton loading state ──────────────────────────────────────────────── */
-
-.loading-card .health-tdee-val,
-.loading-card .health-metric-val,
-.loading-card .health-metric-change,
-.loading-card .health-metric-daterange {
-  color: transparent !important;
-  -webkit-text-fill-color: transparent !important;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
-    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
-    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
-  ) !important;
-  background-size: 300% 100% !important;
-  border-radius: 0.3em !important;
-  animation: skel-shimmer 2.2s ease-in-out infinite !important;
-}
-
-/* health-unit sits inside a shimmering parent — text-transparent only */
-.loading-card .health-tdee-num .health-unit,
-.loading-card .health-metric-hero .health-unit {
-  color: transparent !important;
-  -webkit-text-fill-color: transparent !important;
-  background: transparent !important;
-}

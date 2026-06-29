@@ -242,77 +242,9 @@ export function OverviewPage() {
     );
   }
 
-  if (!data) {
-    return (
-      <div className="page">
-        <section className="page-card ov-hero loading-card">
-          <p className="ov-hero-eyebrow">Today · {fmtDate()}</p>
-          <div className="ov-hero-row">
-            <span className="ov-hero-label">Calories</span>
-            <div className="ov-hero-values">
-              <span className="ov-hero-num">0,000</span>
-              <span className="ov-hero-denom">/ 0,000 kcal</span>
-            </div>
-            <div className="ov-bar-track">
-              <div className="ov-bar-fill" style={{ width: "35%", opacity: 0.3 }} />
-            </div>
-          </div>
-          <div className="ov-hero-row">
-            <span className="ov-hero-label">Protein</span>
-            <div className="ov-hero-values">
-              <span className="ov-hero-num">000</span>
-              <span className="ov-hero-denom">/ 000 g</span>
-            </div>
-            <div className="ov-bar-track">
-              <div className="ov-bar-fill protein" style={{ width: "35%", opacity: 0.3 }} />
-            </div>
-          </div>
-          <div className="ov-hero-balance">
-            <span className="ov-hero-label">Deficit</span>
-            <span className="ov-hero-balance-num good">−000 kcal</span>
-          </div>
-        </section>
-
-        <div className="ov-grid-2">
-          <div className="ov-stat loading-card">
-            <span className="ov-stat-label">Weight</span>
-            <span className="ov-stat-val">+0.0 kg</span>
-            <span className="ov-stat-sub">vs 7 days ago</span>
-          </div>
-          <div className="ov-stat loading-card">
-            <span className="ov-stat-label">TDEE</span>
-            <span className="ov-stat-val">0,000</span>
-            <span className="ov-stat-sub">auto · kcal/day</span>
-          </div>
-        </div>
-
-        <section className="page-card ov-strength loading-card">
-          <p className="ov-card-eyebrow">Performance</p>
-          <p className="ov-strength-dominant">Stable</p>
-          <p className="ov-strength-count">0 exercises</p>
-          <div className="ov-strength-pills">
-            <span className="ov-strength-pill ov-strength-pill-good">↑0</span>
-            <span className="ov-strength-pill ov-strength-pill-stable">→0</span>
-          </div>
-        </section>
-
-        <div className="ov-grid-2">
-          <div className="ov-stat loading-card">
-            <span className="ov-stat-label">Training</span>
-            <span className="ov-stat-val">0</span>
-            <span className="ov-stat-sub">sessions this week</span>
-          </div>
-          <div className="ov-stat loading-card">
-            <span className="ov-stat-label">PRs</span>
-            <span className="ov-stat-val">+0</span>
-            <span className="ov-stat-sub">this month</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const weightDelta = fmtWeightDelta(data.weightLatest, data.weightWeekAgo);
+  const weightDelta = data
+    ? fmtWeightDelta(data.weightLatest, data.weightWeekAgo)
+    : { text: "—", cls: "empty" };
 
   return (
     <div className="page">
@@ -327,26 +259,26 @@ export function OverviewPage() {
 
         <div className="ov-stat">
           <span className="ov-stat-label">TDEE</span>
-          {data.tdee != null ? (
+          {data?.tdee != null ? (
             <>
               <span className="ov-stat-val">{tdeeCount.toLocaleString()}</span>
               <span className="ov-stat-sub">auto · kcal/day</span>
             </>
           ) : (
             <>
-              <span className="ov-stat-val empty">—</span>
-              <span className="ov-stat-sub">no Health data</span>
+              <span className="ov-stat-val empty">{data ? "—" : "0"}</span>
+              <span className="ov-stat-sub">{data ? "no Health data" : "kcal/day"}</span>
             </>
           )}
         </div>
       </div>
 
-      <StrengthCard s={data.strength} />
+      {data && <StrengthCard s={data.strength} />}
 
       <div className="ov-grid-2">
         <div className="ov-stat">
           <span className="ov-stat-label">Training</span>
-          <span className={`ov-stat-val${data.sessionsThisWeek > 0 ? " accent" : " empty"}`}>
+          <span className={`ov-stat-val${(data?.sessionsThisWeek ?? 0) > 0 ? " accent" : " empty"}`}>
             {sessionsCount}
           </span>
           <span className="ov-stat-sub">sessions this week</span>
@@ -354,8 +286,8 @@ export function OverviewPage() {
 
         <div className="ov-stat">
           <span className="ov-stat-label">PRs</span>
-          <span className={`ov-stat-val${data.prThisMonth > 0 ? " gold" : " empty"}`}>
-            {data.prThisMonth > 0 ? `+${prsCount}` : "0"}
+          <span className={`ov-stat-val${(data?.prThisMonth ?? 0) > 0 ? " gold" : " empty"}`}>
+            {(data?.prThisMonth ?? 0) > 0 ? `+${prsCount}` : "0"}
           </span>
           <span className="ov-stat-sub">this month</span>
         </div>

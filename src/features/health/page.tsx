@@ -293,18 +293,13 @@ export function HealthPage() {
   return (
     <div className="page health">
       {/* TDEE hero — fixed windows, independent of period selector */}
-      <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
+      <section className="page-card health-tdee">
         <p className="page-eyebrow">CURRENT TDEE</p>
         {!data ? (
-          <>
-            <div className="health-tdee-num">
-              <span className="health-tdee-val">0,000</span>
-              <span className="health-unit"> kcal/day</span>
-            </div>
-            <details className="health-tdee-method">
-              <summary>How it's calculated</summary>
-            </details>
-          </>
+          <div className="health-tdee-num">
+            <AnimatedTdee value={0} />
+            <span className="health-unit"> kcal/day</span>
+          </div>
         ) : tdee?.tdee != null ? (
           <>
             <div className="health-tdee-num">
@@ -359,24 +354,6 @@ export function HealthPage() {
         ))}
       </div>
 
-      {/* Skeleton metric cards — shown while data loads */}
-      {!data && METRICS.map((spec) => (
-        <section key={spec.key} className="page-card health-metric loading-card">
-          <div className="health-metric-head">
-            <span className="health-metric-label">{spec.label}</span>
-            <span className="health-metric-change">+0.0 {spec.unit}</span>
-          </div>
-          <p className="health-metric-eyebrow">AVERAGE</p>
-          <div className="health-metric-hero">
-            <span className="health-metric-val">0.0</span>
-            <span className="health-unit">{spec.unit}</span>
-          </div>
-          <p className="health-metric-daterange">Jan 2026 – Jun 2026</p>
-          <div className="health-chart-wrap">
-            <div className="skel" style={{ height: 80, marginTop: 8, borderRadius: 4 }} />
-          </div>
-        </section>
-      ))}
 
       {/* Metric cards — Apple Health style */}
       {cards.map(({ spec, bucketed, avg7d, change, dateRange, readingCount }) => {
