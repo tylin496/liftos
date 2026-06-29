@@ -256,50 +256,76 @@
 
 /* ── Date nav ────────────────────────────────────────────────────────── */
 .nutri-datenav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-1) 0 var(--space-2);
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-card) 74%, transparent);
+  padding: 4px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(18px);
+  animation: rise-in 360ms ease both;
 }
 
 .nutri-date {
-  font-weight: 700;
-  font-size: var(--text-lg);
-  min-width: 9ch;
-  text-align: center;
-  background: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 14px;
   border: none;
+  border-radius: 8px;
+  background: transparent;
   color: var(--ink);
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
-  transition: background 0.12s;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-snug);
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .nutri-date:active {
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  transform: scale(0.97);
 }
 
 .nutri-navbtn {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--rule);
-  background: var(--bg-card);
-  color: var(--ink-2);
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
   font-size: var(--text-2xl);
   line-height: 1;
   display: grid;
   place-items: center;
-  transition: transform 0.12s var(--press-ease);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nutri-navbtn:hover {
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
+  .nutri-date:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .nutri-navbtn:active {
-  transform: scale(var(--tap-scale));
+  transform: scale(0.97);
 }
 
 .nutri-navbtn:disabled {
   opacity: 0.35;
+  cursor: default;
 }
 
 /* ── Headline ────────────────────────────────────────────────────────── */
@@ -1892,10 +1918,6 @@
   color: var(--ink-4);
 }
 
-/* ── Date nav: widen label for "Fri · Today" format ─────────────────── */
-.nutri-date {
-  min-width: 11ch;
-}
 
 /* ── Day navigation slide animation ─────────────────────────────────── */
 @keyframes slide-from-right {
@@ -1911,3 +1933,88 @@
 .daily-card.day-nav-forward  { animation: slide-from-right 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .daily-card.day-nav-backward { animation: slide-from-left  280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
+
+/* ── Nutrition loading skeletons ─────────────────────────────────────── */
+.nutri-skel-hero {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.nutri-skel-hero--sm {
+  margin-top: var(--space-4);
+}
+
+.nutri-skel-num {
+  font-family: var(--font-mono);
+  font-size: var(--text-4xl);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.nutri-skel-hero--sm .nutri-skel-num {
+  font-size: var(--text-2xl);
+}
+
+.nutri-skel-unit {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.nutri-skel-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--bg-soft);
+  width: 100%;
+}
+
+/* Week bars skeleton */
+.nutri-skel-week-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  height: 80px;
+  margin-top: var(--space-3);
+}
+
+.nutri-skel-week-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.nutri-skel-bar-vert {
+  width: 100%;
+  border-radius: 4px 4px 2px 2px;
+  background: var(--bg-soft);
+  min-height: 8px;
+}
+
+.nutri-skel-day {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--ink-4);
+}
+
+/* Apply shimmer to skeleton text in loading-card */
+.loading-card .nutri-skel-num,
+.loading-card .nutri-skel-unit,
+.loading-card .nutri-skel-day {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
+    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
+  ) !important;
+  background-size: 300% 100% !important;
+  border-radius: 0.3em !important;
+  animation: skel-shimmer 2.2s ease-in-out infinite !important;
+}
