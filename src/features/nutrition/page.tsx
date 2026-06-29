@@ -43,9 +43,23 @@ export function NutritionPage() {
         )}
 
         {!config && !error && (
-          <section className="page-card">
-            <p className="page-note">Loading…</p>
-          </section>
+          <>
+            <section className="page-card loading-card">
+              <p className="page-eyebrow">TODAY</p>
+              <div className="nutri-skel-hero">
+                <span className="nutri-skel-num">1,234</span>
+                <span className="nutri-skel-unit">kcal</span>
+              </div>
+              <div className="nutri-skel-bar" />
+              <div className="nutri-skel-hero nutri-skel-hero--sm">
+                <span className="nutri-skel-num">000</span>
+                <span className="nutri-skel-unit">g protein</span>
+              </div>
+              <div className="nutri-skel-bar" />
+            </section>
+            <section className="page-card loading-card" style={{ height: 140 }} />
+            <section className="page-card loading-card" style={{ height: 80 }} />
+          </>
         )}
 
         {config && (

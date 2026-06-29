@@ -38,6 +38,13 @@ import { ToastProvider as _ToastProvider, useToast as _useToast } from "@shared/
 export const ToastProvider = _ToastProvider;
 export const useToast = _useToast;
 
+function haptic(kind: "tap" | "success" | "error" = "tap") {
+  if (!navigator.vibrate) return;
+  if (kind === "success") navigator.vibrate([18, 30, 18]);
+  else if (kind === "error") navigator.vibrate([50, 40, 50]);
+  else navigator.vibrate(8);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Confirm dialog
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1305,13 +1312,16 @@ export function ExerciseCard({
       if (newE1RM > oldBestE1RM) {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);
+        haptic("success");
         const wStr = newParsed ? `${fmtWeightNum(score(newParsed))} kg` : "";
         toast(`🏆 New PR — ${wStr}`, "pr", 4000);
       } else {
+        haptic("tap");
         toast("Set logged", "success");
       }
       onLogged();
     } catch (err) {
+      haptic("error");
       toast(String((err as Error)?.message ?? err), "error");
     }
   }
@@ -1336,14 +1346,17 @@ export function ExerciseCard({
         bodyweight: parsed.assisted?.bw ?? null,
       });
       setEditId(null);
+      haptic("tap");
       toast("Entry updated", "success");
       onLogged();
     } catch (err) {
+      haptic("error");
       toast(String((err as Error)?.message ?? err), "error");
     }
   }
 
   function handleDelete(log: TrainingLog) {
+    haptic("tap");
     let undone = false;
     const UNDO_MS = 5000;
     setDeletedLogIds((prev) => new Set([...prev, log.id]));

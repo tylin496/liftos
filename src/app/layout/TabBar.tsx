@@ -17,7 +17,7 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
     id: "training",
     label: "Training",
     icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <rect x="6.5" y="10.5" width="11" height="3" rx="0.5" />
         <rect x="3" y="5" width="3.5" height="14" rx="0.75" />
         <rect x="17.5" y="5" width="3.5" height="14" rx="0.75" />

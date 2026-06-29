@@ -3,6 +3,7 @@ import { fetchOverview, type OverviewData, type StrengthSummary } from "./api";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { buildAllDataJson } from "@shared/lib/copyAllData";
+import { useNav } from "@app/layout/NavContext";
 import "./overview.css";
 
 const MONTH_ABBR = [
@@ -130,6 +131,8 @@ function HeroCard({ data }: { data: OverviewData }) {
 // attention items slide in one at a time.
 
 function StrengthCard({ s }: { s: StrengthSummary }) {
+  const switchTab = useNav();
+
   if (s.total === 0) {
     return (
       <section className="page-card ov-strength">
@@ -149,7 +152,13 @@ function StrengthCard({ s }: { s: StrengthSummary }) {
   const watchList = s.exercises.filter((e) => e.status === "watch");
 
   return (
-    <section className="page-card ov-strength">
+    <section
+      className="page-card ov-strength ov-strength-tappable"
+      onClick={() => switchTab("training")}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && switchTab("training")}
+    >
       <p className="ov-card-eyebrow">Performance</p>
       <p className={`ov-strength-dominant${dominantCls ? ` ov-strength-${dominantCls}` : ""}`}>
         {dominant}

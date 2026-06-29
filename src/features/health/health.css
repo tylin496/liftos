@@ -161,6 +161,10 @@
   content: " ▴";
 }
 
+.health-tdee-formula {
+  margin: var(--space-2) 0 var(--space-3);
+}
+
 .health-tdee-divider {
   border: none;
   border-top: 1px solid var(--ink-5, #e5e5ea);

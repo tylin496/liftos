@@ -13,24 +13,21 @@ const TITLES: Record<TabId, string> = {
 
 export function Header({ user, tab }: { user: User; tab: TabId }) {
   const avatar = user.user_metadata?.avatar_url as string | undefined;
-  const isOverview = tab === "overview";
   const { action } = useHeaderAction();
 
-  // 3-column grid: [left: brand or empty] [center: tab title] [right: actions]
+  // 3-column grid: [left: brand] [center: tab title] [right: actions]
   // Guarantees the tab title is visually centered regardless of action widths.
   return (
     <header className="shell-header">
       <div className="shell-header-left">
-        {isOverview && (
-          <span className="shell-brand">
-            <img className="shell-logo" src={logoUrl} alt="" width={24} height={24} />
-            <span className="shell-title">LiftOS</span>
-          </span>
-        )}
+        <span className="shell-brand">
+          <img className="shell-logo" src={logoUrl} alt="" width={24} height={24} />
+          <span className="shell-title">LiftOS</span>
+        </span>
       </div>
 
       <span className="shell-tab-title" aria-live="polite">
-        {!isOverview ? TITLES[tab] : ""}
+        {tab !== "overview" ? TITLES[tab] : ""}
       </span>
 
       <div className="shell-header-right">

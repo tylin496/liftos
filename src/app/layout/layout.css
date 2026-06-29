@@ -57,6 +57,22 @@
   background: none;
   padding: 0;
   border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.15s var(--press-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+  .shell-user:hover { opacity: 0.85; }
+}
+
+.shell-user:active {
+  transform: scale(0.96);
+  transition-duration: 0.08s;
 }
 
 .shell-avatar {
@@ -200,6 +216,11 @@
 .page > *:nth-child(4) { animation: rise-in 0.34s var(--reveal-ease) both; animation-delay: 135ms; }
 .page > *:nth-child(5) { animation: rise-in 0.34s var(--reveal-ease) both; animation-delay: 165ms; }
 .page > *:nth-child(n+6) { animation: rise-in 0.34s var(--reveal-ease) both; animation-delay: 185ms; }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .page-card {
   background: var(--bg-card);

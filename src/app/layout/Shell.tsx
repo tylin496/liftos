@@ -7,6 +7,7 @@ import { HealthPage } from "@features/health/page";
 import { Header } from "./Header";
 import { TabBar, type TabId } from "./TabBar";
 import { HeaderActionProvider } from "./HeaderActionContext";
+import { NavContext } from "./NavContext";
 import "./layout.css";
 
 const PAGES: Record<TabId, () => JSX.Element> = {
@@ -22,6 +23,7 @@ export function Shell({ session }: { session: Session }) {
   const [tab, setTab] = useState<TabId>("overview");
 
   function switchTab(next: TabId) {
+    if (next !== tab) navigator.vibrate?.(12);
     setTab(next);
     window.scrollTo({ top: 0, behavior: "instant" });
   }
@@ -80,13 +82,15 @@ export function Shell({ session }: { session: Session }) {
 
   return (
     <HeaderActionProvider>
-      <div className="shell">
-        <Header user={session.user} tab={tab} />
-        <main ref={contentRef} className="shell-content">
-          <Page />
-        </main>
-        <TabBar active={tab} onChange={switchTab} />
-      </div>
+      <NavContext.Provider value={switchTab}>
+        <div className="shell">
+          <Header user={session.user} tab={tab} />
+          <main ref={contentRef} className="shell-content">
+            <Page />
+          </main>
+          <TabBar active={tab} onChange={switchTab} />
+        </div>
+      </NavContext.Provider>
     </HeaderActionProvider>
   );
 }

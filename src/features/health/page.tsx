@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchHealthData, type BodyMetric, type HealthData } from "./api";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson } from "@shared/lib/copyAllData";
-import { useAnimatedNumber } from "@shared/hooks/useAnimatedNumber";
+import { useCountUp } from "@shared/hooks/useCountUp";
 import "./health.css";
 
 type MetricKey = "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal";
@@ -22,12 +22,11 @@ const METRICS: MetricSpec[] = [
   { key: "resting_energy_kcal", label: "Resting Energy", unit: "kcal", decimals: 0, color: "#34c759" },
 ];
 
-type RangeKey = "30D" | "90D" | "6M" | "1Y";
+type RangeKey = "3M" | "6M" | "Y";
 const RANGES: { key: RangeKey; label: string; days: number; bucketDays: number }[] = [
-  { key: "30D", label: "30D", days: 30,  bucketDays: 1  },
-  { key: "90D", label: "90D", days: 90,  bucketDays: 3  },
-  { key: "6M",  label: "6M",  days: 180, bucketDays: 7  },
-  { key: "1Y",  label: "1Y",  days: 365, bucketDays: 30 },
+  { key: "3M", label: "3M", days: 90,  bucketDays: 3  },
+  { key: "6M", label: "6M", days: 180, bucketDays: 7  },
+  { key: "Y",  label: "Y",  days: 365, bucketDays: 30 },
 ];
 
 function series(metrics: BodyMetric[], key: MetricKey) {
@@ -75,7 +74,20 @@ function rollingAvg(pts: { date: string; value: number }[], days = 7): number | 
 
 const MONTH_ABBR = ["J","F","M","A","M","J","J","A","S","O","N","D"];
 
-function LineChart({ points, color }: { points: { date: string; value: number }[]; color: string }) {
+function LineChart({
+  points,
+  color,
+  decimals = 0,
+  unit = "",
+}: {
+  points: { date: string; value: number }[];
+  color: string;
+  decimals?: number;
+  unit?: string;
+}) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
   if (points.length < 2) {
     return (
       <div className="health-chart-wrap">
@@ -116,13 +128,38 @@ function LineChart({ points, color }: { points: { date: string; value: number }[
   // Horizontal grid lines (3)
   const gridYs = [0.25, 0.5, 0.75].map((f) => PAD.top + f * innerH);
 
+  function findNearest(clientX: number) {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    setHovered(Math.round(frac * (points.length - 1)));
+  }
+
+  const hp = hovered !== null ? points[hovered] : null;
+  const hx = hovered !== null ? toX(hovered) : 0;
+  const hy = hovered !== null ? toY(points[hovered].value) : 0;
+  // Format tooltip date: "Jun 15"
+  const hDate = hp
+    ? new Date(hp.date + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    : "";
+  const hVal = hp ? fmt(hp.value, decimals) : "";
+  // Keep tooltip label inside chart bounds
+  const tipX = hx < 40 ? hx + 6 : hx > W - 40 ? hx - 6 : hx;
+  const tipAnchor = hx < 40 ? "start" : hx > W - 40 ? "end" : "middle";
+
   return (
     <div className="health-chart-wrap">
       <svg
+        ref={svgRef}
         className="health-chart"
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        style={{ height: H }}
+        style={{ height: H, touchAction: "none" }}
+        onPointerMove={(e) => findNearest(e.clientX)}
+        onPointerLeave={() => setHovered(null)}
+        onTouchStart={(e) => findNearest(e.touches[0].clientX)}
+        onTouchMove={(e) => { e.preventDefault(); findNearest(e.touches[0].clientX); }}
+        onTouchEnd={() => setHovered(null)}
       >
         {/* Grid lines */}
         {gridYs.map((y, i) => (
@@ -138,10 +175,29 @@ function LineChart({ points, color }: { points: { date: string; value: number }[
         {/* Line */}
         <path d={pathD} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
 
-        {/* Data point circles */}
+        {/* Data point circles — dimmed when hovering */}
         {points.map((p, i) => (
-          <circle key={i} cx={toX(i)} cy={toY(p.value)} r="2.5" fill={color} />
+          <circle
+            key={i}
+            cx={toX(i)} cy={toY(p.value)} r="2.5"
+            fill={color}
+            opacity={hovered !== null && hovered !== i ? 0.25 : 1}
+          />
         ))}
+
+        {/* Hover crosshair + tooltip */}
+        {hovered !== null && hp && (
+          <>
+            <line x1={hx} y1={PAD.top} x2={hx} y2={PAD.top + innerH} stroke={color} strokeWidth="0.8" strokeDasharray="3 2" opacity="0.5" />
+            <circle cx={hx} cy={hy} r="4" fill={color} />
+            <text x={tipX} y={PAD.top - 1} textAnchor={tipAnchor} fontSize="8.5" fontWeight="700" fill={color} fontFamily="inherit">
+              {hVal} {unit}
+            </text>
+            <text x={tipX} y={PAD.top + 8} textAnchor={tipAnchor} fontSize="7.5" fill="var(--ink-4)" fontFamily="inherit">
+              {hDate}
+            </text>
+          </>
+        )}
 
         {/* X-axis labels */}
         {tickIndices.map((i) => {
@@ -154,7 +210,7 @@ function LineChart({ points, color }: { points: { date: string; value: number }[
               y={H - 4}
               textAnchor="middle"
               fontSize="8"
-              fill="var(--ink-4)"
+              fill={hovered !== null ? "var(--ink-4)" : "var(--ink-4)"}
               fontFamily="inherit"
             >
               {label}
@@ -180,8 +236,8 @@ function formatDateRange(pts: { date: string }[]): string {
 }
 
 function AnimatedTdee({ value }: { value: number }) {
-  const display = useAnimatedNumber(value);
-  return <>{display}</>;
+  const count = useCountUp(Math.round(value), 700);
+  return <>{count.toLocaleString()}</>;
 }
 
 export function HealthPage() {
@@ -238,10 +294,7 @@ export function HealthPage() {
               <span className="health-unit"> kcal/day</span>
             </div>
             <details className="health-tdee-method">
-              <summary>
-                Calculated from<br />
-                30-day Resting Avg + 14-day Active Avg
-              </summary>
+              <summary>How it's calculated</summary>
             </details>
           </>
         ) : tdee?.tdee != null ? (
@@ -251,10 +304,10 @@ export function HealthPage() {
               <span className="health-unit"> kcal/day</span>
             </div>
             <details className="health-tdee-method">
-              <summary>
-                Calculated from<br />
-                30-day Resting Avg + 14-day Active Avg
-              </summary>
+              <summary>How it's calculated</summary>
+              <p className="health-tdee-formula">
+                Calculated from 30-day Resting Avg + 14-day Active Avg
+              </p>
               <hr className="health-tdee-divider" />
             <div className="health-tdee-components">
               <div className="health-tdee-component">
@@ -353,7 +406,7 @@ export function HealthPage() {
             </div>
             {dateRange && <p className="health-metric-daterange">{dateRange}</p>}
 
-            <LineChart points={bucketed} color={spec.color} />
+            <LineChart points={bucketed} color={spec.color} decimals={spec.decimals} unit={spec.unit} />
           </section>
         );
       })}

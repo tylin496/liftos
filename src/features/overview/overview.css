@@ -203,6 +203,24 @@
 
 /* ─── Performance card ───────────────────────────────────────────────────── */
 
+/* Tap-to-navigate: Performance card links to Training tab */
+.ov-strength-tappable {
+  cursor: pointer;
+  transition: transform 0.18s var(--press-ease), box-shadow 0.18s;
+}
+
+@media (hover: hover) {
+  .ov-strength-tappable:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.ov-strength-tappable:active {
+  transform: scale(var(--tap-scale));
+  transition-duration: 0.08s;
+}
+
 /* Dominant status — the headline of the performance card */
 .ov-strength-dominant {
   font-size: var(--text-2xl);

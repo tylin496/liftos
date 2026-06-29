@@ -113,9 +113,20 @@ export function HistoryView({
 
   if (!entries) {
     return (
-      <section className="page-card">
-        <p className="page-note">Loading…</p>
-      </section>
+      <>
+        <section className="page-card loading-card">
+          <p className="page-eyebrow">THIS WEEK</p>
+          <div className="nutri-skel-week-bars">
+            {["M","T","W","T","F","S","S"].map((d, i) => (
+              <div key={i} className="nutri-skel-week-col">
+                <div className="nutri-skel-bar-vert" style={{ height: `${30 + Math.abs((i - 3) * 8)}%` }} />
+                <span className="nutri-skel-day">{d}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="page-card loading-card" style={{ height: 120 }} />
+      </>
     );
   }
 
