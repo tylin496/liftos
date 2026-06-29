@@ -10,8 +10,8 @@ export function ProgramsView({
   onSaved: (c: NutritionConfig) => void;
 }) {
   const raw = config.phase_deficits;
-  const initDeficit = Array.isArray(raw) ? raw[0] : (raw ?? 500);
-  const initCalorieTarget = Math.max(0, config.tdee - (Array.isArray(raw) ? raw[0] : (raw ?? 500)));
+  const initDeficit = Number(Array.isArray(raw) ? raw[0] : (raw ?? 500));
+  const initCalorieTarget = Math.max(0, config.tdee - initDeficit);
 
   const [protein, setProtein] = useState(String(config.protein_target));
   const [calorieTarget, setCalorieTarget] = useState(String(initCalorieTarget));
