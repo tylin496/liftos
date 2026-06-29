@@ -34,7 +34,7 @@ function buildCalendarWeeks(
   endDate.setDate(today.getDate() + (6 - todayOffset) + 28);
 
   const weeks: { dateStr: string; dayOfMonth: number; isMonthStart: boolean; dayMonth: string }[][] = [];
-  let week: typeof weeks[0] = [];
+  let week: (typeof weeks)[0] = [];
   const cursor = new Date(startDate);
   let isFirst = true;
 
@@ -212,6 +212,13 @@ function labelFor(date: string): string {
   });
 }
 
+function pillLabel(state: string, isSurplus: boolean): string {
+  if (isSurplus) return "Surplus";
+  if (state === "on-plan") return "On Plan";
+  if (state === "over" || state === "extreme") return "Over";
+  return "Under";
+}
+
 function EntryOverlay({
   date,
   initialCalories,
@@ -265,9 +272,7 @@ function EntryOverlay({
       <div className="entry-backdrop" onClick={onClose} />
       <div className="entry-sheet" role="dialog" aria-modal aria-label="Log entry">
         <div className="entry-sheet-handle" />
-
         <div className="entry-sheet-date">{labelFor(date)}</div>
-
         <div className="entry-fields">
           <label className="entry-field">
             <span className="entry-field-label">Calories</span>
@@ -284,7 +289,6 @@ function EntryOverlay({
               <span className="entry-field-unit">kcal</span>
             </div>
           </label>
-
           <label className="entry-field">
             <span className="entry-field-label">Protein</span>
             <div className="entry-field-row">
@@ -300,15 +304,9 @@ function EntryOverlay({
             </div>
           </label>
         </div>
-
-        <button
-          className="nutri-save"
-          onClick={handleSave}
-          disabled={saving || deleting}
-        >
+        <button className="nutri-save" onClick={handleSave} disabled={saving || deleting}>
           {saving ? "Saving…" : hasEntry ? "Update" : "Save"}
         </button>
-
         <div className="entry-sheet-secondary">
           <button className="entry-cancel-btn" type="button" onClick={onClose}>
             Cancel
@@ -337,6 +335,7 @@ export function TodayView({ config }: { config: NutritionConfig }) {
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
   const [loading, setLoading] = useState(true);
+  const [savedPulse, setSavedPulse] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -365,6 +364,12 @@ export function TodayView({ config }: { config: NutritionConfig }) {
   const protResult = getProteinResult(protNum, targets.proteinTarget);
   const hasEntry = calories !== "" || protein !== "";
 
+  // Progress toward calorie budget (0–100%), not deficit progress
+  const calorieProgress =
+    targets.calorieTarget > 0
+      ? Math.min(100, Math.round((calNum / targets.calorieTarget) * 100))
+      : 0;
+
   async function handleSave(cal: string, prot: string) {
     const calN = Number(cal) || 0;
     const protN = Number(prot) || 0;
@@ -372,6 +377,8 @@ export function TodayView({ config }: { config: NutritionConfig }) {
     setCalories(cal);
     setProtein(prot);
     toast("Saved", "success");
+    setSavedPulse(true);
+    setTimeout(() => setSavedPulse(false), 750);
   }
 
   async function handleDelete() {
@@ -380,6 +387,8 @@ export function TodayView({ config }: { config: NutritionConfig }) {
     setProtein("");
     toast("Entry deleted", "info");
   }
+
+  const pillState = calResult.isSurplus ? "surplus" : calResult.state;
 
   return (
     <>
@@ -402,71 +411,114 @@ export function TodayView({ config }: { config: NutritionConfig }) {
           onClose={() => setEntryOpen(false)}
         />
       )}
-      <div className="nutri">
-        <div className="nutri-datenav">
-          <button className="nutri-navbtn" onClick={() => setDate(shiftDate(date, -1))}>
-            ‹
-          </button>
-          <button className="nutri-date" onClick={() => setCalendarOpen(true)}>
-            {labelFor(date)}
-          </button>
-          <button
-            className="nutri-navbtn"
-            onClick={() => setDate(shiftDate(date, 1))}
-            disabled={date >= defaultLogDate()}
-          >
-            ›
-          </button>
+
+      {/* Date navigation */}
+      <div className="nutri-datenav">
+        <button className="nutri-navbtn" onClick={() => setDate(shiftDate(date, -1))}>
+          ‹
+        </button>
+        <button className="nutri-date" onClick={() => setCalendarOpen(true)}>
+          {labelFor(date)}
+        </button>
+        <button
+          className="nutri-navbtn"
+          onClick={() => setDate(shiftDate(date, 1))}
+          disabled={date >= defaultLogDate()}
+        >
+          ›
+        </button>
+      </div>
+
+      {/* Unified daily card — tap to log */}
+      <button
+        className={`page-card nutri-hero nutri-tap-card${savedPulse ? " saved-pulse" : ""}`}
+        onClick={() => !loading && setEntryOpen(true)}
+        aria-label="Log nutrition"
+        disabled={loading}
+      >
+        {/* Status pill — only visible after an entry exists */}
+        {hasEntry && (
+          <div className="nutri-pill-row">
+            <span className={`nutri-pill nutri-pill-${pillState}`}>
+              {pillLabel(calResult.state, calResult.isSurplus)}
+            </span>
+          </div>
+        )}
+
+        {/* Calorie hero — shows actual kcal consumed, coloured by state */}
+        <div className={`nutri-hero-num-row state-${calResult.state}`}>
+          <span className="nutri-hero-num">
+            {calNum === 0 && !hasEntry ? (
+              <span className="nutri-empty">—</span>
+            ) : (
+              calNum.toLocaleString()
+            )}
+          </span>
+          <span className="nutri-hero-unit-lg">kcal</span>
         </div>
 
-        <button
-          className="page-card nutri-hero nutri-tap-card"
-          onClick={() => !loading && setEntryOpen(true)}
-          aria-label="Edit calories"
-          disabled={loading}
-        >
-          <p className="page-eyebrow">{calResult.status}</p>
-          <div className={`nutri-bignum state-${calResult.state}`}>
-            {calNum === 0 && !hasEntry
-              ? <span className="nutri-empty">—</span>
-              : calResult.isSurplus
-                ? `+${calResult.surplus.toLocaleString()}`
-                : `−${calResult.deficit.toLocaleString()}`}
-            <span className="nutri-unit">kcal</span>
+        {/* Calorie settlement: progress bar + deficit/surplus label */}
+        <div className="nutri-settle">
+          <div className="nutri-settle-head">
+            <span className="nutri-settle-label">Calories</span>
+            <span className={`nutri-settle-delta state-${calResult.state}`}>
+              {hasEntry
+                ? calResult.isSurplus
+                  ? `+${calResult.surplus.toLocaleString()} surplus`
+                  : `−${calResult.deficit.toLocaleString()} deficit`
+                : `Target ${targets.calorieTarget.toLocaleString()} kcal`}
+            </span>
           </div>
-          <p className="page-note">
-            {calNum.toLocaleString()} / {targets.calorieTarget.toLocaleString()} kcal target ·
-            TDEE {targets.tdee.toLocaleString()}
-          </p>
           <div className="nutri-bar">
             <div
               className={`nutri-bar-fill state-${calResult.state}`}
-              style={{ width: `${calResult.progress}%` }}
+              style={{ width: `${hasEntry ? calorieProgress : 0}%` }}
             />
           </div>
-        </button>
+          <span className="nutri-settle-note">
+            {hasEntry
+              ? `${calNum.toLocaleString()} / ${targets.calorieTarget.toLocaleString()} kcal · TDEE ${targets.tdee.toLocaleString()}`
+              : `TDEE ${targets.tdee.toLocaleString()} kcal`}
+          </span>
+        </div>
 
-        <button
-          className="page-card nutri-tap-card"
-          onClick={() => !loading && setEntryOpen(true)}
-          aria-label="Edit protein"
-          disabled={loading}
-        >
-          <p className="page-eyebrow">Protein</p>
-          <p className="nutri-protein">
-            {protNum === 0 && !hasEntry
-              ? <span className="nutri-empty">—</span>
-              : protNum}
-            {" "}<span className="nutri-unit">/ {targets.proteinTarget} g</span>
-          </p>
-          <div className="nutri-bar">
+        {/* Divider */}
+        <div className="nutri-divider" />
+
+        {/* Protein section */}
+        <div className="nutri-protein-section">
+          <div className="nutri-settle-head">
+            <span className="nutri-settle-label">Protein</span>
+            <span
+              className={`nutri-settle-delta${protResult.celebrated ? " state-on-plan" : ""}`}
+            >
+              {hasEntry
+                ? protResult.celebrated
+                  ? "Goal met ✓"
+                  : `${Math.round(Math.max(0, targets.proteinTarget - protNum))}g to go`
+                : `Target ${targets.proteinTarget}g`}
+            </span>
+          </div>
+          <div className="nutri-protein-num-row">
+            <span
+              className={`nutri-protein-num${protResult.celebrated ? " state-on-plan" : ""}`}
+            >
+              {protNum === 0 && !hasEntry ? (
+                <span className="nutri-empty">—</span>
+              ) : (
+                protNum
+              )}
+            </span>
+            <span className="nutri-protein-unit">/ {targets.proteinTarget} g</span>
+          </div>
+          <div className="nutri-bar" style={{ marginTop: "var(--space-2)" }}>
             <div
               className={`nutri-bar-fill ${protResult.celebrated ? "state-on-plan" : "state-under"}`}
-              style={{ width: `${protResult.progress}%` }}
+              style={{ width: `${hasEntry ? protResult.progress : 0}%` }}
             />
           </div>
-        </button>
-      </div>
+        </div>
+      </button>
     </>
   );
 }

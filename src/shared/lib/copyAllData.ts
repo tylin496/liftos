@@ -19,7 +19,7 @@ export async function buildAllDataJson(): Promise<string> {
 
   // ── Health ──────────────────────────────────────────────────────────────────
   const metrics = health?.metrics ?? [];
-  const tdeeEst = health?.tdee ?? estimateTdee([]);
+  const tdeeEst = health?.tdee ?? estimateTdee([], []);
 
   type MetricKey = "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal";
   const METRIC_SPECS: { key: MetricKey; decimals: number }[] = [
@@ -48,6 +48,8 @@ export async function buildAllDataJson(): Promise<string> {
       latestDate: latest.date,
       change: +(latest.value - pts[0].value).toFixed(spec.decimals),
       avg: +avg.toFixed(spec.decimals),
+      avg90d: +avg.toFixed(spec.decimals),
+      periodDays: 90,
       dataPoints: pts.length,
     };
   }
@@ -94,7 +96,7 @@ export async function buildAllDataJson(): Promise<string> {
         pr: pr
           ? {
               e1rm: +epley1RM(score(pr), pr.reps).toFixed(1),
-              raw: stats.best?.log.raw ?? null,
+              bestSet: stats.best?.log.raw ?? null,
             }
           : null,
         logs: exLogs.map((l) => {
@@ -124,13 +126,21 @@ export async function buildAllDataJson(): Promise<string> {
   return JSON.stringify(
     {
       source: "LiftOS",
-      schema: 1,
+      schema: 1.2,
       type: "all",
       date: today,
       health: {
         periodDays: 90,
         tdee: tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null,
-        tdeeDataPoints: tdeeEst.dataPoints ?? null,
+        /** Resting energy averaged over 30 days; active energy averaged over 14 days. */
+        tdeeRestingDays: tdeeEst.restingDays,
+        tdeeActiveDays: tdeeEst.activeDays,
+        latest: {
+          weight: (healthSummary.weight as any)?.latest ?? null,
+          bodyFat: (healthSummary.bodyFat as any)?.latest ?? null,
+          activeEnergy: (healthSummary.activeEnergy as any)?.latest ?? null,
+          restingEnergy: (healthSummary.restingEnergy as any)?.latest ?? null,
+        },
         summary: healthSummary,
         timeline: healthTimeline,
       },
@@ -144,6 +154,7 @@ export async function buildAllDataJson(): Promise<string> {
           : null,
         summary: {
           days: sortedEntries.length,
+          sampleDays: logged.length,
           avgCalories,
           avgProtein,
         },

@@ -14,14 +14,19 @@ export function useCopyButton(getText: () => string | Promise<string>) {
       try {
         await navigator.clipboard.writeText(await getTextRef.current());
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setTimeout(() => setCopied(false), 1000);
       } catch {
         // silently fail
       }
     }
 
     setAction(
-      <button type="button" className="hdr-copy-btn" onClick={handleCopy} title="Copy summary">
+      <button
+        type="button"
+        className={`hdr-copy-btn${copied ? " is-copied" : ""}`}
+        onClick={handleCopy}
+        title="Copy summary"
+      >
         {copied ? <CheckIcon /> : <CopyIcon />}
       </button>,
     );

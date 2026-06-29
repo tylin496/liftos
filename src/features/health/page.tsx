@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchHealthData, type BodyMetric, type HealthData } from "./api";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson } from "@shared/lib/copyAllData";
+import { useAnimatedNumber } from "@shared/hooks/useAnimatedNumber";
 import "./health.css";
 
 type MetricKey = "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal";
@@ -20,10 +21,30 @@ const METRICS: MetricSpec[] = [
   { key: "resting_energy_kcal", label: "Resting Energy", unit: "kcal", decimals: 0 },
 ];
 
+type RangeKey = "30D" | "90D" | "6M" | "1Y";
+const RANGES: { key: RangeKey; days: number }[] = [
+  { key: "30D", days: 30 },
+  { key: "90D", days: 90 },
+  { key: "6M", days: 180 },
+  { key: "1Y", days: 365 },
+];
+
 function series(metrics: BodyMetric[], key: MetricKey) {
   return metrics
     .map((m) => ({ date: m.metric_date, value: m[key] as number | null }))
     .filter((p): p is { date: string; value: number } => p.value != null);
+}
+
+/** Rolling N-day average ending at the last point in `pts`. */
+function rollingAvg(pts: { date: string; value: number }[], days = 7): number | null {
+  if (!pts.length) return null;
+  const last = pts.at(-1)!.date;
+  const cutoff = new Date(last + "T12:00:00");
+  cutoff.setDate(cutoff.getDate() - days + 1);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const window = pts.filter((p) => p.date >= cutoffStr);
+  if (!window.length) return null;
+  return window.reduce((s, p) => s + p.value, 0) / window.length;
 }
 
 function Sparkline({ values }: { values: number[] }) {
@@ -51,15 +72,24 @@ const fmt = (v: number, d: number) =>
   v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 
 
+function AnimatedTdee({ value }: { value: number }) {
+  const display = useAnimatedNumber(value);
+  return <>{display}</>;
+}
+
 export function HealthPage() {
+  const [range, setRange] = useState<RangeKey>("6M");
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const days = RANGES.find((r) => r.key === range)!.days;
+
   useEffect(() => {
-    fetchHealthData(30)
+    setData(null);
+    fetchHealthData(days)
       .then(setData)
       .catch((e) => setError(String(e?.message ?? e)));
-  }, []);
+  }, [days]);
 
   useCopyButton(buildAllDataJson);
 
@@ -69,10 +99,11 @@ export function HealthPage() {
     if (!data) return [];
     return METRICS.map((spec) => {
       const s = series(data.metrics, spec.key);
-      const latest = s.at(-1);
+      const avg7d = rollingAvg(s);
       const first = s[0];
+      const latest = s.at(-1);
       const change = latest && first ? latest.value - first.value : null;
-      return { spec, values: s.map((p) => p.value), latest, change };
+      return { spec, values: s.map((p) => p.value), avg7d, latest, change };
     });
   }, [data]);
 
@@ -86,25 +117,30 @@ export function HealthPage() {
     );
   }
 
-  if (!data) {
-    return (
-      <div className="page">
-        <section className="page-card">
-          <p className="page-note">Loading…</p>
-        </section>
-      </div>
-    );
-  }
-
   return (
     <div className="page health">
+      {/* Range selector */}
+      <div className="health-range">
+        {RANGES.map((r) => (
+          <button
+            key={r.key}
+            className={`health-range-btn${range === r.key ? " health-range-btn--active" : ""}`}
+            onClick={() => setRange(r.key)}
+          >
+            {r.key}
+          </button>
+        ))}
+      </div>
+
       {/* TDEE from Apple Health */}
       <section className="page-card health-tdee">
-        <p className="page-eyebrow">TDEE · avg last 30 days</p>
-        {tdee?.tdee != null ? (
+        <p className="page-eyebrow">TDEE · 30d resting + 14d active avg</p>
+        {!data ? (
+          <p className="page-note">Loading…</p>
+        ) : tdee?.tdee != null ? (
           <>
             <div className="health-tdee-num">
-              {tdee.tdee.toLocaleString()}
+              <AnimatedTdee value={tdee.tdee} />
               <span className="health-unit">kcal/day</span>
             </div>
             <div className="health-tdee-grid">
@@ -117,8 +153,12 @@ export function HealthPage() {
                 <span className="health-v">{tdee.avgActive?.toLocaleString()} kcal</span>
               </div>
               <div>
-                <span className="health-k">Based on</span>
-                <span className="health-v">{tdee.dataPoints} days</span>
+                <span className="health-k">Resting window</span>
+                <span className="health-v">{tdee.restingDays} days</span>
+              </div>
+              <div>
+                <span className="health-k">Active window</span>
+                <span className="health-v">{tdee.activeDays} days</span>
               </div>
             </div>
           </>
@@ -130,19 +170,22 @@ export function HealthPage() {
       </section>
 
       {/* Metric history cards */}
-      {cards.map(({ spec, values, latest, change }) => (
+      {cards.map(({ spec, values, avg7d, change }) => (
         <section className="page-card health-metric" key={spec.key}>
           <div className="health-metric-head">
             <span className="health-metric-label">{spec.label}</span>
-            {latest ? (
+            {avg7d != null ? (
               <span className="health-metric-val">
-                {fmt(latest.value, spec.decimals)}
+                {fmt(avg7d, spec.decimals)}
                 <span className="health-unit"> {spec.unit}</span>
               </span>
             ) : (
               <span className="health-metric-val health-metric-val--empty">—</span>
             )}
           </div>
+          {avg7d != null && (
+            <p className="health-metric-avg-label">7-day avg</p>
+          )}
           <Sparkline values={values} />
           {change != null && values.length >= 2 && (
             <p className="health-metric-change">

@@ -26,14 +26,31 @@ export interface HealthData {
   tdee: TdeeEstimate;
 }
 
-/** Everything the Health page needs: metrics + TDEE from avg active+resting energy. */
+/**
+ * Fetch health data for display plus a TDEE estimate.
+ *
+ * TDEE uses split windows regardless of the display range:
+ *   - Resting energy: 30-day average (changes slowly)
+ *   - Active energy: 14-day average (fluctuates more)
+ *
+ * The returned `metrics` are filtered to the requested `days` for display.
+ */
 export async function fetchHealthData(days = 30): Promise<HealthData> {
-  const metrics = await fetchBodyMetrics(days);
+  // Always fetch at least 30 days so TDEE resting window is fully covered.
+  const fetchDays = Math.max(days, 30);
+  const allMetrics = await fetchBodyMetrics(fetchDays);
+
+  const cutoff14 = sinceDate(14);
   const tdee = estimateTdee(
-    metrics.map((m) => ({
-      active: m.active_energy_kcal,
-      resting: m.resting_energy_kcal,
-    })),
+    allMetrics.map((m) => ({ resting: m.resting_energy_kcal })),
+    allMetrics
+      .filter((m) => m.metric_date >= cutoff14)
+      .map((m) => ({ active: m.active_energy_kcal })),
   );
+
+  // Trim to the requested display window.
+  const cutoffDisplay = sinceDate(days);
+  const metrics = allMetrics.filter((m) => m.metric_date >= cutoffDisplay);
+
   return { metrics, tdee };
 }

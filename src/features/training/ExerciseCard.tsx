@@ -15,6 +15,7 @@ import {
   type Exercise,
   type TrainingLog,
 } from "./api";
+import { supabase } from "@shared/lib/supabase";
 import {
   parse,
   score,
@@ -633,6 +634,22 @@ function AddAssistedForm({
   const assistRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
+
+  // Prefill from latest Health weight when no prior saved value exists
+  useEffect(() => {
+    if (lastBw) return;
+    supabase
+      .from("body_metrics")
+      .select("weight_kg, metric_date")
+      .not("weight_kg", "is", null)
+      .order("metric_date", { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data?.weight_kg && !bodyweight) setBodyweight(String(data.weight_kg));
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const parsedAssist = parseFloat(assistance) || 0;
   const parsedBw = parseFloat(bodyweight) || 0;

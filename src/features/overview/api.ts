@@ -103,12 +103,13 @@ export async function fetchOverview(): Promise<OverviewData> {
   const weekAgoMetric = weightPoints.filter((m) => m.date <= weekAgo).at(-1);
   const weightWeekAgo = weekAgoMetric?.w ?? null;
 
-  // TDEE
+  // TDEE: 30-day resting avg + 14-day active avg (metrics already span 30 days)
+  const cutoff14 = sinceDate(14);
   const tdeeEst = estimateTdee(
-    metrics.map((m) => ({
-      active: m.active_energy_kcal,
-      resting: m.resting_energy_kcal,
-    })),
+    metrics.map((m) => ({ resting: m.resting_energy_kcal })),
+    metrics
+      .filter((m) => m.metric_date >= cutoff14)
+      .map((m) => ({ active: m.active_energy_kcal })),
   );
   const tdee = tdeeEst.tdee;
 
