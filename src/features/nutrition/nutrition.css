@@ -4,6 +4,22 @@
   gap: var(--space-3);
 }
 
+/* ── Carousel ───────────────────────────────────────────────────────── */
+.seg-carousel-viewport {
+  overflow: hidden;
+}
+
+.seg-carousel-track {
+  display: flex;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.seg-carousel-panel {
+  min-width: 100%;
+  width: 100%;
+}
+
 /* ── Segmented sub-nav ───────────────────────────────────────────────── */
 .seg {
   display: flex;

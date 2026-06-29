@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { supabase } from "@shared/lib/supabase";
 import {
@@ -444,6 +444,8 @@ function TrainingPageInner() {
   const confirm = useConfirm();
 
   const [split, setSplit] = useState<SplitId>("push");
+  const prevSplitIdx = useRef(0);
+  const splitIds = useMemo(() => SPLITS.map((s) => s.id), []);
   const [exercises, setExercises] = useState<Exercise[] | null>(null);
   const [logs, setLogs] = useState<Record<string, TrainingLog[]>>({});
   const [error, setError] = useState<string | null>(null);
@@ -465,10 +467,14 @@ function TrainingPageInner() {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     if (Math.abs(dx) < 44 || Math.abs(dx) <= Math.abs(dy) * 1.25) return;
-    const splitIds = SPLITS.map((s) => s.id);
     const idx = splitIds.indexOf(split);
-    if (dx < 0 && idx < splitIds.length - 1) setSplit(splitIds[idx + 1]);
-    else if (dx > 0 && idx > 0) setSplit(splitIds[idx - 1]);
+    if (dx < 0 && idx < splitIds.length - 1) changeSplit(splitIds[idx + 1]);
+    else if (dx > 0 && idx > 0) changeSplit(splitIds[idx - 1]);
+  }
+
+  function changeSplit(id: SplitId) {
+    prevSplitIdx.current = splitIds.indexOf(split);
+    setSplit(id);
   }
 
   const reloadAll = useCallback(async () => {
@@ -646,7 +652,7 @@ function TrainingPageInner() {
                 role="tab"
                 aria-selected={split === s.id}
                 className={`seg-item${split === s.id ? " is-active" : ""}`}
-                onClick={() => setSplit(s.id)}
+                onClick={() => changeSplit(s.id)}
               >
                 {s.name}
                 {count > 0 && <span className="seg-count">{count}</span>}
@@ -669,7 +675,10 @@ function TrainingPageInner() {
       )}
 
       {/* ── Exercise cards ── */}
-      <div className="tr-list">
+      <div
+        key={split}
+        className={`tr-list tr-slide-${splitIds.indexOf(split) > prevSplitIdx.current ? "left" : "right"}`}
+      >
         {activeExercises.map((ex, idx) => (
           <ExerciseCard
             key={ex.slug}

@@ -4,6 +4,7 @@ import { fetchHealthData } from "@features/health/api";
 import { TodayView } from "./today";
 import { HistoryView } from "./history";
 import { ProgramsView } from "./programs";
+import { SegCarousel } from "@shared/components/SegCarousel";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import "./nutrition.css";
 
@@ -51,12 +52,11 @@ export function NutritionPage() {
   const [sub, setSub] = useState<Sub>("today");
   const [config, setConfig] = useState<NutritionConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [recentEntries, setRecentEntries] = useState<NutritionEntry[]>([]);
+  const [allEntries, setAllEntries] = useState<NutritionEntry[]>([]);
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const from = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
-    getEntries(from, today).then(setRecentEntries).catch(() => {});
+    getEntries("2000-01-01", today).then(setAllEntries).catch(() => {});
 
     Promise.all([
       getConfig(),
@@ -73,24 +73,10 @@ export function NutritionPage() {
     }).catch((e) => setError(String(e?.message ?? e)));
   }, []);
 
-  useCopyButton(() => fmtNutritionText(recentEntries, config));
+  useCopyButton(() => fmtNutritionText(allEntries, config));
 
   return (
     <div className="page">
-      <div className="seg" role="tablist">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={sub === t.id}
-            className={`seg-item${sub === t.id ? " is-active" : ""}`}
-            onClick={() => setSub(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
       {error && (
         <section className="page-card">
           <p className="auth-error">{error}</p>
@@ -103,10 +89,16 @@ export function NutritionPage() {
         </section>
       )}
 
-      {config && sub === "today" && <TodayView config={config} />}
-      {config && sub === "history" && <HistoryView />}
-      {config && sub === "programs" && (
-        <ProgramsView config={config} onSaved={setConfig} />
+      {config && (
+        <SegCarousel
+          tabs={TABS}
+          active={sub}
+          onChange={(id) => setSub(id as Sub)}
+        >
+          <TodayView config={config} />
+          <HistoryView />
+          <ProgramsView config={config} onSaved={setConfig} />
+        </SegCarousel>
       )}
     </div>
   );

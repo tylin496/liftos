@@ -18,12 +18,12 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
     label: "Training",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M6.5 8.5h11" />
-        <path d="M6.5 15.5h11" />
-        <line x1="6.5" y1="8.5" x2="6.5" y2="15.5" />
-        <line x1="17.5" y1="8.5" x2="17.5" y2="15.5" />
-        <line x1="4" y1="7" x2="4" y2="17" />
-        <line x1="20" y1="7" x2="20" y2="17" />
+        <path d="M6 8.5h12" />
+        <path d="M6 15.5h12" />
+        <line x1="6" y1="8.5" x2="6" y2="15.5" />
+        <line x1="18" y1="8.5" x2="18" y2="15.5" />
+        <line x1="4.5" y1="7" x2="4.5" y2="17" />
+        <line x1="19.5" y1="7" x2="19.5" y2="17" />
         <line x1="2" y1="9.5" x2="2" y2="14.5" />
         <line x1="22" y1="9.5" x2="22" y2="14.5" />
       </svg>
