@@ -1937,10 +1937,6 @@
 
 
 /* ── Day navigation carousel ─────────────────────────────────────────── */
-.daily-card {
-  overflow: hidden;
-}
-
 @keyframes slide-from-right {
   from { opacity: 0; transform: translateX(52%); }
   to   { opacity: 1; transform: translateX(0); }
@@ -1951,46 +1947,11 @@
   to   { opacity: 1; transform: translateX(0); }
 }
 
-.dc-slide.day-nav-forward  { animation: slide-from-right 300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-.dc-slide.day-nav-backward { animation: slide-from-left  300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.daily-card.day-nav-forward  { animation: slide-from-right 300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.daily-card.day-nav-backward { animation: slide-from-left  300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 
 /* ── Nutrition loading skeletons ─────────────────────────────────────── */
-.nutri-skel-hero {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin: var(--space-3) 0 var(--space-2);
-}
-
-.nutri-skel-hero--sm {
-  margin-top: var(--space-4);
-}
-
-.nutri-skel-num {
-  font-family: var(--font-mono);
-  font-size: var(--text-4xl);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-
-.nutri-skel-hero--sm .nutri-skel-num {
-  font-size: var(--text-2xl);
-}
-
-.nutri-skel-unit {
-  font-size: var(--text-sm);
-  font-weight: 500;
-}
-
-.nutri-skel-bar {
-  height: 6px;
-  border-radius: 99px;
-  background: var(--bg-soft);
-  width: 100%;
-}
-
 /* Week bars skeleton */
 .nutri-skel-week-bars {
   display: flex;
@@ -2024,8 +1985,6 @@
 }
 
 /* Apply shimmer to skeleton text in loading-card */
-.loading-card .nutri-skel-num,
-.loading-card .nutri-skel-unit,
 .loading-card .nutri-skel-day {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;

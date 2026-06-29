@@ -615,6 +615,7 @@ export function TodayView({
 
       {/* Daily card */}
       <section
+        key={date}
         className={[
           "page-card daily-card",
           loading ? "loading-card" : "",
@@ -622,6 +623,7 @@ export function TodayView({
           !hasEntry ? "is-empty" : "",
           doubleHit ? "double-hit" : "",
           savedPulse ? "saved-pulse" : "",
+          navDir === "forward" ? "day-nav-forward" : navDir === "backward" ? "day-nav-backward" : "",
         ].filter(Boolean).join(" ")}
       >
         <div className="daily-card-top">
@@ -647,10 +649,6 @@ export function TodayView({
           </div>
         </div>
 
-        <div
-          key={date}
-          className={navDir === "forward" ? "dc-slide day-nav-forward" : navDir === "backward" ? "dc-slide day-nav-backward" : "dc-slide"}
-        >
         {isEditing ? (
           /* ── Inline entry form ── */
           <div className="settlement-form">
@@ -822,7 +820,6 @@ export function TodayView({
             )}
           </div>
         )}
-        </div>
       </section>
     </div>
   );
