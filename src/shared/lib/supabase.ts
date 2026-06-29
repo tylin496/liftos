@@ -1,23 +1,27 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
 import type { Database } from "./database.types";
+import { mockSupabase } from "./mock-supabase";
 
 export const isSupabaseConfigured = Boolean(SUPABASE_ANON_KEY);
 
-// Single shared browser client. Auth session is persisted to localStorage and
-// auto-refreshed; every query runs as the signed-in user under RLS.
-// Fall back to a placeholder key when unconfigured so createClient doesn't throw
-// at import time — the UI shows a setup notice instead of a blank screen.
-export const supabase = createClient<Database>(
+const realClient = createClient<Database>(
   SUPABASE_URL,
   SUPABASE_ANON_KEY || "anon-key-not-configured",
   {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
   },
-});
+);
+
+// In bypass mode, swap in the in-memory mock so all API calls work without a
+// real auth session. The mock implements the same query-builder interface.
+export const supabase = (
+  import.meta.env.VITE_DEV_BYPASS_AUTH === "true" ? mockSupabase : realClient
+) as unknown as typeof realClient;
 
 // Dev-only console handle for debugging / preview verification.
 if (import.meta.env.DEV) {

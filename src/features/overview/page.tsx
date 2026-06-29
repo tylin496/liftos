@@ -37,8 +37,10 @@ function fmtWeightDelta(
 // Design: large primary numbers (34px mono) with muted targets, 6px spring
 // bars that animate 0 → target with a slight overshoot on mount.
 
-function HeroCard({ data }: { data: OverviewData }) {
-  const { today, nutritionTargets, tdee } = data;
+function HeroCard({ data }: { data: OverviewData | null }) {
+  const today = data?.today;
+  const nutritionTargets = data?.nutritionTargets;
+  const tdee = data?.tdee;
 
   const kcal = today?.calories ?? 0;
   const protein = today?.protein ?? 0;
@@ -65,7 +67,7 @@ function HeroCard({ data }: { data: OverviewData }) {
   const kcalPct = pct(kcal, kcalTarget);
   const proteinPct = pct(protein, proteinTarget);
 
-  if (!today && !nutritionTargets) {
+  if (data && !today && !nutritionTargets) {
     return (
       <section className="page-card ov-hero">
         <p className="ov-hero-eyebrow">Today · {fmtDate()}</p>

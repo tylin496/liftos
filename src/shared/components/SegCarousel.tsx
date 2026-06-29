@@ -27,7 +27,12 @@ export function SegCarousel({ tabs, active, onChange, children }: Props) {
 
   return (
     <>
-      <div className="seg" role="tablist">
+      <div
+        className="seg"
+        role="tablist"
+        style={{ "--seg-idx": idx, "--seg-n": tabs.length } as React.CSSProperties}
+      >
+        <span className="seg-thumb" aria-hidden />
         {tabs.map((t) => (
           <button
             key={t.id}
