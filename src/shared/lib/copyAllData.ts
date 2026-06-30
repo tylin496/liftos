@@ -8,7 +8,7 @@ import { estimateTdee } from "@features/health/tdee";
 
 export const EXPORT_HEALTH_DAYS = 90;
 export const EXPORT_NUTRITION_DAYS = 45;
-export const EXPORT_TRAINING_LOGS_PER_EXERCISE = 15;
+export const MAX_AI_EXPORT_CHARS = 80_000;
 
 export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritionDays = EXPORT_NUTRITION_DAYS): Promise<string> {
   const now = new Date();
@@ -88,110 +88,141 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   // ── Training ────────────────────────────────────────────────────────────────
   const stretches = loadStretches();
-  const trainingBySplit = SPLITS.map((split) => {
-    const splitExercises = exercises.filter(
-      (ex) => ex.split === split.id && !ex.archived,
-    );
-    const exerciseData = splitExercises.map((ex) => {
-      const exLogs = [...(logsBySlug[ex.slug] ?? [])].reverse().slice(0, EXPORT_TRAINING_LOGS_PER_EXERCISE);
-      const stats = computeStats(exLogs);
-      const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
-      return {
-        name: ex.name,
-        target: ex.target ?? null,
-        note: ex.note ?? null,
-        pr: pr
-          ? {
-              e1rm: +epley1RM(score(pr), pr.reps).toFixed(1),
-              bestSet: stats.best?.log.raw ?? null,
-            }
-          : null,
-        logs: exLogs.map((l) => {
-          const p = l.raw ? parse(l.raw) : null;
-          const w = p ? +score(p).toFixed(2) : null;
-          return {
+
+  // Pre-parse all logs (needed for PR calculation regardless of slice)
+  const allLogsBySlug: Record<string, { log: import("@features/training/api").TrainingLog; parsed: ReturnType<typeof parse> | null; w: number | null }[]> = {};
+  for (const ex of exercises) {
+    const reversed = [...(logsBySlug[ex.slug] ?? [])].reverse();
+    allLogsBySlug[ex.slug] = reversed.map((l) => {
+      const p = l.raw ? parse(l.raw) : null;
+      const w = p ? +score(p).toFixed(2) : null;
+      return { log: l, parsed: p, w };
+    });
+  }
+
+  const buildTraining = (logsPerEx: number) =>
+    SPLITS.map((split) => {
+      const splitExercises = exercises.filter(
+        (ex) => ex.split === split.id && !ex.archived,
+      );
+      const exerciseData = splitExercises.map((ex) => {
+        const allParsed = allLogsBySlug[ex.slug] ?? [];
+        // PR uses all logs; export slice uses the limit
+        const allRaw = allParsed.map((e) => e.log);
+        const stats = computeStats(allRaw);
+        const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
+        const sliced = allParsed.slice(0, logsPerEx);
+        return {
+          name: ex.name,
+          target: ex.target ?? null,
+          note: ex.note ?? null,
+          pr: pr
+            ? {
+                e1rm: +epley1RM(score(pr), pr.reps).toFixed(1),
+                bestSet: stats.best?.log.raw ?? null,
+              }
+            : null,
+          logs: sliced.map(({ log: l, parsed: p, w }) => ({
             date: l.log_date,
             raw: l.raw,
             weight: w,
             reps: p?.reps ?? null,
             e1rm: p && w != null ? +epley1RM(w, p.reps).toFixed(1) : null,
             note: l.note ?? null,
-          };
-        }),
+          })),
+        };
+      });
+      return {
+        split: split.name,
+        exercises: exerciseData,
+        stretches: (stretches[split.id] ?? []).map((s) => ({
+          name: s.name,
+          note: s.note ?? null,
+        })),
       };
     });
-    return {
-      split: split.name,
-      exercises: exerciseData,
-      stretches: (stretches[split.id] ?? []).map((s) => ({
-        name: s.name,
-        note: s.note ?? null,
-      })),
-    };
-  });
 
   const cutPhase = targets?.cutPhaseName ?? null;
   const inferredGoal =
     cutPhase === "Maintenance" ? "Maintenance" :
     cutPhase != null ? "Fat loss" : null;
 
-  return JSON.stringify(
-    {
-      source: "LiftOS",
-      schema: 1.3,
-      generatedAt: now.toISOString(),
-      units: { weight: "kg", energy: "kcal" },
-      profile: {
-        height: null,
-        trainingAgeMonths: null,
-      },
-      goals: {
-        primary: inferredGoal,
-        secondary: "Hypertrophy",
-        targetBodyFat: null,
-      },
-      trainingSchedule: {
-        split: "PPL",
-        cycle: SPLITS.map((s) => s.name),
-      },
-      health: {
-        tdee: tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null,
-        /** Resting energy averaged over 30 days; active energy averaged over 14 days. */
-        tdeeRestingDays: tdeeEst.restingDays,
-        tdeeActiveDays: tdeeEst.activeDays,
-        latest: {
-          weight: (healthSummary.weight as any)?.latest ?? null,
-          bodyFat: (healthSummary.bodyFat as any)?.latest ?? null,
-          activeEnergy: (healthSummary.activeEnergy as any)?.latest ?? null,
-          restingEnergy: (healthSummary.restingEnergy as any)?.latest ?? null,
-        },
-        summary: healthSummary,
-        timeline: healthTimeline,
-      },
-      nutrition: {
-        targets: targets
-          ? {
-              calories: targets.calorieTarget,
-              protein: targets.proteinTarget,
-              tdee: nutritionConfig?.tdee ?? null,
-            }
-          : null,
-        summary: {
-          periodDays: nutritionDays,
-          days: sortedEntries.length,
-          sampleDays: logged.length,
-          avgCalories,
-          avgProtein,
-        },
-        entries: sortedEntries.map((e) => ({
-          date: e.entry_date,
-          calories: e.calories,
-          protein: e.protein,
-        })),
-      },
-      training: trainingBySplit,
+  const buildPayload = (logsPerEx: number) => ({
+    source: "LiftOS",
+    schema: 1.3,
+    generatedAt: now.toISOString(),
+    units: { weight: "kg", energy: "kcal" },
+    profile: {
+      height: null,
+      trainingAgeMonths: null,
     },
-    null,
-    2,
-  );
+    goals: {
+      primary: inferredGoal,
+      secondary: "Hypertrophy",
+      targetBodyFat: null,
+    },
+    trainingSchedule: {
+      split: "PPL",
+      cycle: SPLITS.map((s) => s.name),
+    },
+    health: {
+      tdee: tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null,
+      tdeeRestingDays: tdeeEst.restingDays,
+      tdeeActiveDays: tdeeEst.activeDays,
+      latest: {
+        weight: (healthSummary.weight as any)?.latest ?? null,
+        bodyFat: (healthSummary.bodyFat as any)?.latest ?? null,
+        activeEnergy: (healthSummary.activeEnergy as any)?.latest ?? null,
+        restingEnergy: (healthSummary.restingEnergy as any)?.latest ?? null,
+      },
+      summary: healthSummary,
+      timeline: healthTimeline,
+    },
+    nutrition: {
+      targets: targets
+        ? {
+            calories: targets.calorieTarget,
+            protein: targets.proteinTarget,
+            tdee: nutritionConfig?.tdee ?? null,
+          }
+        : null,
+      summary: {
+        periodDays: nutritionDays,
+        days: sortedEntries.length,
+        sampleDays: logged.length,
+        avgCalories,
+        avgProtein,
+      },
+      entries: sortedEntries.map((e) => ({
+        date: e.entry_date,
+        calories: e.calories,
+        protein: e.protein,
+      })),
+    },
+    training: buildTraining(logsPerEx),
+  });
+
+  // Binary search for the largest logsPerEx that fits within MAX_AI_EXPORT_CHARS
+  let lo = 1;
+  // Upper bound: max logs any exercise has
+  let hi = Math.max(1, ...exercises.map((ex) => (allLogsBySlug[ex.slug]?.length ?? 0)));
+  let result = JSON.stringify(buildPayload(lo), null, 2);
+
+  if (JSON.stringify(buildPayload(hi), null, 2).length <= MAX_AI_EXPORT_CHARS) {
+    // Full data fits — return everything
+    return JSON.stringify(buildPayload(hi), null, 2);
+  }
+
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    const json = JSON.stringify(buildPayload(mid), null, 2);
+    if (json.length <= MAX_AI_EXPORT_CHARS) {
+      result = json;
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  return result;
 }
