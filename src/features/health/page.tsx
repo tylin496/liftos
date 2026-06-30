@@ -3,6 +3,7 @@ import { fetchHealthData, type BodyMetric, type HealthData } from "./api";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useCountUp } from "@shared/hooks/useCountUp";
+import { TrendIcon } from "@shared/components/TrendIcon";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import "./health.css";
 
@@ -308,11 +309,12 @@ export function HealthPage() {
               {tdeePrev?.tdee != null && (() => {
                 const diff = tdee.tdee - tdeePrev.tdee;
                 const up = diff > 40, down = diff < -40;
-                const arrow = up ? "↑" : down ? "↓" : "→";
+                const dir = up ? "up" : down ? "down" : "flat";
                 const color = up ? "var(--accent)" : down ? "var(--bad)" : "var(--ink-4)";
                 return (
                   <span className="ov-tdee-arrow" style={{ color }}>
-                    {" "}{arrow}{(up || down) ? ` ${Math.abs(Math.round(diff))}` : ""}
+                    <TrendIcon dir={dir} size={15} />
+                    {(up || down) ? Math.abs(Math.round(diff)) : null}
                   </span>
                 );
               })()}

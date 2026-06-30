@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchOverview, type OverviewData } from "./api";
+
+function fmtWeightDelta(
+  latest: number | null,
+  weekAgo: number | null,
+): { text: string; cls: string } {
+  if (latest == null || weekAgo == null) return { text: "—", cls: "empty" };
+  const d = parseFloat((latest - weekAgo).toFixed(1));
+  if (d === 0) return { text: "±0 kg", cls: "" };
+  const sign = d > 0 ? "+" : "";
+  return { text: `${sign}${d} kg`, cls: d > 0 ? "bad" : "good" };
+}
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
@@ -25,21 +36,7 @@ function pct(val: number, target: number): number {
   return Math.min(100, Math.round((val / target) * 100));
 }
 
-function fmtWeightDelta(
-  latest: number | null,
-  weekAgo: number | null,
-): { text: string; cls: string } {
-  if (latest == null || weekAgo == null) return { text: "—", cls: "empty" };
-  const d = parseFloat((latest - weekAgo).toFixed(1));
-  if (d === 0) return { text: "±0 kg", cls: "" };
-  const sign = d > 0 ? "+" : "";
-  return { text: `${sign}${d} kg`, cls: d > 0 ? "bad" : "good" };
-}
-
-
 /* ── Hero Card ─────────────────────────────────────────────────────────── */
-// Design: large primary numbers (34px mono) with muted targets, 6px spring
-// bars that animate 0 → target with a slight overshoot on mount.
 
 function HeroCard({ data }: { data: OverviewData | null }) {
   const today = data?.today;
@@ -51,15 +48,12 @@ function HeroCard({ data }: { data: OverviewData | null }) {
   const kcalTarget = nutritionTargets?.calorieTarget ?? 0;
   const proteinTarget = nutritionTargets?.proteinTarget ?? 0;
 
-  // Energy balance vs maintenance: negative = deficit (on track for a cut)
   const showBalance = tdee != null && today != null;
   const balance = showBalance ? kcal - (tdee as number) : 0;
 
-  // Count-up only for the two hero numbers — everything else appears instantly
   const kcalCount = useCountUp(kcal, 400);
   const proteinCount = useCountUp(protein, 400);
 
-  // Trigger bar spring after one frame so the 0 → pct% transition plays
   const [barsReady, setBarsReady] = useState(false);
   const barRafRef = useRef(0);
   useEffect(() => {
@@ -150,7 +144,7 @@ function CompoundProgressCard({
 
   return (
     <section className="page-card ov-compound">
-      <p className="ov-card-eyebrow">Compound Progress</p>
+      <p className="ov-card-eyebrow">Performance Progress</p>
       <p className="ov-compound-overall">{overallPct}%</p>
       <div className="ov-compound-list">
         {progress.items.map(({ slug, label, pct }) => {
@@ -168,45 +162,6 @@ function CompoundProgressCard({
             </div>
           );
         })}
-      </div>
-    </section>
-  );
-}
-
-
-/* ── Today's Focus Card ────────────────────────────────────────────────── */
-
-const FOCUS_LABEL: Record<string, string> = {
-  watch:     "Watch",
-  stable:    "Stable",
-  improving: "Improving",
-};
-
-function TodaysFocusCard({
-  exercises,
-}: {
-  exercises: import("./api").StrengthExercise[];
-}) {
-  // Show Watch first, then Improving; skip Stable (not actionable)
-  const notable = [
-    ...exercises.filter((e) => e.status === "watch"),
-    ...exercises.filter((e) => e.status === "improving"),
-  ].slice(0, 5);
-
-  if (!notable.length) return null;
-
-  return (
-    <section className="page-card ov-focus">
-      <p className="ov-card-eyebrow">Today's Focus</p>
-      <div className="ov-focus-list">
-        {notable.map((ex) => (
-          <div key={ex.slug} className="ov-focus-row">
-            <span className="ov-focus-name">{ex.name}</span>
-            <span className={`ov-focus-status ov-focus-${ex.status}`}>
-              {FOCUS_LABEL[ex.status]}
-            </span>
-          </div>
-        ))}
       </div>
     </section>
   );
@@ -233,10 +188,6 @@ export function OverviewPage() {
 
   useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
 
-  const weightDelta = data
-    ? fmtWeightDelta(data.weightLatest, data.weightWeekAgo)
-    : { text: "—", cls: "empty" };
-
   if (error) {
     return (
       <div className="page">
@@ -261,13 +212,18 @@ export function OverviewPage() {
         <HeroCard data={data} />
       )}
 
-      {data?.compoundProgress && <CompoundProgressCard progress={data.compoundProgress} />}
-
       <div className="ov-grid-2">
         <button type="button" className="ov-stat" onClick={() => nav("health")}>
           <span className="ov-stat-label">Weight</span>
-          <span className={`ov-stat-val ${weightDelta.cls}`}>{weightDelta.text}</span>
-          <span className="ov-stat-sub">vs 7 days ago</span>
+          {(() => {
+            const weightDelta = fmtWeightDelta(data?.weightLatest ?? null, data?.weightWeekAgo ?? null);
+            return (
+              <>
+                <span className={`ov-stat-val ${weightDelta.cls}`}>{weightDelta.text}</span>
+                <span className="ov-stat-sub">vs 7 days ago</span>
+              </>
+            );
+          })()}
         </button>
 
         <button type="button" className="ov-stat" onClick={() => nav("health")}>
@@ -279,11 +235,12 @@ export function OverviewPage() {
                 {data.tdeePrev != null && (() => {
                   const diff = data.tdee - data.tdeePrev;
                   const up = diff > 40, down = diff < -40;
-                  const arrow = up ? "↑" : down ? "↓" : "→";
+                  const dir = up ? "up" : down ? "down" : "flat";
                   const color = up ? "var(--good)" : down ? "var(--bad)" : "var(--ink-4)";
                   return (
                     <span className="ov-tdee-arrow" style={{ color }}>
-                      {" "}{arrow}{(up || down) ? ` ${Math.abs(Math.round(diff))}` : ""}
+                      <TrendIcon dir={dir} />
+                      {(up || down) ? Math.abs(Math.round(diff)) : null}
                     </span>
                   );
                 })()}
@@ -299,27 +256,7 @@ export function OverviewPage() {
         </button>
       </div>
 
-      {data?.strength.exercises.length ? (
-        <TodaysFocusCard exercises={data.strength.exercises} />
-      ) : null}
-
-      <div className="ov-grid-2">
-        <button type="button" className="ov-stat" onClick={() => nav("training")}>
-          <span className="ov-stat-label">Training</span>
-          <span className={`ov-stat-val${(data?.sessionsThisWeek ?? 0) > 0 ? " accent" : " empty"}`}>
-            {data?.sessionsThisWeek ?? 0}
-          </span>
-          <span className="ov-stat-sub">sessions this week</span>
-        </button>
-
-        <button type="button" className="ov-stat" onClick={() => nav("training")}>
-          <span className="ov-stat-label">PRs</span>
-          <span className={`ov-stat-val${(data?.prThisMonth ?? 0) > 0 ? " gold" : " empty"}`}>
-            {(data?.prThisMonth ?? 0) > 0 ? `+${data!.prThisMonth}` : "0"}
-          </span>
-          <span className="ov-stat-sub">this month</span>
-        </button>
-      </div>
+      {data?.compoundProgress && <CompoundProgressCard progress={data.compoundProgress} />}
 
       {data && !data.today && data.weightLatest == null && data.sessionsThisWeek === 0 && (
         <section className="page-card ov-onboarding">
