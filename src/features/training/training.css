@@ -1033,18 +1033,6 @@
   background: var(--rule);
 }
 
-.btn-ghost {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--ink-2);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .log-edit-actions {
   display: flex;
   gap: var(--space-2);
@@ -1649,96 +1637,6 @@
   margin-bottom: 0;
 }
 
-
-/* ── Confirm dialog ──────────────────────────────────────────────────────────*/
-@keyframes overlay-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes dialog-in {
-  from { opacity: 0; transform: scale(0.96) translateY(4px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-@keyframes overlay-out {
-  to { opacity: 0; }
-}
-
-@keyframes dialog-out {
-  to { opacity: 0; transform: scale(0.96) translateY(4px); }
-}
-
-.confirm-overlay.is-closing {
-  animation: overlay-out var(--motion-base) var(--move-ease) both;
-}
-
-.confirm-dialog.is-closing {
-  animation: dialog-out var(--motion-fast) var(--move-ease) both;
-}
-
-.confirm-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim-bg);
-  backdrop-filter: var(--scrim-blur);
-  -webkit-backdrop-filter: var(--scrim-blur);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 300;
-  padding: var(--space-4);
-  animation: overlay-in var(--motion-base) var(--reveal-ease) both;
-}
-
-.confirm-dialog {
-  background: var(--bg-card);
-  backdrop-filter: var(--card-blur);
-  -webkit-backdrop-filter: var(--card-blur);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  padding: var(--space-6);
-  max-width: 360px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  animation: dialog-in var(--motion-base) var(--reveal-ease) both;
-}
-
-.confirm-msg {
-  font-size: var(--text-base);
-  color: var(--ink);
-  line-height: 1.5;
-  margin: 0;
-}
-
-.confirm-actions {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
-}
-
-.btn-primary {
-  padding: var(--space-2) var(--space-4);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: #fff;
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform var(--motion-fast) var(--press-ease);
-}
-
-.btn-primary:active {
-  transform: scale(var(--tap-scale));
-}
-
-.btn-primary.danger {
-  background: var(--bad);
-}
 
 /* ── Skeleton loading state ──────────────────────────────────────────────── */
 

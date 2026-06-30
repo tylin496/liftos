@@ -10,7 +10,6 @@ import { HeaderActionProvider } from "./HeaderActionContext";
 import { HeaderTitleProvider } from "./HeaderTitleContext";
 import { NavContext } from "./NavContext";
 import { TabActivityContext } from "./TabActivityContext";
-import { ConfirmProvider } from "@shared/components/ConfirmDialog";
 import { ToastProvider } from "@shared/components/Toast";
 import { NutritionConfigProvider } from "@features/nutrition/NutritionConfigContext";
 import "./layout.css";
@@ -127,7 +126,6 @@ export function Shell({ session }: { session: Session }) {
 
   return (
     <ToastProvider>
-    <ConfirmProvider>
     <NutritionConfigProvider>
     <HeaderActionProvider>
       <HeaderTitleProvider>
@@ -153,7 +151,6 @@ export function Shell({ session }: { session: Session }) {
       </HeaderTitleProvider>
     </HeaderActionProvider>
     </NutritionConfigProvider>
-    </ConfirmProvider>
     </ToastProvider>
   );
 }

@@ -246,35 +246,6 @@ function labelFor(date: string): string {
   });
 }
 
-// ── Delete confirmation dialog ────────────────────────────────────────────────
-function DeleteConfirm({
-  dateLabel,
-  onConfirm,
-  onCancel,
-  closing,
-}: {
-  dateLabel: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  closing?: boolean;
-}) {
-  return createPortal(
-    <>
-      <div className={`dc-backdrop${closing ? " is-closing" : ""}`} onClick={onCancel} />
-      <section className={`dc-panel${closing ? " is-closing" : ""}`} role="dialog" aria-modal aria-label="Confirm delete">
-        <div className="dc-body">
-          <strong>Delete entry?</strong>
-          <p>This removes {dateLabel}&rsquo;s calories and protein.</p>
-        </div>
-        <div className="dc-actions">
-          <button className="dc-cancel" type="button" onClick={onCancel}>Cancel</button>
-          <button className="dc-delete" type="button" onClick={onConfirm}>Delete</button>
-        </div>
-      </section>
-    </>,
-    document.body,
-  );
-}
 
 // ── TodayView ─────────────────────────────────────────────────────────────────
 export function TodayView({
@@ -293,7 +264,6 @@ export function TodayView({
   const toast = useToast();
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [editField, setEditField] = useState<"calories" | "protein" | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
   const [loading, setLoading] = useState(true);
@@ -372,7 +342,7 @@ export function TodayView({
   // Keyboard arrow navigation
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (editField !== null || calendarOpen || deleteConfirmOpen) return;
+      if (editField !== null || calendarOpen) return;
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       const active = document.activeElement;
       if (active?.matches("input, textarea, select") || (active as HTMLElement)?.isContentEditable) return;
@@ -390,7 +360,7 @@ export function TodayView({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [date, editField, calendarOpen, deleteConfirmOpen, isToday, onDateChange]);
+  }, [date, editField, calendarOpen, isToday, onDateChange]);
 
   // Swipe gesture for day navigation
   useEffect(() => {
@@ -408,7 +378,7 @@ export function TodayView({
     }
     function onTouchMove(e: TouchEvent) {
       if (e.touches.length !== 1 || cancelled) return;
-      if (editField !== null || calendarOpen || deleteConfirmOpen) { cancelled = true; return; }
+      if (editField !== null || calendarOpen || false) { cancelled = true; return; }
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
       if (!tracking) {
@@ -443,7 +413,7 @@ export function TodayView({
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
     };
-  }, [date, editField, calendarOpen, deleteConfirmOpen, isToday, onDateChange]);
+  }, [date, editField, calendarOpen, isToday, onDateChange]);
 
   const targets = useMemo(() => targetsFromConfig(config), [config]);
   const calNum = Number(calories) || 0;
@@ -495,22 +465,40 @@ export function TodayView({
     doSave(Number(calories) || 0, Number(protein) || 0);
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (deleting) return;
-    setDeleteConfirmOpen(false);
-    setDeleting(true);
-    try {
-      await deleteEntry(date);
-      setCalories("");
-      setProtein("");
-      haptic("warning");
-      onSaved?.();
-    } catch (e) {
-      haptic("error");
-      toast(String((e as Error)?.message ?? e), "error");
-    } finally {
-      setDeleting(false);
-    }
+    const prevCalories = calories;
+    const prevProtein = protein;
+    const UNDO_MS = 5000;
+    let undone = false;
+    setCalories("");
+    setProtein("");
+    setEditField(null);
+    haptic("warning");
+    onSaved?.();
+    const commit = setTimeout(async () => {
+      if (undone) return;
+      setDeleting(true);
+      try {
+        await deleteEntry(date);
+      } catch (e) {
+        setCalories(prevCalories);
+        setProtein(prevProtein);
+        haptic("error");
+        toast(String((e as Error)?.message ?? e), "error");
+      } finally {
+        setDeleting(false);
+      }
+    }, UNDO_MS);
+    toast("Entry deleted", "info", UNDO_MS, {
+      label: "Undo",
+      onClick: () => {
+        undone = true;
+        clearTimeout(commit);
+        setCalories(prevCalories);
+        setProtein(prevProtein);
+      },
+    });
   }
 
   // Calorie note
@@ -558,7 +546,6 @@ export function TodayView({
 
   // Keep overlays mounted through their exit animation.
   const calendarT = useExitTransition(calendarOpen);
-  const deleteT = useExitTransition(deleteConfirmOpen);
 
   return (
     <div ref={containerRef}>
@@ -569,15 +556,6 @@ export function TodayView({
           onSelect={(d) => { haptic("select"); onDateChange(d); }}
           onClose={() => setCalendarOpen(false)}
           closing={calendarT.closing}
-        />
-      )}
-
-      {deleteT.mounted && (
-        <DeleteConfirm
-          dateLabel={labelFor(date)}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteConfirmOpen(false)}
-          closing={deleteT.closing}
         />
       )}
 
@@ -722,7 +700,7 @@ export function TodayView({
                   <button
                     className="sf-delete-link"
                     type="button"
-                    onClick={() => { haptic("warning"); setDeleteConfirmOpen(true); setEditField(null); }}
+                    onClick={() => { haptic("warning"); handleDelete(); }}
                   >
                     Delete entry
                   </button>

@@ -19,7 +19,6 @@ import {
   type TimeFilter,
 } from "./logic";
 import { useToast } from "@shared/components/Toast";
-import { useConfirm } from "@shared/components/ConfirmDialog";
 import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import { defaultSetCount } from "./logFormHelpers";
 import { AddEntryForm, AddAssistedForm, InlineEditEntry, InlineEditAssistedEntry } from "./LogForms";
@@ -28,7 +27,6 @@ import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
 
 export { useToast };
-export { useConfirm };
 
 function haptic(kind: "tap" | "success" | "error" = "tap") {
   if (!navigator.vibrate) return;
@@ -106,7 +104,6 @@ export function ExerciseCard({
   isLast,
 }: ExerciseCardProps) {
   const toast = useToast();
-  const confirm = useConfirm();
   const celebration = useCelebration();
 
   const [adding, setAdding] = useState(false);
@@ -297,15 +294,20 @@ export function ExerciseCard({
   }
 
   async function archiveExercise() {
-    const ok = await confirm(
-      "Archive this exercise? History is kept — you can restore it anytime.",
-      { confirmLabel: "Archive" },
-    );
-    if (!ok) return;
     try {
       const ex = await updateExercise(exercise.slug, { archived: true });
       onUpdate(ex);
-      toast(`${exercise.name} archived`, "info");
+      toast(`${exercise.name} archived`, "info", 5000, {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            const restored = await updateExercise(exercise.slug, { archived: false });
+            onUpdate(restored);
+          } catch (err) {
+            toast(String((err as Error)?.message ?? err), "error");
+          }
+        },
+      });
     } catch (err) {
       toast(String((err as Error)?.message ?? err), "error");
     }

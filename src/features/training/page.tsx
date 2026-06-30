@@ -23,7 +23,6 @@ import { SPLITS, type SplitId } from "./seed";
 import {
   ExerciseCard,
   useToast,
-  useConfirm,
 } from "./ExerciseCard";
 import { computeStats } from "./logic";
 import { parse, score, formatRepsDisplay } from "./parser";
@@ -487,7 +486,6 @@ function ArchivedSection({
 
 function TrainingPageInner() {
   const toast = useToast();
-  const confirm = useConfirm();
   const activity = useTabActivity();
   const { setTitle } = useHeaderTitle();
 
@@ -659,20 +657,30 @@ function TrainingPageInner() {
     }
   }
 
-  async function handleDeleteArchived(slug: string) {
+  function handleDeleteArchived(slug: string) {
     const ex = exercises?.find((e) => e.slug === slug);
-    const ok = await confirm(
-      `Permanently delete "${ex?.name ?? slug}" and all its history? This cannot be undone.`,
-      { confirmLabel: "Delete", danger: true },
-    );
-    if (!ok) return;
-    try {
-      await deleteExerciseAndLogs(slug);
-      await reloadAll();
-      toast("Exercise deleted", "info");
-    } catch (err) {
-      toast(String((err as Error)?.message ?? err), "error");
-    }
+    const UNDO_MS = 5000;
+    let undone = false;
+    // Optimistically hide from list
+    setExercises((prev) => prev?.filter((e) => e.slug !== slug) ?? prev);
+    const commit = setTimeout(async () => {
+      if (undone) return;
+      try {
+        await deleteExerciseAndLogs(slug);
+        await reloadAll();
+      } catch (err) {
+        setExercises((prev) => (prev && ex ? [...prev, ex] : prev));
+        toast(String((err as Error)?.message ?? err), "error");
+      }
+    }, UNDO_MS);
+    toast(`${ex?.name ?? "Exercise"} deleted`, "info", UNDO_MS, {
+      label: "Undo",
+      onClick: () => {
+        undone = true;
+        clearTimeout(commit);
+        setExercises((prev) => (prev && ex ? [...prev, ex] : prev));
+      },
+    });
   }
 
   function handleStretchChange(items: StretchItem[]) {
