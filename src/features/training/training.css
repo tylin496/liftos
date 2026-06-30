@@ -1883,7 +1883,7 @@
 @media (prefers-color-scheme: dark) {
   .stagnation-excellent .stagnation-label { background: rgba(45,138,78,0.18);   color: #4cd476; }
   .stagnation-on-track .stagnation-label  { background: rgba(10,132,255,0.15);  color: #6ab4ff; }
-  .stagnation-watch .stagnation-label     { background: rgba(255,138,61,0.15);  border: none;   color: #ff8a3d; }
+  .stagnation-watch .stagnation-label     { background: var(--accent-glow);     border: none;   color: var(--accent); }
   .stagnation-review .stagnation-label    { background: rgba(255,107,107,0.15); color: #ff6b6b; }
 }
 

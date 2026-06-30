@@ -6,7 +6,7 @@
    ======================================================================== */
 
 :root {
-  --focus-ring: 0 0 0 3px rgba(237, 106, 22, 0.22);
+  --focus-ring: 0 0 0 3px rgba(193, 77, 35, 0.22);
 
   /* ── Surface layers ───────────────────────────────────────────────── */
   --bg: #eef0f4;
@@ -23,11 +23,13 @@
   --rule-strong: rgba(60, 60, 67, 0.26);
 
   /* ── Accent ───────────────────────────────────────────────────────── */
-  --accent-100: #ffe5d1;
-  --accent: #e06518;
-  --accent-2: #b94c08;
+  /* Molten Ember — deep, desaturated terracotta-orange. Reads as hot
+     metal/clay rather than safety-vest orange; warmth + restraint. */
+  --accent-100: #f6ddd0;
+  --accent: #c14d23;
+  --accent-2: #9c3d1a;
   --accent-soft: var(--accent-100);
-  --accent-glow: rgba(224, 101, 24, 0.18);
+  --accent-glow: rgba(193, 77, 35, 0.18);
 
   /* ── Semantic ─────────────────────────────────────────────────────── */
   --bad: #e03535;
@@ -114,10 +116,10 @@
     --ink-4: #636366;
     --rule: rgba(235, 235, 245, 0.14);
     --rule-strong: rgba(235, 235, 245, 0.26);
-    --accent-100: #3d2410;
-    --accent: #ff8a3d;
-    --accent-2: #ffa166;
-    --accent-glow: rgba(255, 138, 61, 0.24);
+    --accent-100: #3a1f12;
+    --accent: #ff7a45;
+    --accent-2: #ff9468;
+    --accent-glow: rgba(255, 122, 69, 0.26);
     --good: #4cd476;
     --bad: #ff6b6b;
     --gold: #ffbf3f;
@@ -126,6 +128,6 @@
     --glass-bg: rgba(26, 26, 26, 0.55);
     --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.4), 0 8px 22px -6px rgba(0, 0, 0, 0.42), 0 22px 50px -18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     --shadow-md: 0 18px 42px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    --focus-ring: 0 0 0 3px rgba(224, 101, 24, 0.32);
+    --focus-ring: 0 0 0 3px rgba(255, 122, 69, 0.32);
   }
 }
