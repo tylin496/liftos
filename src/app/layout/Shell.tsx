@@ -24,9 +24,11 @@ const PAGES: Record<TabId, () => JSX.Element> = {
 const TAB_ORDER: TabId[] = ["overview", "training", "nutrition", "health"];
 
 export function Shell({ session }: { session: Session }) {
-  const [tab, setTab] = useState<TabId>("overview");
+  const [tab, setTab] = useState<TabId>(
+    () => (localStorage.getItem("active-tab") as TabId) ?? "overview",
+  );
   // Pages that have been visited at least once — we keep them mounted
-  const [visited, setVisited] = useState<Set<TabId>>(new Set(["overview"]));
+  const [visited, setVisited] = useState<Set<TabId>>(new Set([tab]));
   // Incremented each time the user navigates TO a tab — pages re-fetch on change
   const [tabVersions, setTabVersions] = useState<Record<TabId, number>>(
     { overview: 0, training: 0, nutrition: 0, health: 0 },
@@ -44,6 +46,7 @@ export function Shell({ session }: { session: Session }) {
       setVisited((prev) => new Set([...prev, next]));
       setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
     }
+    localStorage.setItem("active-tab", next);
     setTab(next);
     setHeaderHidden(false);
     setScrolled(false);
