@@ -511,19 +511,6 @@ export function TodayView({
     }
   }
 
-  async function handleCopyToday() {
-    if (!hasEntry) return;
-    haptic("tap");
-    const deficit = targets.tdee - calNum;
-    const defStr = deficit >= 0 ? `-${deficit.toLocaleString()}` : `+${Math.abs(deficit).toLocaleString()}`;
-    const text = `${labelFor(date)}: ${calNum.toLocaleString()} kcal, ${protNum}g protein (${defStr} vs TDEE)`;
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      toast("Copy failed", "error");
-    }
-  }
-
   // Calorie note
   const calNote = (() => {
     if (!hasEntry) return `Target ${targets.calorieTarget.toLocaleString()} kcal`;
@@ -655,20 +642,6 @@ export function TodayView({
                 <span className="dc-pill-dot" aria-hidden />
                 {dayStatus.label}
               </span>
-            )}
-            {hasEntry && !isEditing && (
-              <button
-                className="dc-copy-btn"
-                type="button"
-                aria-label="Copy today's summary"
-                onClick={handleCopyToday}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                  strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-              </button>
             )}
           </div>
         </div>

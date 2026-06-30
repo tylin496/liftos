@@ -1637,29 +1637,6 @@
   transform: scale(0.96);
 }
 
-/* ── Copy button ─────────────────────────────────────────────────────────────*/
-.tr-copy-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--rule);
-  border-radius: 20px;
-  background: transparent;
-  color: var(--ink-3);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast);
-  white-space: nowrap;
-}
-
-.tr-copy-btn:hover {
-  background: var(--bg-soft);
-  color: var(--ink);
-}
-
 .tr-top-row {
   display: flex;
   align-items: center;

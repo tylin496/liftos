@@ -49,7 +49,6 @@ export function HistoryView({
 }) {
   const [entries, setEntries] = useState<NutritionEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
 
   const defaultTargets = useMemo(() => targetsFromConfig(config), [config]);
 
@@ -110,29 +109,6 @@ export function HistoryView({
     return { week: weeklyStats(logged7), month: monthlyStats(monthInputs), trend7, todayStr, isCurrentWeek };
   }, [entries, date]);
 
-  async function handleCopyWeek() {
-    haptic("tap");
-    const logged = trend7.filter((d) => d.calories != null);
-    if (logged.length === 0) return;
-    const lines = [
-      `Week (${trend7[0].date} → ${trend7[6].date}):`,
-      `Avg cal: ${week.avgCalories.toLocaleString()} kcal · Avg protein: ${week.avgProtein}g`,
-      ...logged.map((d) => {
-        const dateLabel = new Date(d.date + "T12:00:00").toLocaleDateString("en-US", {
-          weekday: "short", month: "short", day: "numeric",
-        });
-        return `  ${dateLabel}: ${d.calories?.toLocaleString()} kcal, ${d.protein}g`;
-      }),
-    ];
-    try {
-      await navigator.clipboard.writeText(lines.join("\n"));
-      setCopyState("copied");
-      setTimeout(() => setCopyState("idle"), 1800);
-    } catch {
-      /* ignore */
-    }
-  }
-
   if (error) {
     return (
       <section className="page-card">
@@ -178,22 +154,6 @@ export function HistoryView({
               <span className={`hist-badge badge-${week.consistency.toLowerCase()}`}>
                 {week.consistency}
               </span>
-            )}
-            {week.logged > 0 && (
-              <button
-                className="hist-copy-btn"
-                type="button"
-                aria-label="Copy week summary"
-                onClick={handleCopyWeek}
-              >
-                {copyState === "copied" ? "✓" : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
-                )}
-              </button>
             )}
           </div>
         </div>
