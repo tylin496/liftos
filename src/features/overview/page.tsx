@@ -12,15 +12,12 @@ function fmtWeightDelta(
   return { text: `${sign}${d} kg`, cls: d > 0 ? "bad" : "good" };
 }
 import { useCopyButton } from "@shared/hooks/useCopyButton";
-import { useToast } from "@shared/components/Toast";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { TrendIcon } from "@shared/components/TrendIcon";
+import { ErrorState } from "@shared/components/ErrorState";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
-import { TodayView } from "@features/nutrition/today";
-import { getConfig, type NutritionConfig } from "@features/nutrition/api";
-import { defaultLogDate } from "@features/nutrition/logic";
 import "./overview.css";
 
 const MONTH_ABBR = [
@@ -130,17 +127,24 @@ function HeroCard({ data }: { data: OverviewData | null }) {
 
 /* ── Training Health Card ──────────────────────────────────────────────── */
 
-// Retention < 85% reads as a deeper hole than a recent dip — surface it as
-// "Review" (urgent) vs "Watch" (keep an eye on it).
+// The row's % is "% of all-time PR" (how close to your best). The watch flag,
+// however, comes from the recent-vs-prior trend (api `status`/`trend`) — a
+// different metric. So for flagged rows we surface that trend delta, which is
+// what actually earned the flag, instead of a label derived from the % (which
+// could read as a contradiction, e.g. "97% · Review").
 function exerciseRetention(ex: import("./api").StrengthExercise): number {
   return ex.latestE1RM / ex.prE1RM;
 }
 
+function fmtTrend(trend: number): string {
+  const pct = Math.round((trend - 1) * 100);
+  if (pct === 0) return "±0%";
+  return pct > 0 ? `↑${pct}%` : `↓${Math.abs(pct)}%`;
+}
+
 function ExerciseRow({ exercise }: { exercise: import("./api").StrengthExercise }) {
-  const retention = exerciseRetention(exercise);
-  const retPct = Math.round(retention * 100);
+  const retPct = Math.round(exerciseRetention(exercise) * 100);
   const isWatch = exercise.status === "watch";
-  const tier = retention < 0.85 ? "Review" : "Watch";
   return (
     <div className={`ov-th-ex-row${isWatch ? " watch" : ""}`}>
       <span className="ov-th-ex-name">
@@ -148,7 +152,7 @@ function ExerciseRow({ exercise }: { exercise: import("./api").StrengthExercise 
         {exercise.name}
       </span>
       <span className={`ov-th-ex-pct${isWatch ? " bad" : ""}`}>{retPct}%</span>
-      {isWatch && <span className="ov-th-ex-trend">{tier}</span>}
+      {isWatch && <span className="ov-th-ex-trend">{fmtTrend(exercise.trend)}</span>}
     </div>
   );
 }
@@ -171,11 +175,11 @@ function TrainingHealthCard({
   const retCount = useCountUp(retentionPct ?? 0, 600);
   const attention = strength.watch;
 
-  // Attention always sits above On Track and is ordered worst-first
-  // (lowest retention), so the most urgent exercise is the first thing read.
+  // Attention always sits above On Track and is ordered worst-first (steepest
+  // recent decline, i.e. lowest trend), so the most urgent exercise reads first.
   const watchExercises = strength.exercises
     .filter((e) => e.status === "watch")
-    .sort((a, b) => exerciseRetention(a) - exerciseRetention(b));
+    .sort((a, b) => a.trend - b.trend);
   const onTrackExercises = strength.exercises.filter((e) => e.status !== "watch");
   const onTrackVisible = showAllOnTrack
     ? onTrackExercises
@@ -271,21 +275,15 @@ function TrainingHealthCard({
 
 export function OverviewPage() {
   const [data, setData] = useState<OverviewData | null>(null);
-  const [config, setConfig] = useState<NutritionConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [logDate, setLogDate] = useState(defaultLogDate);
   const activity = useTabActivity();
   const nav = useNav();
-  const toast = useToast();
   const tdeeCount = useCountUp(data?.tdee ?? 0, 500);
 
   useEffect(() => {
     fetchOverview()
       .then(setData)
       .catch((e) => setError(String(e?.message ?? e)));
-    getConfig()
-      .then(setConfig)
-      .catch(() => {/* non-fatal */});
   }, [activity]);
 
   useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
@@ -293,29 +291,14 @@ export function OverviewPage() {
   if (error) {
     return (
       <div className="page">
-        <section className="page-card">
-          <p className="auth-error">{error}</p>
-        </section>
+        <ErrorState message={error} />
       </div>
     );
   }
 
   return (
     <div className="page">
-      {config ? (
-        <TodayView
-          config={config}
-          date={logDate}
-          onDateChange={setLogDate}
-          onSaved={() => {
-            toast("Logged", "success");
-            fetchOverview().then(setData).catch(() => {});
-          }}
-          hideNav
-        />
-      ) : (
-        <HeroCard data={data} />
-      )}
+      <HeroCard data={data} />
 
       <div className="ov-grid-2">
         <button type="button" className="ov-stat" onClick={() => nav("health")}>

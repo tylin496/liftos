@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ErrorState } from "@shared/components/ErrorState";
 import { getEntries, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
 import {
   formatFatLossKg,

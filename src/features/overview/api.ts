@@ -23,6 +23,7 @@ export interface StrengthExercise {
   status: StrengthStatus;
   latestE1RM: number;  // most recent session best
   prE1RM: number;      // all-time best across all sessions
+  trend: number;       // recent-3-avg / prior-avg — the ratio that drives `status`
 }
 
 export interface StrengthSummary {
@@ -207,6 +208,7 @@ export async function fetchOverview(): Promise<OverviewData> {
       status,
       latestE1RM,
       prE1RM,
+      trend: ratio,
     });
   }
 
