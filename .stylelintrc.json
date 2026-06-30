@@ -1,0 +1,27 @@
+{
+  "plugins": ["stylelint-declaration-strict-value"],
+  "rules": {
+    "scale-unlimited/declaration-strict-value": [
+      ["/^border-radius/", "font-size"],
+      {
+        "ignoreValues": [
+          "0",
+          "auto",
+          "inherit",
+          "none",
+          "unset",
+          "/^var\\(/",
+          "/^clamp\\(/",
+          "/^calc\\(/",
+          "/^env\\(/",
+          "/%$/",
+          "/em$/",
+          "/ch$/",
+          "/^-?[1-4]px$/"
+        ],
+        "disableFix": true,
+        "message": "Design-token discipline: use a token (var(--…)) for \"${property}\", not the magic number \"${value}\". Allowed escapes: var(), clamp(), calc(), env(), %, em, 0. Add a stylelint-disable-line comment with a reason if a raw value is genuinely needed (e.g. a 1–4px graphical detail)."
+      }
+    ]
+  }
+}
