@@ -7,3 +7,4 @@ dist
 *.tsbuildinfo
 .health-backfill.json
 scripts/migrate-config.mjs
+supabase/.temp
