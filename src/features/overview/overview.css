@@ -216,14 +216,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ov-tdee-arrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: var(--space-1);
-  vertical-align: middle;
-}
-
 .ov-stat-val.accent { color: var(--accent); }
 .ov-stat-val.good   { color: var(--good); }
 .ov-stat-val.gold   { color: var(--gold); }

@@ -60,25 +60,8 @@
   color: var(--ink);
 }
 
-.health-metric-change {
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--bg-soft);
-  color: var(--ink-3);
-}
-
-.health-metric-change--up {
-  color: var(--bad);
-  background: color-mix(in srgb, var(--bad) 10%, transparent);
-}
-
-.health-metric-change--down {
-  color: var(--good);
-  background: color-mix(in srgb, var(--good) 10%, transparent);
-}
+/* The metric-card change badge is now the shared <MetricDelta> (inline
+   signed text, no pill) — header flex pushes it to the top-right. */
 
 /* ── Line Chart ─────────────────────────────────────────────────────── */
 .health-chart {
@@ -115,7 +98,13 @@
   margin-bottom: var(--space-1);
 }
 
+/* Hero row: shared <MetricValue size="xl"> + <MetricDelta> on one baseline.
+   font-size stays here so the loading skeleton's .health-skel-num inherits
+   the hero size; the loaded number's own size comes from .metric-val--xl. */
 .health-tdee-num {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
   font-size: var(--text-4xl);
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -128,16 +117,6 @@
 .health-tdee-num .health-unit {
   font-size: var(--text-base);
   color: var(--ink-3);
-}
-
-.health-tdee-num .ov-tdee-arrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: var(--space-1);
-  font-size: var(--text-base);
-  font-weight: 700;
-  vertical-align: middle;
 }
 
 
@@ -231,18 +210,10 @@
   flex-shrink: 0;
 }
 
+/* Value styling comes from the shared .metric-val--md; we only need it to
+   take the free space so the delta sits flush right. */
 .health-recovery-row-val {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
   flex: 1;
-}
-
-.health-recovery-row-delta {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 .health-recovery-footer {
