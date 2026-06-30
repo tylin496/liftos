@@ -33,6 +33,8 @@ export function Shell({ session }: { session: Session }) {
   // True once the page scrolls off the top — drives the header's glass material
   const [scrolled, setScrolled] = useState(false);
   const lastScrollY = useRef(0);
+  // Running sum of scroll movement in the current direction; gates header hide
+  const hideAccum = useRef(0);
 
   function switchTab(next: TabId) {
     if (next !== tab) {
@@ -102,11 +104,16 @@ export function Shell({ session }: { session: Session }) {
       const y = window.scrollY;
       const delta = y - lastScrollY.current;
       setScrolled(y > 4);
-      if (y < 60) {
+      // Accumulate scroll in the current direction; reset when it flips.
+      // Hiding needs sustained downward scroll (slow to hide), while a small
+      // upward nudge brings the header straight back (quick to reveal).
+      if (Math.sign(delta) !== Math.sign(hideAccum.current)) hideAccum.current = 0;
+      hideAccum.current += delta;
+      if (y < 140) {
         setHeaderHidden(false);
-      } else if (delta > 6) {
+      } else if (hideAccum.current > 90) {
         setHeaderHidden(true);
-      } else if (delta < -6) {
+      } else if (hideAccum.current < -36) {
         setHeaderHidden(false);
       }
       lastScrollY.current = y;

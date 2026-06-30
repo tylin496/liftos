@@ -102,7 +102,11 @@
 .ov-bar-fill {
   height: 100%;
   border-radius: 99px;
-  background: var(--blue);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--blue) 58%, var(--bg-soft)),
+    color-mix(in srgb, #5ac8fa 58%, var(--bg-soft))
+  );
   width: 0%;
   transition: none;
 }
@@ -113,7 +117,11 @@
 }
 
 .ov-bar-fill.protein {
-  background: var(--good);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, #63e195 58%, var(--bg-soft)),
+    color-mix(in srgb, #34c759 58%, var(--bg-soft))
+  );
 }
 
 /* Glow flash at 100% — fires after the bar finishes filling (~0.75s) */

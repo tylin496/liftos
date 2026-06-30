@@ -339,7 +339,6 @@ export function TodayView({
     setEditField(null);
     // Only show skeleton if data takes longer than the slide animation
     const skeletonTimer = setTimeout(() => { if (active) setLoading(true); }, 300);
-    const navDirTimer = setTimeout(() => setNavDir(null), 320);
     getEntry(date)
       .then((entry) => {
         if (!active) return;
@@ -356,7 +355,7 @@ export function TodayView({
         toast(String(e?.message ?? e), "error");
         setLoading(false);
       });
-    return () => { active = false; clearTimeout(skeletonTimer); clearTimeout(navDirTimer); };
+    return () => { active = false; clearTimeout(skeletonTimer); };
   }, [date]);
 
   // Count-up animation after load
