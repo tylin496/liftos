@@ -1837,6 +1837,13 @@
   font-weight: 900;
 }
 
+/* When a placeholder day is selected there's no bar to anchor the eye,
+   so glow the label instead and restore full opacity over the is-missing dim */
+.nutri-trend-col.is-selected.is-missing .nutri-trend-day {
+  opacity: 1;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
 /* Missed (past, unlogged) days: small capsule, very recessive.
    Future days draw nothing at all (see history.tsx). */
 .ntb-pair--missing .ntb-bar--missing {
