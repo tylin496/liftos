@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import { type StagnationView, type TrendResult, fmtInspectorDate } from "./logic";
 
 const TREND_ARROWS: Record<string, string> = {
@@ -14,42 +13,6 @@ const TREND_LABELS: Record<string, string> = {
   uncertain: "Data Check",
 };
 
-function AnimatedNumber({
-  value,
-  decimals = 0,
-  trimZeros = false,
-}: {
-  value: number;
-  decimals?: number;
-  trimZeros?: boolean;
-}) {
-  const [display, setDisplay] = useState(value);
-  const prevRef = useRef(value);
-  const rafRef = useRef(0);
-  useEffect(() => {
-    const from = prevRef.current;
-    const to = value;
-    prevRef.current = value;
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (from === to || reduce) {
-      setDisplay(to);
-      return;
-    }
-    const dur = 480;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - start) / dur);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(from + (to - from) * eased);
-      if (p < 1) rafRef.current = requestAnimationFrame(tick);
-      else setDisplay(to);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [value]);
-  const text = display.toFixed(decimals);
-  return <>{trimZeros ? text.replace(/\.0+$/, "") : text}</>;
-}
 
 export function StagnationBadge({
   view,
@@ -61,7 +24,7 @@ export function StagnationBadge({
   onToggle: () => void;
 }) {
   if (!view) return null;
-  const { pct, status, showPR, prLabel, label, expandable, t } = view;
+  const { status, showPR, prLabel, label, expandable, t } = view;
   return (
     <div
       className={`stagnation-badge stagnation-${status}${showPR ? " stagnation-at-pr" : ""}${expandable ? " stagnation-expandable" : ""}`}
