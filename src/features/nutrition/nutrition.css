@@ -136,7 +136,7 @@
 .hist-badge {
   font-size: var(--text-2xs);
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
 }
 .badge-stable {
@@ -561,7 +561,7 @@
 .ncal-header {
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .ncal-month-label {
@@ -576,7 +576,7 @@
 }
 
 .ncal-today-btn {
-  margin-right: 8px;
+  margin-right: var(--space-2);
   padding: 4px 10px;
   border: none;
   border-radius: var(--radius-sm);
@@ -614,7 +614,7 @@
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .ncal-weekdays span {
@@ -1024,7 +1024,7 @@
 .nutri-trend {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: var(--space-2);
   margin-top: var(--space-4);
 }
 
@@ -1317,7 +1317,7 @@
 .dc-pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 9px;
+  padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   font-size: var(--text-2xs);
   font-weight: 700;
@@ -1615,7 +1615,7 @@
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
-  padding: 20px 20px 16px;
+  padding: var(--space-5) var(--space-5) var(--space-4);
   animation: entry-sheet-in var(--motion-base) var(--reveal-ease) both;
 }
 
@@ -1627,7 +1627,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .dc-body strong {
@@ -1649,7 +1649,7 @@
 
 .dc-cancel {
   flex: 1;
-  padding: 13px;
+  padding: var(--space-3);
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   background: var(--bg-soft);
@@ -1665,7 +1665,7 @@
 
 .dc-delete {
   flex: 1;
-  padding: 13px;
+  padding: var(--space-3);
   border: none;
   border-radius: var(--radius-sm);
   background: var(--bad);
