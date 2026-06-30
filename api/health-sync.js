@@ -7,7 +7,9 @@ import { createClient } from "@supabase/supabase-js";
 //
 // POST payload (DO NOT change shape):
 //   { date: "YYYY-MM-DD", weight: number|"", bodyFat: number|"",
-//     activeEnergy: number|"", restingEnergy: number|"" }
+//     activeEnergy: number|"", restingEnergy: number|"",
+//     steps: number|"", exerciseMinutes: number|"",
+//     sleepSeconds: number|"", restingHeartRate: number|"", hrvSdnn: number|"" }
 // Upserts one row per date into Supabase body_metrics. Empty/non-numeric
 // fields are OMITTED from the upsert (not written as null), so running the
 // Shortcut multiple times a day never overwrites a previously-synced value
@@ -53,6 +55,16 @@ export function buildRecord(body) {
   if (active !== null) record.active_energy_kcal = active;
   const resting = intOrNull(body.restingEnergy);
   if (resting !== null) record.resting_energy_kcal = resting;
+  const steps = intOrNull(body.steps);
+  if (steps !== null) record.steps = steps;
+  const exerciseMinutes = intOrNull(body.exerciseMinutes);
+  if (exerciseMinutes !== null) record.exercise_minutes = exerciseMinutes;
+  const sleepSeconds = intOrNull(body.sleepSeconds);
+  if (sleepSeconds !== null) record.sleep_seconds = sleepSeconds;
+  const restingHR = intOrNull(body.restingHeartRate);
+  if (restingHR !== null) record.resting_heart_rate = restingHR;
+  const hrv = num(body.hrvSdnn);
+  if (hrv !== null) record.hrv_sdnn_ms = hrv;
 
   return { record };
 }

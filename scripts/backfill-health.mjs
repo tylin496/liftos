@@ -15,7 +15,7 @@ const DATA_PATH = join(__dir, "../.health-backfill.json");
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "https://gcznowwjbeqihhllllpz.supabase.co";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const USER_ID = process.env.HEALTH_SYNC_USER_ID ?? "ec71ae8e-9963-4202-af80-fd21b9df1b1a";
+const USER_ID = process.env.HEALTH_SYNC_USER_ID ?? "01bf6e2e-b14f-410e-9833-4bf2bf65c1cb";
 
 if (!SUPABASE_URL || !SERVICE_KEY || !USER_ID) {
   console.error("Missing env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HEALTH_SYNC_USER_ID");
@@ -37,10 +37,15 @@ for (let i = 0; i < rows.length; i += BATCH) {
   const chunk = rows.slice(i, i + BATCH).map((r) => ({
     user_id: USER_ID,
     metric_date: r.date,
-    weight_kg: r.weight_kg,
-    body_fat_pct: r.body_fat_pct,
-    active_energy_kcal: r.active_energy_kcal,
-    resting_energy_kcal: r.resting_energy_kcal,
+    weight_kg: r.weight_kg ?? null,
+    body_fat_pct: r.body_fat_pct ?? null,
+    active_energy_kcal: r.active_energy_kcal ?? null,
+    resting_energy_kcal: r.resting_energy_kcal ?? null,
+    steps: r.steps ?? null,
+    exercise_minutes: r.exercise_minutes ?? null,
+    sleep_seconds: r.sleep_seconds ?? null,
+    resting_heart_rate: r.resting_heart_rate ?? null,
+    hrv_sdnn_ms: r.hrv_sdnn_ms ?? null,
   }));
 
   const { error } = await supabase

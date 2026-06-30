@@ -20,9 +20,12 @@ export type Database = {
           body_fat_pct: number | null
           created_at: string
           exercise_minutes: number | null
+          hrv_sdnn_ms: number | null
           id: string
           metric_date: string
           resting_energy_kcal: number | null
+          resting_heart_rate: number | null
+          sleep_seconds: number | null
           steps: number | null
           updated_at: string
           user_id: string
@@ -33,9 +36,12 @@ export type Database = {
           body_fat_pct?: number | null
           created_at?: string
           exercise_minutes?: number | null
+          hrv_sdnn_ms?: number | null
           id?: string
           metric_date: string
           resting_energy_kcal?: number | null
+          resting_heart_rate?: number | null
+          sleep_seconds?: number | null
           steps?: number | null
           updated_at?: string
           user_id: string
@@ -46,9 +52,12 @@ export type Database = {
           body_fat_pct?: number | null
           created_at?: string
           exercise_minutes?: number | null
+          hrv_sdnn_ms?: number | null
           id?: string
           metric_date?: string
           resting_energy_kcal?: number | null
+          resting_heart_rate?: number | null
+          sleep_seconds?: number | null
           steps?: number | null
           updated_at?: string
           user_id?: string

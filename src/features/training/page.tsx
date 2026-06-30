@@ -729,11 +729,7 @@ function TrainingPageInner() {
         </div>
       </div>
 
-      {error && (
-        <section className="page-card">
-          <p className="auth-error">{error}</p>
-        </section>
-      )}
+      {error && <ErrorState message={error} />}
 
       {!exercises && !error && (
         <>

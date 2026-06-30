@@ -1,0 +1,24 @@
+.error-state {
+  text-align: center;
+}
+
+.error-state-msg {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--bad);
+}
+
+.error-state-retry {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: transform var(--motion-fast) var(--press-ease);
+}
+
+.error-state-retry:active {
+  transform: scale(var(--tap-scale));
+}

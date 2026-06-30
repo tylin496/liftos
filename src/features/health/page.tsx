@@ -5,8 +5,10 @@ import {
   bucketSeries,
   rollingAvg,
   regressionSlope,
+  computeRecovery,
   type MetricKey,
   type ChartPoint,
+  type RecoverySnapshot,
 } from "./math";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
@@ -227,6 +229,85 @@ function ComponentTrend({ cur, prev }: { cur: number | null; prev: number | null
   );
 }
 
+const STATUS_COLOR: Record<string, string> = {
+  Ready:    "var(--good)",
+  Good:     "var(--blue)",
+  Fair:     "var(--gold)",
+  Strained: "var(--bad)",
+};
+
+const FOOTER_TEXT: Record<number, string> = {
+  3: "All 3 above 30-day baseline",
+  2: "2 of 3 above 30-day baseline",
+  1: "1 of 3 above 30-day baseline",
+  0: "Below 30-day baseline",
+};
+
+function RecoveryRow({
+  label,
+  value,
+  unit,
+  delta,
+  higherBetter,
+}: {
+  label: string;
+  value: number | null;
+  unit: string;
+  delta: number | null;
+  higherBetter: boolean;
+}) {
+  const isGood = delta == null ? null : higherBetter ? delta >= 0 : delta <= 0;
+  const deltaColor = isGood == null ? "var(--ink-4)"
+    : isGood ? "var(--good)" : "var(--bad)";
+  const sign = delta == null ? "" : delta > 0 ? "+" : "";
+  const decimals = unit === "h" ? 1 : 0;
+
+  return (
+    <div className="health-recovery-row">
+      <span className="health-recovery-row-label">{label}</span>
+      <span className="health-recovery-row-val">
+        {value != null ? fmt(value, decimals) : "—"}
+        {value != null && <span className="health-unit"> {unit}</span>}
+      </span>
+      {delta != null && (
+        <span className="health-recovery-row-delta" style={{ color: deltaColor }}>
+          {sign}{fmt(Math.abs(delta), decimals)}{unit}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function RecoveryCard({ snap }: { snap: RecoverySnapshot }) {
+  if (!snap.status) return null;
+
+  const sleepDelta = snap.sleepHours != null && snap.sleepBaseline != null
+    ? snap.sleepHours - snap.sleepBaseline : null;
+  const hrvDelta = snap.hrv != null && snap.hrvBaseline != null
+    ? snap.hrv - snap.hrvBaseline : null;
+  const rhrDelta = snap.rhr != null && snap.rhrBaseline != null
+    ? snap.rhr - snap.rhrBaseline : null;
+
+  const color = STATUS_COLOR[snap.status];
+
+  return (
+    <section className="page-card health-recovery">
+      <div className="health-recovery-head">
+        <span className="health-metric-label">Recovery</span>
+        <span className="health-recovery-status" style={{ color, background: `color-mix(in srgb, ${color} 12%, transparent)` }}>
+          {snap.status}
+        </span>
+      </div>
+      <div className="health-recovery-rows">
+        <RecoveryRow label="Sleep" value={snap.sleepHours} unit="h"   delta={sleepDelta} higherBetter />
+        <RecoveryRow label="HRV"   value={snap.hrv}        unit="ms"  delta={hrvDelta}   higherBetter />
+        <RecoveryRow label="RHR"   value={snap.rhr}        unit="bpm" delta={rhrDelta}   higherBetter={false} />
+      </div>
+      <p className="health-recovery-footer">{FOOTER_TEXT[snap.score]}</p>
+    </section>
+  );
+}
+
 export function HealthPage() {
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -261,6 +342,11 @@ export function HealthPage() {
     });
   }, [data]);
 
+  const recovery = useMemo(() => {
+    if (!data) return null;
+    return computeRecovery(data.metrics);
+  }, [data]);
+
   const weightPace = useMemo(() => {
     if (!data) return null;
     return regressionSlope(series(data.metrics, "weight_kg"), 28);
@@ -285,9 +371,7 @@ export function HealthPage() {
   if (error) {
     return (
       <div className="page">
-        <section className="page-card">
-          <p className="auth-error">{error}</p>
-        </section>
+        <ErrorState message={error} />
       </div>
     );
   }
@@ -349,6 +433,8 @@ export function HealthPage() {
           </p>
         )}
       </section>
+
+      {recovery && <RecoveryCard snap={recovery} />}
 
       {/* Metric skeleton while loading */}
       {!data && [0, 1, 2].map((i) => (

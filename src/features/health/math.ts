@@ -1,6 +1,15 @@
 import type { BodyMetric } from "./api";
 
-export type MetricKey = "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal";
+export type MetricKey =
+  | "weight_kg"
+  | "body_fat_pct"
+  | "active_energy_kcal"
+  | "resting_energy_kcal"
+  | "steps"
+  | "exercise_minutes"
+  | "sleep_seconds"
+  | "resting_heart_rate"
+  | "hrv_sdnn_ms";
 
 export interface ChartPoint {
   date: string;       // representative (middle) date — used for x positioning
@@ -80,6 +89,57 @@ export function rollingAvg(pts: { date: string; value: number }[], days = 7, off
   const window = pts.filter((p) => p.date >= startStr && p.date <= endStr);
   if (!window.length) return null;
   return window.reduce((s, p) => s + p.value, 0) / window.length;
+}
+
+export type RecoveryStatus = "Ready" | "Good" | "Fair" | "Strained";
+
+export interface RecoverySnapshot {
+  sleepHours: number | null;
+  hrv: number | null;
+  rhr: number | null;
+  sleepBaseline: number | null;
+  hrvBaseline: number | null;
+  rhrBaseline: number | null;
+  /** 0–3: how many metrics are at or above their personal baseline */
+  score: number;
+  status: RecoveryStatus | null;
+  /** date string of the most recent reading used */
+  date: string | null;
+}
+
+export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
+  const sleepPts = series(metrics, "sleep_seconds");
+  const hrvPts   = series(metrics, "hrv_sdnn_ms");
+  const rhrPts   = series(metrics, "resting_heart_rate");
+
+  const sleepRaw = sleepPts.at(-1)?.value ?? null;
+  const sleepHours = sleepRaw != null ? sleepRaw / 3600 : null;
+  const hrv = hrvPts.at(-1)?.value ?? null;
+  const rhr = rhrPts.at(-1)?.value ?? null;
+
+  // Baseline = 30-day average before (not including) the latest reading
+  const sleepBaseRaw = rollingAvg(sleepPts, 30, 1);
+  const sleepBaseline = sleepBaseRaw != null ? sleepBaseRaw / 3600 : null;
+  const hrvBaseline  = rollingAvg(hrvPts,  30, 1);
+  const rhrBaseline  = rollingAvg(rhrPts,  30, 1);
+
+  let score = 0;
+  if (sleepHours != null && sleepBaseline != null && sleepHours >= sleepBaseline * 0.95) score++;
+  if (hrv != null && hrvBaseline != null && hrv >= hrvBaseline * 0.95) score++;
+  if (rhr != null && rhrBaseline != null && rhr <= rhrBaseline * 1.05) score++;
+
+  const hasAny = sleepHours != null || hrv != null || rhr != null;
+  const status: RecoveryStatus | null = !hasAny ? null
+    : score === 3 ? "Ready"
+    : score === 2 ? "Good"
+    : score === 1 ? "Fair"
+    : "Strained";
+
+  const dates = [sleepPts.at(-1)?.date, hrvPts.at(-1)?.date, rhrPts.at(-1)?.date]
+    .filter((d): d is string => d != null);
+  const date = dates.length ? dates.sort().at(-1)! : null;
+
+  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, score, status, date };
 }
 
 export function regressionSlope(pts: { date: string; value: number }[], days = 28): number | null {

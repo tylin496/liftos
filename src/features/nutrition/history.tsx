@@ -110,11 +110,7 @@ export function HistoryView({
   }, [entries, date]);
 
   if (error) {
-    return (
-      <section className="page-card">
-        <p className="auth-error">{error}</p>
-      </section>
-    );
+    return <ErrorState message={error} />;
   }
 
   if (!entries) {

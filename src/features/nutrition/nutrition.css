@@ -685,7 +685,7 @@
 }
 
 .nutri-adherence-num {
-  font-size: clamp(40px, 8vw, 56px);
+  font-size: clamp(36px, 7.2vw, 50px);
   font-weight: 800;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
@@ -721,7 +721,7 @@
 }
 
 .nutri-dh-pct {
-  font-size: clamp(28px, 5.5vw, 38px);
+  font-size: clamp(25px, 5vw, 34px);
   font-weight: 800;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -876,7 +876,7 @@
 }
 
 .stat-number {
-  font-size: clamp(36px, 7.5vw, 50px);
+  font-size: clamp(32px, 6.8vw, 45px);
   font-weight: 800;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -886,7 +886,7 @@
 }
 
 .stat-unit {
-  font-size: clamp(14px, 3vw, 18px);
+  font-size: clamp(13px, 2.7vw, 16px);
   font-weight: 600;
   color: var(--ink-3);
   line-height: 1;
@@ -913,7 +913,7 @@
 /* Empty stat rows: same column layout as filled rows so the card height
    doesn't jump when an entry is logged — only the number is dimmed to "—". */
 .stat-number--empty {
-  font-size: clamp(36px, 7.5vw, 50px);
+  font-size: clamp(32px, 6.8vw, 45px);
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--ink-4);
@@ -978,7 +978,7 @@
   border: none;
   outline: none;
   font-family: var(--font-ui);
-  font-size: clamp(40px, 8.5vw, 56px);
+  font-size: clamp(36px, 7.6vw, 50px);
   font-weight: 800;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
