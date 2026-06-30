@@ -137,6 +137,13 @@
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   background: var(--bg-input);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.prog-phase:active {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-input));
 }
 
 .prog-phase.is-active {
@@ -2104,6 +2111,37 @@
 }
 
 /* ── Programs: 4-phase cut rows ──────────────────────────────────────── */
+.prog-auto-phase {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.prog-auto-label {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-4);
+  flex-shrink: 0;
+}
+
+.prog-auto-val {
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  flex: 1;
+}
+
+.prog-auto-deficit {
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
 .prog-phases-heading {
   font-size: var(--text-sm);
   font-weight: 700;

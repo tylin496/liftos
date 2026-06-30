@@ -307,11 +307,13 @@ export function TodayView({
   date,
   onDateChange,
   onSaved,
+  hideNav,
 }: {
   config: NutritionConfig;
   date: string;
   onDateChange: (date: string) => void;
   onSaved?: () => void;
+  hideNav?: boolean;
 }) {
   const toast = useToast();
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -607,7 +609,7 @@ export function TodayView({
       )}
 
       {/* Date navigation */}
-      <nav className="nutri-datenav" aria-label="Diet day navigation">
+      {!hideNav && <nav className="nutri-datenav" aria-label="Diet day navigation">
         <button
           className="nutri-navbtn"
           type="button"
@@ -639,7 +641,8 @@ export function TodayView({
             if (!isToday) { haptic("select"); navigate(shiftDate(date, 1)); }
           }}
         >›</button>
-      </nav>
+      </nav>}
+
 
       {/* Daily card */}
       <section

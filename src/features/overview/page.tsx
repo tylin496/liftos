@@ -254,6 +254,7 @@ export function OverviewPage() {
           date={logDate}
           onDateChange={setLogDate}
           onSaved={() => fetchOverview().then(setData).catch(() => {})}
+          hideNav
         />
       ) : (
         <HeroCard data={data} />

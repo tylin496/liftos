@@ -328,7 +328,6 @@ export function HistoryView({
             const rest: CalorieState[] = ["under", "over", "extreme", "surplus"];
             rest.sort((a, b) => (month.distribution[b] || 0) - (month.distribution[a] || 0));
             const rows: CalorieState[] = ["on-plan", ...rest];
-            const maxCount = Math.max(1, ...rows.map((k) => month.distribution[k] || 0));
             return rows.map((s) => {
               const count = month.distribution[s] || 0;
               return (
@@ -336,7 +335,7 @@ export function HistoryView({
                   <span className="nutri-dist-label">{labels[s]}</span>
                   <span
                     className="nutri-dist-bar"
-                    style={{ "--bar-pct": `${Math.round((count / maxCount) * 100)}%` } as React.CSSProperties}
+                    style={{ "--bar-pct": `${Math.round((count / denom) * 100)}%` } as React.CSSProperties}
                     aria-hidden="true"
                   />
                   <span className="nutri-dist-pct">{Math.round((count / denom) * 100)}%</span>

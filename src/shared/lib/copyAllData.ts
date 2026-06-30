@@ -8,6 +8,7 @@ import { estimateTdee } from "@features/health/tdee";
 
 export const EXPORT_HEALTH_DAYS = 90;
 export const EXPORT_NUTRITION_DAYS = 45;
+export const EXPORT_TRAINING_LOGS_PER_EXERCISE = 15;
 
 export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritionDays = EXPORT_NUTRITION_DAYS): Promise<string> {
   const now = new Date();
@@ -92,7 +93,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       (ex) => ex.split === split.id && !ex.archived,
     );
     const exerciseData = splitExercises.map((ex) => {
-      const exLogs = [...(logsBySlug[ex.slug] ?? [])].reverse();
+      const exLogs = [...(logsBySlug[ex.slug] ?? [])].reverse().slice(0, EXPORT_TRAINING_LOGS_PER_EXERCISE);
       const stats = computeStats(exLogs);
       const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
       return {

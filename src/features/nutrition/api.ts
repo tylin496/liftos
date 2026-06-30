@@ -53,14 +53,26 @@ export async function saveConfig(
   return data;
 }
 
-/** Derived targets for a given config. Supports legacy [deficit] and new [p0,p1,p2,p3,activeIdx] formats. */
+/** Derived targets for a given config.
+ *  phase_deficits layout:
+ *   - [deficit]               legacy single value
+ *   - [p0,p1,p2,p3, idx]     old 5-element with activeIndex (idx < 4)
+ *   - [p0,p1,p2,p3, intake]  new 5-element with explicit intake goal (intake >= 100)
+ */
 export function targetsFromConfig(config: NutritionConfig) {
   const raw = config.phase_deficits as number | number[];
   const nums = (Array.isArray(raw) ? raw : [raw]).map(Number).filter((n) => isFinite(n));
   let deficitTarget: number;
   if (nums.length >= 5) {
-    const activeIdx = Math.max(0, Math.min(3, Math.round(nums[4])));
-    deficitTarget = nums[activeIdx] ?? DEFAULTS.deficitTarget;
+    const fifth = nums[4];
+    if (fifth >= 100) {
+      // New format: fifth element is the explicit calorie intake goal
+      deficitTarget = Math.max(0, Math.round(config.tdee - fifth));
+    } else {
+      // Old format: fifth element is activeIndex
+      const activeIdx = Math.max(0, Math.min(3, Math.round(fifth)));
+      deficitTarget = nums[activeIdx] ?? DEFAULTS.deficitTarget;
+    }
   } else {
     deficitTarget = nums[0] ?? DEFAULTS.deficitTarget;
   }
