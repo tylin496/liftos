@@ -1848,6 +1848,11 @@
   box-shadow: none;
 }
 
+/* Today not-yet-logged: accent tint so it reads "accumulating" not "missing" */
+.nutri-trend-col.is-today-col .ntb-bar--missing {
+  background: color-mix(in srgb, var(--accent) 13%, var(--rule-strong));
+}
+
 /* Building badge */
 .badge-building {
   background: color-mix(in srgb, var(--ink-3) 12%, transparent);
