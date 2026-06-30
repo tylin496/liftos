@@ -12,6 +12,7 @@ function fmtWeightDelta(
   return { text: `${sign}${d} kg`, cls: d > 0 ? "bad" : "good" };
 }
 import { useCopyButton } from "@shared/hooks/useCopyButton";
+import { useToast } from "@shared/components/Toast";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { TrendIcon } from "@shared/components/TrendIcon";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
@@ -145,7 +146,7 @@ function CompoundProgressCard({
 
   return (
     <section className="page-card ov-compound">
-      <p className="ov-card-eyebrow">Performance Progress</p>
+      <div className="section-head"><h2>Performance Progress</h2></div>
       <p className="ov-compound-overall">{overallPct}%</p>
       <div className="ov-compound-list">
         {progress.items.map(({ slug, label, pct }) => {
@@ -177,6 +178,7 @@ export function OverviewPage() {
   const [logDate, setLogDate] = useState(defaultLogDate);
   const activity = useTabActivity();
   const nav = useNav();
+  const toast = useToast();
 
   useEffect(() => {
     fetchOverview()
@@ -206,7 +208,10 @@ export function OverviewPage() {
           config={config}
           date={logDate}
           onDateChange={setLogDate}
-          onSaved={() => fetchOverview().then(setData).catch(() => {})}
+          onSaved={() => {
+            toast("Logged", "success");
+            fetchOverview().then(setData).catch(() => {});
+          }}
           hideNav
         />
       ) : (
@@ -257,11 +262,29 @@ export function OverviewPage() {
         </button>
       </div>
 
+      <div className="ov-grid-2">
+        <button type="button" className="ov-stat" onClick={() => nav("training")}>
+          <span className="ov-stat-label">PRs</span>
+          <span className={`ov-stat-val${data && data.prThisMonth > 0 ? " gold" : data ? " empty" : ""}`}>
+            {data ? data.prThisMonth : "0"}
+          </span>
+          <span className="ov-stat-sub">this month</span>
+        </button>
+
+        <button type="button" className="ov-stat" onClick={() => nav("training")}>
+          <span className="ov-stat-label">Sessions</span>
+          <span className={`ov-stat-val${data && data.sessionsThisWeek === 0 ? " empty" : ""}`}>
+            {data ? data.sessionsThisWeek : "0"}
+          </span>
+          <span className="ov-stat-sub">this week</span>
+        </button>
+      </div>
+
       {data?.compoundProgress && <CompoundProgressCard progress={data.compoundProgress} />}
 
       {data && !data.today && data.weightLatest == null && data.sessionsThisWeek === 0 && (
         <section className="page-card ov-onboarding">
-          <p className="ov-card-eyebrow">Get started</p>
+          <div className="section-head"><h2>Get started</h2></div>
           <div className="ov-onboarding-links">
             <button type="button" className="ov-onboarding-link" onClick={() => nav("nutrition")}>
               Log a meal in <strong>Nutrition</strong>

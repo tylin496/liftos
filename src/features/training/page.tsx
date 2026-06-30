@@ -22,8 +22,6 @@ import {
 import { SPLITS, type SplitId } from "./seed";
 import {
   ExerciseCard,
-  ToastProvider,
-  ConfirmProvider,
   useToast,
   useConfirm,
 } from "./ExerciseCard";
@@ -845,11 +843,5 @@ function TrainingPageInner() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TrainingPage() {
-  return (
-    <ToastProvider>
-      <ConfirmProvider>
-        <TrainingPageInner />
-      </ConfirmProvider>
-    </ToastProvider>
-  );
+  return <TrainingPageInner />;
 }

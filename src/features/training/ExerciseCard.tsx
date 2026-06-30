@@ -18,16 +18,17 @@ import {
   epley1RM,
   type TimeFilter,
 } from "./logic";
-import { ToastProvider, useToast } from "@shared/components/Toast";
-import { ConfirmProvider, useConfirm } from "./ConfirmDialog";
+import { useToast } from "@shared/components/Toast";
+import { useConfirm } from "@shared/components/ConfirmDialog";
 import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import { defaultSetCount } from "./logFormHelpers";
 import { AddEntryForm, AddAssistedForm, InlineEditEntry, InlineEditAssistedEntry } from "./LogForms";
 import { StagnationBadge, StagnationDetail } from "./StagnationBadge";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
+import { useCelebration } from "@shared/components/Celebration";
 
-export { ToastProvider, useToast };
-export { ConfirmProvider, useConfirm };
+export { useToast };
+export { useConfirm };
 
 function haptic(kind: "tap" | "success" | "error" = "tap") {
   if (!navigator.vibrate) return;
@@ -106,6 +107,7 @@ export function ExerciseCard({
 }: ExerciseCardProps) {
   const toast = useToast();
   const confirm = useConfirm();
+  const celebration = useCelebration();
 
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -207,7 +209,7 @@ export function ExerciseCard({
         setTimeout(() => setPrFlash(false), 1100);
         haptic("success");
         const wStr = newParsed ? `${fmtWeightNum(score(newParsed))} kg` : "";
-        toast(`🏆 New PR — ${wStr}`, "pr", 4000);
+        celebration.celebrate({ variant: "pr", sub: wStr || "Personal record" });
       } else {
         haptic("tap");
         toast("Set logged", "success");
@@ -248,7 +250,8 @@ export function ExerciseCard({
       if (isNewPR) {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);
-        toast("New PR! 🎉", "pr");
+        haptic("success");
+        celebration.celebrate({ variant: "pr", sub: `${fmtWeightNum(score(parsed))} kg` });
       } else {
         toast("Entry updated", "success");
       }
@@ -339,6 +342,7 @@ export function ExerciseCard({
 
   return (
     <article className="ex-card" ref={cardRef}>
+      {celebration.node}
       {/* ── Card menu ── */}
       <div className="ex-card-menu" ref={menuRef}>
         <button

@@ -26,8 +26,13 @@
 
 .health-range-btn--active {
   background: var(--bg-card);
-  color: var(--ink-1);
+  color: var(--ink);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.health-range-btn:active {
+  transform: scale(var(--tap-scale));
+  transition-duration: var(--motion-fast);
 }
 
 /* ── Metric card header: AVERAGE + big number + date range ──────────── */
@@ -52,7 +57,7 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
-  color: var(--ink-1);
+  color: var(--ink);
   line-height: 1;
 }
 
@@ -83,7 +88,7 @@
 .health-metric-label {
   font-size: var(--text-base);
   font-weight: 700;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 
 .health-metric-change {
@@ -182,7 +187,7 @@
 
 .health-tdee-divider {
   border: none;
-  border-top: 1px solid var(--ink-5, #e5e5ea);
+  border-top: 1px solid var(--rule-strong);
   margin: 0 0 var(--space-3);
 }
 
@@ -213,6 +218,32 @@
   font-size: var(--text-lg);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Skeleton loading state ───────────────────────────────────────────────── */
+.health-tdee.loading-card .health-skel-num,
+.health-metric.loading-card .health-metric-label,
+.health-metric.loading-card .health-metric-val,
+.health-metric.loading-card .health-unit {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
+    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
+  ) !important;
+  background-size: 300% 100% !important;
+  border-radius: 0.3em !important;
+  animation: skel-fade 1.6s ease-in-out infinite !important;
+}
+
+.health-skel-chart {
+  height: 80px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink-4) 8%, transparent);
+  animation: skel-fade 1.6s ease-in-out infinite;
+  margin-top: var(--space-3);
 }
 
 .health-tdee-component-trend {

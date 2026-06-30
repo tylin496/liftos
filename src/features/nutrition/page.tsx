@@ -7,7 +7,6 @@ import { HistoryView } from "./history";
 import { ProgramsView } from "./programs";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
-import { ToastProvider } from "@shared/components/Toast";
 import { defaultLogDate } from "./logic";
 import "./nutrition.css";
 
@@ -36,32 +35,30 @@ export function NutritionPage() {
   useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
 
   return (
-    <ToastProvider>
-      <div className="page">
-        {error && (
-          <section className="page-card">
-            <p className="auth-error">{error}</p>
-          </section>
-        )}
+    <div className="page">
+      {error && (
+        <section className="page-card">
+          <p className="auth-error">{error}</p>
+        </section>
+      )}
 
-        {config && (
-          <>
-            <TodayView
-              config={config}
-              date={date}
-              onDateChange={setDate}
-              onSaved={() => setEntryVersion((v) => v + 1)}
-            />
-            <HistoryView
-              config={config}
-              date={date}
-              onDateChange={setDate}
-              entryVersion={entryVersion}
-            />
-            <ProgramsView config={config} onSaved={setConfig} />
-          </>
-        )}
-      </div>
-    </ToastProvider>
+      {config && (
+        <>
+          <TodayView
+            config={config}
+            date={date}
+            onDateChange={setDate}
+            onSaved={() => setEntryVersion((v) => v + 1)}
+          />
+          <HistoryView
+            config={config}
+            date={date}
+            onDateChange={setDate}
+            entryVersion={entryVersion}
+          />
+          <ProgramsView config={config} onSaved={setConfig} />
+        </>
+      )}
+    </div>
   );
 }

@@ -167,7 +167,7 @@ export function HistoryView({
     <>
       {/* ── This Week ── */}
       <section className="page-card">
-        <div className="nutri-section-head">
+        <div className="section-head">
           <p className="page-eyebrow" style={{ margin: 0 }}>
             {isCurrentWeek
               ? "This Week"
@@ -322,7 +322,7 @@ export function HistoryView({
 
       {/* ── Last 30 Days ── */}
       <section className="page-card">
-        <div className="nutri-section-head">
+        <div className="section-head">
           <p className="page-eyebrow" style={{ margin: 0 }}>Last 30 Days</p>
           <span className="nutri-month-count">{month.logged} logged</span>
         </div>

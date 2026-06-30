@@ -107,6 +107,11 @@
   color: var(--ink);
 }
 
+.seg-item:active {
+  transform: scale(var(--tap-scale));
+  transition-duration: var(--motion-fast);
+}
+
 .seg-count {
   display: inline-flex;
   align-items: center;
@@ -411,7 +416,7 @@
   padding: 4px;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.05);
   backdrop-filter: blur(18px);
-  animation: rise-in var(--motion-slow) ease both;
+  animation: rise-in var(--motion-slow) var(--reveal-ease) both;
 }
 
 .nutri-date {
@@ -436,7 +441,7 @@
 }
 
 .nutri-date:active {
-  transform: scale(0.97);
+  transform: scale(var(--tap-scale));
 }
 
 .nutri-navbtn {
@@ -465,7 +470,7 @@
 }
 
 .nutri-navbtn:active {
-  transform: scale(0.97);
+  transform: scale(var(--tap-scale));
 }
 
 .nutri-navbtn:disabled {
@@ -505,7 +510,7 @@
 .state-on-plan  { color: var(--blue); }
 .state-under    { color: var(--ink-3); }
 .state-over     { color: var(--ink-3); }
-.state-extreme  { color: #c87820; }
+.state-extreme  { color: var(--gold); }
 .state-surplus  { color: var(--bad); }
 
 /* tone classes — hero numbers (calorie, protein, adherence %) */
@@ -713,7 +718,7 @@
 }
 
 .ncal-today-btn:active {
-  transform: scale(0.95);
+  transform: scale(var(--tap-scale));
 }
 
 .ncal-close-btn {
@@ -723,7 +728,7 @@
   border-radius: 8px;
   background: none;
   color: var(--ink);
-  font-size: 22px;
+  font-size: var(--text-xl);
   line-height: 1;
   cursor: pointer;
   opacity: 0.6;
@@ -823,7 +828,7 @@
 }
 
 .ncal-day:not(:disabled):active {
-  transform: scale(0.93);
+  transform: scale(var(--tap-scale));
 }
 
 /* ── Tappable metric cards ───────────────────────────────────────────── */
@@ -836,7 +841,7 @@
 }
 
 .nutri-tap-card:active {
-  transform: scale(0.985);
+  transform: scale(var(--tap-scale));
 }
 
 .nutri-tap-card:disabled {
@@ -993,12 +998,7 @@
 }
 
 /* ── Section head ────────────────────────────────────────────────────── */
-.nutri-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-3);
-}
+/* .section-head layout is shared in layout.css */
 
 .nutri-month-count {
   font-size: var(--text-sm);
@@ -1200,7 +1200,7 @@
 }
 
 .nutri-trend-day {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1613,12 +1613,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  animation: rise-in var(--motion-base) ease both;
-}
-
-@keyframes rise-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  animation: rise-in var(--motion-base) var(--reveal-ease) both;
 }
 
 .sf-input-card {
@@ -1660,6 +1655,15 @@
   color: var(--ink);
   padding: 0;
   -webkit-tap-highlight-color: transparent;
+  color-scheme: dark;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.sf-row input::-webkit-outer-spin-button,
+.sf-row input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .sf-row input::placeholder { color: var(--ink-4); }
@@ -1801,130 +1805,7 @@
   transition: opacity var(--motion-fast), transform var(--motion-fast);
 }
 
-.dc-delete:active { opacity: 0.85; transform: scale(0.97); }
-
-/* ── Celebration confetti ────────────────────────────────────────────── */
-.save-celebration {
-  position: fixed;
-  inset: 0;
-  z-index: 95;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.celeb-card {
-  position: relative;
-  z-index: 1;
-  background: color-mix(in srgb, var(--bg-card) 95%, transparent);
-  border: 1px solid var(--rule);
-  border-radius: 22px;
-  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.3);
-  backdrop-filter: var(--card-blur);
-  -webkit-backdrop-filter: var(--card-blur);
-  padding: 28px 40px 24px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  animation: celeb-card-in 0.26s var(--reveal-ease) both;
-}
-
-@keyframes celeb-card-out {
-  to { opacity: 0; transform: scale(0.92) translateY(6px); }
-}
-
-.save-celebration.is-closing .celeb-card {
-  animation: celeb-card-out var(--motion-base) var(--move-ease) both;
-}
-
-@keyframes celeb-card-in {
-  0%   { opacity: 0; transform: scale(0.78) translateY(16px) rotate(-1.5deg); }
-  44%  { opacity: 1; transform: scale(1.06) translateY(-2px) rotate(1deg); }
-  100% { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); }
-}
-
-.celeb-icon {
-  font-size: 2.6rem;
-  line-height: 1;
-  margin-bottom: 4px;
-  color: var(--accent);
-}
-
-.celeb-card strong {
-  font-size: var(--text-2xl);
-  font-weight: 800;
-  color: var(--ink);
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.celeb-sub {
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-}
-
-.save-celebration.double-hit .celeb-card {
-  border-color: color-mix(in srgb, var(--gold) 40%, var(--rule));
-}
-
-.save-celebration.double-hit .celeb-icon,
-.save-celebration.double-hit strong {
-  color: var(--gold);
-}
-
-.save-celebration.double-hit .celeb-icon {
-  position: relative;
-}
-
-.save-celebration.double-hit .celeb-icon::after {
-  content: "";
-  position: absolute;
-  inset: -10px;
-  border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--gold) 38%, transparent);
-  animation: gold-ring 900ms ease-out both;
-}
-
-@keyframes gold-ring {
-  0%   { opacity: 0.72; transform: scale(0.72); }
-  100% { opacity: 0; transform: scale(1.48); }
-}
-
-.celeb-confetti {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.celeb-confetti span {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 7px;
-  height: 10px;
-  border-radius: 2px;
-  margin: -5px 0 0 -3.5px;
-  background: hsl(calc(var(--i, 0) * 22deg), 72%, 58%);
-  animation: confetti-pop 0.9s cubic-bezier(0.2, 0.9, 0.35, 1) both;
-  animation-delay: calc(var(--i, 0) * 22ms);
-  transform-origin: center center;
-}
-
-@keyframes confetti-pop {
-  0% {
-    transform: rotate(calc(var(--i, 0) * 20deg)) translateX(0) rotate(0deg) scale(1.2);
-    opacity: 1;
-  }
-  65% { opacity: 0.85; }
-  100% {
-    transform: rotate(calc(var(--i, 0) * 20deg)) translateX(140px) rotate(600deg) scale(0.6);
-    opacity: 0;
-  }
-}
+.dc-delete:active { opacity: 0.85; transform: scale(var(--tap-scale)); }
 
 /* ── History: dual-bar trend ─────────────────────────────────────────── */
 .nutri-trend-col {
@@ -1940,11 +1821,11 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
-  transition: transform var(--motion-fast) ease;
+  transition: transform var(--motion-fast) var(--press-ease);
   -webkit-tap-highlight-color: transparent;
 }
 
-.nutri-trend-col:active { transform: scale(0.92); }
+.nutri-trend-col:active { transform: scale(var(--tap-scale)); }
 
 /* Upcoming days in the current week: shown for context but not selectable */
 .nutri-trend-col.is-future {
@@ -1967,7 +1848,7 @@
   justify-content: flex-end;
   margin-bottom: 3px;
   opacity: 0;
-  transition: opacity var(--motion-fast) ease;
+  transition: opacity var(--motion-fast) var(--move-ease);
 }
 
 .nutri-trend-col.is-selected .ntb-values { opacity: 1; }
@@ -1986,7 +1867,7 @@
 }
 
 .ntb-val-prot {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--good);
   line-height: 1.2;
@@ -2024,7 +1905,7 @@
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--bg-card) 38%, transparent),
     0 6px 12px color-mix(in srgb, #000000 10%, transparent);
-  transition: background var(--motion-base) ease, box-shadow var(--motion-base) ease;
+  transition: background var(--motion-base) var(--move-ease), box-shadow var(--motion-base) var(--move-ease);
 }
 
 .ntb-bar-kcal {

@@ -205,7 +205,7 @@ function computeStrengthRetention(logsAsc: TrainingLog[]) {
   return { pct, status, prEntry, prRatio };
 }
 
-function computeTrend(logsAsc: TrainingLog[]): TrendResult | null {
+export function computeTrend(logsAsc: TrainingLog[]): TrendResult | null {
   const entries = logsAsc.map(toLogEntry).filter((e): e is LogEntry => e !== null);
   if (entries.length < 2) return null;
 

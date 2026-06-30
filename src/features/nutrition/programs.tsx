@@ -57,7 +57,7 @@ export function ProgramsView({
 
   return (
     <section className="page-card">
-      <div className="nutri-section-head">
+      <div className="section-head">
         <p className="page-eyebrow" style={{ margin: 0 }}>Program</p>
         <button
           className="nutri-section-toggle"

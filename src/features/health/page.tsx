@@ -327,11 +327,11 @@ export function HealthPage() {
   return (
     <div className="page health">
       {/* TDEE hero — fixed windows, independent of period selector */}
-      <section className="page-card health-tdee">
+      <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
         <p className="page-eyebrow">CURRENT TDEE</p>
         {!data ? (
           <div className="health-tdee-num">
-            <AnimatedTdee value={0} />
+            <span className="health-skel-num">0000</span>
             <span className="health-unit"> kcal/day</span>
           </div>
         ) : tdee?.tdee != null ? (
@@ -381,6 +381,21 @@ export function HealthPage() {
           </p>
         )}
       </section>
+
+      {/* Metric skeleton while loading */}
+      {!data && [0, 1].map((i) => (
+        <section className="page-card health-metric loading-card" key={i}>
+          <div className="health-metric-head">
+            <span className="health-metric-label">Weight</span>
+          </div>
+          <p className="health-metric-eyebrow">THIS WEEK</p>
+          <div className="health-metric-hero">
+            <span className="health-metric-val">00.0</span>
+            <span className="health-unit">kg</span>
+          </div>
+          <div className="health-skel-chart" />
+        </section>
+      ))}
 
       {/* Metric cards — Apple Health style */}
       {cards.map(({ spec, bucketed, thisWeek, change, dateRange, readingCount }) => {

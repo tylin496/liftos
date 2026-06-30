@@ -4,6 +4,7 @@ import { getEntry, saveEntry, deleteEntry, targetsFromConfig, type NutritionConf
 import { defaultLogDate, getCalorieResult, getProteinResult, toDateStr } from "./logic";
 import { useToast } from "@shared/components/Toast";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
+import { useCelebration } from "@shared/components/Celebration";
 
 const MIN_DATE = "2026-02-09";
 const INITIAL_HISTORY_MONTHS = 6;
@@ -275,32 +276,6 @@ function DeleteConfirm({
   );
 }
 
-// ── Celebration confetti ──────────────────────────────────────────────────────
-function Celebration({ variant, closing }: { variant: "logged" | "double-hit"; closing?: boolean }) {
-  const count = variant === "double-hit" ? 34 : 18;
-  return createPortal(
-    <div
-      className={`save-celebration${variant === "double-hit" ? " double-hit" : ""}${closing ? " is-closing" : ""}`}
-      role="status"
-      aria-live="polite"
-    >
-      <div className="celeb-confetti" aria-hidden>
-        {Array.from({ length: count }, (_, i) => (
-          <span key={i} style={{ "--i": i } as React.CSSProperties} />
-        ))}
-      </div>
-      <div className="celeb-card">
-        <span className="celeb-icon" aria-hidden>{variant === "double-hit" ? "★" : "✓"}</span>
-        <strong>{variant === "double-hit" ? "Double hit!" : "Logged"}</strong>
-        <span className="celeb-sub">
-          {variant === "double-hit" ? "Deficit and protein on track" : "Entry saved"}
-        </span>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
 // ── TodayView ─────────────────────────────────────────────────────────────────
 export function TodayView({
   config,
@@ -325,7 +300,7 @@ export function TodayView({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [savedPulse, setSavedPulse] = useState(false);
-  const [celebration, setCelebration] = useState<"logged" | "double-hit" | null>(null);
+  const celebration = useCelebration();
   const [navDir, setNavDir] = useState<"forward" | "backward" | null>(null);
 
   const calInputRef = useRef<HTMLInputElement>(null);
@@ -364,6 +339,14 @@ export function TodayView({
       });
     return () => { active = false; clearTimeout(skeletonTimer); };
   }, [date]);
+
+  // Clear the slide direction once the animation finishes, so the class
+  // doesn't linger and replay when the tab is re-shown (display: none → block).
+  useEffect(() => {
+    if (!navDir) return;
+    const t = setTimeout(() => setNavDir(null), 360);
+    return () => clearTimeout(t);
+  }, [navDir, date]);
 
   // Count-up animation after load
   useEffect(() => {
@@ -501,8 +484,7 @@ export function TodayView({
       const calRes = getCalorieResult(calN, targets.tdee, targets.deficitTarget);
       const protRes = getProteinResult(protN, targets.proteinTarget);
       const variant = calRes.state === "on-plan" && protRes.celebrated ? "double-hit" : "logged";
-      setCelebration(variant);
-      setTimeout(() => setCelebration(null), 2000);
+      celebration.celebrate(variant);
     } catch (e) {
       haptic("error");
       toast(String((e as Error)?.message ?? e), "error");
@@ -580,9 +562,6 @@ export function TodayView({
   // Keep overlays mounted through their exit animation.
   const calendarT = useExitTransition(calendarOpen);
   const deleteT = useExitTransition(deleteConfirmOpen);
-  const celebrationT = useExitTransition(celebration !== null);
-  const celebVariantRef = useRef(celebration);
-  if (celebration) celebVariantRef.current = celebration;
 
   return (
     <div ref={containerRef}>
@@ -605,9 +584,7 @@ export function TodayView({
         />
       )}
 
-      {celebrationT.mounted && celebVariantRef.current && (
-        <Celebration variant={celebVariantRef.current} closing={celebrationT.closing} />
-      )}
+      {celebration.node}
 
       {/* Date navigation */}
       {!hideNav && <nav className="nutri-datenav" aria-label="Diet day navigation">

@@ -196,18 +196,18 @@ export async function fetchOverview(): Promise<OverviewData> {
   );
   const sessionsThisWeek = recentDates.size;
 
-  // PRs this month = exercises where best e1RM this month > all-time best before this month
+  // Group logs by exercise for PR count + the performance-trend summary
   const bySlug: Record<string, typeof logs> = {};
   for (const l of logs) {
     if (!l.exercise_slug) continue;
     (bySlug[l.exercise_slug] ??= []).push(l);
   }
 
+  // PRs this month = exercises whose best e1RM this month beats their all-time best before this month
   let prThisMonth = 0;
   const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, total: 0, exercises: [] };
 
   for (const slugLogs of Object.values(bySlug)) {
-    // PR count
     const before = slugLogs.filter((l) => l.log_date && l.log_date < monthStart);
     const thisMonth = slugLogs.filter((l) => l.log_date && l.log_date >= monthStart);
     if (thisMonth.length) {
