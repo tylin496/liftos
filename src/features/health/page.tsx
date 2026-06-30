@@ -210,7 +210,7 @@ function LineChart({
           <line
             key={i}
             x1={PAD.left} y1={y} x2={W - PAD.right} y2={y}
-            stroke="var(--ink-5, #e5e5ea)"
+            stroke="var(--rule)"
             strokeWidth="0.5"
             strokeDasharray="3 3"
           />

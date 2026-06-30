@@ -31,7 +31,6 @@
      L1307 Stat rows
      L1425 Inline settlement form (sf-*)
      L1525 Saved-pulse animation
-     L1530 Delete confirmation panel
      L1611 Celebration confetti
      L1726 History: dual-bar trend (ntb-*)
      L1910 Programs: 4-phase cut rows
@@ -312,8 +311,8 @@
   color: var(--ink);
   cursor: pointer;
   font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  line-height: var(--leading-snug);
+  font-weight: 600;
+  line-height: 1.2;
   text-align: center;
   overflow: hidden;
   white-space: nowrap;
@@ -1587,98 +1586,6 @@
   animation: save-pulse 700ms var(--reveal-ease) both;
 }
 
-/* ── Delete confirmation panel ───────────────────────────────────────── */
-.dc-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  background: var(--scrim-bg);
-  backdrop-filter: var(--scrim-blur);
-  -webkit-backdrop-filter: var(--scrim-blur);
-  animation: fade-in var(--motion-base) ease both;
-}
-
-.dc-backdrop.is-closing {
-  animation: fade-out var(--motion-base) ease both;
-}
-
-.dc-panel {
-  position: fixed;
-  left: 50%;
-  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 16px);
-  transform: translateX(-50%);
-  z-index: 31;
-  width: min(380px, calc(100% - 32px));
-  background: var(--bg-card);
-  backdrop-filter: var(--card-blur);
-  -webkit-backdrop-filter: var(--card-blur);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
-  padding: var(--space-5) var(--space-5) var(--space-4);
-  animation: entry-sheet-in var(--motion-base) var(--reveal-ease) both;
-}
-
-.dc-panel.is-closing {
-  animation: sheet-out var(--motion-fast) var(--move-ease) both;
-}
-
-.dc-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: var(--space-4);
-}
-
-.dc-body strong {
-  font-size: var(--text-lg);
-  font-weight: 800;
-  color: var(--ink);
-}
-
-.dc-body p {
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-  margin: 0;
-}
-
-.dc-actions {
-  display: flex;
-  gap: var(--space-3);
-}
-
-.dc-cancel {
-  flex: 1;
-  padding: var(--space-3);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  background: var(--bg-soft);
-  color: var(--ink);
-  font-family: var(--font-ui);
-  font-size: var(--text-base);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--motion-fast);
-}
-
-.dc-cancel:active { background: var(--bg-input); }
-
-.dc-delete {
-  flex: 1;
-  padding: var(--space-3);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--bad);
-  color: #fff;
-  font-family: var(--font-ui);
-  font-size: var(--text-base);
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity var(--motion-fast), transform var(--motion-fast);
-}
-
-.dc-delete:active { opacity: 0.85; transform: scale(var(--tap-scale)); }
-
 /* ── History: dual-bar trend ─────────────────────────────────────────── */
 .nutri-trend-col {
   appearance: none;
@@ -1847,7 +1754,7 @@
 /* Missed (past, unlogged) days: dashed ghost bar, full-ish height.
    Future days draw nothing at all (see history.tsx). */
 .ntb-pair--missing .ntb-bar--missing {
-  height: 44px !important;
+  height: 64px !important;
   max-width: 18px;
   border-radius: var(--radius-pill);
   border: 1.5px dashed var(--rule-strong);

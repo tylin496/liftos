@@ -341,7 +341,7 @@
 }
 
 @media (hover: hover) {
-  .shell-gear:hover { color: var(--ink-1); }
+  .shell-gear:hover { color: var(--ink); }
 }
 
 .shell-gear:active {
@@ -403,7 +403,7 @@
   font-size: var(--text-lg);
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 
 .settings-sheet-close {
@@ -420,7 +420,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.settings-sheet-close:active { color: var(--ink-1); }
+.settings-sheet-close:active { color: var(--ink); }
 
 .settings-sheet-body {
   overflow-y: auto;
