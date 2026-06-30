@@ -48,15 +48,24 @@ function bucketSeries(
   }
 
   const MS = 86400000;
+  // Anchor buckets on the most recent reading and step backward, so the last
+  // bucket is always "the latest `bucketDays` days" — the exact window the Card
+  // headline (rollingAvg) shows, so the final point and the Card number always
+  // match. The old epoch grid snapped to arbitrary fixed calendar weeks, which
+  // let the final point cover a different span than the Card.
+  const anchor = new Date(pts.at(-1)!.date + "T12:00:00").getTime();
   const buckets = new Map<number, { dates: string[]; values: number[] }>();
   for (const p of pts) {
-    const dayIndex = Math.floor(new Date(p.date + "T12:00:00").getTime() / (MS * bucketDays));
-    if (!buckets.has(dayIndex)) buckets.set(dayIndex, { dates: [], values: [] });
-    buckets.get(dayIndex)!.dates.push(p.date);
-    buckets.get(dayIndex)!.values.push(p.value);
+    const t = new Date(p.date + "T12:00:00").getTime();
+    const idx = Math.floor((anchor - t) / (MS * bucketDays));
+    if (!buckets.has(idx)) buckets.set(idx, { dates: [], values: [] });
+    buckets.get(idx)!.dates.push(p.date);
+    buckets.get(idx)!.values.push(p.value);
   }
+  // idx 0 = newest bucket, larger idx = older — sort descending so the array
+  // runs oldest → newest (left → right on the chart).
   return [...buckets.keys()]
-    .sort((a, b) => a - b)
+    .sort((a, b) => b - a)
     .map((k) => {
       const { dates, values } = buckets.get(k)!;
       // dates arrive oldest → newest, so [0] / last bound the week
