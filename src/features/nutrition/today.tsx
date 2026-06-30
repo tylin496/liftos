@@ -467,10 +467,8 @@ export function TodayView({
     setEditField(field);
   }
 
-  async function handleSave() {
+  async function doSave(calN: number, protN: number) {
     if (saving) return;
-    const calN = Number(calories) || 0;
-    const protN = Number(protein) || 0;
     setSaving(true);
     try {
       await saveEntry(date, { calories: calN, protein: protN }, config);
@@ -491,6 +489,10 @@ export function TodayView({
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleSave() {
+    doSave(Number(calories) || 0, Number(protein) || 0);
   }
 
   async function handleDelete() {
@@ -695,7 +697,7 @@ export function TodayView({
                     if (digits.length > 3) digits = digits.slice(0, 3);
                     setProtein(digits);
                     if (digits.length === 3) {
-                      handleSave();
+                      doSave(Number(calories) || 0, Number(digits));
                     }
                   }}
                   onKeyDown={(e) => {
