@@ -282,13 +282,13 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     },
     insights,
     profile: {
-      height: null,
-      trainingAgeMonths: null,
+      height: nutritionConfig?.height_cm ?? null,
+      trainingAgeMonths: nutritionConfig?.training_age_months ?? null,
     },
     goals: {
       primary: inferredGoal,
       secondary: "Hypertrophy",
-      targetBodyFat: null,
+      targetBodyFat: nutritionConfig?.target_body_fat_pct ?? null,
     },
     trainingSchedule: {
       split: "PPL",

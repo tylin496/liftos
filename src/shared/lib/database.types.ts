@@ -106,23 +106,32 @@ export type Database = {
       }
       nutrition_config: {
         Row: {
+          height_cm: number | null
           phase_deficits: Json
           protein_target: number
+          target_body_fat_pct: number | null
           tdee: number
+          training_age_months: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          height_cm?: number | null
           phase_deficits?: Json
           protein_target?: number
+          target_body_fat_pct?: number | null
           tdee?: number
+          training_age_months?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          height_cm?: number | null
           phase_deficits?: Json
           protein_target?: number
+          target_body_fat_pct?: number | null
           tdee?: number
+          training_age_months?: number | null
           updated_at?: string
           user_id?: string
         }

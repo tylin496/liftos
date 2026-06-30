@@ -22,6 +22,13 @@ export function ProgramsView({
   const [editing, setEditing] = useState(false);
   const [protein, setProtein] = useState(String(config.protein_target));
   const [currentIntake, setCurrentIntake] = useState(String(targets.calorieTarget));
+  const [height, setHeight] = useState(config.height_cm == null ? "" : String(config.height_cm));
+  const [trainingAge, setTrainingAge] = useState(
+    config.training_age_months == null ? "" : String(config.training_age_months),
+  );
+  const [targetBf, setTargetBf] = useState(
+    config.target_body_fat_pct == null ? "" : String(config.target_body_fat_pct),
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +36,13 @@ export function ProgramsView({
     const t = targetsFromConfig(config);
     setProtein(String(config.protein_target));
     setCurrentIntake(String(t.calorieTarget));
+    setHeight(config.height_cm == null ? "" : String(config.height_cm));
+    setTrainingAge(config.training_age_months == null ? "" : String(config.training_age_months));
+    setTargetBf(config.target_body_fat_pct == null ? "" : String(config.target_body_fat_pct));
   }, [config]);
+
+  // "" → null (cleared); otherwise the parsed number, or undefined to leave unchanged on bad input
+  const numOrNull = (s: string): number | null => (s.trim() === "" ? null : Number(s));
 
   const intake = Math.max(0, Number(currentIntake) || 0);
   const liveDeficit = Math.max(0, Math.round(config.tdee - intake));
@@ -44,6 +57,9 @@ export function ProgramsView({
       const updated = await saveConfig({
         protein_target: Math.round(Number(protein) || config.protein_target),
         phase_deficits: newPhaseDeficits as any,
+        height_cm: numOrNull(height),
+        training_age_months: numOrNull(trainingAge) == null ? null : Math.round(Number(trainingAge)),
+        target_body_fat_pct: numOrNull(targetBf),
       });
       onSaved(updated);
       setEditing(false);
@@ -111,6 +127,40 @@ export function ProgramsView({
               inputMode="numeric"
               value={currentIntake}
               onChange={(e) => setCurrentIntake(e.target.value)}
+            />
+          </label>
+
+          {/* Profile — improves AI export analysis (all optional) */}
+          <label className="nutri-field">
+            <span>Height (cm)</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="—"
+              value={height}
+              onChange={(e) => setHeight(e.target.value)}
+            />
+          </label>
+
+          <label className="nutri-field">
+            <span>Training age (months)</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder="—"
+              value={trainingAge}
+              onChange={(e) => setTrainingAge(e.target.value)}
+            />
+          </label>
+
+          <label className="nutri-field">
+            <span>Target body fat (%)</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="—"
+              value={targetBf}
+              onChange={(e) => setTargetBf(e.target.value)}
             />
           </label>
 

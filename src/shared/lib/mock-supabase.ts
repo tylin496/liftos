@@ -161,6 +161,9 @@ const NUTRITION_CONFIG = {
   tdee: 2800,
   protein_target: 175,
   phase_deficits: [805, 655, 455, 150, 1],
+  height_cm: 178,
+  training_age_months: 36,
+  target_body_fat_pct: 12,
   updated_at: "2026-06-01T00:00:00Z",
 };
 
