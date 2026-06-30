@@ -23,7 +23,6 @@ const METRICS: MetricSpec[] = [
 ];
 
 const FIXED_DAYS = 180;
-const FIXED_BUCKET = 7;
 
 function series(metrics: BodyMetric[], key: MetricKey) {
   return metrics
@@ -38,24 +37,37 @@ interface ChartPoint {
   value: number;
 }
 
+interface BucketOptions {
+  /** Visible window: keep only the last `spanDays`, anchored on the latest reading. */
+  spanDays: number;
+  /** Averaging window per point, stepping backward from the latest reading. */
+  bucketDays: number;
+}
+
 function bucketSeries(
   pts: { date: string; value: number }[],
-  bucketDays: number,
+  { spanDays, bucketDays }: BucketOptions,
 ): ChartPoint[] {
   if (!pts.length) return [];
-  if (bucketDays <= 1) {
-    return pts.map((p) => ({ date: p.date, dateStart: p.date, dateEnd: p.date, value: p.value }));
-  }
 
   const MS = 86400000;
-  // Anchor buckets on the most recent reading and step backward, so the last
-  // bucket is always "the latest `bucketDays` days" — the exact window the Card
-  // headline (rollingAvg) shows, so the final point and the Card number always
-  // match. The old epoch grid snapped to arbitrary fixed calendar weeks, which
-  // let the final point cover a different span than the Card.
+  // Everything anchors on the most recent reading: the visible window is the
+  // last `spanDays`, and buckets step backward in `bucketDays` chunks from
+  // there. So the final bucket is always "the latest `bucketDays` days" — the
+  // exact window the Card headline (rollingAvg) shows, so the final point and
+  // the Card number always match. The old epoch grid snapped to arbitrary fixed
+  // calendar weeks, which let the final point cover a different span.
   const anchor = new Date(pts.at(-1)!.date + "T12:00:00").getTime();
+  const spanCutoff = anchor - (spanDays - 1) * MS;
+  const inSpan = pts.filter((p) => new Date(p.date + "T12:00:00").getTime() >= spanCutoff);
+  if (!inSpan.length) return [];
+
+  if (bucketDays <= 1) {
+    return inSpan.map((p) => ({ date: p.date, dateStart: p.date, dateEnd: p.date, value: p.value }));
+  }
+
   const buckets = new Map<number, { dates: string[]; values: number[] }>();
-  for (const p of pts) {
+  for (const p of inSpan) {
     const t = new Date(p.date + "T12:00:00").getTime();
     const idx = Math.floor((anchor - t) / (MS * bucketDays));
     if (!buckets.has(idx)) buckets.set(idx, { dates: [], values: [] });
@@ -344,7 +356,7 @@ export function HealthPage() {
       const thisWeek = rollingAvg(s, 7, 0);
       const prevWeek = rollingAvg(s, 7, 7);
       const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
-      const bucketed = bucketSeries(s, FIXED_BUCKET);
+      const bucketed = bucketSeries(s, { spanDays: 180, bucketDays: 7 });
       const dateRange = formatDateRange(bucketed);
       return { spec, bucketed, thisWeek, change, dateRange, readingCount: s.length };
     });
@@ -367,7 +379,7 @@ export function HealthPage() {
     const thisWeek = rollingAvg(pts, 7, 0);
     const prevWeek = rollingAvg(pts, 7, 7);
     const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
-    const bucketed = bucketSeries(pts, FIXED_BUCKET);
+    const bucketed = bucketSeries(pts, { spanDays: 180, bucketDays: 7 });
     const dateRange = formatDateRange(bucketed);
     return { thisWeek, change, bucketed, dateRange, readingCount: pts.length };
   }, [data]);
