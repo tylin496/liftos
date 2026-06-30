@@ -105,15 +105,23 @@
   opacity: 0.4;
 }
 
-/* ── TDEE card — derived metabolic estimate, equal weight to the metric
-      cards (matches .health-metric-val), not a hero ─────────────────────── */
+/* ── TDEE card — a key Health output, so the value stays prominent (larger
+      than the metric cards). Its dominance is dialed back through layout
+      instead: a tighter internal rhythm (eyebrow → number → components sit
+      closer together) plus its last position in the tab — not a shrunken
+      number, and not a one-off card padding that would break the shared
+      page-card spacing. ─────────────────────────────────────────────────── */
+.health-tdee .page-eyebrow {
+  margin-bottom: var(--space-1);
+}
+
 .health-tdee-num {
-  font-size: var(--text-3xl);
+  font-size: var(--text-4xl);
   font-weight: 800;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
-  margin: var(--space-1) 0;
+  margin: 0 0 var(--space-1);
   line-height: 1;
 }
 
