@@ -23,8 +23,8 @@ export function ProgramsView({
   const [protein, setProtein] = useState(String(config.protein_target));
   const [currentIntake, setCurrentIntake] = useState(String(targets.calorieTarget));
   const [height, setHeight] = useState(config.height_cm == null ? "" : String(config.height_cm));
-  const [trainingAge, setTrainingAge] = useState(
-    config.training_age_months == null ? "" : String(config.training_age_months),
+  const [trainingStartDate, setTrainingStartDate] = useState(
+    config.training_start_date ?? "",
   );
   const [targetBf, setTargetBf] = useState(
     config.target_body_fat_pct == null ? "" : String(config.target_body_fat_pct),
@@ -37,12 +37,26 @@ export function ProgramsView({
     setProtein(String(config.protein_target));
     setCurrentIntake(String(t.calorieTarget));
     setHeight(config.height_cm == null ? "" : String(config.height_cm));
-    setTrainingAge(config.training_age_months == null ? "" : String(config.training_age_months));
+    setTrainingStartDate(config.training_start_date ?? "");
     setTargetBf(config.target_body_fat_pct == null ? "" : String(config.target_body_fat_pct));
   }, [config]);
 
   // "" → null (cleared); otherwise the parsed number, or undefined to leave unchanged on bad input
   const numOrNull = (s: string): number | null => (s.trim() === "" ? null : Number(s));
+
+  // Calculate training age in months from a YYYY-MM-DD date string
+  const calcTrainingMonths = (dateStr: string): number | null => {
+    if (!dateStr) return null;
+    const start = new Date(dateStr);
+    const now = new Date();
+    const months =
+      (now.getFullYear() - start.getFullYear()) * 12 +
+      (now.getMonth() - start.getMonth()) +
+      (now.getDate() - start.getDate()) / 30;
+    return Math.max(0, Math.round(months * 10) / 10);
+  };
+
+  const liveTrainingMonths = calcTrainingMonths(trainingStartDate);
 
   const intake = Math.max(0, Number(currentIntake) || 0);
   const liveDeficit = Math.max(0, Math.round(config.tdee - intake));
@@ -58,7 +72,8 @@ export function ProgramsView({
         protein_target: Math.round(Number(protein) || config.protein_target),
         phase_deficits: newPhaseDeficits as any,
         height_cm: numOrNull(height),
-        training_age_months: numOrNull(trainingAge) == null ? null : Math.round(Number(trainingAge)),
+        training_start_date: trainingStartDate || null,
+        training_age_months: liveTrainingMonths,
         target_body_fat_pct: numOrNull(targetBf),
       });
       onSaved(updated);
@@ -143,15 +158,18 @@ export function ProgramsView({
           </label>
 
           <label className="nutri-field">
-            <span>Training age (months)</span>
+            <span>Training start date</span>
             <input
-              type="number"
-              inputMode="numeric"
-              placeholder="—"
-              value={trainingAge}
-              onChange={(e) => setTrainingAge(e.target.value)}
+              type="date"
+              value={trainingStartDate}
+              onChange={(e) => setTrainingStartDate(e.target.value)}
             />
           </label>
+          {liveTrainingMonths !== null && (
+            <p className="nutri-training-age-hint">
+              = {liveTrainingMonths} months of training
+            </p>
+          )}
 
           <label className="nutri-field">
             <span>Target body fat (%)</span>

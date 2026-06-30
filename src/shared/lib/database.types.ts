@@ -112,6 +112,7 @@ export type Database = {
           target_body_fat_pct: number | null
           tdee: number
           training_age_months: number | null
+          training_start_date: string | null
           updated_at: string
           user_id: string
         }
@@ -122,6 +123,7 @@ export type Database = {
           target_body_fat_pct?: number | null
           tdee?: number
           training_age_months?: number | null
+          training_start_date?: string | null
           updated_at?: string
           user_id: string
         }
@@ -132,6 +134,7 @@ export type Database = {
           target_body_fat_pct?: number | null
           tdee?: number
           training_age_months?: number | null
+          training_start_date?: string | null
           updated_at?: string
           user_id?: string
         }

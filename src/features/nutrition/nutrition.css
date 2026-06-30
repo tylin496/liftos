@@ -575,6 +575,13 @@
   padding: var(--space-3) 0;
 }
 
+.nutri-training-age-hint {
+  margin: calc(var(--space-1) * -1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
 .nutri-save {
   position: relative;
   overflow: hidden;
