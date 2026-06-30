@@ -1,10 +1,11 @@
 import { type StagnationView, type TrendResult, fmtInspectorDate } from "./logic";
+import { TrendIcon, type TrendDir } from "@shared/components/TrendIcon";
 
-const TREND_ARROWS: Record<string, string> = {
-  recovering: "↑",
-  stable: "→",
-  declining: "↓",
-  uncertain: "⚠",
+const TREND_DIRS: Record<string, TrendDir> = {
+  recovering: "up",
+  stable: "flat",
+  declining: "down",
+  uncertain: "alert",
 };
 const TREND_LABELS: Record<string, string> = {
   recovering: "Recovering",
@@ -50,7 +51,8 @@ export function StagnationBadge({
       </span>
       {t && (
         <span className={`stagnation-trend stagnation-trend-${t.trend}`}>
-          {TREND_ARROWS[t.trend]} {TREND_LABELS[t.trend]}
+          <TrendIcon dir={TREND_DIRS[t.trend]} />
+          {TREND_LABELS[t.trend]}
         </span>
       )}
     </div>

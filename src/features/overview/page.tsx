@@ -13,6 +13,7 @@ function fmtWeightDelta(
 }
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCountUp } from "@shared/hooks/useCountUp";
+import { TrendIcon } from "@shared/components/TrendIcon";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
