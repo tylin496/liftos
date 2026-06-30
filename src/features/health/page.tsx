@@ -474,7 +474,7 @@ export function HealthPage() {
       ))}
 
       {/* Metric cards — Apple Health style */}
-      {cards.map(({ spec, bucketed, thisWeek, change, dateRange, readingCount }) => {
+      {cards.map(({ spec, bucketed, thisWeek, change, readingCount }) => {
         const changePositive = change != null && change > 0;
         const changeNegative = change != null && change < 0;
         const changeCls =
