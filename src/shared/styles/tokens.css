@@ -27,7 +27,6 @@
      metal/clay rather than safety-vest orange; warmth + restraint. */
   --accent-100: #f6ddd0;
   --accent: #c14d23;
-  --accent-2: #9c3d1a;
   --accent-soft: var(--accent-100);
   --accent-glow: rgba(193, 77, 35, 0.18);
 
@@ -120,7 +119,6 @@
     --rule-strong: rgba(235, 235, 245, 0.26);
     --accent-100: #3a1f12;
     --accent: #ff7a45;
-    --accent-2: #ff9468;
     --accent-glow: rgba(255, 122, 69, 0.26);
     --good: #4cd476;
     --bad: #ff6b6b;
