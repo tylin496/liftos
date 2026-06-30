@@ -25,6 +25,17 @@ function pct(val: number, target: number): number {
   return Math.min(100, Math.round((val / target) * 100));
 }
 
+function fmtWeightDelta(
+  latest: number | null,
+  weekAgo: number | null,
+): { text: string; cls: string } {
+  if (latest == null || weekAgo == null) return { text: "—", cls: "empty" };
+  const d = parseFloat((latest - weekAgo).toFixed(1));
+  if (d === 0) return { text: "±0 kg", cls: "" };
+  const sign = d > 0 ? "+" : "";
+  return { text: `${sign}${d} kg`, cls: d > 0 ? "bad" : "good" };
+}
+
 
 /* ── Hero Card ─────────────────────────────────────────────────────────── */
 // Design: large primary numbers (34px mono) with muted targets, 6px spring
@@ -163,6 +174,44 @@ function CompoundProgressCard({
 }
 
 
+/* ── Today's Focus Card ────────────────────────────────────────────────── */
+
+const FOCUS_LABEL: Record<string, string> = {
+  watch:     "Watch",
+  stable:    "Stable",
+  improving: "Improving",
+};
+
+function TodaysFocusCard({
+  exercises,
+}: {
+  exercises: import("./api").StrengthExercise[];
+}) {
+  // Show Watch first, then Improving; skip Stable (not actionable)
+  const notable = [
+    ...exercises.filter((e) => e.status === "watch"),
+    ...exercises.filter((e) => e.status === "improving"),
+  ].slice(0, 5);
+
+  if (!notable.length) return null;
+
+  return (
+    <section className="page-card ov-focus">
+      <p className="ov-card-eyebrow">Today's Focus</p>
+      <div className="ov-focus-list">
+        {notable.map((ex) => (
+          <div key={ex.slug} className="ov-focus-row">
+            <span className="ov-focus-name">{ex.name}</span>
+            <span className={`ov-focus-status ov-focus-${ex.status}`}>
+              {FOCUS_LABEL[ex.status]}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* ── Overview Page ─────────────────────────────────────────────────────── */
 
 export function OverviewPage() {
@@ -184,6 +233,9 @@ export function OverviewPage() {
 
   useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
 
+  const weightDelta = data
+    ? fmtWeightDelta(data.weightLatest, data.weightWeekAgo)
+    : { text: "—", cls: "empty" };
 
   if (error) {
     return (
@@ -210,6 +262,64 @@ export function OverviewPage() {
       )}
 
       {data?.compoundProgress && <CompoundProgressCard progress={data.compoundProgress} />}
+
+      <div className="ov-grid-2">
+        <button type="button" className="ov-stat" onClick={() => nav("health")}>
+          <span className="ov-stat-label">Weight</span>
+          <span className={`ov-stat-val ${weightDelta.cls}`}>{weightDelta.text}</span>
+          <span className="ov-stat-sub">vs 7 days ago</span>
+        </button>
+
+        <button type="button" className="ov-stat" onClick={() => nav("health")}>
+          <span className="ov-stat-label">TDEE</span>
+          {data?.tdee != null ? (
+            <>
+              <span className="ov-stat-val">
+                {data.tdee.toLocaleString()}
+                {data.tdeePrev != null && (() => {
+                  const diff = data.tdee - data.tdeePrev;
+                  const up = diff > 40, down = diff < -40;
+                  const arrow = up ? "↑" : down ? "↓" : "→";
+                  const color = up ? "var(--good)" : down ? "var(--bad)" : "var(--ink-4)";
+                  return (
+                    <span className="ov-tdee-arrow" style={{ color }}>
+                      {" "}{arrow}{(up || down) ? ` ${Math.abs(Math.round(diff))}` : ""}
+                    </span>
+                  );
+                })()}
+              </span>
+              <span className="ov-stat-sub">vs 14 days ago</span>
+            </>
+          ) : (
+            <>
+              <span className="ov-stat-val empty">{data ? "—" : "0"}</span>
+              <span className="ov-stat-sub">{data ? "no Health data" : "kcal/day"}</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {data?.strength.exercises.length ? (
+        <TodaysFocusCard exercises={data.strength.exercises} />
+      ) : null}
+
+      <div className="ov-grid-2">
+        <button type="button" className="ov-stat" onClick={() => nav("training")}>
+          <span className="ov-stat-label">Training</span>
+          <span className={`ov-stat-val${(data?.sessionsThisWeek ?? 0) > 0 ? " accent" : " empty"}`}>
+            {data?.sessionsThisWeek ?? 0}
+          </span>
+          <span className="ov-stat-sub">sessions this week</span>
+        </button>
+
+        <button type="button" className="ov-stat" onClick={() => nav("training")}>
+          <span className="ov-stat-label">PRs</span>
+          <span className={`ov-stat-val${(data?.prThisMonth ?? 0) > 0 ? " gold" : " empty"}`}>
+            {(data?.prThisMonth ?? 0) > 0 ? `+${data!.prThisMonth}` : "0"}
+          </span>
+          <span className="ov-stat-sub">this month</span>
+        </button>
+      </div>
 
       {data && !data.today && data.weightLatest == null && data.sessionsThisWeek === 0 && (
         <section className="page-card ov-onboarding">
