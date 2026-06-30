@@ -4,7 +4,6 @@ import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { TodayView } from "./today";
 import { HistoryView } from "./history";
-import { ProgramsView } from "./programs";
 import { defaultLogDate } from "./logic";
 import "./nutrition.css";
 
@@ -31,7 +30,6 @@ export function NutritionPage() {
             onDateChange={setDate}
             entryVersion={entryVersion}
           />
-          <ProgramsView config={config} />
         </>
       )}
     </div>

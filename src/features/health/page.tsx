@@ -18,10 +18,8 @@ interface MetricSpec {
 }
 
 const METRICS: MetricSpec[] = [
-  { key: "weight_kg",           label: "Weight",         unit: "kg",   decimals: 1, color: "#5e9cf5" },
-  { key: "body_fat_pct",        label: "Body Fat",       unit: "%",    decimals: 1, color: "#bf5af2" },
-  { key: "active_energy_kcal",  label: "Active Energy",  unit: "kcal", decimals: 0, color: "#ff6b35" },
-  { key: "resting_energy_kcal", label: "Resting Energy", unit: "kcal", decimals: 0, color: "#34c759" },
+  { key: "weight_kg",    label: "Weight",   unit: "kg", decimals: 1, color: "#5e9cf5" },
+  { key: "body_fat_pct", label: "Body Fat", unit: "%",  decimals: 1, color: "#bf5af2" },
 ];
 
 const FIXED_DAYS = 180;
