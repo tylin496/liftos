@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 // /api/health-sync — Apple Health <-> LiftOS bridge for the Apple Shortcuts.
-//   POST → ingest body metrics (Apple Health → LiftOS body_metrics).
+//   POST → ingest body metrics (Apple Health → LiftOS health_metrics).
 //   GET  ?date=YYYY-MM-DD → export a day's logged calories + protein
 //          (LiftOS nutrition_entries → Apple Health Dietary Energy/Protein).
 //
@@ -10,7 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 //     activeEnergy: number|"", restingEnergy: number|"",
 //     steps: number|"", exerciseMinutes: number|"",
 //     sleepSeconds: number|"", restingHeartRate: number|"", hrvSdnn: number|"" }
-// Upserts one row per date into Supabase body_metrics. Empty/non-numeric
+// Upserts one row per date into Supabase health_metrics. Empty/non-numeric
 // fields are OMITTED from the upsert (not written as null), so running the
 // Shortcut multiple times a day never overwrites a previously-synced value
 // with a blank. Only fields that arrive with a real number are updated.
@@ -34,7 +34,7 @@ const intOrNull = (v) => {
   return n === null ? null : Math.round(n);
 };
 
-/** Validate + normalize the Shortcut payload into a body_metrics row. */
+/** Validate + normalize the Shortcut payload into a health_metrics row. */
 export function buildRecord(body) {
   if (!body || typeof body !== "object") {
     return { error: "Missing JSON body" };
@@ -153,7 +153,7 @@ export default async function handler(req, res) {
   if (error) return res.status(400).json({ error });
 
   const { data, error: dbErr } = await supabase
-    .from("body_metrics")
+    .from("health_metrics")
     .upsert(
       { user_id: userId, ...record },
       { onConflict: "user_id,metric_date" },

@@ -100,7 +100,7 @@ export async function fetchOverview(): Promise<OverviewData> {
       .select("calorie_target, protein_target")
       .maybeSingle(),
     supabase
-      .from("body_metrics")
+      .from("health_metrics")
       .select("metric_date, weight_kg, active_energy_kcal, resting_energy_kcal, sleep_seconds, hrv_sdnn_ms, resting_heart_rate")
       .gte("metric_date", sinceDate(60))
       .order("metric_date", { ascending: true }),

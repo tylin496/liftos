@@ -241,7 +241,7 @@ const mockDb = {
   training_logs: [...TRAINING_LOGS] as unknown as Record<string, unknown>[],
   nutrition_config: [{ ...NUTRITION_CONFIG }] as Record<string, unknown>[],
   nutrition_entries: [...NUTRITION_ENTRIES] as Record<string, unknown>[],
-  body_metrics: [...BODY_METRICS] as Record<string, unknown>[],
+  health_metrics: [...BODY_METRICS] as Record<string, unknown>[],
 };
 
 type TableName = keyof typeof mockDb;

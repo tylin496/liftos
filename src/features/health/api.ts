@@ -3,7 +3,7 @@ import type { Database } from "@shared/lib/database.types";
 import { computeTdeeWindows, type TdeeEstimate } from "./tdee";
 import { localDateStrDaysAgo } from "@shared/lib/date";
 
-export type BodyMetric = Database["public"]["Tables"]["body_metrics"]["Row"];
+export type BodyMetric = Database["public"]["Tables"]["health_metrics"]["Row"];
 
 function sinceDate(days: number): string {
   return localDateStrDaysAgo(days);
@@ -12,7 +12,7 @@ function sinceDate(days: number): string {
 /** Last N days of Apple Health metrics, oldest → newest. RLS-scoped. */
 export async function fetchBodyMetrics(days = 90): Promise<BodyMetric[]> {
   const { data, error } = await supabase
-    .from("body_metrics")
+    .from("health_metrics")
     .select("*")
     .gte("metric_date", sinceDate(days))
     .order("metric_date", { ascending: true });
