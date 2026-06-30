@@ -2,39 +2,6 @@
   gap: var(--space-3);
 }
 
-/* ── Range selector (Apple Health segmented pill) ──────────────────── */
-.health-range {
-  display: flex;
-  background: var(--bg-soft);
-  border-radius: var(--radius-sm);
-  padding: 3px;
-  gap: 2px;
-}
-
-.health-range-btn {
-  flex: 1;
-  padding: 6px 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--ink-3);
-  cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
-}
-
-.health-range-btn--active {
-  background: var(--bg-card);
-  color: var(--ink);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
-}
-
-.health-range-btn:active {
-  transform: scale(var(--tap-scale));
-  transition-duration: var(--motion-fast);
-}
-
 /* ── Metric card header: AVERAGE + big number + date range ──────────── */
 .health-metric-eyebrow {
   font-size: var(--text-2xs);
@@ -76,16 +43,6 @@
   color: var(--ink-4);
   margin: 2px 0 var(--space-3);
 }
-
-.health-weight-pace {
-  font-size: var(--text-base);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-3);
-  margin: 4px 0 2px;
-}
-.health-weight-pace.down { color: var(--good); }
-.health-weight-pace.up   { color: var(--bad); }
 
 /* ── Metric label + change row ──────────────────────────────────────── */
 .health-metric-head {
@@ -164,42 +121,6 @@
   vertical-align: middle;
 }
 
-.health-tdee-method {
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-  margin: var(--space-2) 0 var(--space-3);
-  line-height: 1.5;
-}
-
-.health-tdee-method summary {
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-}
-
-.health-tdee-method summary::-webkit-details-marker {
-  display: none;
-}
-
-.health-tdee-method summary::after {
-  content: " ▾";
-  font-size: 0.75em;
-  opacity: 0.5;
-}
-
-.health-tdee-method[open] summary::after {
-  content: " ▴";
-}
-
-.health-tdee-formula {
-  margin: var(--space-2) 0 var(--space-3);
-}
-
-.health-tdee-divider {
-  border: none;
-  border-top: 1px solid var(--rule-strong);
-  margin: 0 0 var(--space-3);
-}
 
 .health-tdee-components {
   display: grid;
