@@ -172,9 +172,9 @@
 
 .ex-title-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .ex-name {
@@ -184,7 +184,7 @@
   color: var(--ink);
   cursor: pointer;
   line-height: 1.2;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1571,6 +1571,10 @@
 
 /* ── Filter bar ──────────────────────────────────────────────────────────────*/
 .filter-bar {
+  position: fixed;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-3));
+  right: var(--space-4);
+  z-index: 10;
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);

@@ -154,21 +154,25 @@
   border-top: 1px solid var(--rule);
 }
 
-/* Sliding orange pill indicator */
+/* Sliding soft-accent selection pill, sits behind the active tab */
 .tabbar-indicator {
   position: absolute;
-  top: 0;
-  left: calc(var(--tab-idx, 0) * 25% + 10px);
-  width: calc(25% - 20px);
-  height: 3px;
-  background: var(--accent);
-  border-radius: 999px;
+  z-index: 0;
+  top: 5px;
+  left: calc(var(--tab-idx, 0) * 25% + 6px);
+  width: calc(25% - 12px);
+  height: 46px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
   transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 
 .tabbar-item {
   flex: 1;
+  position: relative;
+  z-index: 1;
   border: none;
   background: none;
   display: flex;

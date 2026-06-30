@@ -326,6 +326,7 @@ export function TodayView({
   const protNumRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const pendingCountUp = useRef(false);
+  const isNavigating = useRef(false);
 
   const todayStr = defaultLogDate();
   const isToday = date === todayStr;
@@ -333,23 +334,27 @@ export function TodayView({
   // Load entry when date changes
   useEffect(() => {
     let active = true;
-    setLoading(true);
     setEditField(null);
-    const t = setTimeout(() => setNavDir(null), 320);
+    // Only show skeleton if data takes longer than the slide animation
+    const skeletonTimer = setTimeout(() => { if (active) setLoading(true); }, 300);
+    const navDirTimer = setTimeout(() => setNavDir(null), 320);
     getEntry(date)
       .then((entry) => {
         if (!active) return;
+        clearTimeout(skeletonTimer);
         setCalories(entry?.calories != null ? String(entry.calories) : "");
         setProtein(entry?.protein != null ? String(entry.protein) : "");
         setLoading(false);
-        pendingCountUp.current = true;
+        if (!isNavigating.current) pendingCountUp.current = true;
+        isNavigating.current = false;
       })
       .catch((e) => {
         if (!active) return;
+        clearTimeout(skeletonTimer);
         toast(String(e?.message ?? e), "error");
         setLoading(false);
       });
-    return () => { active = false; clearTimeout(t); };
+    return () => { active = false; clearTimeout(skeletonTimer); clearTimeout(navDirTimer); };
   }, [date]);
 
   // Count-up animation after load
@@ -456,6 +461,7 @@ export function TodayView({
 
   function navigate(to: string) {
     const dir = to > date ? "forward" : "backward";
+    isNavigating.current = true;
     setNavDir(dir);
     onDateChange(to);
   }
@@ -597,7 +603,12 @@ export function TodayView({
           type="button"
           onClick={() => { haptic("tap"); setCalendarOpen(true); }}
         >
-          {labelFor(date)}
+          <span
+            key={date}
+            className={navDir === "forward" ? "date-slide-forward" : navDir === "backward" ? "date-slide-backward" : ""}
+          >
+            {labelFor(date)}
+          </span>
         </button>
         <button
           className="nutri-navbtn"
