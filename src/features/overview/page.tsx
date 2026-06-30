@@ -281,23 +281,6 @@ export function OverviewPage() {
       </div>
 
       {data?.compoundProgress && <CompoundProgressCard progress={data.compoundProgress} />}
-
-      {data && !data.today && data.weightLatest == null && data.sessionsThisWeek === 0 && (
-        <section className="page-card ov-onboarding">
-          <div className="section-head"><h2>Get started</h2></div>
-          <div className="ov-onboarding-links">
-            <button type="button" className="ov-onboarding-link" onClick={() => nav("nutrition")}>
-              Log a meal in <strong>Nutrition</strong>
-            </button>
-            <button type="button" className="ov-onboarding-link" onClick={() => nav("training")}>
-              Track a workout in <strong>Training</strong>
-            </button>
-            <button type="button" className="ov-onboarding-link" onClick={() => nav("health")}>
-              Log body metrics in <strong>Health</strong>
-            </button>
-          </div>
-        </section>
-      )}
     </div>
   );
 }

@@ -332,57 +332,6 @@
   margin-top: var(--space-2);
 }
 
-/* ─── Onboarding empty state ─────────────────────────────────────────────── */
-
-.ov-onboarding {
-  padding: var(--space-4) var(--space-5);
-}
-
-.ov-onboarding-links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-}
-
-.ov-onboarding-link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-3);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--bg-soft);
-  color: var(--ink-2);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  text-align: left;
-  transition: background var(--motion-fast), transform var(--motion-fast) var(--press-ease);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.ov-onboarding-link strong {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.ov-onboarding-link::after {
-  content: "→";
-  color: var(--accent);
-  font-size: var(--text-sm);
-  flex-shrink: 0;
-}
-
-@media (hover: hover) {
-  .ov-onboarding-link:hover {
-    background: var(--accent-100);
-  }
-}
-
-.ov-onboarding-link:active {
-  transform: scale(var(--tap-scale));
-}
 
 /* ─── Today's Focus card ─────────────────────────────────────────────────── */
 
