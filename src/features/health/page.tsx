@@ -469,35 +469,6 @@ export function HealthPage() {
         </section>
       ))}
 
-      {/* Lean Mass card — derived from weight × (1 - body_fat%) */}
-      {lbmCard && (
-        <section className="page-card health-metric">
-          <div className="health-metric-head">
-            <span className="health-metric-label">Lean Mass</span>
-            {lbmCard.change != null && lbmCard.readingCount >= 2 && (
-              <span className={`health-metric-change${
-                lbmCard.change > 0 ? " health-metric-change--down" : lbmCard.change < 0 ? " health-metric-change--up" : ""
-              }`}>
-                {lbmCard.change > 0 ? "+" : ""}{fmt(lbmCard.change, 1)} kg
-              </span>
-            )}
-          </div>
-          <p className="health-metric-eyebrow">THIS WEEK</p>
-          <div className="health-metric-hero">
-            {lbmCard.thisWeek != null ? (
-              <>
-                <span className="health-metric-val"><AnimatedMetric value={lbmCard.thisWeek} decimals={1} /></span>
-                <span className="health-unit">kg</span>
-              </>
-            ) : (
-              <span className="health-metric-val health-metric-val--empty">—</span>
-            )}
-          </div>
-          {lbmCard.dateRange && <p className="health-metric-daterange">{lbmCard.dateRange}</p>}
-          <LineChart points={lbmCard.bucketed} color="#30d158" decimals={1} unit="kg" />
-        </section>
-      )}
-
       {/* Metric cards — Apple Health style */}
       {cards.map(({ spec, bucketed, thisWeek, change, dateRange, readingCount }) => {
         const changePositive = change != null && change > 0;
@@ -543,6 +514,35 @@ export function HealthPage() {
           </section>
         );
       })}
+
+      {/* Lean Mass card — derived from weight × (1 - body_fat%) */}
+      {lbmCard && (
+        <section className="page-card health-metric">
+          <div className="health-metric-head">
+            <span className="health-metric-label">Lean Mass</span>
+            {lbmCard.change != null && lbmCard.readingCount >= 2 && (
+              <span className={`health-metric-change${
+                lbmCard.change > 0 ? " health-metric-change--down" : lbmCard.change < 0 ? " health-metric-change--up" : ""
+              }`}>
+                {lbmCard.change > 0 ? "+" : ""}{fmt(lbmCard.change, 1)} kg
+              </span>
+            )}
+          </div>
+          <p className="health-metric-eyebrow">THIS WEEK</p>
+          <div className="health-metric-hero">
+            {lbmCard.thisWeek != null ? (
+              <>
+                <span className="health-metric-val"><AnimatedMetric value={lbmCard.thisWeek} decimals={1} /></span>
+                <span className="health-unit">kg</span>
+              </>
+            ) : (
+              <span className="health-metric-val health-metric-val--empty">—</span>
+            )}
+          </div>
+          {lbmCard.dateRange && <p className="health-metric-daterange">{lbmCard.dateRange}</p>}
+          <LineChart points={lbmCard.bucketed} color="#30d158" decimals={1} unit="kg" />
+        </section>
+      )}
     </div>
   );
 }
