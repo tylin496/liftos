@@ -737,20 +737,6 @@ function TrainingPageInner() {
         </>
       )}
 
-      {/* ── Time filter ── */}
-      <div className="filter-bar">
-        {(["3mo", "year", "all"] as TimeFilter[]).map((f) => (
-          <button
-            key={f}
-            type="button"
-            className={`filter-btn${timeFilter === f ? " on" : ""}`}
-            onClick={() => setTimeFilter(f)}
-          >
-            {f === "3mo" ? "3M" : f === "year" ? "Y" : "All"}
-          </button>
-        ))}
-      </div>
-
       {/* ── Exercise cards ── */}
       <div
         key={split}
@@ -814,6 +800,20 @@ function TrainingPageInner() {
         stretches={stretches[split] ?? []}
         onChange={handleStretchChange}
       />
+
+      {/* ── Time filter ── */}
+      <div className="filter-bar">
+        {(["3mo", "year", "all"] as TimeFilter[]).map((f) => (
+          <button
+            key={f}
+            type="button"
+            className={`filter-btn${timeFilter === f ? " on" : ""}`}
+            onClick={() => setTimeFilter(f)}
+          >
+            {f === "3mo" ? "3M" : f === "year" ? "Y" : "All"}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
-import { useCallback, useContext, useState, createContext } from "react";
+import { useCallback, useContext, useRef, useState, createContext } from "react";
 import type { ReactNode } from "react";
+import { useExitTransition } from "../../shared/hooks/useExitTransition";
 
 interface ConfirmOptions {
   confirmLabel?: string;
@@ -36,26 +37,35 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     setDialog(null);
   }
 
+  const { mounted, closing } = useExitTransition(dialog !== null);
+  // Keep the last dialog's content on screen while it animates out.
+  const shownRef = useRef<DialogState | null>(null);
+  if (dialog) shownRef.current = dialog;
+  const shown = shownRef.current;
+
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
-      {dialog && (
-        <div className="confirm-overlay" onClick={() => handle(false)}>
+      {mounted && shown && (
+        <div
+          className={`confirm-overlay${closing ? " is-closing" : ""}`}
+          onClick={() => handle(false)}
+        >
           <div
-            className="confirm-dialog"
+            className={`confirm-dialog${closing ? " is-closing" : ""}`}
             role="alertdialog"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="confirm-msg">{dialog.msg}</p>
+            <p className="confirm-msg">{shown.msg}</p>
             <div className="confirm-actions">
               <button className="btn-ghost" onClick={() => handle(false)}>
                 Cancel
               </button>
               <button
-                className={`btn-primary${dialog.danger ? " danger" : ""}`}
+                className={`btn-primary${shown.danger ? " danger" : ""}`}
                 onClick={() => handle(true)}
               >
-                {dialog.confirmLabel}
+                {shown.confirmLabel}
               </button>
             </div>
           </div>
