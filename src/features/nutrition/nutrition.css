@@ -1946,6 +1946,18 @@
 
 .nutri-trend-col:active { transform: scale(0.92); }
 
+/* Upcoming days in the current week: shown for context but not selectable */
+.nutri-trend-col.is-future {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.nutri-trend-col.is-future:active { transform: none; }
+
+.nutri-trend-col.is-future .nutri-trend-day {
+  color: var(--ink-4);
+}
+
 .ntb-values {
   display: flex;
   flex-direction: column;

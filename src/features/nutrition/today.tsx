@@ -659,7 +659,7 @@ export function TodayView({
         ].filter(Boolean).join(" ")}
       >
         <div className="daily-card-top">
-          <h2 className="daily-card-heading">{isToday ? "Today" : "This Day"}</h2>
+          <h2 className="daily-card-heading">{isToday ? "Today" : labelFor(date)}</h2>
           <div className="daily-card-top-right">
             {!hasEntry && !isEditing && (
               <span className="dc-pill dc-pill--empty">No entry</span>

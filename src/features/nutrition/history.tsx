@@ -13,6 +13,13 @@ import {
 
 const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
 
+function fmtShortDay(dateStr: string): string {
+  return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 function haptic(kind: "tap" | "select" = "tap") {
   if (!navigator.vibrate) return;
   navigator.vibrate(kind === "select" ? 12 : 8);
@@ -47,23 +54,31 @@ export function HistoryView({
   const defaultTargets = useMemo(() => targetsFromConfig(config), [config]);
 
   useEffect(() => {
-    const to = toDateStr(new Date());
-    const fromD = new Date();
-    fromD.setDate(fromD.getDate() - 29);
-    getEntries(toDateStr(fromD), to)
+    const today = new Date();
+    const to = toDateStr(today);
+    // Cover the last 30 days (for the month stats) AND the Mon–Sun week that
+    // contains the selected day, so navigating to an older week still has data.
+    const monthFrom = new Date(today);
+    monthFrom.setDate(today.getDate() - 29);
+    const sel = new Date(date + "T12:00:00");
+    const selMonday = new Date(sel);
+    selMonday.setDate(sel.getDate() - ((sel.getDay() + 6) % 7));
+    const from = selMonday < monthFrom ? selMonday : monthFrom;
+    getEntries(toDateStr(from), to)
       .then(setEntries)
       .catch((e) => setError(String(e?.message ?? e)));
-  }, [entryVersion]);
+  }, [entryVersion, date]);
 
-  const { week, month, trend7, todayStr } = useMemo(() => {
+  const { week, month, trend7, todayStr, isCurrentWeek } = useMemo(() => {
     const todayStr = toDateStr(new Date());
     const inputs = (entries ?? []).map(toInput);
 
-    // Build Mon–Sun for the current calendar week
-    const today = new Date();
-    const dow = today.getDay(); // 0=Sun … 6=Sat
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - ((dow + 6) % 7)); // shift to Monday
+    // Build Mon–Sun for the week containing the SELECTED day, so the strip and
+    // its KPIs track day navigation instead of being pinned to the live week.
+    const anchor = new Date(date + "T12:00:00");
+    const dow = anchor.getDay(); // 0=Sun … 6=Sat
+    const monday = new Date(anchor);
+    monday.setDate(anchor.getDate() - ((dow + 6) % 7)); // shift to Monday
 
     const trend7: DayInput[] = [];
     for (let i = 0; i < 7; i++) {
@@ -84,8 +99,16 @@ export function HistoryView({
     }
 
     const logged7 = trend7.filter((d) => d.calories != null);
-    return { week: weeklyStats(logged7), month: monthlyStats(inputs), trend7, todayStr };
-  }, [entries]);
+    const isCurrentWeek = trend7[0].date <= todayStr && todayStr <= trend7[6].date;
+
+    // Month stats stay a strict last-30-days, independent of the viewed week.
+    const monthFrom = new Date();
+    monthFrom.setDate(monthFrom.getDate() - 29);
+    const monthFromStr = toDateStr(monthFrom);
+    const monthInputs = inputs.filter((d) => d.date >= monthFromStr && d.date <= todayStr);
+
+    return { week: weeklyStats(logged7), month: monthlyStats(monthInputs), trend7, todayStr, isCurrentWeek };
+  }, [entries, date]);
 
   async function handleCopyWeek() {
     haptic("tap");
@@ -145,7 +168,11 @@ export function HistoryView({
       {/* ── This Week ── */}
       <section className="page-card">
         <div className="nutri-section-head">
-          <p className="page-eyebrow" style={{ margin: 0 }}>This Week</p>
+          <p className="page-eyebrow" style={{ margin: 0 }}>
+            {isCurrentWeek
+              ? "This Week"
+              : `${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
+          </p>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
             {week.consistency && (
               <span className={`hist-badge badge-${week.consistency.toLowerCase()}`}>
@@ -177,6 +204,7 @@ export function HistoryView({
             const dayDate = new Date(d.date + "T12:00:00");
             const dayLabel = WEEKDAY_NARROW[dayDate.getDay()];
             const isToday = d.date === todayStr;
+            const isFuture = d.date > todayStr;
             const isSelected = d.date === date;
             const hasCal = d.calories != null;
             const hasProtein = d.protein != null;
@@ -210,12 +238,22 @@ export function HistoryView({
                   "nutri-trend-col",
                   isSelected ? "is-selected" : "",
                   isToday ? "is-today-col" : "",
+                  isFuture ? "is-future" : "",
                   !hasCal ? "is-missing" : "",
                   doubleHit ? "is-double-hit" : "",
                 ].filter(Boolean).join(" ")}
                 type="button"
-                aria-label={`${d.date}${hasCal ? `: ${d.calories?.toLocaleString()} kcal, ${d.protein}g` : ": no entry"}`}
-                onClick={() => { haptic("select"); onDateChange(d.date); }}
+                disabled={isFuture}
+                aria-label={
+                  isFuture
+                    ? `${d.date}: upcoming`
+                    : `${d.date}${hasCal ? `: ${d.calories?.toLocaleString()} kcal, ${d.protein}g` : ": no entry"}`
+                }
+                onClick={() => {
+                  if (isFuture) return;
+                  haptic("select");
+                  onDateChange(d.date);
+                }}
               >
                 {/* Value labels */}
                 <div className="ntb-values">
