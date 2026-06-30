@@ -366,62 +366,6 @@ export function HealthPage() {
 
   return (
     <div className="page health">
-      {/* TDEE hero — fixed windows, independent of period selector */}
-      <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
-        <p className="page-eyebrow">CURRENT TDEE</p>
-        {!data ? (
-          <div className="health-tdee-num">
-            <span className="health-skel-num">0000</span>
-            <span className="health-unit"> kcal/day</span>
-          </div>
-        ) : tdee?.tdee != null ? (
-          <>
-            <div className="health-tdee-num">
-              <AnimatedTdee value={tdee.tdee} />
-              <span className="health-unit"> kcal/day</span>
-              {tdeePrev?.tdee != null && (() => {
-                const diff = tdee.tdee - tdeePrev.tdee;
-                const up = diff > 40, down = diff < -40;
-                const dir = up ? "up" : down ? "down" : "flat";
-                const color = up ? "var(--accent)" : down ? "var(--bad)" : "var(--ink-4)";
-                return (
-                  <span className="ov-tdee-arrow" style={{ color }}>
-                    <TrendIcon dir={dir} size={15} />
-                    {(up || down) ? Math.abs(Math.round(diff)) : null}
-                  </span>
-                );
-              })()}
-            </div>
-            <div className="health-tdee-components">
-              <div className="health-tdee-component">
-                <span className="health-tdee-component-label">Resting</span>
-                <span className="health-tdee-component-val">
-                  {tdee.avgResting?.toLocaleString()} kcal/day
-                  <ComponentTrend cur={tdee.avgResting} prev={tdeePrev?.avgResting} />
-                </span>
-                <span className="health-tdee-component-window">
-                  {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
-                </span>
-              </div>
-              <div className="health-tdee-component">
-                <span className="health-tdee-component-label">Active</span>
-                <span className="health-tdee-component-val">
-                  {tdee.avgActive?.toLocaleString()} kcal/day
-                  <ComponentTrend cur={tdee.avgActive} prev={tdeePrev?.avgActive} />
-                </span>
-                <span className="health-tdee-component-window">
-                  {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"}
-                </span>
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="page-note">
-            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
-          </p>
-        )}
-      </section>
-
       {recovery && <RecoveryCard snap={recovery} />}
 
       {/* Metric skeleton while loading */}
@@ -510,6 +454,64 @@ export function HealthPage() {
           <LineChart points={lbmCard.bucketed} color="var(--health-leanmass)" decimals={1} unit="kg" />
         </section>
       )}
+
+      {/* TDEE — a derived metabolic estimate, so it sits last, after the body-
+          state cards (Recovery / Weight / Body Fat / Lean Mass). Fixed windows,
+          independent of any period selector. */}
+      <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
+        <p className="page-eyebrow">CURRENT TDEE</p>
+        {!data ? (
+          <div className="health-tdee-num">
+            <span className="health-skel-num">0000</span>
+            <span className="health-unit"> kcal/day</span>
+          </div>
+        ) : tdee?.tdee != null ? (
+          <>
+            <div className="health-tdee-num">
+              <AnimatedTdee value={tdee.tdee} />
+              <span className="health-unit"> kcal/day</span>
+              {tdeePrev?.tdee != null && (() => {
+                const diff = tdee.tdee - tdeePrev.tdee;
+                const up = diff > 40, down = diff < -40;
+                const dir = up ? "up" : down ? "down" : "flat";
+                const color = up ? "var(--accent)" : down ? "var(--bad)" : "var(--ink-4)";
+                return (
+                  <span className="ov-tdee-arrow" style={{ color }}>
+                    <TrendIcon dir={dir} size={15} />
+                    {(up || down) ? Math.abs(Math.round(diff)) : null}
+                  </span>
+                );
+              })()}
+            </div>
+            <div className="health-tdee-components">
+              <div className="health-tdee-component">
+                <span className="health-tdee-component-label">Resting</span>
+                <span className="health-tdee-component-val">
+                  {tdee.avgResting?.toLocaleString()} kcal/day
+                  <ComponentTrend cur={tdee.avgResting} prev={tdeePrev?.avgResting} />
+                </span>
+                <span className="health-tdee-component-window">
+                  {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
+                </span>
+              </div>
+              <div className="health-tdee-component">
+                <span className="health-tdee-component-label">Active</span>
+                <span className="health-tdee-component-val">
+                  {tdee.avgActive?.toLocaleString()} kcal/day
+                  <ComponentTrend cur={tdee.avgActive} prev={tdeePrev?.avgActive} />
+                </span>
+                <span className="health-tdee-component-window">
+                  {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"}
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="page-note">
+            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
+          </p>
+        )}
+      </section>
     </div>
   );
 }

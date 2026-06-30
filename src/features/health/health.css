@@ -105,9 +105,10 @@
   opacity: 0.4;
 }
 
-/* ── TDEE hero ───────────────────────────────────────────────────────── */
+/* ── TDEE card — derived metabolic estimate, equal weight to the metric
+      cards (matches .health-metric-val), not a hero ─────────────────────── */
 .health-tdee-num {
-  font-size: var(--text-4xl);
+  font-size: var(--text-3xl);
   font-weight: 800;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
