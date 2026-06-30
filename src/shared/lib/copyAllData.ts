@@ -6,13 +6,20 @@ import { computeStats, epley1RM } from "@features/training/logic";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
 
-export async function buildAllDataJson(healthDays = 90): Promise<string> {
-  const today = new Date().toISOString().slice(0, 10);
+export const EXPORT_HEALTH_DAYS = 90;
+export const EXPORT_NUTRITION_DAYS = 45;
+
+export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritionDays = EXPORT_NUTRITION_DAYS): Promise<string> {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const nutritionStart = new Date(now.getTime() - nutritionDays * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
 
   const [health, nutritionConfig, nutritionEntries, exercises, logsBySlug] = await Promise.all([
     fetchHealthData(healthDays).catch(() => null),
     getConfig().catch(() => null),
-    getEntries("2000-01-01", today).catch(() => []),
+    getEntries(nutritionStart, today).catch(() => []),
     fetchExercises().catch(() => []),
     fetchLogsBySlug().catch(() => ({} as Record<string, import("@features/training/api").TrainingLog[]>)),
   ]);
@@ -46,10 +53,9 @@ export async function buildAllDataJson(healthDays = 90): Promise<string> {
     healthSummary[COPY_KEY[spec.key]] = {
       latest: +latest.value.toFixed(spec.decimals),
       latestDate: latest.date,
-      change: +(latest.value - pts[0].value).toFixed(spec.decimals),
+      changeFromStart: +(latest.value - pts[0].value).toFixed(spec.decimals),
       avg: +avg.toFixed(spec.decimals),
-      avg90d: +avg.toFixed(spec.decimals),
-      periodDays: 90,
+      periodDays: healthDays,
       dataPoints: pts.length,
     };
   }
@@ -123,14 +129,31 @@ export async function buildAllDataJson(healthDays = 90): Promise<string> {
     };
   });
 
+  const cutPhase = targets?.cutPhaseName ?? null;
+  const inferredGoal =
+    cutPhase === "Maintenance" ? "Maintenance" :
+    cutPhase != null ? "Fat loss" : null;
+
   return JSON.stringify(
     {
       source: "LiftOS",
-      schema: 1.2,
-      type: "all",
-      date: today,
+      schema: 1.3,
+      generatedAt: now.toISOString(),
+      units: { weight: "kg", energy: "kcal" },
+      profile: {
+        height: null,
+        trainingAgeMonths: null,
+      },
+      goals: {
+        primary: inferredGoal,
+        secondary: "Hypertrophy",
+        targetBodyFat: null,
+      },
+      trainingSchedule: {
+        split: "PPL",
+        cycle: SPLITS.map((s) => s.name),
+      },
       health: {
-        periodDays: healthDays,
         tdee: tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null,
         /** Resting energy averaged over 30 days; active energy averaged over 14 days. */
         tdeeRestingDays: tdeeEst.restingDays,
@@ -153,6 +176,7 @@ export async function buildAllDataJson(healthDays = 90): Promise<string> {
             }
           : null,
         summary: {
+          periodDays: nutritionDays,
           days: sortedEntries.length,
           sampleDays: logged.length,
           avgCalories,

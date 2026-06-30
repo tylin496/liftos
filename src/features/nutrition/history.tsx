@@ -7,6 +7,7 @@ import {
   monthlyStats,
   toDateStr,
   weeklyStats,
+  type CalorieState,
   type DayInput,
 } from "./logic";
 
@@ -58,10 +59,16 @@ export function HistoryView({
     const todayStr = toDateStr(new Date());
     const inputs = (entries ?? []).map(toInput);
 
+    // Build Mon–Sun for the current calendar week
+    const today = new Date();
+    const dow = today.getDay(); // 0=Sun … 6=Sat
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dow + 6) % 7)); // shift to Monday
+
     const trend7: DayInput[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
       const dateStr = toDateStr(d);
       const found = inputs.find((x) => x.date === dateStr);
       trend7.push(
@@ -292,22 +299,45 @@ export function HistoryView({
           </div>
         </div>
 
-        <div className="hist-dist">
-          {(["surplus", "under", "on-plan", "over", "extreme"] as const).map((s) => (
-            <div
-              key={s}
-              className={`hist-dist-seg state-${s}`}
-              style={{ flexGrow: month.distribution[s] || 0 }}
-              title={`${s}: ${month.distribution[s]}`}
-            />
-          ))}
+        <div className="nutri-dist">
+          <div className="nutri-dist-head" aria-hidden="true">
+            <span />
+            <span />
+            <span>%</span>
+            <span>days</span>
+          </div>
+          {(() => {
+            const denom = month.logged || 1;
+            const labels: Record<string, string> = {
+              "on-plan": "On Plan",
+              under: "Under",
+              over: "Over",
+              extreme: "Extreme",
+              surplus: "Surplus",
+            };
+            const rest: CalorieState[] = ["under", "over", "extreme", "surplus"];
+            rest.sort((a, b) => (month.distribution[b] || 0) - (month.distribution[a] || 0));
+            const rows: CalorieState[] = ["on-plan", ...rest];
+            const maxCount = Math.max(1, ...rows.map((k) => month.distribution[k] || 0));
+            return rows.map((s) => {
+              const count = month.distribution[s] || 0;
+              return (
+                <div key={s} className={`nutri-dist-row state-${s}`}>
+                  <span className="nutri-dist-label">{labels[s]}</span>
+                  <span
+                    className="nutri-dist-bar"
+                    style={{ "--bar-pct": `${Math.round((count / maxCount) * 100)}%` } as React.CSSProperties}
+                    aria-hidden="true"
+                  />
+                  <span className="nutri-dist-pct">{Math.round((count / denom) * 100)}%</span>
+                  <strong className="nutri-dist-value">{count}</strong>
+                </div>
+              );
+            });
+          })()}
         </div>
 
-        <div className="hist-stats" style={{ marginTop: "var(--space-4)" }}>
-          <div>
-            <span className="health-k">On-plan days</span>
-            <span className="health-v">{month.onPlan}</span>
-          </div>
+        <div className="hist-stats" style={{ marginTop: "var(--space-3)" }}>
           <div>
             <span className="health-k">Double-hit</span>
             <span className="health-v">{month.doubleHitPct}%</span>
@@ -315,10 +345,6 @@ export function HistoryView({
           <div>
             <span className="health-k">Current streak</span>
             <span className="health-v">{month.currentStreak}d</span>
-          </div>
-          <div>
-            <span className="health-k">Days logged</span>
-            <span className="health-v">{month.logged}</span>
           </div>
         </div>
       </section>

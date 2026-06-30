@@ -116,9 +116,9 @@ button {
   100% { background-position: -200% center; }
 }
 
-@keyframes skel-shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
+@keyframes skel-fade {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
 }
 
 @keyframes progress-fill {
@@ -139,7 +139,7 @@ button {
   padding: 3px 10px;
   color: inherit;
   font-family: var(--font-ui);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
   transition: background 0.1s;

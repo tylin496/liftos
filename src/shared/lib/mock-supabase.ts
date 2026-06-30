@@ -281,6 +281,12 @@ class MockBuilder {
     return this;
   }
 
+  ilike(col: string, pattern: string) {
+    const re = new RegExp(pattern.replace(/%/g, ".*"), "i");
+    this._filters.push((r) => re.test(String(r[col] ?? "")));
+    return this;
+  }
+
   order(_col: string, _opts?: { ascending?: boolean }) {
     this._sorts.push([_col, _opts?.ascending !== false]);
     return this;

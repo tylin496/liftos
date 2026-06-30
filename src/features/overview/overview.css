@@ -102,25 +102,45 @@
 .ov-bar-fill {
   height: 100%;
   border-radius: 99px;
-  background: var(--accent);
+  background: var(--blue);
   width: 0%;
   transition: none;
 }
 
 .ov-bar-fill.anim {
-  transition: width 0.75s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ov-bar-fill.protein {
-  background: var(--accent-2);
+  background: var(--good);
 }
 
 /* Glow flash at 100% — fires after the bar finishes filling (~0.75s) */
 .ov-bar-fill.complete {
-  animation: bar-flash 0.65s ease 0.8s both;
+  animation: bar-flash-accent 0.65s ease 0.8s both;
 }
 
-@keyframes bar-flash {
+.ov-bar-fill.calorie.complete {
+  animation-name: bar-flash-blue;
+}
+
+.ov-bar-fill.protein.complete {
+  animation-name: bar-flash-good;
+}
+
+@keyframes bar-flash-blue {
+  0%   { box-shadow: none; }
+  45%  { box-shadow: 0 0 14px 4px rgba(0, 122, 255, 0.28); }
+  100% { box-shadow: none; }
+}
+
+@keyframes bar-flash-good {
+  0%   { box-shadow: none; }
+  45%  { box-shadow: 0 0 14px 4px rgba(29, 145, 73, 0.28); }
+  100% { box-shadow: none; }
+}
+
+@keyframes bar-flash-accent {
   0%   { box-shadow: none; }
   45%  { box-shadow: 0 0 14px 4px var(--accent-glow); }
   100% { box-shadow: none; }
@@ -153,6 +173,9 @@
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
   transition: transform 0.18s var(--press-ease), box-shadow 0.18s;
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @media (hover: hover) {
@@ -169,7 +192,7 @@
 }
 
 .ov-stat-label {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -196,115 +219,158 @@
 }
 
 .ov-stat-sub {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--ink-4);
   margin-top: var(--space-1);
 }
 
-/* ─── Performance card ───────────────────────────────────────────────────── */
 
-/* Tap-to-navigate: Performance card links to Training tab */
-.ov-strength-tappable {
-  cursor: pointer;
-  transition: transform 0.18s var(--press-ease), box-shadow 0.18s;
+/* ─── Compound Progress Card ─────────────────────────────────────────────── */
+
+.ov-compound {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--space-4) var(--space-5);
 }
 
-@media (hover: hover) {
-  .ov-strength-tappable:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-}
-
-.ov-strength-tappable:active {
-  transform: scale(var(--tap-scale));
-  transition-duration: 0.08s;
-}
-
-/* Dominant status — the headline of the performance card */
-.ov-strength-dominant {
-  font-size: var(--text-2xl);
-  font-weight: 800;
+.ov-compound-overall {
+  font-family: var(--font-mono);
+  font-size: var(--text-4xl);
+  font-weight: 700;
   color: var(--ink);
   line-height: 1;
-  margin: 0 0 var(--space-1);
   letter-spacing: -0.02em;
-}
-
-.ov-strength-dominant.ov-strength-good { color: var(--good); }
-.ov-strength-dominant.ov-strength-bad  { color: var(--bad); }
-
-.ov-strength-count {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
   margin: 0 0 var(--space-4);
 }
 
-.ov-strength-pills {
+.ov-compound-list {
   display: flex;
+  flex-direction: column;
   gap: var(--space-3);
 }
 
-/* Pills use tabular mono for alignment and pop in sequentially */
-.ov-strength-pill {
+.ov-compound-row {
+  display: grid;
+  grid-template-columns: minmax(min-content, 5rem) 1fr 2.4rem;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ov-compound-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov-compound-track {
+  height: 7px;
+}
+
+.ov-compound-pct {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 700;
-  padding: var(--space-1) var(--space-3);
-  border-radius: 99px;
-  animation: pill-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes pill-pop {
-  0%   { opacity: 0; transform: scale(0.7) translateY(4px); }
-  60%  { opacity: 1; transform: scale(1.08); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.ov-strength-pill-good   { background: rgba(29, 145, 73, 0.14); color: var(--good); }
-.ov-strength-pill-stable { background: var(--bg-soft); color: var(--ink-3); }
-.ov-strength-pill-watch  { background: rgba(224, 53, 53, 0.12); color: var(--bad); }
-
-.ov-strength-attention-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
   color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin: var(--space-4) 0 var(--space-2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.ov-strength-detail {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+/* ─── TDEE Trend Card ────────────────────────────────────────────────────── */
+
+.ov-tdee-trend {
   display: flex;
   flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
 }
 
-/* Attention items slide in from the left, each with an inline delay */
-.ov-strength-detail li {
+.ov-tdee-trend-hero {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.ov-tdee-trend-num {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ov-tdee-trend-unit {
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--bad);
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--rule);
-  animation: item-slide-in 0.3s var(--reveal-ease) both;
+  color: var(--ink-4);
 }
 
-.ov-strength-detail li:last-child {
-  border-bottom: none;
+.ov-tdee-chart-wrap {
+  margin-top: var(--space-2);
 }
 
-@keyframes item-slide-in {
-  0%   { opacity: 0; transform: translateX(-8px); }
-  100% { opacity: 1; transform: translateX(0); }
+/* ─── Onboarding empty state ─────────────────────────────────────────────── */
+
+.ov-onboarding {
+  padding: var(--space-4) var(--space-5);
 }
 
+.ov-onboarding-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.ov-onboarding-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  color: var(--ink-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, transform 0.1s var(--press-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ov-onboarding-link strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.ov-onboarding-link::after {
+  content: "→";
+  color: var(--accent);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .ov-onboarding-link:hover {
+    background: var(--accent-100);
+  }
+}
+
+.ov-onboarding-link:active {
+  transform: scale(var(--tap-scale));
+}
 
 /* ─── Card eyebrow (shared) ──────────────────────────────────────────────── */
 
 .ov-card-eyebrow {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;

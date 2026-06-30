@@ -4,6 +4,7 @@ import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
+import { useNav } from "@app/layout/NavContext";
 import "./overview.css";
 
 const MONTH_ABBR = [
@@ -89,7 +90,7 @@ function HeroCard({ data }: { data: OverviewData | null }) {
         {kcalTarget > 0 && (
           <div className="ov-bar-track">
             <div
-              className={`ov-bar-fill${barsReady ? " anim" : ""}${kcalPct >= 100 ? " complete" : ""}`}
+              className={`ov-bar-fill calorie${barsReady ? " anim" : ""}${kcalPct >= 100 ? " complete" : ""}`}
               style={{ width: barsReady ? `${kcalPct}%` : "0%" }}
             />
           </div>
@@ -152,7 +153,7 @@ function CompoundProgressCard({
           const p = Math.round(pct * 100);
           return (
             <div key={slug} className="ov-compound-row">
-              <span className="ov-compound-label">{label}</span>
+              <span className="ov-compound-label" title={label}>{label}</span>
               <div className="ov-bar-track ov-compound-track">
                 <div
                   className={`ov-bar-fill${barsReady ? " anim" : ""}${p >= 100 ? " complete" : ""}`}
@@ -174,6 +175,7 @@ export function OverviewPage() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const activity = useTabActivity();
+  const nav = useNav();
 
   useEffect(() => {
     fetchOverview()
@@ -203,13 +205,13 @@ export function OverviewPage() {
       <HeroCard data={data} />
 
       <div className="ov-grid-2">
-        <div className="ov-stat">
+        <button type="button" className="ov-stat" onClick={() => nav("health")}>
           <span className="ov-stat-label">Weight</span>
           <span className={`ov-stat-val ${weightDelta.cls}`}>{weightDelta.text}</span>
           <span className="ov-stat-sub">vs 7 days ago</span>
-        </div>
+        </button>
 
-        <div className="ov-stat">
+        <button type="button" className="ov-stat" onClick={() => nav("health")}>
           <span className="ov-stat-label">TDEE</span>
           {data?.tdee != null ? (
             <>
@@ -235,28 +237,45 @@ export function OverviewPage() {
               <span className="ov-stat-sub">{data ? "no Health data" : "kcal/day"}</span>
             </>
           )}
-        </div>
+        </button>
       </div>
 
       {data?.compoundProgress && <CompoundProgressCard progress={data.compoundProgress} />}
 
       <div className="ov-grid-2">
-        <div className="ov-stat">
+        <button type="button" className="ov-stat" onClick={() => nav("training")}>
           <span className="ov-stat-label">Training</span>
           <span className={`ov-stat-val${(data?.sessionsThisWeek ?? 0) > 0 ? " accent" : " empty"}`}>
             {data?.sessionsThisWeek ?? 0}
           </span>
           <span className="ov-stat-sub">sessions this week</span>
-        </div>
+        </button>
 
-        <div className="ov-stat">
+        <button type="button" className="ov-stat" onClick={() => nav("training")}>
           <span className="ov-stat-label">PRs</span>
           <span className={`ov-stat-val${(data?.prThisMonth ?? 0) > 0 ? " gold" : " empty"}`}>
             {(data?.prThisMonth ?? 0) > 0 ? `+${data!.prThisMonth}` : "0"}
           </span>
           <span className="ov-stat-sub">this month</span>
-        </div>
+        </button>
       </div>
+
+      {data && !data.today && data.weightLatest == null && data.sessionsThisWeek === 0 && (
+        <section className="page-card ov-onboarding">
+          <p className="ov-card-eyebrow">Get started</p>
+          <div className="ov-onboarding-links">
+            <button type="button" className="ov-onboarding-link" onClick={() => nav("nutrition")}>
+              Log a meal in <strong>Nutrition</strong>
+            </button>
+            <button type="button" className="ov-onboarding-link" onClick={() => nav("training")}>
+              Track a workout in <strong>Training</strong>
+            </button>
+            <button type="button" className="ov-onboarding-link" onClick={() => nav("health")}>
+              Log body metrics in <strong>Health</strong>
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

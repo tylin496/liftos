@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchHealthData, type BodyMetric, type HealthData } from "./api";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
-import { buildAllDataJson } from "@shared/lib/copyAllData";
+import { buildAllDataJson, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import "./health.css";
@@ -168,9 +168,6 @@ function LineChart({
         style={{ width: "100%", height: H, touchAction: "none" }}
         onPointerMove={(e) => findNearest(e.clientX)}
         onPointerLeave={() => setHovered(null)}
-        onTouchStart={(e) => findNearest(e.touches[0].clientX)}
-        onTouchMove={(e) => { e.preventDefault(); findNearest(e.touches[0].clientX); }}
-        onTouchEnd={() => setHovered(null)}
       >
         {/* Grid lines */}
         {gridYs.map((y, i) => (
@@ -272,7 +269,7 @@ export function HealthPage() {
     fetchHealthData(days).then(setData).catch(() => {});
   }, [activity, days]);
 
-  useCopyButton(() => buildAllDataJson(days));
+  useCopyButton(() => buildAllDataJson(days, EXPORT_NUTRITION_DAYS));
 
   const tdee = data?.tdee;
 

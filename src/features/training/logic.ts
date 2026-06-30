@@ -107,8 +107,8 @@ export function computeHistDelta(
   const pKg = score(pp);
   if (!Number.isFinite(cKg) || !Number.isFinite(pKg)) return null;
 
-  const dw = parseFloat((cKg - pKg).toFixed(3));
-  if (dw > 0) return { text: `+${Math.abs(dw)} kg` };
+  const dw = parseFloat((cKg - pKg).toFixed(2));
+  if (dw > 0) return { text: `+${Math.abs(dw).toFixed(2)} kg` };
   if (dw !== 0) return null; // weight dropped — stay silent
 
   // Rep fallback: only when same set count
@@ -267,9 +267,7 @@ export function fmtInspectorDate(dateStr: string): string {
 }
 
 function fmtInspectorEntry(entry: LogEntry): string {
-  const kg = entry.weightKg;
-  const w = kg % 1 === 0 ? kg.toString() : kg.toFixed(1);
-  return `${w} × ${entry.reps}`;
+  return `${entry.weightKg.toFixed(2)} × ${entry.reps}`;
 }
 
 function buildStatusReason(

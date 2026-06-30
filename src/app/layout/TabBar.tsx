@@ -18,7 +18,7 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
     label: "Training",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M1 7.1H3V5.9A1.5 1.5 0 0 1 4.5 4.4H5A1.5 1.5 0 0 1 6.5 5.9V9.5H17.5V5.9A1.5 1.5 0 0 1 19 4.4H19.5A1.5 1.5 0 0 1 21 5.9V7.1H23V16.9H21V18.1A1.5 1.5 0 0 1 19.5 19.6H19A1.5 1.5 0 0 1 17.5 18.1V14.5H6.5V18.1A1.5 1.5 0 0 1 5 19.6H4.5A1.5 1.5 0 0 1 3 18.1V16.9H1Z" />
+        <path d="M1 7.1H3V5.9A1.5 1.5 0 0 1 4.5 4.4H6.5A1.5 1.5 0 0 1 8 5.9V9.5H16V5.9A1.5 1.5 0 0 1 17.5 4.4H19.5A1.5 1.5 0 0 1 21 5.9V7.1H23V16.9H21V18.1A1.5 1.5 0 0 1 19.5 19.6H17.5A1.5 1.5 0 0 1 16 18.1V14.5H8V18.1A1.5 1.5 0 0 1 6.5 19.6H4.5A1.5 1.5 0 0 1 3 18.1V16.9H1Z" />
       </svg>
     ),
   },

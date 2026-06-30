@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
-import { buildAllDataJson } from "@shared/lib/copyAllData";
+import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
+import { useHeaderTitle } from "@app/layout/HeaderTitleContext";
 import { supabase } from "@shared/lib/supabase";
 import {
   ensureSeeded,
@@ -45,7 +46,7 @@ function slugify(s: string) {
 }
 
 function fmtWeightNum(n: number): string {
-  return parseFloat(n.toFixed(6)).toString();
+  return n.toFixed(2);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -439,7 +440,12 @@ function ArchivedSection({
       >
         <span className="archived-label">Archived</span>
         <span className="archived-count mono">{exercises.length}</span>
-        <span style={{ color: "var(--ink-4)", fontSize: "12px" }}>{open ? "▲" : "▾"}</span>
+        <svg
+          className={`archived-chevron${open ? " open" : ""}`}
+          width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"
+        >
+          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </button>
       {open && (
         <div className="archived-list">
@@ -485,6 +491,7 @@ function TrainingPageInner() {
   const toast = useToast();
   const confirm = useConfirm();
   const activity = useTabActivity();
+  const { setTitle } = useHeaderTitle();
 
   const [split, setSplit] = useState<SplitId>(() => {
     const saved = sessionStorage.getItem("tr-split");
@@ -522,7 +529,13 @@ function TrainingPageInner() {
     prevSplitIdx.current = splitIds.indexOf(split);
     setSplit(id);
     sessionStorage.setItem("tr-split", id);
+    setTitle(SPLITS.find((s) => s.id === id)?.name ?? id);
   }
+
+  // Sync header title on mount
+  useEffect(() => {
+    setTitle(SPLITS.find((s) => s.id === split)?.name ?? split);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reloadAll = useCallback(async () => {
     try {
@@ -644,7 +657,7 @@ function TrainingPageInner() {
     setStretches((prev) => ({ ...prev, [split]: items }));
   }
 
-  useCopyButton(buildAllDataJson);
+  useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
 
   return (
     <div
@@ -724,6 +737,20 @@ function TrainingPageInner() {
         </>
       )}
 
+      {/* ── Time filter ── */}
+      <div className="filter-bar">
+        {(["3mo", "year", "all"] as TimeFilter[]).map((f) => (
+          <button
+            key={f}
+            type="button"
+            className={`filter-btn${timeFilter === f ? " on" : ""}`}
+            onClick={() => setTimeFilter(f)}
+          >
+            {f === "3mo" ? "3M" : f === "year" ? "Y" : "All"}
+          </button>
+        ))}
+      </div>
+
       {/* ── Exercise cards ── */}
       <div
         key={split}
@@ -787,20 +814,6 @@ function TrainingPageInner() {
         stretches={stretches[split] ?? []}
         onChange={handleStretchChange}
       />
-
-      {/* ── Time filter ── */}
-      <div className="filter-bar">
-        {(["3mo", "year", "all"] as TimeFilter[]).map((f) => (
-          <button
-            key={f}
-            type="button"
-            className={`filter-btn${timeFilter === f ? " on" : ""}`}
-            onClick={() => setTimeFilter(f)}
-          >
-            {f === "3mo" ? "3M" : f === "year" ? "Y" : "All"}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

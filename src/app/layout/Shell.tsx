@@ -7,6 +7,7 @@ import { HealthPage } from "@features/health/page";
 import { Header } from "./Header";
 import { TabBar, type TabId } from "./TabBar";
 import { HeaderActionProvider } from "./HeaderActionContext";
+import { HeaderTitleProvider } from "./HeaderTitleContext";
 import { NavContext } from "./NavContext";
 import { TabActivityContext } from "./TabActivityContext";
 import "./layout.css";
@@ -112,6 +113,7 @@ export function Shell({ session }: { session: Session }) {
 
   return (
     <HeaderActionProvider>
+      <HeaderTitleProvider>
       <NavContext.Provider value={switchTab}>
         <div className={`shell${headerHidden ? " shell--header-hidden" : ""}`}>
           <Header user={session.user} tab={tab} />
@@ -131,6 +133,7 @@ export function Shell({ session }: { session: Session }) {
           <TabBar active={tab} onChange={switchTab} />
         </div>
       </NavContext.Provider>
+      </HeaderTitleProvider>
     </HeaderActionProvider>
   );
 }

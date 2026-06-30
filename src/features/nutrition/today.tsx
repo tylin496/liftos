@@ -456,11 +456,8 @@ export function TodayView({
 
   function navigate(to: string) {
     const dir = to > date ? "forward" : "backward";
-    setNavDir(null);
-    requestAnimationFrame(() => {
-      setNavDir(dir);
-      onDateChange(to);
-    });
+    setNavDir(dir);
+    onDateChange(to);
   }
 
   function openEdit(field: "calories" | "protein") {
@@ -754,14 +751,14 @@ export function TodayView({
                       {calNum.toLocaleString()}
                     </span>
                     <span className="stat-unit">kcal</span>
+                    <span className={`stat-note${calResult.isSurplus || calResult.state === "extreme" ? " stat-note--warn" : calResult.state === "on-plan" ? " stat-note--good" : ""}`}>
+                      {calNote}
+                    </span>
                     {doubleHit && (
                       <span className="dc-pill dc-pill--gold">Double hit</span>
                     )}
                   </span>
                   <span className="stat-label">Calories</span>
-                  <span className={`stat-note${calResult.isSurplus || calResult.state === "extreme" ? " stat-note--warn" : calResult.state === "on-plan" ? " stat-note--good" : ""}`}>
-                    {calNote}
-                  </span>
                 </button>
                 <button
                   className="stat-row"
@@ -774,14 +771,14 @@ export function TodayView({
                       {protNum}
                     </span>
                     <span className="stat-unit">g</span>
+                    <span className={`stat-note${protResult.celebrated ? " stat-note--good" : ""}`}>
+                      {protNote}
+                    </span>
                     {protResult.celebrated && !doubleHit && (
                       <span className="dc-pill dc-pill--green">On track</span>
                     )}
                   </span>
                   <span className="stat-label">Protein</span>
-                  <span className={`stat-note${protResult.celebrated ? " stat-note--good" : ""}`}>
-                    {protNote}
-                  </span>
                 </button>
               </>
             ) : (

@@ -6,7 +6,7 @@ import { TodayView } from "./today";
 import { HistoryView } from "./history";
 import { ProgramsView } from "./programs";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
-import { buildAllDataJson } from "@shared/lib/copyAllData";
+import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { ToastProvider } from "@shared/components/Toast";
 import { defaultLogDate } from "./logic";
 import "./nutrition.css";
@@ -33,7 +33,7 @@ export function NutritionPage() {
       .catch((e) => setError(String(e?.message ?? e)));
   }, [activity]);
 
-  useCopyButton(buildAllDataJson);
+  useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
 
   return (
     <ToastProvider>
