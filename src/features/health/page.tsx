@@ -14,6 +14,7 @@ import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { TrendIcon } from "@shared/components/TrendIcon";
+import { ErrorState } from "@shared/components/ErrorState";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import "./health.css";
 
