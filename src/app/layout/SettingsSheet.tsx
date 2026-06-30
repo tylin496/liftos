@@ -4,7 +4,7 @@ import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useToast } from "@shared/components/Toast";
 import { useNutritionConfig } from "@features/nutrition/NutritionConfigContext";
 import { saveConfig, targetsFromConfig, phaseDefsFromConfig } from "@features/nutrition/api";
-import { phaseFromDeficit } from "@features/nutrition/logic";
+import { phaseFromDeficit, trainingMonthsFromStart } from "@features/nutrition/logic";
 
 function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => void }) {
   const { config, setConfig } = useNutritionConfig();
@@ -30,18 +30,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
 
   const numOrNull = (s: string): number | null => (s.trim() === "" ? null : Number(s));
 
-  const calcTrainingMonths = (dateStr: string): number | null => {
-    if (!dateStr) return null;
-    const start = new Date(dateStr);
-    const now = new Date();
-    const months =
-      (now.getFullYear() - start.getFullYear()) * 12 +
-      (now.getMonth() - start.getMonth()) +
-      (now.getDate() - start.getDate()) / 30;
-    return Math.max(0, Math.round(months * 10) / 10);
-  };
-
-  const liveTrainingMonths = calcTrainingMonths(trainingStartDate);
+  const liveTrainingMonths = trainingMonthsFromStart(trainingStartDate);
   const intake = Math.max(0, Number(currentIntake) || 0);
   const liveDeficit = Math.max(0, Math.round((config?.tdee ?? 0) - intake));
   const livePhaseName = phaseFromDeficit(liveDeficit);
@@ -57,7 +46,6 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
         phase_deficits: [...savedDefs, intake] as unknown as any,
         height_cm: numOrNull(height),
         training_start_date: trainingStartDate || null,
-        training_age_months: liveTrainingMonths == null ? null : Math.round(liveTrainingMonths),
         target_body_fat_pct: numOrNull(targetBf),
       });
       setConfig(updated);

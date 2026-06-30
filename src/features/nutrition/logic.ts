@@ -218,3 +218,16 @@ export function toDateStr(d: Date): string {
     d.getDate(),
   ).padStart(2, "0")}`;
 }
+
+export function trainingMonthsFromStart(
+  dateStr: string | null | undefined,
+  now = new Date(),
+): number | null {
+  if (!dateStr) return null;
+  const start = new Date(dateStr);
+  const months =
+    (now.getFullYear() - start.getFullYear()) * 12 +
+    (now.getMonth() - start.getMonth()) +
+    (now.getDate() - start.getDate()) / 30;
+  return Math.max(0, Math.round(months * 10) / 10);
+}

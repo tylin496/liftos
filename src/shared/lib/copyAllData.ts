@@ -1,6 +1,6 @@
 import { fetchHealthData } from "@features/health/api";
 import { getConfig, getEntries, targetsFromConfig } from "@features/nutrition/api";
-import { monthlyStats } from "@features/nutrition/logic";
+import { monthlyStats, trainingMonthsFromStart } from "@features/nutrition/logic";
 import { fetchExercises, fetchLogsBySlug, loadStretches } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
 import { computeStats, computeTrend, epley1RM, buildStagnationView } from "@features/training/logic";
@@ -283,7 +283,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     insights,
     profile: {
       height: nutritionConfig?.height_cm ?? null,
-      trainingAgeMonths: nutritionConfig?.training_age_months ?? null,
+      trainingAgeMonths: trainingMonthsFromStart(nutritionConfig?.training_start_date),
     },
     goals: {
       primary: inferredGoal,
