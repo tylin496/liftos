@@ -9,6 +9,10 @@ import "./health.css";
 
 type MetricKey = "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal";
 
+function periodLabel(days: number) {
+  return days === 7 ? "THIS WEEK" : `PAST ${days} DAYS`;
+}
+
 interface MetricSpec {
   key: MetricKey;
   label: string;
@@ -497,7 +501,7 @@ export function HealthPage() {
               ) : null}
             </div>
 
-            <p className="health-metric-eyebrow">THIS WEEK</p>
+            <p className="health-metric-eyebrow">{periodLabel(spec.bucket)}</p>
             <div className="health-metric-hero">
               {thisWeek != null ? (
                 <>
@@ -528,7 +532,7 @@ export function HealthPage() {
               </span>
             )}
           </div>
-          <p className="health-metric-eyebrow">THIS WEEK</p>
+          <p className="health-metric-eyebrow">{periodLabel(14)}</p>
           <div className="health-metric-hero">
             {lbmCard.thisWeek != null ? (
               <>
