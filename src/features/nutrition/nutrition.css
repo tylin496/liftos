@@ -115,7 +115,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 5px;
+  margin-left: var(--space-1);
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--ink-4);
@@ -305,7 +305,7 @@
   place-items: center;
   min-width: 0;
   min-height: 38px;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -537,7 +537,7 @@
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
-  padding: 24px 20px 28px;
+  padding: var(--space-6) var(--space-5) var(--space-6);
   animation: ncal-in var(--motion-base) ease both;
 }
 
@@ -1353,7 +1353,7 @@
 
 /* Status badge: leading dot + label */
 .dc-pill--status {
-  gap: 5px;
+  gap: var(--space-1);
   text-transform: none;
   letter-spacing: 0.01em;
 }
@@ -1844,20 +1844,21 @@
   text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
-/* Missed (past, unlogged) days: small capsule, very recessive.
+/* Missed (past, unlogged) days: dashed ghost bar, full-ish height.
    Future days draw nothing at all (see history.tsx). */
 .ntb-pair--missing .ntb-bar--missing {
-  height: 8px !important;
-  max-width: 11px;
+  height: 44px !important;
+  max-width: 18px;
   border-radius: var(--radius-pill);
-  border: 0;
-  background: color-mix(in srgb, var(--rule-strong) 22%, transparent);
+  border: 1.5px dashed var(--rule-strong);
+  background: transparent;
   box-shadow: none;
 }
 
-/* Today not-yet-logged: accent tint so it reads "accumulating" not "missing" */
-.nutri-trend-col.is-today-col .ntb-bar--missing {
-  background: color-mix(in srgb, var(--accent) 13%, var(--rule-strong));
+/* Selected placeholder: dashed border glows accent */
+.nutri-trend-col.is-selected .ntb-bar--missing {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 /* Building badge */

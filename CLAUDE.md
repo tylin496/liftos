@@ -48,9 +48,9 @@ Supabase → features/*/api.ts → page.tsx → 子元件
 不要再寫 magic number。新增樣式一律用 token：
 - **圓角**：只能用 `--radius`(18 modal/sheet) / `--radius-card`(14 卡片) / `--radius-sm`(10 input/控制項) / `--radius-pill`(999 chip/badge/bar)。圓形用 `50%`。1–4px 圖形細節可例外。
 - **字級**：只能用 `--text-*` scale。responsive hero 可用 `clamp()`。**不要**直接寫 `13px`/`17px`。
-- **間距**：用 `--space-*`（4/8/12/16/20/24/32）。≤4px 光學微調可例外。
-- 機器強制：`npm run lint:css`（stylelint + declaration-strict-value）。目前 **radius + font-size 為 error 級強制**；spacing 存量債待視覺驗證後納入。
-- 真要 raw 值時加 `/* stylelint-disable-line scale-unlimited/declaration-strict-value */` 並寫原因。
+- **間距**：**Layout**（margin / card / section / grid）一律 `--space-*`（4/8/12/16/20/24/32）。**Component micro-spacing**（chip / badge / button padding / icon-label gap / segmented control）可用 `6px` / `10px`。≤4px 光學微調可例外。**不要**為了形式把 chip 硬改成 8/12px,也**不要**新增 `space-1.5`/`2.5`（避免 scale 失控）。
+- 機器強制：`npm run lint:css`（stylelint + declaration-strict-value）。**radius + font-size + spacing 全數 error 級強制**。`6px`/`10px`/`-6px` 為白名單 micro-spacing。
+- 例外要極少。真的需要 raw 值（如幾何置中）時加 `/* stylelint-disable-next-line scale-unlimited/declaration-strict-value */` 並寫原因——目前全 codebase 只有 1 處（confetti 粒子置中）。
 
 ## 常見任務速查
 | 任務 | 去哪改 |

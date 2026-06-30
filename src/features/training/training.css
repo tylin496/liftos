@@ -182,7 +182,7 @@
 
 /* ── Exercise title block ────────────────────────────────────────────────────*/
 .ex-title-block {
-  margin-right: 40px;
+  margin-right: var(--space-8);
   margin-bottom: var(--space-2);
 }
 
@@ -862,7 +862,7 @@
 }
 
 .unit-btn {
-  padding: 4px 14px;
+  padding: 4px var(--space-3);
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -888,7 +888,7 @@
 }
 
 .chip {
-  padding: 5px 10px;
+  padding: var(--space-1) 10px;
   border: 1px solid var(--rule);
   border-radius: var(--radius-pill);
   background: var(--bg-soft);
@@ -1152,7 +1152,7 @@
   gap: var(--space-2);
   width: 100%;
   margin-top: 2px;
-  padding: 9px 10px;
+  padding: var(--space-2) 10px;
   border: none;
   background: transparent;
   color: var(--ink-4);
@@ -1585,7 +1585,7 @@
 
 .stretch-edit-actions button {
   flex: 1;
-  padding: 5px;
+  padding: var(--space-1);
   border-radius: var(--radius-sm);
   border: none;
   font-family: var(--font-ui);
@@ -1871,7 +1871,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  padding-top: 5px;
+  padding-top: var(--space-1);
   margin-top: 3px;
   animation: stagnation-reason-in var(--motion-fast) var(--reveal-ease) both;
 }
@@ -1897,7 +1897,7 @@
 .stagnation-baseline {
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: var(--space-1);
   flex-shrink: 0;
 }
 
@@ -1936,7 +1936,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding-top: 5px;
+  padding-top: var(--space-1);
   margin-top: 3px;
   border-top: 1px solid var(--rule);
 }

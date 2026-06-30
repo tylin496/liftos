@@ -178,7 +178,7 @@ button {
   box-shadow: 0 28px 72px rgba(0, 0, 0, 0.3);
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
-  padding: 28px 40px 24px;
+  padding: var(--space-6) var(--space-8) var(--space-6);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -262,6 +262,8 @@ button {
   width: 7px;
   height: 10px;
   border-radius: 2px;
+  /* geometric centering: negative half of the 10×7 particle, not spacing */
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   margin: -5px 0 0 -3.5px;
   background: hsl(calc(var(--i, 0) * 22deg), 72%, 58%);
   animation: confetti-pop 0.9s cubic-bezier(0.2, 0.9, 0.35, 1) both;
