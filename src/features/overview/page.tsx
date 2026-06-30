@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchOverview, type OverviewData, type StrengthSummary } from "./api";
+import { fetchOverview, type OverviewData } from "./api";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCountUp } from "@shared/hooks/useCountUp";
-import { buildAllDataJson } from "@shared/lib/copyAllData";
-import { useNav } from "@app/layout/NavContext";
+import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import "./overview.css";
 
@@ -51,10 +50,9 @@ function HeroCard({ data }: { data: OverviewData | null }) {
   const showBalance = tdee != null && today != null;
   const balance = showBalance ? kcal - (tdee as number) : 0;
 
-  // Hooks before any early return (React rules)
-  const kcalCount = useCountUp(kcal, 700);
-  const proteinCount = useCountUp(protein, 600);
-  const balanceCount = useCountUp(balance, 800);
+  // Count-up only for the two hero numbers — everything else appears instantly
+  const kcalCount = useCountUp(kcal, 400);
+  const proteinCount = useCountUp(protein, 400);
 
   // Trigger bar spring after one frame so the 0 → pct% transition plays
   const [barsReady, setBarsReady] = useState(false);
@@ -121,7 +119,7 @@ function HeroCard({ data }: { data: OverviewData | null }) {
           <span className="ov-hero-label">{balance <= 0 ? "Deficit" : "Surplus"}</span>
           <span className={`ov-hero-balance-num ${balance <= 0 ? "good" : "bad"}`}>
             {balance > 0 ? "+" : balance < 0 ? "−" : ""}
-            {Math.abs(balanceCount).toLocaleString()} kcal
+            {Math.abs(balance).toLocaleString()} kcal
           </span>
         </div>
       )}
@@ -129,85 +127,43 @@ function HeroCard({ data }: { data: OverviewData | null }) {
   );
 }
 
-/* ── Performance Card ──────────────────────────────────────────────────── */
-// Design: simplified — dominant status as headline, compact arrow pills,
-// attention items slide in one at a time.
+/* ── Compound Progress Card ────────────────────────────────────────────── */
 
-function StrengthCard({ s }: { s: StrengthSummary }) {
-  const switchTab = useNav();
+function CompoundProgressCard({
+  progress,
+}: {
+  progress: import("./api").CompoundProgress;
+}) {
+  const [barsReady, setBarsReady] = useState(false);
+  const rafRef = useRef(0);
+  useEffect(() => {
+    rafRef.current = requestAnimationFrame(() => setBarsReady(true));
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
 
-  if (s.total === 0) {
-    return (
-      <section className="page-card ov-strength">
-        <p className="ov-card-eyebrow">Performance</p>
-        <p className="ov-no-entry">Log at least 4 sessions per exercise to see trends.</p>
-      </section>
-    );
-  }
-
-  const dominant =
-    s.improving >= s.stable && s.improving >= s.watch
-      ? "Improving"
-      : s.watch > s.stable
-        ? "Watch"
-        : "Stable";
-  const dominantCls = dominant === "Improving" ? "good" : dominant === "Watch" ? "bad" : "";
-  const watchList = s.exercises.filter((e) => e.status === "watch");
+  const overallPct = Math.round(progress.overall * 100);
 
   return (
-    <section
-      className="page-card ov-strength ov-strength-tappable"
-      onClick={() => switchTab("training")}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && switchTab("training")}
-    >
-      <p className="ov-card-eyebrow">Performance</p>
-      <p className={`ov-strength-dominant${dominantCls ? ` ov-strength-${dominantCls}` : ""}`}>
-        {dominant}
-      </p>
-      <p className="ov-strength-count">{s.total} exercises</p>
-      <div className="ov-strength-pills">
-        {s.improving > 0 && (
-          <span
-            className="ov-strength-pill ov-strength-pill-good"
-            style={{ animationDelay: "80ms" }}
-            aria-label={`Improving: ${s.improving} exercise${s.improving !== 1 ? "s" : ""}`}
-          >
-            ↑{s.improving}
-          </span>
-        )}
-        {s.stable > 0 && (
-          <span
-            className="ov-strength-pill ov-strength-pill-stable"
-            style={{ animationDelay: "160ms" }}
-            aria-label={`Stable: ${s.stable} exercise${s.stable !== 1 ? "s" : ""}`}
-          >
-            →{s.stable}
-          </span>
-        )}
-        {s.watch > 0 && (
-          <span
-            className="ov-strength-pill ov-strength-pill-watch"
-            style={{ animationDelay: "240ms" }}
-            aria-label={`Needs attention: ${s.watch} exercise${s.watch !== 1 ? "s" : ""}`}
-          >
-            ↓{s.watch}
-          </span>
-        )}
+    <section className="page-card ov-compound">
+      <p className="ov-card-eyebrow">Compound Progress</p>
+      <p className="ov-compound-overall">{overallPct}%</p>
+      <div className="ov-compound-list">
+        {progress.items.map(({ slug, label, pct }) => {
+          const p = Math.round(pct * 100);
+          return (
+            <div key={slug} className="ov-compound-row">
+              <span className="ov-compound-label">{label}</span>
+              <div className="ov-bar-track ov-compound-track">
+                <div
+                  className={`ov-bar-fill${barsReady ? " anim" : ""}${p >= 100 ? " complete" : ""}`}
+                  style={{ width: barsReady ? `${p}%` : "0%" }}
+                />
+              </div>
+              <span className="ov-compound-pct">{p}%</span>
+            </div>
+          );
+        })}
       </div>
-      {watchList.length > 0 && (
-        <>
-          <p className="ov-strength-attention-label">Needs Attention</p>
-          <ul className="ov-strength-detail">
-            {watchList.map((e, i) => (
-              <li key={e.slug} style={{ animationDelay: `${320 + i * 60}ms` }}>
-                {e.name}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
     </section>
   );
 }
@@ -225,12 +181,8 @@ export function OverviewPage() {
       .catch((e) => setError(String(e?.message ?? e)));
   }, [activity]);
 
-  useCopyButton(buildAllDataJson);
+  useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
 
-  // Unconditional hooks — fall back to 0 until data arrives, then count up
-  const tdeeCount = useCountUp(data?.tdee ?? 0, 700);
-  const sessionsCount = useCountUp(data?.sessionsThisWeek ?? 0, 450);
-  const prsCount = useCountUp(data?.prThisMonth ?? 0, 450);
 
   if (error) {
     return (
@@ -261,8 +213,21 @@ export function OverviewPage() {
           <span className="ov-stat-label">TDEE</span>
           {data?.tdee != null ? (
             <>
-              <span className="ov-stat-val">{tdeeCount.toLocaleString()}</span>
-              <span className="ov-stat-sub">auto · kcal/day</span>
+              <span className="ov-stat-val">
+                {data.tdee.toLocaleString()}
+                {data.tdeePrev != null && (() => {
+                  const diff = data.tdee - data.tdeePrev;
+                  const up = diff > 40, down = diff < -40;
+                  const arrow = up ? "↑" : down ? "↓" : "→";
+                  const color = up ? "var(--good)" : down ? "var(--bad)" : "var(--ink-4)";
+                  return (
+                    <span className="ov-tdee-arrow" style={{ color }}>
+                      {" "}{arrow}{(up || down) ? ` ${Math.abs(Math.round(diff))}` : ""}
+                    </span>
+                  );
+                })()}
+              </span>
+              <span className="ov-stat-sub">vs 14 days ago</span>
             </>
           ) : (
             <>
@@ -273,13 +238,13 @@ export function OverviewPage() {
         </div>
       </div>
 
-      {data && <StrengthCard s={data.strength} />}
+      {data?.compoundProgress && <CompoundProgressCard progress={data.compoundProgress} />}
 
       <div className="ov-grid-2">
         <div className="ov-stat">
           <span className="ov-stat-label">Training</span>
           <span className={`ov-stat-val${(data?.sessionsThisWeek ?? 0) > 0 ? " accent" : " empty"}`}>
-            {sessionsCount}
+            {data?.sessionsThisWeek ?? 0}
           </span>
           <span className="ov-stat-sub">sessions this week</span>
         </div>
@@ -287,7 +252,7 @@ export function OverviewPage() {
         <div className="ov-stat">
           <span className="ov-stat-label">PRs</span>
           <span className={`ov-stat-val${(data?.prThisMonth ?? 0) > 0 ? " gold" : " empty"}`}>
-            {(data?.prThisMonth ?? 0) > 0 ? `+${prsCount}` : "0"}
+            {(data?.prThisMonth ?? 0) > 0 ? `+${data!.prThisMonth}` : "0"}
           </span>
           <span className="ov-stat-sub">this month</span>
         </div>

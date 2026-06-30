@@ -39,16 +39,55 @@ export interface StrengthSummary {
   exercises: StrengthExercise[];
 }
 
+export interface CompoundItem {
+  slug: string;
+  label: string;
+  pct: number; // 0–1
+}
+
+export interface CompoundProgress {
+  overall: number; // 0–1, average of items
+  items: CompoundItem[];
+}
+
 export interface OverviewData {
   today: NutritionEntry | null;
   nutritionTargets: { calorieTarget: number; proteinTarget: number } | null;
   weightLatest: number | null;
   weightWeekAgo: number | null;
   tdee: number | null;
+  tdeePrev: number | null;
   tdeeTrend: { date: string; value: number }[];
   prThisMonth: number;
   sessionsThisWeek: number;
   strength: StrengthSummary;
+  compoundProgress: CompoundProgress | null;
+}
+
+// Pull is resolved dynamically (first exercise in Pull split by sort_order).
+// The others are stable slug references.
+const FIXED_COMPOUNDS: { slug: string; label: string }[] = [
+  { slug: "bench-press", label: "Bench" },
+  { slug: "squat",       label: "Squat" },
+  { slug: "rdl",         label: "RDL"   },
+];
+
+function compoundPct(slugLogs: Array<{ log_date: string | null; raw: string | null }>): number | null {
+  const byDate: Record<string, number> = {};
+  for (const l of slugLogs) {
+    if (!l.log_date || !l.raw) continue;
+    const p = parse(l.raw);
+    if (!p) continue;
+    const w = score(p);
+    if (!Number.isFinite(w)) continue;
+    const e = epley1RM(w, p.reps);
+    byDate[l.log_date] = Math.max(byDate[l.log_date] ?? 0, e);
+  }
+  const dates = Object.keys(byDate).sort();
+  if (!dates.length) return null;
+  const prE1RM = Math.max(...Object.values(byDate));
+  const currentE1RM = byDate[dates[dates.length - 1]];
+  return Math.min(1, currentE1RM / prE1RM);
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
@@ -56,7 +95,7 @@ export async function fetchOverview(): Promise<OverviewData> {
   const monthStart = isoMonthStart();
   const weekAgo = sinceDate(7);
 
-  const [entryRes, configRes, metricsRes, logsRes] = await Promise.all([
+  const [entryRes, configRes, metricsRes, logsRes, pullFirstRes, rowFirstRes] = await Promise.all([
     supabase
       .from("nutrition_entries")
       .select("*")
@@ -69,12 +108,29 @@ export async function fetchOverview(): Promise<OverviewData> {
     supabase
       .from("body_metrics")
       .select("metric_date, weight_kg, active_energy_kcal, resting_energy_kcal")
-      .gte("metric_date", sinceDate(30))
+      .gte("metric_date", sinceDate(44))
       .order("metric_date", { ascending: true }),
     supabase
       .from("training_logs")
       .select("exercise_slug, raw, log_date")
       .order("log_date", { ascending: true }),
+    supabase
+      .from("exercises")
+      .select("slug")
+      .eq("split", "pull")
+      .eq("archived", false)
+      .order("sort_order", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("exercises")
+      .select("slug")
+      .eq("split", "pull")
+      .eq("archived", false)
+      .ilike("name", "%row%")
+      .order("sort_order", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   // Nutrition
@@ -104,7 +160,7 @@ export async function fetchOverview(): Promise<OverviewData> {
   const weekAgoMetric = weightPoints.filter((m) => m.date <= weekAgo).at(-1);
   const weightWeekAgo = weekAgoMetric?.w ?? null;
 
-  // TDEE: 30-day resting avg + 14-day active avg (metrics already span 30 days)
+  // TDEE: 30-day resting avg + 14-day active avg (metrics span 44 days)
   const cutoff14 = sinceDate(14);
   const tdeeEst = estimateTdee(
     metrics.map((m) => ({ resting: m.resting_energy_kcal })),
@@ -113,6 +169,18 @@ export async function fetchOverview(): Promise<OverviewData> {
       .map((m) => ({ active: m.active_energy_kcal })),
   );
   const tdee = tdeeEst.tdee;
+
+  // TDEE 14 days ago: same algorithm, window ending at cutoff14
+  const cutoff28 = sinceDate(28);
+  const tdeePrevEst = estimateTdee(
+    metrics
+      .filter((m) => m.metric_date < cutoff14)
+      .map((m) => ({ resting: m.resting_energy_kcal })),
+    metrics
+      .filter((m) => m.metric_date >= cutoff28 && m.metric_date < cutoff14)
+      .map((m) => ({ active: m.active_energy_kcal })),
+  );
+  const tdeePrev = tdeePrevEst.tdee;
 
   // Daily TDEE trend: days where both active + resting are present
   const tdeeTrend = metrics
@@ -189,16 +257,38 @@ export async function fetchOverview(): Promise<OverviewData> {
     });
   }
 
+  const pullSlug = pullFirstRes.data?.slug ?? null;
+  const rowSlug  = rowFirstRes.data?.slug  ?? null;
+  const compounds: { slug: string; label: string }[] = [
+    FIXED_COMPOUNDS[0],                                           // Bench
+    ...(pullSlug ? [{ slug: pullSlug, label: "Pull" }] : []),    // first of Pull split
+    ...(rowSlug  ? [{ slug: rowSlug,  label: "Row"  }] : []),    // first "row" exercise in Pull split
+    ...FIXED_COMPOUNDS.slice(1),                                  // Squat, RDL
+  ];
+
+  const compoundItems: CompoundItem[] = compounds.flatMap(({ slug, label }) => {
+    const pct = compoundPct(bySlug[slug] ?? []);
+    return pct !== null ? [{ slug, label, pct }] : [];
+  });
+  const compoundProgress: CompoundProgress | null = compoundItems.length
+    ? {
+        overall: compoundItems.reduce((s, x) => s + x.pct, 0) / compoundItems.length,
+        items: compoundItems,
+      }
+    : null;
+
   return {
     today: todayEntry,
     nutritionTargets,
     weightLatest,
     weightWeekAgo,
     tdee,
+    tdeePrev,
     tdeeTrend,
     prThisMonth,
     sessionsThisWeek,
     strength,
+    compoundProgress,
   };
 }
 
