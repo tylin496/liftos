@@ -126,12 +126,6 @@
 }
 
 /* ── History ─────────────────────────────────────────────────────────── */
-.hist-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .hist-badge {
   font-size: var(--text-2xs);
   font-weight: 700;
@@ -149,54 +143,6 @@
 .badge-variable {
   background: color-mix(in srgb, var(--bad) 18%, transparent);
   color: var(--bad);
-}
-
-.hist-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-}
-
-.hist-stats > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.hist-trend {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-  height: 90px;
-  margin-top: var(--space-4);
-}
-
-.hist-bar-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  height: 100%;
-  gap: var(--space-1);
-}
-
-.hist-bar {
-  width: 70%;
-  border-radius: 4px 4px 0 0;
-  min-height: 4px;
-}
-.hist-bar.is-deficit {
-  background: var(--good);
-}
-.hist-bar.is-surplus {
-  background: var(--bad);
-}
-
-.hist-bar-day {
-  font-size: var(--text-2xs);
-  color: var(--ink-4);
 }
 
 /* ── Adherence distribution rows (mirrors calorie-tracker) ───────────── */
@@ -357,34 +303,6 @@
   cursor: default;
 }
 
-/* ── Headline ────────────────────────────────────────────────────────── */
-.nutri-hero {
-  text-align: center;
-}
-
-.nutri-bignum {
-  font-size: var(--text-4xl);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  margin: var(--space-1) 0 var(--space-2);
-}
-
-.nutri-unit {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--ink-3);
-  margin-left: 0.35ch;
-}
-
-.nutri-protein {
-  font-size: var(--text-3xl);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  margin: var(--space-1) 0 var(--space-3);
-}
-
 /* state colours — used on distribution bar row labels */
 .state-on-plan  { color: var(--blue); }
 .state-under    { color: var(--ink-3); }
@@ -397,30 +315,7 @@
 .tone-gold { color: var(--gold); -webkit-text-fill-color: var(--gold); }
 .tone-bad  { color: var(--bad);  -webkit-text-fill-color: var(--bad);  }
 
-/* ── Progress bar ────────────────────────────────────────────────────── */
-.nutri-bar {
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--bg-soft);
-  overflow: hidden;
-  margin-top: var(--space-2);
-}
-
-.nutri-bar-fill {
-  height: 100%;
-  border-radius: var(--radius-pill);
-  background: currentColor;
-  transition: width var(--motion-slow) var(--reveal-ease);
-  animation: progress-fill 0.52s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
 /* ── Form ────────────────────────────────────────────────────────────── */
-.nutri-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .nutri-field {
   display: flex;
   flex-direction: column;
@@ -445,14 +340,6 @@
 .nutri-field input:focus {
   outline: none;
   box-shadow: var(--focus-ring);
-}
-
-.nutri-field-auto {
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-3);
-  padding: var(--space-3) 0;
 }
 
 .nutri-training-age-hint {
@@ -498,11 +385,6 @@
   0%   { transform: scale(0.96); }
   55%  { transform: scale(1.03); }
   100% { transform: scale(1); }
-}
-
-/* ── Save pulse: flash the hero card on successful save ─────────────── */
-.nutri-hero.saved-pulse {
-  animation: save-pulse 700ms var(--reveal-ease) both;
 }
 
 /* ── Nutrition calendar modal ────────────────────────────────────────── */
@@ -700,172 +582,6 @@
   transform: scale(var(--tap-scale));
 }
 
-/* ── Tappable metric cards ───────────────────────────────────────────── */
-.nutri-tap-card {
-  width: 100%;
-  text-align: left;
-  border: none;
-  cursor: pointer;
-  transition: transform var(--motion-fast) var(--press-ease);
-}
-
-.nutri-tap-card:active {
-  transform: scale(var(--tap-scale));
-}
-
-.nutri-tap-card:disabled {
-  cursor: default;
-}
-
-.nutri-empty {
-  color: var(--ink-4);
-  font-weight: 700;
-}
-
-/* ── Entry sheet overlay ─────────────────────────────────────────────── */
-.entry-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  background: var(--scrim-bg);
-  backdrop-filter: var(--scrim-blur);
-  -webkit-backdrop-filter: var(--scrim-blur);
-}
-
-.entry-sheet {
-  position: fixed;
-  left: 50%;
-  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-3));
-  transform: translateX(-50%);
-  z-index: 21;
-  width: min(420px, calc(100% - var(--space-6)));
-  background: var(--bg-card);
-  backdrop-filter: var(--card-blur);
-  -webkit-backdrop-filter: var(--card-blur);
-  border-radius: var(--radius);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
-  padding: var(--space-4) var(--space-5) var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  animation: entry-sheet-in var(--motion-base) var(--reveal-ease) both;
-}
-
-@keyframes entry-sheet-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(18px) scale(0.97); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-}
-
-@keyframes sheet-out {
-  to { opacity: 0; transform: translateX(-50%) translateY(18px) scale(0.97); }
-}
-
-.entry-sheet-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--ink-4) 50%, transparent);
-  margin: 0 auto var(--space-1);
-}
-
-.entry-sheet-date {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-  text-align: center;
-}
-
-.entry-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.entry-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--rule);
-  cursor: text;
-}
-
-.entry-field:last-child {
-  border-bottom: none;
-}
-
-.entry-field-label {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.entry-field-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-
-.entry-field-row input {
-  flex: 1;
-  background: none;
-  border: none;
-  outline: none;
-  font-family: var(--font-ui);
-  font-size: var(--text-4xl);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  padding: 0;
-  min-width: 0;
-}
-
-.entry-field-row input::placeholder {
-  color: var(--ink-4);
-}
-
-.entry-field-unit {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--ink-3);
-  flex-shrink: 0;
-}
-
-.entry-sheet-secondary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: calc(-1 * var(--space-1));
-}
-
-.entry-cancel-btn {
-  background: none;
-  border: none;
-  padding: var(--space-1) 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-  cursor: pointer;
-}
-
-.entry-delete-btn {
-  background: none;
-  border: none;
-  padding: var(--space-1) 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--bad);
-  cursor: pointer;
-}
-
-.entry-delete-btn:disabled,
-.entry-cancel-btn:disabled {
-  opacity: 0.5;
-}
-
 /* ── Section head ────────────────────────────────────────────────────── */
 /* .section-head layout is shared in layout.css */
 
@@ -875,148 +591,11 @@
   color: var(--ink-4);
 }
 
-.nutri-section-toggle {
-  background: none;
-  border: none;
-  padding: 2px 0;
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--accent);
-  cursor: pointer;
-  transition: opacity var(--motion-fast);
-}
-
-.nutri-section-toggle:active { opacity: 0.7; }
-
-/* ── Status pill ─────────────────────────────────────────────────────── */
-.nutri-pill-row {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-2);
-}
-
-.nutri-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.nutri-pill-on-plan {
-  background: color-mix(in srgb, var(--good) 14%, transparent);
-  color: var(--good);
-}
-
-.nutri-pill-surplus {
-  background: color-mix(in srgb, var(--bad) 12%, transparent);
-  color: var(--bad);
-}
-
-.nutri-pill-over,
-.nutri-pill-extreme {
-  background: color-mix(in srgb, var(--gold) 12%, transparent);
-  color: var(--gold);
-}
-
-.nutri-pill-under {
-  background: var(--bg-soft);
-  color: var(--ink-4);
-}
-
-/* ── Hero calorie display ────────────────────────────────────────────── */
-.nutri-hero-num-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.2ch;
-  margin: var(--space-1) 0 0;
-}
-
-.nutri-hero-num {
-  font-size: clamp(44px, 9vw, 62px);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.nutri-hero-unit-lg {
-  font-size: clamp(16px, 3vw, 22px);
-  font-weight: 600;
-  color: var(--ink-3);
-  line-height: 1;
-}
-
-/* ── Settlement rows ─────────────────────────────────────────────────── */
-.nutri-settle {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
-  text-align: left;
-}
-
-.nutri-settle-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.nutri-settle-label {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-3);
-}
-
-.nutri-settle-delta {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-4);
-}
-
-.nutri-settle-note {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-}
-
 /* ── Divider ─────────────────────────────────────────────────────────── */
 .nutri-divider {
   border: none;
   border-top: 1px solid var(--rule);
   margin: var(--space-4) 0 var(--space-3);
-}
-
-/* ── Protein section ─────────────────────────────────────────────────── */
-.nutri-protein-section {
-  text-align: left;
-}
-
-.nutri-protein-num-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin: var(--space-2) 0 0;
-}
-
-.nutri-protein-num {
-  font-size: clamp(28px, 5.5vw, 38px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.nutri-protein-unit {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--ink-3);
 }
 
 /* ── 7-day trend bars ────────────────────────────────────────────────── */
@@ -1199,78 +778,7 @@
   color: var(--ink-3);
 }
 
-/* ── Program summary ─────────────────────────────────────────────────── */
-.nutri-prog-summary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4) var(--space-3);
-  margin-top: var(--space-3);
-}
-
-.nutri-prog-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.nutri-prog-val {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  line-height: 1;
-}
-
-.nutri-prog-val.is-text {
-  font-family: var(--font-ui);
-  font-size: var(--text-lg);
-}
-
-.nutri-prog-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--ink-4);
-}
-
-.nutri-prog-edit {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 /* ── Skeleton loading state ──────────────────────────────────────────────── */
-
-.loading-card .nutri-hero-num,
-.loading-card .nutri-hero-unit-lg,
-.loading-card .nutri-settle-delta,
-.loading-card .nutri-settle-note,
-.loading-card .nutri-protein-num,
-.loading-card .nutri-protein-unit {
-  color: transparent !important;
-  -webkit-text-fill-color: transparent !important;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
-    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
-    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
-  ) !important;
-  background-size: 300% 100% !important;
-  border-radius: 0.3em !important;
-  animation: skel-fade 1.6s ease-in-out infinite !important;
-}
-
-.loading-card .nutri-empty {
-  color: transparent !important;
-  -webkit-text-fill-color: transparent !important;
-  background: transparent !important;
-}
-
-.nutri-pill-row--empty {
-  visibility: hidden;
-}
 
 /* ═══════════════════════════════════════════════════════════════════════
    CALORIE-TRACKER UX PORT — stat rows, inline form, delete confirm,
