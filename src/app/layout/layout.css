@@ -72,8 +72,9 @@
 
 .shell-title-os {
   font-size: 0.7em;
-  margin-left: -0.05em;
-  color: var(--ink-3);
+  font-weight: 600;
+  margin-left: 0.2em;
+  color: var(--ink-2);
 }
 
 .shell-user {
