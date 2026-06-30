@@ -167,6 +167,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .prog-phase-name {
@@ -174,23 +175,8 @@
   font-size: var(--text-sm);
 }
 
-.prog-phase-target {
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-
-.prog-deficit {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: var(--text-2xs);
-  color: var(--ink-4);
-  text-align: right;
-}
-
-.prog-deficit input {
-  width: 70px;
+.prog-intake-input {
+  width: 72px;
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--rule);
   border-radius: 8px;
@@ -202,9 +188,29 @@
   text-align: right;
 }
 
-.prog-deficit input:focus {
+.prog-intake-input:focus {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+.prog-phase-target-unit {
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+}
+
+.prog-deficit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+  text-align: right;
+}
+
+.prog-deficit-val {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
 }
 
 .prog-phase-derived {

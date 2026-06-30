@@ -34,11 +34,12 @@ export function ProgramsView({
     setActiveIndex(ai);
   }, [config]);
 
-  function updatePhaseDef(index: number, value: string) {
-    const n = Math.max(0, Number(value) || 0);
+  function updatePhaseIntake(index: number, value: string) {
+    const intake = Math.max(0, Number(value) || 0);
+    const deficit = Math.max(0, Math.round(config.tdee - intake));
     setPhaseDefs((prev) => {
       const next = [...prev];
-      next[index] = n;
+      next[index] = deficit;
       return next;
     });
   }
@@ -142,17 +143,19 @@ export function ProgramsView({
                 <div key={name} className={`prog-phase${isActive ? " is-active" : ""}`}>
                   <div className="prog-phase-main">
                     <span className="prog-phase-name">{name}</span>
-                    <span className="prog-phase-target">{calTarget.toLocaleString()} kcal/day</span>
-                  </div>
-                  <div className="prog-deficit">
-                    <span className="prog-deficit-label">deficit</span>
                     <input
                       type="number"
                       inputMode="numeric"
-                      value={phaseDefs[i]}
-                      onChange={(e) => updatePhaseDef(i, e.target.value)}
-                      aria-label={`${name} deficit`}
+                      value={calTarget}
+                      onChange={(e) => updatePhaseIntake(i, e.target.value)}
+                      aria-label={`${name} intake goal`}
+                      className="prog-intake-input"
                     />
+                    <span className="prog-phase-target-unit">kcal/day</span>
+                  </div>
+                  <div className="prog-deficit">
+                    <span className="prog-deficit-label">deficit</span>
+                    <span className="prog-deficit-val">{phaseDefs[i]}</span>
                   </div>
                   {!isActive && (
                     <button

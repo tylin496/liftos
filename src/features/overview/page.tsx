@@ -5,6 +5,9 @@ import { useCountUp } from "@shared/hooks/useCountUp";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
+import { TodayView } from "@features/nutrition/today";
+import { getConfig, type NutritionConfig } from "@features/nutrition/api";
+import { defaultLogDate } from "@features/nutrition/logic";
 import "./overview.css";
 
 const MONTH_ABBR = [
@@ -211,7 +214,9 @@ function TodaysFocusCard({
 
 export function OverviewPage() {
   const [data, setData] = useState<OverviewData | null>(null);
+  const [config, setConfig] = useState<NutritionConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [logDate, setLogDate] = useState(defaultLogDate);
   const activity = useTabActivity();
   const nav = useNav();
 
@@ -219,6 +224,9 @@ export function OverviewPage() {
     fetchOverview()
       .then(setData)
       .catch((e) => setError(String(e?.message ?? e)));
+    getConfig()
+      .then(setConfig)
+      .catch(() => {/* non-fatal */});
   }, [activity]);
 
   useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
@@ -240,7 +248,16 @@ export function OverviewPage() {
 
   return (
     <div className="page">
-      <HeroCard data={data} />
+      {config ? (
+        <TodayView
+          config={config}
+          date={logDate}
+          onDateChange={setLogDate}
+          onSaved={() => fetchOverview().then(setData).catch(() => {})}
+        />
+      ) : (
+        <HeroCard data={data} />
+      )}
 
       <div className="ov-grid-2">
         <button type="button" className="ov-stat" onClick={() => nav("health")}>
