@@ -30,6 +30,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Lint CSS (token discipline + dead-rule guard)
+        run: npm run lint:css
+
       - name: Build
         run: npm run build
         env:

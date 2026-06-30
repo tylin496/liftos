@@ -10,7 +10,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "lint:css": "stylelint \"src/**/*.css\""
+    "lint:css": "stylelint \"src/**/*.css\" --max-warnings=0"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
