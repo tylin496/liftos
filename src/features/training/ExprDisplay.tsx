@@ -1,7 +1,7 @@
 import { parse, score, formatRepsDisplay } from "./parser";
 
 export function fmtWeightNum(n: number): string {
-  return n.toFixed(2);
+  return parseFloat(n.toFixed(2)).toString();
 }
 
 export function isLbUnit(unit: string | null | undefined) {
@@ -9,16 +9,17 @@ export function isLbUnit(unit: string | null | undefined) {
 }
 
 function fmtKgFromLb(n: number): string {
-  return (n * 0.453592).toFixed(2);
+  return parseFloat((n * 0.453592).toFixed(2)).toString();
 }
 
 interface ExprDisplayProps {
   raw: string | null;
   resultOnly?: boolean;
   detail?: boolean;
+  histMode?: boolean;
 }
 
-export function ExprDisplay({ raw, resultOnly, detail }: ExprDisplayProps) {
+export function ExprDisplay({ raw, resultOnly, detail, histMode }: ExprDisplayProps) {
   if (!raw) return <span className="expr-bad">—</span>;
   const parsed = parse(raw);
   if (!parsed) return <span className="expr-bad">{raw}</span>;
@@ -41,6 +42,39 @@ export function ExprDisplay({ raw, resultOnly, detail }: ExprDisplayProps) {
       <span className="expr expr-result-only">
         <strong className="expr-weight-primary">{fmtWeightNum(weight)}</strong>
         <span className="expr-unit-tag primary-unit">kg</span>
+        <span className="expr-star">×</span>
+        <span className="expr-reps">{formatRepsDisplay(reps)}</span>
+      </span>
+    );
+  }
+
+  if (histMode && Number.isFinite(weight)) {
+    const isSimple = /^[+-]?\d+(?:\.\d+)?$/.test(String(weightExpr ?? "").trim()) && !isLbUnit(unit);
+    if (isLbUnit(unit)) {
+      return (
+        <span className="expr expr-result-only">
+          <strong className="expr-weight-primary">{weight}</strong>
+          <span className="expr-unit-tag primary-unit">lb</span>
+          <span className="expr-star">×</span>
+          <span className="expr-reps">{formatRepsDisplay(reps)}</span>
+          <span className="expr-kg-hint">≈ {fmtKgFromLb(weight)} kg</span>
+        </span>
+      );
+    }
+    if (isSimple) {
+      return (
+        <span className="expr expr-result-only">
+          <strong className="expr-weight-primary">{fmtWeightNum(weight)}</strong>
+          <span className="expr-unit-tag primary-unit">kg</span>
+          <span className="expr-star">×</span>
+          <span className="expr-reps">{formatRepsDisplay(reps)}</span>
+        </span>
+      );
+    }
+    return (
+      <span className="expr expr-result-only">
+        <span className="expr-weight-primary">{weightExpr}</span>
+        <span className="expr-unit-tag"> = {fmtWeightNum(weight)} kg</span>
         <span className="expr-star">×</span>
         <span className="expr-reps">{formatRepsDisplay(reps)}</span>
       </span>

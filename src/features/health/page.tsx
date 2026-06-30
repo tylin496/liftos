@@ -23,12 +23,8 @@ const METRICS: MetricSpec[] = [
   { key: "resting_energy_kcal", label: "Resting Energy", unit: "kcal", decimals: 0, color: "#34c759" },
 ];
 
-type RangeKey = "3M" | "6M" | "Y";
-const RANGES: { key: RangeKey; label: string; days: number; bucketDays: number }[] = [
-  { key: "3M", label: "3M", days: 90,  bucketDays: 3  },
-  { key: "6M", label: "6M", days: 180, bucketDays: 7  },
-  { key: "Y",  label: "Y",  days: 365, bucketDays: 30 },
-];
+const FIXED_DAYS = 180;
+const FIXED_BUCKET = 7;
 
 function series(metrics: BodyMetric[], key: MetricKey) {
   return metrics
@@ -62,13 +58,16 @@ function bucketSeries(
     });
 }
 
-function rollingAvg(pts: { date: string; value: number }[], days = 7): number | null {
+function rollingAvg(pts: { date: string; value: number }[], days = 7, offsetDays = 0): number | null {
   if (!pts.length) return null;
   const last = pts.at(-1)!.date;
-  const cutoff = new Date(last + "T12:00:00");
-  cutoff.setDate(cutoff.getDate() - days + 1);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
-  const window = pts.filter((p) => p.date >= cutoffStr);
+  const end = new Date(last + "T12:00:00");
+  end.setDate(end.getDate() - offsetDays);
+  const start = new Date(end);
+  start.setDate(start.getDate() - days + 1);
+  const endStr = end.toISOString().slice(0, 10);
+  const startStr = start.toISOString().slice(0, 10);
+  const window = pts.filter((p) => p.date >= startStr && p.date <= endStr);
   if (!window.length) return null;
   return window.reduce((s, p) => s + p.value, 0) / window.length;
 }
@@ -249,43 +248,39 @@ function AnimatedTdee({ value }: { value: number }) {
 }
 
 export function HealthPage() {
-  const [range, setRange] = useState<RangeKey>("6M");
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const activity = useTabActivity();
 
-  const { days, bucketDays } = RANGES.find((r) => r.key === range)!;
-
   useEffect(() => {
     setData(null);
-    fetchHealthData(days)
+    fetchHealthData(FIXED_DAYS)
       .then(setData)
       .catch((e) => setError(String(e?.message ?? e)));
-  }, [days]);
+  }, []);
 
-  // Background re-fetch when returning to this tab (no skeleton — keeps old data)
   useEffect(() => {
     if (activity === 0) return;
-    fetchHealthData(days).then(setData).catch(() => {});
-  }, [activity, days]);
+    fetchHealthData(FIXED_DAYS).then(setData).catch(() => {});
+  }, [activity]);
 
-  useCopyButton(() => buildAllDataJson(days, EXPORT_NUTRITION_DAYS));
+  useCopyButton(() => buildAllDataJson(FIXED_DAYS, EXPORT_NUTRITION_DAYS));
 
   const tdee = data?.tdee;
+  const tdeePrev = data?.tdeePrev;
 
   const cards = useMemo(() => {
     if (!data) return [];
     return METRICS.map((spec) => {
       const s = series(data.metrics, spec.key);
-      const avg7d = rollingAvg(s);
-      const bucketed = bucketSeries(s, bucketDays);
-      const first = bucketed[0];
-      const latest = bucketed.at(-1);
-      const change = latest && first ? latest.value - first.value : null;
+      const thisWeek = rollingAvg(s, 7, 0);
+      const prevWeek = rollingAvg(s, 7, 7);
+      const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
+      const bucketed = bucketSeries(s, FIXED_BUCKET);
       const dateRange = formatDateRange(bucketed);
-      return { spec, bucketed, avg7d, change, dateRange, readingCount: s.length };
+      return { spec, bucketed, thisWeek, change, dateRange, readingCount: s.length };
     });
-  }, [data, bucketDays]);
+  }, [data]);
 
   if (error) {
     return (
@@ -312,13 +307,18 @@ export function HealthPage() {
             <div className="health-tdee-num">
               <AnimatedTdee value={tdee.tdee} />
               <span className="health-unit"> kcal/day</span>
+              {tdeePrev?.tdee != null && (() => {
+                const diff = tdee.tdee - tdeePrev.tdee;
+                const up = diff > 40, down = diff < -40;
+                const arrow = up ? "↑" : down ? "↓" : "→";
+                const color = up ? "var(--accent)" : down ? "var(--bad)" : "var(--ink-4)";
+                return (
+                  <span className="ov-tdee-arrow" style={{ color }}>
+                    {" "}{arrow}{(up || down) ? ` ${Math.abs(Math.round(diff))}` : ""}
+                  </span>
+                );
+              })()}
             </div>
-            <details className="health-tdee-method">
-              <summary>How it's calculated</summary>
-              <p className="health-tdee-formula">
-                Calculated from 30-day Resting Avg + 14-day Active Avg
-              </p>
-              <hr className="health-tdee-divider" />
             <div className="health-tdee-components">
               <div className="health-tdee-component">
                 <span className="health-tdee-component-label">Resting</span>
@@ -339,7 +339,6 @@ export function HealthPage() {
                 </span>
               </div>
             </div>
-            </details>
           </>
         ) : (
           <p className="page-note">
@@ -348,25 +347,10 @@ export function HealthPage() {
         )}
       </section>
 
-      {/* Range selector — Apple Health segmented pill */}
-      <div className="health-range">
-        {RANGES.map((r) => (
-          <button
-            key={r.key}
-            className={`health-range-btn${range === r.key ? " health-range-btn--active" : ""}`}
-            onClick={() => setRange(r.key)}
-          >
-            {r.label}
-          </button>
-        ))}
-      </div>
-
-
       {/* Metric cards — Apple Health style */}
-      {cards.map(({ spec, bucketed, avg7d, change, dateRange, readingCount }) => {
+      {cards.map(({ spec, bucketed, thisWeek, change, dateRange, readingCount }) => {
         const changePositive = change != null && change > 0;
         const changeNegative = change != null && change < 0;
-        // For body fat/weight, down is good; for energy, up is neutral
         const changeCls =
           change == null || readingCount < 2
             ? ""
@@ -385,11 +369,11 @@ export function HealthPage() {
               )}
             </div>
 
-            <p className="health-metric-eyebrow">AVERAGE</p>
+            <p className="health-metric-eyebrow">THIS WEEK</p>
             <div className="health-metric-hero">
-              {avg7d != null ? (
+              {thisWeek != null ? (
                 <>
-                  <span className="health-metric-val">{fmt(avg7d, spec.decimals)}</span>
+                  <span className="health-metric-val">{fmt(thisWeek, spec.decimals)}</span>
                   <span className="health-unit">{spec.unit}</span>
                 </>
               ) : (

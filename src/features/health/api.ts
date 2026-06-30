@@ -24,24 +24,19 @@ export async function fetchBodyMetrics(days = 90): Promise<BodyMetric[]> {
 export interface HealthData {
   metrics: BodyMetric[];
   tdee: TdeeEstimate;
+  tdeePrev: TdeeEstimate;
 }
 
-/**
- * Fetch health data for display plus a TDEE estimate.
- *
- * TDEE uses split windows regardless of the display range:
- *   - Resting energy: 30-day average (changes slowly)
- *   - Active energy: 14-day average (fluctuates more)
- *
- * The returned `metrics` are filtered to the requested `days` for display.
- */
-export async function fetchHealthData(days = 30): Promise<HealthData> {
-  // Always fetch at least 30 days so TDEE resting window is fully covered.
-  const fetchDays = Math.max(days, 30);
+export async function fetchHealthData(days = 180): Promise<HealthData> {
+  // Fetch extra history so previous-period TDEE windows are covered.
+  const fetchDays = Math.max(days, 60);
   const allMetrics = await fetchBodyMetrics(fetchDays);
 
   const cutoff30 = sinceDate(30);
   const cutoff14 = sinceDate(14);
+  const cutoff60 = sinceDate(60);
+  const cutoff28 = sinceDate(28);
+
   const tdee = estimateTdee(
     allMetrics
       .filter((m) => m.metric_date >= cutoff30)
@@ -51,9 +46,18 @@ export async function fetchHealthData(days = 30): Promise<HealthData> {
       .map((m) => ({ active: m.active_energy_kcal })),
   );
 
-  // Trim to the requested display window.
+  // Previous period: resting 30–60 days ago, active 14–28 days ago
+  const tdeePrev = estimateTdee(
+    allMetrics
+      .filter((m) => m.metric_date >= cutoff60 && m.metric_date < cutoff30)
+      .map((m) => ({ resting: m.resting_energy_kcal })),
+    allMetrics
+      .filter((m) => m.metric_date >= cutoff28 && m.metric_date < cutoff14)
+      .map((m) => ({ active: m.active_energy_kcal })),
+  );
+
   const cutoffDisplay = sinceDate(days);
   const metrics = allMetrics.filter((m) => m.metric_date >= cutoffDisplay);
 
-  return { metrics, tdee };
+  return { metrics, tdee, tdeePrev };
 }

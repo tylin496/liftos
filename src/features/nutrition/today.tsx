@@ -429,20 +429,21 @@ export function TodayView({
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
       if (!tracking) {
-        if (Math.abs(dy) > Math.abs(dx) * 1.3 && (Math.abs(dy) > 8 || Math.abs(dx) > 8)) {
-          cancelled = true; return;
-        }
-        if (Math.abs(dx) > 8) tracking = true;
+        if (Math.abs(dx) > Math.abs(dy) * 1.25 && Math.abs(dx) > 8) tracking = true;
+        else if (Math.abs(dy) > 8) { cancelled = true; return; }
         else return;
       }
+      // Claim the horizontal gesture so Shell's tab-swipe never fires here.
       e.preventDefault();
+      e.stopPropagation();
     }
     function onTouchEnd(e: TouchEvent) {
       if (!tracking) { tracking = false; cancelled = false; return; }
       tracking = false; cancelled = false;
+      e.stopPropagation();
       const dx = e.changedTouches[0].clientX - startX;
       const dy = e.changedTouches[0].clientY - startY;
-      if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.25) return;
       if (dx < 0 && !isToday) {
         haptic("select"); navigate(shiftDate(date, 1));
       } else if (dx > 0) {

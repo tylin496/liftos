@@ -1,5 +1,3 @@
-import { useRef } from "react";
-
 interface Props {
   tabs: { id: string; label: string; badge?: number }[];
   active: string;
@@ -7,23 +5,10 @@ interface Props {
   children: React.ReactNode[];
 }
 
+// Segments switch by tapping the seg pills only — no swipe, so horizontal
+// swipe stays available for the page's own gesture (split/date/tab).
 export function SegCarousel({ tabs, active, onChange, children }: Props) {
   const idx = tabs.findIndex((t) => t.id === active);
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  }
-
-  function handleTouchEnd(e: React.TouchEvent) {
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const dy = e.changedTouches[0].clientY - touchStartY.current;
-    if (Math.abs(dx) < 44 || Math.abs(dx) <= Math.abs(dy) * 1.25) return;
-    if (dx < 0 && idx < tabs.length - 1) onChange(tabs[idx + 1].id);
-    else if (dx > 0 && idx > 0) onChange(tabs[idx - 1].id);
-  }
 
   return (
     <>
@@ -49,11 +34,7 @@ export function SegCarousel({ tabs, active, onChange, children }: Props) {
         ))}
       </div>
 
-      <div
-        className="seg-carousel-viewport"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
+      <div className="seg-carousel-viewport">
         <div
           className="seg-carousel-track"
           style={{ transform: `translateX(${-idx * 100}%)` }}

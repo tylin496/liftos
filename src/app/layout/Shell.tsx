@@ -78,7 +78,7 @@ export function Shell({ session }: { session: Session }) {
     function onTouchEnd(e: TouchEvent) {
       if (axisLocked.current !== "h") return;
       const dx = e.changedTouches[0].clientX - touchStartX.current;
-      if (Math.abs(dx) < 44) return;
+      if (Math.abs(dx) < 56) return;
       setTab((prev) => {
         const idx = TAB_ORDER.indexOf(prev);
         let next = prev;

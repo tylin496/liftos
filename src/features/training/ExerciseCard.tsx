@@ -574,7 +574,7 @@ export function ExerciseCard({
                       </span>
                     ) : (
                       <span className="hist-expr-row">
-                        <ExprDisplay raw={log.raw} resultOnly />
+                        <ExprDisplay raw={log.raw} histMode />
                       </span>
                     )}
                     {log.note && (
