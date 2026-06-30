@@ -638,21 +638,7 @@
   gap: 2px;
 }
 
-.nutri-kpi-val {
-  font-family: var(--font-mono);
-  font-size: var(--text-xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  line-height: 1;
-}
-
-.nutri-kpi-val small {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-  margin-left: 2px;
-}
+/* KPI value + unit now render via the shared <MetricValue size="md">. */
 
 .nutri-kpi-label {
   font-size: var(--text-2xs);
@@ -885,8 +871,10 @@
   transition: color var(--motion-base);
 }
 
+/* Big calorie/protein hero keeps its signature clamp size; the unit drops
+   to the canonical fixed size so "kcal"/"g" read like every other tab. */
 .stat-unit {
-  font-size: clamp(13px, 2.7vw, 16px);
+  font-size: var(--metric-unit);
   font-weight: 600;
   color: var(--ink-3);
   line-height: 1;

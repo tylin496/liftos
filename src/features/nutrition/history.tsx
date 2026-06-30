@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ErrorState } from "@shared/components/ErrorState";
+import { MetricValue } from "@shared/components/Metric";
 import { getEntries, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
 import {
   formatFatLossKg,
@@ -254,24 +255,21 @@ export function HistoryView({
         {/* KPI row */}
         <div className="nutri-kpi-row">
           <div className="nutri-kpi">
-            <span className="nutri-kpi-val">
+            <MetricValue size="md" unit={week.avgCalories > 0 ? "kcal" : undefined}>
               {week.avgCalories > 0 ? week.avgCalories.toLocaleString() : "—"}
-              {week.avgCalories > 0 && <small>kcal</small>}
-            </span>
+            </MetricValue>
             <span className="nutri-kpi-label">Avg Cal</span>
           </div>
           <div className="nutri-kpi">
-            <span className="nutri-kpi-val">
+            <MetricValue size="md" unit={week.avgProtein > 0 ? "g" : undefined}>
               {week.avgProtein > 0 ? week.avgProtein : "—"}
-              {week.avgProtein > 0 && <small>g</small>}
-            </span>
+            </MetricValue>
             <span className="nutri-kpi-label">Avg Protein</span>
           </div>
           <div className="nutri-kpi">
-            <span className="nutri-kpi-val">
+            <MetricValue size="md" unit="kg">
               {formatFatLossKg(week.fatLossKg)}
-              <small>kg</small>
-            </span>
+            </MetricValue>
             <span className="nutri-kpi-label">Est. Fat Loss</span>
           </div>
         </div>
@@ -317,7 +315,7 @@ export function HistoryView({
               "on-plan": "On Plan",
               under: "Under",
               over: "Over",
-              extreme: "Extreme",
+              extreme: "Low",
               surplus: "Surplus",
             };
             const rest: CalorieState[] = ["under", "over", "extreme", "surplus"];

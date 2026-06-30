@@ -509,7 +509,7 @@ export function TodayView({
       const short = targets.deficitTarget - calResult.deficit;
       return `${short.toLocaleString()} kcal short`;
     }
-    if (calResult.state === "on-plan") return calResult.isPerfect ? "Perfect!" : "On plan ✓";
+    if (calResult.state === "on-plan") return calResult.isPerfect ? "Perfect!" : "On Plan ✓";
     if (calResult.state === "over") {
       const below = calResult.deficit - targets.deficitTarget;
       return `${below.toLocaleString()} kcal below budget`;
@@ -536,10 +536,10 @@ export function TodayView({
 
   // Overall day status badge (Today card, top-right)
   const dayStatus = !hasEntry ? null
-    : doubleHit ? { label: "Double hit", tone: "gold" }
+    : doubleHit ? { label: "Double Hit", tone: "gold" }
     : calResult.isSurplus ? { label: "Surplus", tone: "warn" }
     : calResult.state === "extreme" ? { label: "Low", tone: "warn" }
-    : (calResult.state === "on-plan" || calResult.state === "over") ? { label: "On plan", tone: "green" }
+    : (calResult.state === "on-plan" || calResult.state === "over") ? { label: "On Plan", tone: "green" }
     : { label: "Tracking", tone: "neutral" };
 
   const isEditing = editField !== null;
@@ -693,7 +693,7 @@ export function TodayView({
                 onClick={handleSave}
                 disabled={saving}
               >
-                {saving ? "Saving…" : hasEntry ? "Update entry" : isToday ? "Commit today" : "Save entry"}
+                {saving ? "Saving…" : hasEntry ? "Update entry" : "Save entry"}
               </button>
               <div className="sf-secondary">
                 {hasEntry && (
@@ -750,7 +750,7 @@ export function TodayView({
                     </span>
                     <span className="stat-unit">g</span>
                     {protResult.celebrated && !doubleHit && (
-                      <span className="dc-pill dc-pill--green">On track</span>
+                      <span className="dc-pill dc-pill--green">On Track</span>
                     )}
                   </span>
                   <span className="stat-label">Protein</span>
