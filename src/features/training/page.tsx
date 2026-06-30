@@ -658,9 +658,18 @@ function TrainingPageInner() {
   }
 
   function handleDeleteArchived(slug: string) {
-    const ex = exercises?.find((e) => e.slug === slug);
+    const idx = exercises?.findIndex((e) => e.slug === slug) ?? -1;
+    const ex = idx >= 0 ? exercises![idx] : undefined;
     const UNDO_MS = 5000;
     let undone = false;
+    // Restore the exercise at its original sort_order position.
+    const restore = () =>
+      setExercises((prev) => {
+        if (!prev || !ex || prev.some((e) => e.slug === slug)) return prev;
+        const next = [...prev];
+        next.splice(Math.min(idx, next.length), 0, ex);
+        return next;
+      });
     // Optimistically hide from list
     setExercises((prev) => prev?.filter((e) => e.slug !== slug) ?? prev);
     const commit = setTimeout(async () => {
@@ -669,7 +678,7 @@ function TrainingPageInner() {
         await deleteExerciseAndLogs(slug);
         await reloadAll();
       } catch (err) {
-        setExercises((prev) => (prev && ex ? [...prev, ex] : prev));
+        restore();
         toast(String((err as Error)?.message ?? err), "error");
       }
     }, UNDO_MS);
@@ -678,7 +687,7 @@ function TrainingPageInner() {
       onClick: () => {
         undone = true;
         clearTimeout(commit);
-        setExercises((prev) => (prev && ex ? [...prev, ex] : prev));
+        restore();
       },
     });
   }
