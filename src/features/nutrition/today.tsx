@@ -548,7 +548,7 @@ export function TodayView({
 
   // Overall day status badge (Today card, top-right)
   const dayStatus = !hasEntry ? null
-    : doubleHit ? { label: "Great", tone: "gold" }
+    : doubleHit ? { label: "Double hit", tone: "gold" }
     : calResult.isSurplus ? { label: "Surplus", tone: "warn" }
     : calResult.state === "extreme" ? { label: "Low", tone: "warn" }
     : (calResult.state === "on-plan" || calResult.state === "over") ? { label: "On plan", tone: "green" }
@@ -753,9 +753,7 @@ export function TodayView({
                       {calNum.toLocaleString()}
                     </span>
                     <span className="stat-unit">kcal</span>
-                    {doubleHit && (
-                      <span className="dc-pill dc-pill--gold">Double hit</span>
-                    )}
+
                   </span>
                   <span className="stat-label">Calories</span>
                   <span className={`stat-note${calResult.isSurplus || calResult.state === "extreme" ? " stat-note--warn" : calResult.state === "on-plan" ? " stat-note--good" : ""}`}>
