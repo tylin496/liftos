@@ -1,0 +1,55 @@
+/* ========================================================================
+   Metric typography — the shared "number language" (see Metric.tsx).
+   Value = bold ink mono; unit = fixed step down; delta = signed + semantic
+   colour; caption = muted context. Layout stays per-tab; only the grammar
+   of value / unit / delta / caption is shared here.
+   ======================================================================== */
+
+.metric-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.metric-val--xl { font-size: var(--metric-xl); }
+.metric-val--lg { font-size: var(--metric-lg); }
+.metric-val--md { font-size: var(--metric-md); }
+
+.metric-val--good { color: var(--good); }
+.metric-val--bad { color: var(--bad); }
+
+/* Unit suffix — one fixed step down everywhere, so "kg" / "ms" / "kcal/day"
+   read the same regardless of how big the value is. */
+.metric-unit {
+  font-family: var(--font-ui);
+  font-size: var(--metric-unit);
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: 0;
+}
+
+/* Signed change. Sign carries direction; colour carries good/bad/neutral. */
+.metric-delta {
+  font-family: var(--font-mono);
+  font-size: var(--metric-delta);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.metric-delta--good { color: var(--good); }
+.metric-delta--bad { color: var(--bad); }
+.metric-delta--flat { color: var(--ink-4); }
+
+/* Muted context line — "vs 14 days", "/ 7 days". */
+.metric-caption {
+  font-size: var(--metric-caption);
+  font-weight: 500;
+  color: var(--ink-4);
+}

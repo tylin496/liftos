@@ -58,6 +58,20 @@
   --text-4xl: 34px;
   --text-display: 46px; /* Training weight input — the on-screen hero of logging */
 
+  /* ── Metric typography ────────────────────────────────────────────────
+     One number language across all four tabs. Value = bold ink;
+     unit = fixed step down (medium, ink-3); delta = signed +/− with
+     semantic colour; caption = small ink-4. Value size has tiers (card
+     prominence differs); unit/delta/caption are fixed so the "language"
+     reads identically everywhere. Delta good/bad/flat reuse --good /
+     --bad / --ink-4 — no new colours. */
+  --metric-xl: var(--text-4xl);     /* 34 — top hero: TDEE, retention */
+  --metric-lg: var(--text-3xl);     /* 28 — metric cards: weight, body fat */
+  --metric-md: var(--text-xl);      /* 20 — compact rows: recovery, KPI */
+  --metric-unit: var(--text-base);  /* 15 — unit suffix */
+  --metric-delta: var(--text-sm);   /* 13 — change value */
+  --metric-caption: var(--text-sm); /* 13 — "vs 14 days" context line */
+
   /* ── Spacing scale ────────────────────────────────────────────────── */
   --space-1: 4px;
   --space-2: 8px;
