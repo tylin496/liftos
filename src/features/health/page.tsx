@@ -512,8 +512,6 @@ export function HealthPage() {
                 <span className="health-metric-val health-metric-val--empty">—</span>
               )}
             </div>
-            {dateRange && <p className="health-metric-daterange">{dateRange}</p>}
-
             <LineChart points={bucketed} color={spec.color} decimals={spec.decimals} unit={spec.unit} />
           </section>
         );
@@ -543,7 +541,6 @@ export function HealthPage() {
               <span className="health-metric-val health-metric-val--empty">—</span>
             )}
           </div>
-          {lbmCard.dateRange && <p className="health-metric-daterange">{lbmCard.dateRange}</p>}
           <LineChart points={lbmCard.bucketed} color="#30d158" decimals={1} unit="kg" />
         </section>
       )}
