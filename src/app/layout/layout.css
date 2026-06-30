@@ -395,7 +395,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 20px 0;
+  padding: var(--space-5) var(--space-5) 0;
   flex-shrink: 0;
 }
 
@@ -425,7 +425,7 @@
 .settings-sheet-body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 28px);
+  padding: var(--space-4) var(--space-5) calc(env(safe-area-inset-bottom, 0px) + 28px);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);

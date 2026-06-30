@@ -1702,13 +1702,18 @@
 /* Upcoming days in the current week: shown for context but not selectable */
 .nutri-trend-col.is-future {
   cursor: default;
-  opacity: 0.4;
+  opacity: 0.25;
 }
 
 .nutri-trend-col.is-future:active { transform: none; }
 
 .nutri-trend-col.is-future .nutri-trend-day {
   color: var(--ink-4);
+}
+
+/* Past missed days: dim the day letter too */
+.nutri-trend-col.is-missing:not(.is-future) .nutri-trend-day {
+  opacity: 0.45;
 }
 
 .ntb-values {
@@ -1832,14 +1837,14 @@
   font-weight: 900;
 }
 
-/* Missed (past, unlogged) days: short column, not a pill.
+/* Missed (past, unlogged) days: small capsule, very recessive.
    Future days draw nothing at all (see history.tsx). */
 .ntb-pair--missing .ntb-bar--missing {
-  height: 12px !important;
-  max-width: 9px;
-  border-radius: 3px;
+  height: 8px !important;
+  max-width: 11px;
+  border-radius: var(--radius-pill);
   border: 0;
-  background: color-mix(in srgb, var(--rule-strong) 75%, transparent);
+  background: color-mix(in srgb, var(--rule-strong) 22%, transparent);
   box-shadow: none;
 }
 
