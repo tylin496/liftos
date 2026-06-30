@@ -243,6 +243,28 @@ function LineChart({
   );
 }
 
+function regressionSlope(pts: { date: string; value: number }[], days = 28): number | null {
+  const last = pts.at(-1)?.date;
+  if (!last) return null;
+  const cutoff = new Date(last + "T12:00:00");
+  cutoff.setDate(cutoff.getDate() - days + 1);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const win = pts.filter((p) => p.date >= cutoffStr);
+  if (win.length < 5) return null;
+  const MS = 86400000;
+  const t0 = new Date(win[0].date + "T12:00:00").getTime();
+  const xs = win.map((p) => (new Date(p.date + "T12:00:00").getTime() - t0) / MS);
+  const ys = win.map((p) => p.value);
+  const n = win.length;
+  const sumX = xs.reduce((s, x) => s + x, 0);
+  const sumY = ys.reduce((s, y) => s + y, 0);
+  const sumXY = xs.reduce((s, x, i) => s + x * ys[i], 0);
+  const sumX2 = xs.reduce((s, x) => s + x * x, 0);
+  const denom = n * sumX2 - sumX * sumX;
+  if (!denom) return null;
+  return ((n * sumXY - sumX * sumY) / denom) * 7; // kg/week
+}
+
 const fmt = (v: number, d: number) =>
   v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 
@@ -310,6 +332,28 @@ export function HealthPage() {
       const dateRange = formatDateRange(bucketed);
       return { spec, bucketed, thisWeek, change, dateRange, readingCount: s.length };
     });
+  }, [data]);
+
+  const weightPace = useMemo(() => {
+    if (!data) return null;
+    return regressionSlope(series(data.metrics, "weight_kg"), 28);
+  }, [data]);
+
+  const lbmCard = useMemo(() => {
+    if (!data) return null;
+    const pts = data.metrics
+      .filter((m) => m.weight_kg != null && m.body_fat_pct != null)
+      .map((m) => ({
+        date: m.metric_date,
+        value: m.weight_kg! * (1 - m.body_fat_pct! / 100),
+      }));
+    if (!pts.length) return null;
+    const thisWeek = rollingAvg(pts, 7, 0);
+    const prevWeek = rollingAvg(pts, 7, 7);
+    const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
+    const bucketed = bucketSeries(pts, FIXED_BUCKET);
+    const dateRange = formatDateRange(bucketed);
+    return { thisWeek, change, bucketed, dateRange, readingCount: pts.length };
   }, [data]);
 
   if (error) {
@@ -381,7 +425,7 @@ export function HealthPage() {
       </section>
 
       {/* Metric skeleton while loading */}
-      {!data && [0, 1].map((i) => (
+      {!data && [0, 1, 2].map((i) => (
         <section className="page-card health-metric loading-card" key={i}>
           <div className="health-metric-head">
             <span className="health-metric-label">Weight</span>
@@ -394,6 +438,35 @@ export function HealthPage() {
           <div className="health-skel-chart" />
         </section>
       ))}
+
+      {/* Lean Mass card — derived from weight × (1 - body_fat%) */}
+      {lbmCard && (
+        <section className="page-card health-metric">
+          <div className="health-metric-head">
+            <span className="health-metric-label">Lean Mass</span>
+            {lbmCard.change != null && lbmCard.readingCount >= 2 && (
+              <span className={`health-metric-change${
+                lbmCard.change > 0 ? " health-metric-change--down" : lbmCard.change < 0 ? " health-metric-change--up" : ""
+              }`}>
+                {lbmCard.change > 0 ? "+" : ""}{fmt(lbmCard.change, 1)} kg
+              </span>
+            )}
+          </div>
+          <p className="health-metric-eyebrow">THIS WEEK</p>
+          <div className="health-metric-hero">
+            {lbmCard.thisWeek != null ? (
+              <>
+                <span className="health-metric-val">{fmt(lbmCard.thisWeek, 1)}</span>
+                <span className="health-unit">kg</span>
+              </>
+            ) : (
+              <span className="health-metric-val health-metric-val--empty">—</span>
+            )}
+          </div>
+          {lbmCard.dateRange && <p className="health-metric-daterange">{lbmCard.dateRange}</p>}
+          <LineChart points={lbmCard.bucketed} color="#30d158" decimals={1} unit="kg" />
+        </section>
+      )}
 
       {/* Metric cards — Apple Health style */}
       {cards.map(({ spec, bucketed, thisWeek, change, dateRange, readingCount }) => {
@@ -410,11 +483,17 @@ export function HealthPage() {
           <section className="page-card health-metric" key={spec.key}>
             <div className="health-metric-head">
               <span className="health-metric-label">{spec.label}</span>
-              {change != null && readingCount >= 2 && (
+              {spec.key === "weight_kg" && weightPace != null ? (
+                <span className={`health-metric-change${
+                  weightPace < -0.05 ? " health-metric-change--down" : weightPace > 0.05 ? " health-metric-change--up" : ""
+                }`}>
+                  {weightPace > 0 ? "+" : ""}{fmt(weightPace, 2)} kg/wk
+                </span>
+              ) : change != null && readingCount >= 2 ? (
                 <span className={`health-metric-change${changeCls}`}>
                   {change > 0 ? "+" : ""}{fmt(change, spec.decimals)} {spec.unit}
                 </span>
-              )}
+              ) : null}
             </div>
 
             <p className="health-metric-eyebrow">THIS WEEK</p>

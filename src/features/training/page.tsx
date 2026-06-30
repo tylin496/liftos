@@ -686,7 +686,7 @@ function TrainingPageInner() {
       className="page tr-page"
       ref={contentRef}
     >
-      {/* ── Top row: seg + copy ── */}
+      {/* ── Segment control ── */}
       <div className="tr-top-row">
         <div
           className="seg"

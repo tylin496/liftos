@@ -221,7 +221,7 @@ function buildBodyMetrics() {
       active_energy_kcal: active,
       steps,
       exercise_minutes: exercise,
-      body_fat_pct: null,
+      body_fat_pct: Math.round((22.0 - (i / last) * 2.0 + fakeRand(i * 7, -0.3, 0.3)) * 10) / 10,
       created_at: date + "T06:00:00Z",
       updated_at: date + "T06:00:00Z",
     });

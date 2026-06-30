@@ -6,7 +6,7 @@
 .health-range {
   display: flex;
   background: var(--bg-soft);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 3px;
   gap: 2px;
 }
@@ -17,7 +17,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink-3);
   cursor: pointer;
@@ -77,6 +77,16 @@
   margin: 2px 0 var(--space-3);
 }
 
+.health-weight-pace {
+  font-size: var(--text-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  margin: 4px 0 2px;
+}
+.health-weight-pace.down { color: var(--good); }
+.health-weight-pace.up   { color: var(--bad); }
+
 /* ── Metric label + change row ──────────────────────────────────────── */
 .health-metric-head {
   display: flex;
@@ -96,7 +106,7 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   background: var(--bg-soft);
   color: var(--ink-3);
 }
