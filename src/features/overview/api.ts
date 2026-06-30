@@ -45,6 +45,7 @@ export interface OverviewData {
   weightLatest: number | null;
   weightWeekAgo: number | null;
   tdee: number | null;
+  tdeeTrend: { date: string; value: number }[];
   prThisMonth: number;
   sessionsThisWeek: number;
   strength: StrengthSummary;
@@ -112,6 +113,11 @@ export async function fetchOverview(): Promise<OverviewData> {
       .map((m) => ({ active: m.active_energy_kcal })),
   );
   const tdee = tdeeEst.tdee;
+
+  // Daily TDEE trend: days where both active + resting are present
+  const tdeeTrend = metrics
+    .filter((m) => m.active_energy_kcal != null && m.resting_energy_kcal != null)
+    .map((m) => ({ date: m.metric_date, value: m.active_energy_kcal! + m.resting_energy_kcal! }));
 
   // Training logs
   const logs = logsRes.data ?? [];
@@ -189,6 +195,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     weightLatest,
     weightWeekAgo,
     tdee,
+    tdeeTrend,
     prThisMonth,
     sessionsThisWeek,
     strength,

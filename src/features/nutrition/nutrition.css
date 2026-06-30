@@ -378,12 +378,14 @@
   color: var(--good);
 }
 .state-under {
-  color: var(--ink-2);
+  color: var(--ink-3);
 }
 .state-over {
   color: var(--gold);
 }
-.state-extreme,
+.state-extreme {
+  color: var(--bad);
+}
 .state-surplus {
   color: var(--bad);
 }

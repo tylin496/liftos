@@ -30,6 +30,7 @@ import {
   timelineDate,
   buildStagnationView,
   fmtInspectorDate,
+  epley1RM,
   type TimeFilter,
   type StagnationView,
   type TrendResult,
@@ -254,7 +255,7 @@ function SmartImage({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function fmtWeightNum(n: number): string {
-  return parseFloat(n.toFixed(6)).toString();
+  return n.toFixed(2);
 }
 
 function isLbUnit(unit: string | null | undefined) {
@@ -262,7 +263,7 @@ function isLbUnit(unit: string | null | undefined) {
 }
 
 function fmtKgFromLb(n: number): string {
-  return (Math.round(n * 0.453592 * 100) / 100).toString();
+  return (n * 0.453592).toFixed(2);
 }
 
 interface ExprDisplayProps {
@@ -1308,8 +1309,7 @@ export function ExerciseCard({
       });
       const newParsed = parse(raw);
       const newScore = newParsed ? score(newParsed) : 0;
-      const repsNum = parseInt(newParsed?.reps?.split(/[/\-]/)[0] ?? "1", 10) || 1;
-      const newE1RM = newScore > 0 ? newScore * (1 + repsNum / 30) : 0;
+      const newE1RM = epley1RM(newScore, newParsed?.reps ?? "1");
       if (newE1RM > oldBestE1RM) {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);

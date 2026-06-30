@@ -227,8 +227,8 @@ const BODY_METRICS = buildBodyMetrics();
 // ── In-memory store (mutable so write ops work during the session) ─────────────
 
 const mockDb = {
-  exercises: [...EXERCISES] as Record<string, unknown>[],
-  training_logs: [...TRAINING_LOGS] as Record<string, unknown>[],
+  exercises: [...EXERCISES] as unknown as Record<string, unknown>[],
+  training_logs: [...TRAINING_LOGS] as unknown as Record<string, unknown>[],
   nutrition_config: [{ ...NUTRITION_CONFIG }] as Record<string, unknown>[],
   nutrition_entries: [...NUTRITION_ENTRIES] as Record<string, unknown>[],
   body_metrics: [...BODY_METRICS] as Record<string, unknown>[],
