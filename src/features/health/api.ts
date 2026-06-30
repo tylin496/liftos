@@ -1,13 +1,12 @@
 import { supabase } from "@shared/lib/supabase";
 import type { Database } from "@shared/lib/database.types";
 import { computeTdeeWindows, type TdeeEstimate } from "./tdee";
+import { localDateStrDaysAgo } from "@shared/lib/date";
 
 export type BodyMetric = Database["public"]["Tables"]["body_metrics"]["Row"];
 
 function sinceDate(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+  return localDateStrDaysAgo(days);
 }
 
 /** Last N days of Apple Health metrics, oldest → newest. RLS-scoped. */

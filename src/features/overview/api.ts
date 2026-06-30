@@ -3,11 +3,12 @@ import type { Database } from "@shared/lib/database.types";
 import { computeTdeeWindows } from "@features/health/tdee";
 import { parse, score } from "@features/training/parser";
 import { epley1RM } from "@features/training/logic";
+import { localDateStr, localDateStrDaysAgo } from "@shared/lib/date";
 
 type NutritionEntry = Database["public"]["Tables"]["nutrition_entries"]["Row"];
 
 function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
 }
 
 function isoMonthStart(): string {
@@ -16,9 +17,7 @@ function isoMonthStart(): string {
 }
 
 function sinceDate(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+  return localDateStrDaysAgo(days);
 }
 
 export type StrengthStatus = "improving" | "stable" | "watch";

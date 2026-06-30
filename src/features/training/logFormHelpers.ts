@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { CSSProperties, RefObject } from "react";
 import type { Exercise } from "./api";
+import { localDateStr } from "@shared/lib/date";
 
 export const MIN_SET_COUNT = 1;
 export const MAX_SET_COUNT = 5;
@@ -8,7 +9,7 @@ export const DEFAULT_SET_COUNT = 3;
 export const LAST_BW_KEY = "liftos/lastBodyweight";
 
 export function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
 }
 
 export function heroInputStyle(value: string): CSSProperties | undefined {
