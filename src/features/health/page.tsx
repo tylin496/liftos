@@ -11,6 +11,7 @@ import {
   type RecoverySnapshot,
 } from "./math";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
+import { ErrorState } from "@shared/components/ErrorState";
 import { buildAllDataJson, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { TrendIcon } from "@shared/components/TrendIcon";
@@ -230,17 +231,10 @@ function ComponentTrend({ cur, prev }: { cur: number | null; prev: number | null
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  Ready:    "var(--good)",
-  Good:     "var(--blue)",
-  Fair:     "var(--gold)",
-  Strained: "var(--bad)",
-};
-
-const FOOTER_TEXT: Record<number, string> = {
-  3: "All 3 above 30-day baseline",
-  2: "2 of 3 above 30-day baseline",
-  1: "1 of 3 above 30-day baseline",
-  0: "Below 30-day baseline",
+  Ready:              "var(--good)",
+  Good:               "var(--blue)",
+  Fair:               "var(--gold)",
+  "Needs Recovery":   "var(--bad)",
 };
 
 function RecoveryRow({
@@ -303,7 +297,7 @@ function RecoveryCard({ snap }: { snap: RecoverySnapshot }) {
         <RecoveryRow label="HRV"   value={snap.hrv}        unit="ms"  delta={hrvDelta}   higherBetter />
         <RecoveryRow label="RHR"   value={snap.rhr}        unit="bpm" delta={rhrDelta}   higherBetter={false} />
       </div>
-      <p className="health-recovery-footer">{FOOTER_TEXT[snap.score]}</p>
+      {snap.insight && <p className="health-recovery-footer">{snap.insight}</p>}
     </section>
   );
 }
