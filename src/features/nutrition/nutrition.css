@@ -1439,32 +1439,14 @@
 .stat-note--good { color: var(--good); }
 .stat-note--warn { color: var(--bad); }
 
-/* Empty stat rows */
-.stat-row--empty {
-  flex-direction: row;
-  align-items: center;
-  gap: var(--space-3);
-}
-
+/* Empty stat rows: same column layout as filled rows so the card height
+   doesn't jump when an entry is logged — only the number is dimmed to "—". */
 .stat-number--empty {
   font-size: clamp(36px, 7.5vw, 50px);
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--ink-4);
   line-height: 1;
-  flex-shrink: 0;
-}
-
-.stat-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.stat-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 /* Skeleton loading overlay for stat rows */
@@ -1754,7 +1736,7 @@
 /* Missed (past, unlogged) days: dashed ghost bar, full-ish height.
    Future days draw nothing at all (see history.tsx). */
 .ntb-pair--missing .ntb-bar--missing {
-  height: 64px !important;
+  height: 44px !important;
   max-width: 18px;
   border-radius: var(--radius-pill);
   border: 1.5px dashed var(--rule-strong);

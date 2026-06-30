@@ -475,12 +475,12 @@ export function TodayView({
     setProtein("");
     setEditField(null);
     haptic("warning");
-    onSaved?.();
     const commit = setTimeout(async () => {
       if (undone) return;
       setDeleting(true);
       try {
         await deleteEntry(date);
+        onSaved?.();
       } catch (e) {
         setCalories(prevCalories);
         setProtein(prevProtein);
@@ -767,14 +767,12 @@ export function TodayView({
                   aria-label="Log calories"
                   onClick={() => openEdit("calories")}
                 >
-                  <span className="stat-number--empty">—</span>
-                  <span className="stat-right">
+                  <span className="stat-main">
+                    <span className="stat-number--empty">—</span>
                     <span className="stat-unit">kcal</span>
-                    <span className="stat-meta">
-                      <span className="stat-label">Calories</span>
-                      <span className="stat-note">Target {targets.calorieTarget.toLocaleString()} kcal</span>
-                    </span>
                   </span>
+                  <span className="stat-label">Calories</span>
+                  <span className="stat-note">Target {targets.calorieTarget.toLocaleString()} kcal</span>
                 </button>
                 <button
                   className="stat-row stat-row--empty"
@@ -782,14 +780,12 @@ export function TodayView({
                   aria-label="Log protein"
                   onClick={() => openEdit("protein")}
                 >
-                  <span className="stat-number--empty">—</span>
-                  <span className="stat-right">
+                  <span className="stat-main">
+                    <span className="stat-number--empty">—</span>
                     <span className="stat-unit">g</span>
-                    <span className="stat-meta">
-                      <span className="stat-label">Protein</span>
-                      <span className="stat-note">Target {targets.proteinTarget}g</span>
-                    </span>
                   </span>
+                  <span className="stat-label">Protein</span>
+                  <span className="stat-note">Target {targets.proteinTarget}g</span>
                 </button>
               </>
             )}
