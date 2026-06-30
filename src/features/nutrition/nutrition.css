@@ -1858,7 +1858,7 @@
 /* Selected placeholder: dashed border glows accent */
 .nutri-trend-col.is-selected .ntb-bar--missing {
   border-color: var(--accent);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 /* Building badge */
