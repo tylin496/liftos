@@ -378,10 +378,10 @@ export function HealthPage() {
         value: m.weight_kg! * (1 - m.body_fat_pct! / 100),
       }));
     if (!pts.length) return null;
-    const thisWeek = rollingAvg(pts, 7, 0);
-    const prevWeek = rollingAvg(pts, 7, 7);
+    const thisWeek = rollingAvg(pts, 14, 0);
+    const prevWeek = rollingAvg(pts, 14, 14);
     const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
-    const bucketed = bucketSeries(pts, { spanDays: 180, bucketDays: 7 });
+    const bucketed = bucketSeries(pts, { spanDays: 180, bucketDays: 14 });
     const dateRange = formatDateRange(bucketed);
     return { thisWeek, change, bucketed, dateRange, readingCount: pts.length };
   }, [data]);
