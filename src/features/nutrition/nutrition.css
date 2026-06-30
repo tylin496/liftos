@@ -313,7 +313,6 @@
   gap: 10px;
   padding-bottom: 4px;
   margin-bottom: 2px;
-  border-bottom: 1px solid var(--rule);
 }
 
 .nutri-dist-head span:nth-child(3),
@@ -624,8 +623,14 @@
   position: fixed;
   inset: 0;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(18px);
+  background: var(--scrim-bg);
+  backdrop-filter: var(--scrim-blur);
+  -webkit-backdrop-filter: var(--scrim-blur);
+  animation: fade-in var(--motion-base) ease both;
+}
+
+.ncal-backdrop.is-closing {
+  animation: fade-out var(--motion-base) ease both;
 }
 
 .ncal-panel {
@@ -641,7 +646,8 @@
   border: 1px solid var(--rule);
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg-card) 96%, transparent);
-  backdrop-filter: blur(28px);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
   padding: 24px 20px 28px;
   animation: ncal-in var(--motion-base) ease both;
@@ -650,6 +656,18 @@
 @keyframes ncal-in {
   from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Shared overlay fades — reused by every nutrition backdrop. */
+@keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+@keyframes ncal-out {
+  to { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+}
+
+.ncal-panel.is-closing {
+  animation: ncal-out var(--motion-fast) var(--move-ease) both;
 }
 
 .ncal-header {
@@ -822,9 +840,9 @@
   position: fixed;
   inset: 0;
   z-index: 20;
-  background: rgba(0, 0, 0, 0.32);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--scrim-bg);
+  backdrop-filter: var(--scrim-blur);
+  -webkit-backdrop-filter: var(--scrim-blur);
 }
 
 .entry-sheet {
@@ -835,6 +853,8 @@
   z-index: 21;
   width: min(420px, calc(100% - var(--space-6)));
   background: var(--bg-card);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
   border-radius: 20px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
   padding: var(--space-4) var(--space-5) var(--space-5);
@@ -847,6 +867,10 @@
 @keyframes entry-sheet-in {
   from { opacity: 0; transform: translateX(-50%) translateY(18px) scale(0.97); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+@keyframes sheet-out {
+  to { opacity: 0; transform: translateX(-50%) translateY(18px) scale(0.97); }
 }
 
 .entry-sheet-handle {
@@ -1082,8 +1106,8 @@
 
 /* ── Divider ─────────────────────────────────────────────────────────── */
 .nutri-divider {
-  height: 1px;
-  background: var(--rule);
+  border: none;
+  border-top: 1px solid var(--rule);
   margin: var(--space-4) 0 var(--space-3);
 }
 
@@ -1217,9 +1241,23 @@
 /* ── Adherence hero ──────────────────────────────────────────────────── */
 .nutri-adherence-hero {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-3) 0 0;
+}
+
+.nutri-adherence-label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.nutri-adherence-row {
+  display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  margin: var(--space-3) 0 var(--space-2);
 }
 
 .nutri-adherence-num {
@@ -1230,13 +1268,6 @@
   line-height: 1;
 }
 
-.nutri-adherence-info {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-
 .nutri-adherence-pct {
   font-size: var(--text-2xl);
   font-weight: 700;
@@ -1244,12 +1275,46 @@
   line-height: 1;
 }
 
-.nutri-adherence-sub {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-4);
+/* ── Double Hit section ──────────────────────────────────────────────── */
+.nutri-dh {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.nutri-dh-label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  color: var(--good);
+}
+
+.nutri-dh-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.nutri-dh-pct {
+  font-size: clamp(28px, 5.5vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.nutri-dh-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+  font-weight: 500;
+}
+
+/* ── Streak footer ───────────────────────────────────────────────────── */
+.nutri-streak {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
 }
 
 /* ── Program summary ─────────────────────────────────────────────────── */
@@ -1638,9 +1703,14 @@
   position: fixed;
   inset: 0;
   z-index: 30;
-  background: rgba(0, 0, 0, 0.36);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--scrim-bg);
+  backdrop-filter: var(--scrim-blur);
+  -webkit-backdrop-filter: var(--scrim-blur);
+  animation: fade-in var(--motion-base) ease both;
+}
+
+.dc-backdrop.is-closing {
+  animation: fade-out var(--motion-base) ease both;
 }
 
 .dc-panel {
@@ -1651,11 +1721,17 @@
   z-index: 31;
   width: min(380px, calc(100% - 32px));
   background: var(--bg-card);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
   border: 1px solid var(--rule);
   border-radius: 20px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
   padding: 20px 20px 16px;
   animation: entry-sheet-in var(--motion-base) var(--reveal-ease) both;
+}
+
+.dc-panel.is-closing {
+  animation: sheet-out var(--motion-fast) var(--move-ease) both;
 }
 
 .dc-body {
@@ -1732,8 +1808,8 @@
   border: 1px solid var(--rule);
   border-radius: 22px;
   box-shadow: 0 28px 72px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
   padding: 28px 40px 24px;
   text-align: center;
   display: flex;
@@ -1741,6 +1817,14 @@
   align-items: center;
   gap: var(--space-1);
   animation: celeb-card-in 0.26s var(--reveal-ease) both;
+}
+
+@keyframes celeb-card-out {
+  to { opacity: 0; transform: scale(0.92) translateY(6px); }
+}
+
+.save-celebration.is-closing .celeb-card {
+  animation: celeb-card-out var(--motion-base) var(--move-ease) both;
 }
 
 @keyframes celeb-card-in {

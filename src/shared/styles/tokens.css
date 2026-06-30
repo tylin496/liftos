@@ -69,6 +69,18 @@
 
   --card-blur: blur(22px);
 
+  /* ── Glass (floating chrome: header + tabbar) ─────────────────────────
+     One shared material so the two bars read identically. Kept quite
+     transparent — the blur, not the fill, does the separating work.
+     Plain rgba (not color-mix) so it can transition from `transparent`. */
+  --glass-bg: rgba(238, 240, 244, 0.58);
+  --glass-blur: saturate(180%) blur(22px);
+
+  /* Modal scrim: one dim + blur for every full-screen backdrop, so every
+     overlay darkens its background by the same amount. */
+  --scrim-bg: rgba(0, 0, 0, 0.34);
+  --scrim-blur: blur(16px);
+
   /* ── Motion ───────────────────────────────────────────────────────── */
   /* 3 durations · 3 curves · 1 stagger step. Use these everywhere.
      Celebration/feedback specials (PR pop, confetti, save pulse, shimmer)
@@ -111,6 +123,7 @@
     --gold: #ffbf3f;
     --blue: #0a84ff;
     --card-blur: blur(22px);
+    --glass-bg: rgba(26, 26, 26, 0.55);
     --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.4), 0 8px 22px -6px rgba(0, 0, 0, 0.42), 0 22px 50px -18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     --shadow-md: 0 18px 42px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
     --focus-ring: 0 0 0 3px rgba(224, 101, 24, 0.32);

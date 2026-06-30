@@ -21,7 +21,7 @@
   z-index: 20;
   transition:
     transform var(--motion-base) var(--move-ease),
-    background var(--motion-base) var(--move-ease),
+    background-color var(--motion-base) var(--move-ease),
     backdrop-filter var(--motion-base) var(--move-ease),
     -webkit-backdrop-filter var(--motion-base) var(--move-ease);
   height: calc(var(--header-h) + var(--safe-top));
@@ -34,15 +34,15 @@
   align-items: center;
   /* Adaptive material: transparent and divider-free at the top so it blends
      into the page; a glass blur fades in once content scrolls beneath it. */
-  background: transparent;
+  background-color: transparent;
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
 }
 
 .shell--scrolled .shell-header {
-  background: color-mix(in srgb, var(--bg) 72%, transparent);
-  backdrop-filter: var(--card-blur);
-  -webkit-backdrop-filter: var(--card-blur);
+  background-color: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .shell--header-hidden .shell-header {
@@ -160,9 +160,9 @@
   display: flex;
   /* Permanent glass material; no hairline — the frosted blur alone separates
      it from scrolling content, matching the adaptive header. */
-  background: color-mix(in srgb, var(--bg) 80%, transparent);
-  backdrop-filter: var(--card-blur);
-  -webkit-backdrop-filter: var(--card-blur);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 /* Sliding soft-accent selection pill, sits behind the active tab */

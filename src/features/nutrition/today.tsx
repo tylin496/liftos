@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { getEntry, saveEntry, deleteEntry, targetsFromConfig, type NutritionConfig } from "./api";
 import { defaultLogDate, getCalorieResult, getProteinResult, toDateStr } from "./logic";
 import { useToast } from "@shared/components/Toast";
+import { useExitTransition } from "@shared/hooks/useExitTransition";
 
 const MIN_DATE = "2026-02-09";
 const INITIAL_HISTORY_MONTHS = 6;
@@ -92,11 +93,13 @@ function NutriCalendar({
   todayStr,
   onSelect,
   onClose,
+  closing,
 }: {
   selected: string;
   todayStr: string;
   onSelect: (date: string) => void;
   onClose: () => void;
+  closing?: boolean;
 }) {
   const [historyMonths, setHistoryMonths] = useState(INITIAL_HISTORY_MONTHS);
   const [visibleMonth, setVisibleMonth] = useState(selected.slice(0, 7));
@@ -160,8 +163,8 @@ function NutriCalendar({
 
   return createPortal(
     <>
-      <div className="ncal-backdrop" onClick={onClose} />
-      <div className="ncal-panel" role="dialog" aria-modal aria-label="Date picker">
+      <div className={`ncal-backdrop${closing ? " is-closing" : ""}`} onClick={onClose} />
+      <div className={`ncal-panel${closing ? " is-closing" : ""}`} role="dialog" aria-modal aria-label="Date picker">
         <div className="ncal-header">
           <span className="ncal-month-label">{monthLabel}</span>
           <button
@@ -247,15 +250,17 @@ function DeleteConfirm({
   dateLabel,
   onConfirm,
   onCancel,
+  closing,
 }: {
   dateLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  closing?: boolean;
 }) {
   return createPortal(
     <>
-      <div className="dc-backdrop" onClick={onCancel} />
-      <section className="dc-panel" role="dialog" aria-modal aria-label="Confirm delete">
+      <div className={`dc-backdrop${closing ? " is-closing" : ""}`} onClick={onCancel} />
+      <section className={`dc-panel${closing ? " is-closing" : ""}`} role="dialog" aria-modal aria-label="Confirm delete">
         <div className="dc-body">
           <strong>Delete entry?</strong>
           <p>This removes {dateLabel}&rsquo;s calories and protein.</p>
@@ -271,11 +276,11 @@ function DeleteConfirm({
 }
 
 // ── Celebration confetti ──────────────────────────────────────────────────────
-function Celebration({ variant }: { variant: "logged" | "double-hit" }) {
+function Celebration({ variant, closing }: { variant: "logged" | "double-hit"; closing?: boolean }) {
   const count = variant === "double-hit" ? 34 : 18;
   return createPortal(
     <div
-      className={`save-celebration${variant === "double-hit" ? " double-hit" : ""}`}
+      className={`save-celebration${variant === "double-hit" ? " double-hit" : ""}${closing ? " is-closing" : ""}`}
       role="status"
       aria-live="polite"
     >
@@ -569,26 +574,37 @@ export function TodayView({
 
   const isEditing = editField !== null;
 
+  // Keep overlays mounted through their exit animation.
+  const calendarT = useExitTransition(calendarOpen);
+  const deleteT = useExitTransition(deleteConfirmOpen);
+  const celebrationT = useExitTransition(celebration !== null);
+  const celebVariantRef = useRef(celebration);
+  if (celebration) celebVariantRef.current = celebration;
+
   return (
     <div ref={containerRef}>
-      {calendarOpen && (
+      {calendarT.mounted && (
         <NutriCalendar
           selected={date}
           todayStr={todayStr}
           onSelect={(d) => { haptic("select"); onDateChange(d); }}
           onClose={() => setCalendarOpen(false)}
+          closing={calendarT.closing}
         />
       )}
 
-      {deleteConfirmOpen && (
+      {deleteT.mounted && (
         <DeleteConfirm
           dateLabel={labelFor(date)}
           onConfirm={handleDelete}
           onCancel={() => setDeleteConfirmOpen(false)}
+          closing={deleteT.closing}
         />
       )}
 
-      {celebration && <Celebration variant={celebration} />}
+      {celebrationT.mounted && celebVariantRef.current && (
+        <Celebration variant={celebVariantRef.current} closing={celebrationT.closing} />
+      )}
 
       {/* Date navigation */}
       <nav className="nutri-datenav" aria-label="Diet day navigation">

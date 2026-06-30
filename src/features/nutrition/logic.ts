@@ -156,6 +156,7 @@ export interface MonthlyStats {
   logged: number;
   onPlan: number;
   adherencePct: number;
+  doubleHitCount: number;
   doubleHitPct: number;
   currentStreak: number;
   distribution: Record<CalorieState, number>;
@@ -197,6 +198,7 @@ export function monthlyStats(days: DayInput[]): MonthlyStats {
     logged: logged.length,
     onPlan,
     adherencePct: Math.round((onPlan / n) * 100),
+    doubleHitCount: doubleHit,
     doubleHitPct: Math.round((doubleHit / n) * 100),
     currentStreak,
     distribution,

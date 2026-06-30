@@ -376,6 +376,42 @@
   transform: scale(var(--tap-scale));
 }
 
+/* ─── Today's Focus card ─────────────────────────────────────────────────── */
+
+.ov-focus {
+  padding: var(--space-4) var(--space-5);
+}
+
+.ov-focus-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ov-focus-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.ov-focus-name {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.ov-focus-status {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.ov-focus-watch     { color: var(--bad);  background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.ov-focus-improving { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+
 /* ─── Card eyebrow (shared) ──────────────────────────────────────────────── */
 
 .ov-card-eyebrow {

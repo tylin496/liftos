@@ -169,6 +169,44 @@ function CompoundProgressCard({
   );
 }
 
+/* ── Today's Focus Card ────────────────────────────────────────────────── */
+
+const FOCUS_LABEL: Record<string, string> = {
+  watch:     "Watch",
+  stable:    "Stable",
+  improving: "Improving",
+};
+
+function TodaysFocusCard({
+  exercises,
+}: {
+  exercises: import("./api").StrengthExercise[];
+}) {
+  // Show Watch first, then Improving; skip Stable (not actionable)
+  const notable = [
+    ...exercises.filter((e) => e.status === "watch"),
+    ...exercises.filter((e) => e.status === "improving"),
+  ].slice(0, 5);
+
+  if (!notable.length) return null;
+
+  return (
+    <section className="page-card ov-focus">
+      <p className="ov-card-eyebrow">Today's Focus</p>
+      <div className="ov-focus-list">
+        {notable.map((ex) => (
+          <div key={ex.slug} className="ov-focus-row">
+            <span className="ov-focus-name">{ex.name}</span>
+            <span className={`ov-focus-status ov-focus-${ex.status}`}>
+              {FOCUS_LABEL[ex.status]}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* ── Overview Page ─────────────────────────────────────────────────────── */
 
 export function OverviewPage() {
@@ -241,6 +279,10 @@ export function OverviewPage() {
       </div>
 
       {data?.compoundProgress && <CompoundProgressCard progress={data.compoundProgress} />}
+
+      {data?.strength.exercises.length ? (
+        <TodaysFocusCard exercises={data.strength.exercises} />
+      ) : null}
 
       <div className="ov-grid-2">
         <button type="button" className="ov-stat" onClick={() => nav("training")}>

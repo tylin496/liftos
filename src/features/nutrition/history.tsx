@@ -289,22 +289,32 @@ export function HistoryView({
           <span className="nutri-month-count">{month.logged} logged</span>
         </div>
 
+        {/* Adherence hero */}
         <div className="nutri-adherence-hero">
-          <span className={`nutri-adherence-num ${adherenceTone}`}>
-            {month.adherencePct}
-          </span>
-          <div className="nutri-adherence-info">
+          <span className="nutri-adherence-label">Adherence</span>
+          <div className="nutri-adherence-row">
+            <span className={`nutri-adherence-num ${adherenceTone}`}>{month.adherencePct}</span>
             <span className="nutri-adherence-pct">%</span>
-            <span className="nutri-adherence-sub">on plan</span>
           </div>
         </div>
 
+        <hr className="nutri-divider" />
+
+        {/* Double Hit */}
+        <div className="nutri-dh">
+          <span className="nutri-dh-label">Double Hit</span>
+          <div className="nutri-dh-row">
+            <strong className="nutri-dh-pct tone-good">{month.doubleHitPct}%</strong>
+            <span className="nutri-dh-sub">{month.doubleHitCount}/{month.logged} days</span>
+          </div>
+        </div>
+
+        <hr className="nutri-divider" />
+
+        {/* Distribution */}
         <div className="nutri-dist">
           <div className="nutri-dist-head" aria-hidden="true">
-            <span />
-            <span />
-            <span>%</span>
-            <span>days</span>
+            <span /><span /><span>%</span><span>days</span>
           </div>
           {(() => {
             const denom = month.logged || 1;
@@ -337,16 +347,12 @@ export function HistoryView({
           })()}
         </div>
 
-        <div className="hist-stats" style={{ marginTop: "var(--space-3)" }}>
-          <div>
-            <span className="health-k">Double-hit</span>
-            <span className="health-v">{month.doubleHitPct}%</span>
-          </div>
-          <div>
-            <span className="health-k">Current streak</span>
-            <span className="health-v">{month.currentStreak}d</span>
-          </div>
-        </div>
+        {/* Streak footer */}
+        {month.currentStreak > 0 && (
+          <p className="nutri-streak">
+            Current streak <span className="tone-good">{month.currentStreak}</span> days
+          </p>
+        )}
       </section>
     </>
   );

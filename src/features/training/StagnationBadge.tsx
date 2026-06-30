@@ -82,15 +82,7 @@ export function StagnationBadge({
     >
       <span className="stagnation-head">
         <span className="stagnation-label">{label}</span>
-        <span className="stagnation-pct">
-          {showPR ? (
-            prLabel
-          ) : (
-            <>
-              <AnimatedNumber value={pct * 100} decimals={1} trimZeros />% of PR
-            </>
-          )}
-        </span>
+        {showPR && <span className="stagnation-pct">{prLabel}</span>}
         {expandable && <span className="stagnation-expand-hint" aria-hidden="true" />}
       </span>
       {t && (

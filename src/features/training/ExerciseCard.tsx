@@ -24,6 +24,7 @@ import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import { defaultSetCount } from "./logFormHelpers";
 import { AddEntryForm, AddAssistedForm, InlineEditEntry, InlineEditAssistedEntry } from "./LogForms";
 import { StagnationBadge, StagnationDetail } from "./StagnationBadge";
+import { useExitTransition } from "@shared/hooks/useExitTransition";
 
 export { ToastProvider, useToast };
 export { ConfirmProvider, useConfirm };
@@ -146,6 +147,10 @@ export function ExerciseCard({
     return () => document.removeEventListener("mousedown", onDown);
   }, [menuOpen]);
 
+  // Keep menu / lightbox mounted through their exit animation.
+  const menuT = useExitTransition(menuOpen, 120);
+  const lightboxT = useExitTransition(imgLightbox);
+
   // logs come newest-first from Supabase; reverse for stats (asc)
   // Exclude optimistically-deleted entries from display
   const effectiveLogs = useMemo(
@@ -163,7 +168,7 @@ export function ExerciseCard({
 
   // For display: newest first
   const filteredDesc = useMemo(() => [...filteredAsc].reverse(), [filteredAsc]);
-  const visibleCount = showAll ? filteredDesc.length : Math.min(3, filteredDesc.length);
+  const visibleCount = showAll ? filteredDesc.length : Math.min(2, filteredDesc.length);
   const visible = filteredDesc.slice(0, visibleCount);
 
   function commitMeta() {
@@ -346,8 +351,8 @@ export function ExerciseCard({
         >
           ⋯
         </button>
-        {menuOpen && (
-          <div className="card-menu-popup" role="menu">
+        {menuT.mounted && (
+          <div className={`card-menu-popup${menuT.closing ? " is-closing" : ""}`} role="menu">
             <button
               type="button"
               className="card-menu-item"
@@ -500,8 +505,11 @@ export function ExerciseCard({
         <div className="ex-ident-wrap" onClick={() => setImgLightbox(true)} role="button" aria-label="View image">
           <SmartImage src={imgSrc} alt="" className="ex-ident" />
         </div>
-        {imgLightbox && (
-          <div className="img-lightbox" onClick={() => setImgLightbox(false)}>
+        {lightboxT.mounted && (
+          <div
+            className={`img-lightbox${lightboxT.closing ? " is-closing" : ""}`}
+            onClick={() => setImgLightbox(false)}
+          >
             <img src={imgSrc} alt="" className="img-lightbox-img" />
           </div>
         )}
@@ -635,25 +643,6 @@ export function ExerciseCard({
         )}
       </div>
 
-      {/* ── Show more ── */}
-      {filteredDesc.length > 3 && !adding && (
-        <button
-          className="show-more"
-          onClick={() => {
-            const next = !showAll;
-            setShowAll(next);
-            if (next) {
-              setJustExpanded(true);
-              setTimeout(() => setJustExpanded(false), 700);
-            }
-          }}
-        >
-          {showAll
-            ? `Show recent only (${filteredDesc.length} total)`
-            : `View all ${filteredDesc.length} entries`}
-        </button>
-      )}
-
       {/* ── Log set form or button ── */}
       {adding ? (
         logs[0]?.kind === "assisted" ? (
@@ -684,6 +673,25 @@ export function ExerciseCard({
           <span className="hist-add-text">Log set</span>
         </button>
       ) : null}
+
+      {/* ── Show more ── */}
+      {filteredDesc.length > 2 && !adding && (
+        <button
+          className="show-more"
+          onClick={() => {
+            const next = !showAll;
+            setShowAll(next);
+            if (next) {
+              setJustExpanded(true);
+              setTimeout(() => setJustExpanded(false), 700);
+            }
+          }}
+        >
+          {showAll
+            ? `Show recent only (${filteredDesc.length} total)`
+            : `View all ${filteredDesc.length} entries`}
+        </button>
+      )}
     </article>
   );
 }
