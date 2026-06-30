@@ -53,7 +53,7 @@
 
 .seg-carousel-track {
   display: flex;
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--motion-slow) var(--move-ease);
   will-change: transform;
 }
 
@@ -85,7 +85,7 @@
   box-shadow: var(--shadow-sm);
   pointer-events: none;
   transform: translateX(calc(var(--seg-idx, 0) * (100% + 2px)));
-  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--motion-base) var(--move-ease);
   z-index: 0;
 }
 
@@ -100,7 +100,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink-3);
-  transition: color 0.18s;
+  transition: color var(--motion-base);
 }
 
 .seg-item.is-active {
@@ -399,7 +399,7 @@
   padding: 4px;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.05);
   backdrop-filter: blur(18px);
-  animation: rise-in 360ms ease both;
+  animation: rise-in var(--motion-slow) ease both;
 }
 
 .nutri-date {
@@ -440,7 +440,7 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+  transition: background var(--motion-fast), border-color var(--motion-fast);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -489,16 +489,17 @@
   margin: var(--space-1) 0 var(--space-3);
 }
 
-/* state colours — mirrors calorie-tracker adherence palette */
+/* state colours — used on distribution bar row labels */
 .state-on-plan  { color: var(--blue); }
 .state-under    { color: var(--ink-3); }
 .state-over     { color: var(--ink-3); }
 .state-extreme  { color: #c87820; }
 .state-surplus  { color: var(--bad); }
 
-@media (prefers-color-scheme: dark) {
-  .state-on-plan { color: var(--blue); }
-}
+/* tone classes — hero numbers (calorie, protein, adherence %) */
+.tone-good { color: var(--good); -webkit-text-fill-color: var(--good); }
+.tone-gold { color: var(--gold); -webkit-text-fill-color: var(--gold); }
+.tone-bad  { color: var(--bad);  -webkit-text-fill-color: var(--bad);  }
 
 /* ── Progress bar ────────────────────────────────────────────────────── */
 .nutri-bar {
@@ -513,7 +514,7 @@
   height: 100%;
   border-radius: 999px;
   background: currentColor;
-  transition: width 0.4s var(--reveal-ease);
+  transition: width var(--motion-slow) var(--reveal-ease);
   animation: progress-fill 0.52s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
@@ -569,7 +570,7 @@
   color: #fff;
   font-size: var(--text-base);
   font-weight: 700;
-  transition: transform 0.12s var(--press-ease), opacity 0.15s;
+  transition: transform var(--motion-fast) var(--press-ease), opacity var(--motion-fast);
 }
 
 .nutri-save::after {
@@ -643,7 +644,7 @@
   backdrop-filter: blur(28px);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
   padding: 24px 20px 28px;
-  animation: ncal-in 200ms ease both;
+  animation: ncal-in var(--motion-base) ease both;
 }
 
 @keyframes ncal-in {
@@ -800,7 +801,7 @@
   text-align: left;
   border: none;
   cursor: pointer;
-  transition: transform 0.12s var(--press-ease);
+  transition: transform var(--motion-fast) var(--press-ease);
 }
 
 .nutri-tap-card:active {
@@ -840,7 +841,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  animation: entry-sheet-in 0.22s var(--reveal-ease) both;
+  animation: entry-sheet-in var(--motion-base) var(--reveal-ease) both;
 }
 
 @keyframes entry-sheet-in {
@@ -977,7 +978,7 @@
   font-weight: 600;
   color: var(--accent);
   cursor: pointer;
-  transition: opacity 0.12s;
+  transition: opacity var(--motion-fast);
 }
 
 .nutri-section-toggle:active { opacity: 0.7; }
@@ -1139,8 +1140,8 @@
   border-radius: 3px 3px 0 0;
   min-height: 4px;
   transform-origin: bottom;
-  animation: bar-rise 0.4s var(--reveal-ease) both;
-  animation-delay: calc(var(--bar-index, 0) * 40ms);
+  animation: bar-rise var(--motion-slow) var(--reveal-ease) both;
+  animation-delay: calc(var(--bar-index, 0) * var(--stagger-step));
 }
 
 @keyframes bar-rise {
@@ -1395,7 +1396,7 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--motion-fast), color var(--motion-fast);
   flex-shrink: 0;
 }
 
@@ -1426,7 +1427,7 @@
   cursor: pointer;
   text-align: left;
   border-bottom: 1px solid var(--rule);
-  transition: opacity 0.1s;
+  transition: opacity var(--motion-fast);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1455,7 +1456,7 @@
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--ink);
-  transition: color 0.2s;
+  transition: color var(--motion-base);
 }
 
 .stat-unit {
@@ -1534,7 +1535,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  animation: rise-in 180ms ease both;
+  animation: rise-in var(--motion-base) ease both;
 }
 
 @keyframes rise-in {
@@ -1654,7 +1655,7 @@
   border-radius: 20px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
   padding: 20px 20px 16px;
-  animation: entry-sheet-in 0.2s var(--reveal-ease) both;
+  animation: entry-sheet-in var(--motion-base) var(--reveal-ease) both;
 }
 
 .dc-body {
@@ -1692,7 +1693,7 @@
   font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background var(--motion-fast);
 }
 
 .dc-cancel:active { background: var(--bg-input); }
@@ -1708,7 +1709,7 @@
   font-size: var(--text-base);
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.12s, transform 0.1s;
+  transition: opacity var(--motion-fast), transform var(--motion-fast);
 }
 
 .dc-delete:active { opacity: 0.85; transform: scale(0.97); }
@@ -1842,7 +1843,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
-  transition: transform 150ms ease;
+  transition: transform var(--motion-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1857,7 +1858,7 @@
   justify-content: flex-end;
   margin-bottom: 3px;
   opacity: 0;
-  transition: opacity 160ms ease;
+  transition: opacity var(--motion-fast) ease;
 }
 
 .nutri-trend-col.is-selected .ntb-values { opacity: 1; }
@@ -1902,8 +1903,8 @@
   max-width: 44px;
   height: 100%;
   transform-origin: bottom center;
-  animation: bar-rise 0.42s var(--reveal-ease) both;
-  animation-delay: calc(var(--bar-index, 0) * 40ms);
+  animation: bar-rise var(--motion-slow) var(--reveal-ease) both;
+  animation-delay: calc(var(--bar-index, 0) * var(--stagger-step));
 }
 
 .ntb-bar {
@@ -1914,7 +1915,7 @@
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--bg-card) 38%, transparent),
     0 6px 12px color-mix(in srgb, #000000 10%, transparent);
-  transition: background 180ms ease, box-shadow 180ms ease;
+  transition: background var(--motion-base) ease, box-shadow var(--motion-base) ease;
 }
 
 .ntb-bar-kcal {
@@ -1992,7 +1993,7 @@
   cursor: pointer;
   font-size: var(--text-sm);
   font-weight: 700;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--motion-fast), color var(--motion-fast);
   flex-shrink: 0;
 }
 
@@ -2033,7 +2034,7 @@
   font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--motion-fast), color var(--motion-fast);
 }
 
 .prog-activate-btn:active {
@@ -2070,8 +2071,8 @@
   from { opacity: 0; transform: translateX(-40%); }
   to   { opacity: 1; transform: translateX(0); }
 }
-.date-slide-forward  { animation: date-in-forward  220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-.date-slide-backward { animation: date-in-backward 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.date-slide-forward  { animation: date-in-forward  var(--motion-base) var(--reveal-ease) both; }
+.date-slide-backward { animation: date-in-backward var(--motion-base) var(--reveal-ease) both; }
 
 /* ── Day navigation carousel ─────────────────────────────────────────── */
 @keyframes slide-from-right {
@@ -2084,8 +2085,8 @@
   to   { opacity: 1; transform: translateX(0); }
 }
 
-.daily-card.day-nav-forward  { animation: slide-from-right 300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-.daily-card.day-nav-backward { animation: slide-from-left  300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--reveal-ease) both; }
+.daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--reveal-ease) both; }
 
 
 /* ── Nutrition loading skeletons ─────────────────────────────────────── */

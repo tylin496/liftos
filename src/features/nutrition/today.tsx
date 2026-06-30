@@ -23,7 +23,7 @@ function haptic(kind: keyof typeof HAPTIC = "tap") {
 }
 
 // ── Count-up animation ────────────────────────────────────────────────────────
-function animateCountUp(el: HTMLElement, target: number) {
+function animateCountUp(el: HTMLElement, target: number, signal: { cancelled: boolean }) {
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
     el.textContent = Math.round(target).toLocaleString();
     return;
@@ -31,6 +31,7 @@ function animateCountUp(el: HTMLElement, target: number) {
   const DURATION = 500;
   const start = performance.now();
   function step(now: number) {
+    if (signal.cancelled) return;
     const t = Math.min(1, (now - start) / DURATION);
     const eased = 1 - Math.pow(1 - t, 3);
     el.textContent = Math.round(target * eased).toLocaleString();
@@ -327,6 +328,7 @@ export function TodayView({
   const containerRef = useRef<HTMLDivElement>(null);
   const pendingCountUp = useRef(false);
   const isNavigating = useRef(false);
+  const countUpSignal = useRef<{ cancelled: boolean }>({ cancelled: false });
 
   const todayStr = defaultLogDate();
   const isToday = date === todayStr;
@@ -363,8 +365,10 @@ export function TodayView({
     pendingCountUp.current = false;
     const calN = Number(calories);
     const protN = Number(protein);
-    if (calNumRef.current && calN > 0) animateCountUp(calNumRef.current, calN);
-    if (protNumRef.current && protN > 0) animateCountUp(protNumRef.current, protN);
+    const sig = { cancelled: false };
+    countUpSignal.current = sig;
+    if (calNumRef.current && calN > 0) animateCountUp(calNumRef.current, calN, sig);
+    if (protNumRef.current && protN > 0) animateCountUp(protNumRef.current, protN, sig);
   }, [loading]);
 
   // Focus right input when edit opens
@@ -461,6 +465,8 @@ export function TodayView({
 
   function navigate(to: string) {
     const dir = to > date ? "forward" : "backward";
+    countUpSignal.current.cancelled = true;
+    countUpSignal.current = { cancelled: false };
     isNavigating.current = true;
     setNavDir(dir);
     onDateChange(to);
@@ -556,10 +562,9 @@ export function TodayView({
   })();
 
   const calTone = hasEntry
-    ? calResult.isSurplus ? "state-surplus"
-    : calResult.state === "extreme" ? "state-extreme"
-    : calResult.state === "on-plan" ? "state-on-plan"
-    : calResult.state === "over" ? "state-over"
+    ? calResult.isSurplus ? "tone-bad"
+    : calResult.state === "extreme" ? "tone-bad"
+    : calResult.state === "on-plan" ? "tone-good"
     : ""
     : "";
 
@@ -778,7 +783,7 @@ export function TodayView({
                   onClick={() => openEdit("protein")}
                 >
                   <span className="stat-main">
-                    <span ref={protNumRef} className={`stat-number${protResult.celebrated ? " state-on-plan" : ""}`}>
+                    <span ref={protNumRef} className={`stat-number${protResult.celebrated ? " tone-good" : ""}`}>
                       {protNum}
                     </span>
                     <span className="stat-unit">g</span>

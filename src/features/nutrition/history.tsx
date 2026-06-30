@@ -137,8 +137,8 @@ export function HistoryView({
     );
   }
 
-  const adherenceState =
-    month.adherencePct >= 80 ? "on-plan" : month.adherencePct >= 60 ? "over" : "surplus";
+  const adherenceTone =
+    month.adherencePct >= 80 ? "tone-good" : month.adherencePct >= 60 ? "tone-gold" : "tone-bad";
 
   return (
     <>
@@ -290,7 +290,7 @@ export function HistoryView({
         </div>
 
         <div className="nutri-adherence-hero">
-          <span className={`nutri-adherence-num state-${adherenceState}`}>
+          <span className={`nutri-adherence-num ${adherenceTone}`}>
             {month.adherencePct}
           </span>
           <div className="nutri-adherence-info">

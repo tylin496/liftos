@@ -21,7 +21,7 @@
   background: transparent;
   color: var(--ink-3);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  transition: background var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
 }
 
 .health-range-btn--active {

@@ -7,7 +7,7 @@
 
 html {
   scroll-behavior: smooth;
-  transition: background-color 0.25s;
+  transition: background-color var(--motion-base) var(--move-ease);
   /* Always reserve room for the vertical scrollbar so the centered content
      doesn't jump horizontally when switching between short/tall tabs. */
   scrollbar-gutter: stable;
@@ -49,6 +49,19 @@ button {
   cursor: pointer;
 }
 
+/* Respect the OS "reduce motion" setting everywhere. Animations collapse to
+   a near-instant end-state; nothing disappears, it just stops moving. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 #root {
   min-height: 100dvh;
 }
@@ -81,12 +94,12 @@ button {
   font-weight: 600;
   pointer-events: all;
   cursor: pointer;
-  animation: toast-in 0.22s var(--reveal-ease) both;
+  animation: toast-in var(--motion-base) var(--reveal-ease) both;
   white-space: nowrap;
 }
 
 .toast-exit {
-  animation: toast-out 0.22s ease both;
+  animation: toast-out var(--motion-base) var(--move-ease) both;
 }
 
 @keyframes toast-in {
@@ -142,7 +155,7 @@ button {
   font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background var(--motion-fast) var(--press-ease);
 }
 
 .toast-action:hover {

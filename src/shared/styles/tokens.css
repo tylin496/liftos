@@ -68,8 +68,18 @@
   --shadow-md: 0 12px 30px rgba(28, 36, 60, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 
   --card-blur: blur(22px);
-  --press-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Motion ───────────────────────────────────────────────────────── */
+  /* 3 durations · 3 curves · 1 stagger step. Use these everywhere.
+     Celebration/feedback specials (PR pop, confetti, save pulse, shimmer)
+     intentionally run longer and live next to their keyframes. */
+  --motion-fast: 120ms; /* press, hover, color/opacity feedback */
+  --motion-base: 220ms; /* enter, menu, modal, crossfade, slides */
+  --motion-slow: 340ms; /* card stagger, page transitions */
+  --press-ease: cubic-bezier(0.2, 0.8, 0.2, 1);  /* tap scale-down / return */
+  --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);  /* reveals — slight overshoot */
+  --move-ease: cubic-bezier(0.4, 0, 0.2, 1);     /* slides / positional */
+  --stagger-step: 45ms;
   --tap-scale: 0.97;
 
   /* ── Layout ───────────────────────────────────────────────────────── */

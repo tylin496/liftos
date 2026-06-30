@@ -47,7 +47,7 @@
   color: var(--ink);
   font-size: var(--text-base);
   font-weight: 600;
-  transition: transform 0.12s var(--press-ease);
+  transition: transform var(--motion-fast) var(--press-ease);
 }
 
 .auth-google:active {

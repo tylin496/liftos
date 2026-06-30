@@ -30,6 +30,8 @@ export function Shell({ session }: { session: Session }) {
     { overview: 0, training: 0, nutrition: 0, health: 0 },
   );
   const [headerHidden, setHeaderHidden] = useState(false);
+  // True once the page scrolls off the top — drives the header's glass material
+  const [scrolled, setScrolled] = useState(false);
   const lastScrollY = useRef(0);
 
   function switchTab(next: TabId) {
@@ -40,6 +42,7 @@ export function Shell({ session }: { session: Session }) {
     }
     setTab(next);
     setHeaderHidden(false);
+    setScrolled(false);
     window.scrollTo({ top: 0, behavior: "instant" });
   }
   const contentRef = useRef<HTMLElement | null>(null);
@@ -98,6 +101,7 @@ export function Shell({ session }: { session: Session }) {
     function onScroll() {
       const y = window.scrollY;
       const delta = y - lastScrollY.current;
+      setScrolled(y > 4);
       if (y < 60) {
         setHeaderHidden(false);
       } else if (delta > 6) {
@@ -115,7 +119,7 @@ export function Shell({ session }: { session: Session }) {
     <HeaderActionProvider>
       <HeaderTitleProvider>
       <NavContext.Provider value={switchTab}>
-        <div className={`shell${headerHidden ? " shell--header-hidden" : ""}`}>
+        <div className={`shell${headerHidden ? " shell--header-hidden" : ""}${scrolled ? " shell--scrolled" : ""}`}>
           <Header user={session.user} tab={tab} />
           <main ref={contentRef} className="shell-content">
             {TAB_ORDER.map((tabId) => {

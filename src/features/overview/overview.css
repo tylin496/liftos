@@ -108,7 +108,8 @@
 }
 
 .ov-bar-fill.anim {
-  transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Deliberate slow data-reveal — paced to the 0.8s glow-flash delay below. */
+  transition: width 0.55s var(--move-ease);
 }
 
 .ov-bar-fill.protein {
@@ -172,7 +173,7 @@
   gap: var(--space-1);
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
-  transition: transform 0.18s var(--press-ease), box-shadow 0.18s;
+  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
   cursor: pointer;
   text-align: left;
   -webkit-tap-highlight-color: transparent;
@@ -188,7 +189,7 @@
 .ov-stat:active {
   transform: scale(var(--tap-scale));
   box-shadow: var(--shadow-sm);
-  transition-duration: 0.08s;
+  transition-duration: var(--motion-fast);
 }
 
 .ov-stat-label {
@@ -341,7 +342,7 @@
   font-size: var(--text-sm);
   cursor: pointer;
   text-align: left;
-  transition: background 0.12s, transform 0.1s var(--press-ease);
+  transition: background var(--motion-fast), transform var(--motion-fast) var(--press-ease);
   -webkit-tap-highlight-color: transparent;
 }
 

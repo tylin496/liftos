@@ -42,8 +42,8 @@
   from { opacity: 0; transform: translateX(60px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-.tr-slide-left  { animation: slide-from-right 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
-.tr-slide-right { animation: slide-from-left  0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+.tr-slide-left  { animation: slide-from-right var(--motion-base) var(--reveal-ease); }
+.tr-slide-right { animation: slide-from-left  var(--motion-base) var(--reveal-ease); }
 
 /* suppress card-enter when the whole list is sliding horizontally */
 .tr-slide-left .ex-card,
@@ -69,19 +69,19 @@
   box-shadow: var(--shadow-sm);
   padding: var(--space-4);
   overflow: visible;
-  animation: card-enter 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: card-enter var(--motion-slow) var(--reveal-ease) both;
 }
 
 /* Stagger each card by 45ms */
-.ex-card:nth-child(1)  { animation-delay:   0ms; }
-.ex-card:nth-child(2)  { animation-delay:  45ms; }
-.ex-card:nth-child(3)  { animation-delay:  90ms; }
-.ex-card:nth-child(4)  { animation-delay: 135ms; }
-.ex-card:nth-child(5)  { animation-delay: 180ms; }
-.ex-card:nth-child(6)  { animation-delay: 225ms; }
-.ex-card:nth-child(7)  { animation-delay: 270ms; }
-.ex-card:nth-child(8)  { animation-delay: 315ms; }
-.ex-card:nth-child(n+9){ animation-delay: 360ms; }
+.ex-card:nth-child(1)  { animation-delay: calc(var(--stagger-step) * 0); }
+.ex-card:nth-child(2)  { animation-delay: calc(var(--stagger-step) * 1); }
+.ex-card:nth-child(3)  { animation-delay: calc(var(--stagger-step) * 2); }
+.ex-card:nth-child(4)  { animation-delay: calc(var(--stagger-step) * 3); }
+.ex-card:nth-child(5)  { animation-delay: calc(var(--stagger-step) * 4); }
+.ex-card:nth-child(6)  { animation-delay: calc(var(--stagger-step) * 5); }
+.ex-card:nth-child(7)  { animation-delay: calc(var(--stagger-step) * 6); }
+.ex-card:nth-child(8)  { animation-delay: calc(var(--stagger-step) * 7); }
+.ex-card:nth-child(n+9){ animation-delay: calc(var(--stagger-step) * 8); }
 
 /* ── Card menu ───────────────────────────────────────────────────────────────*/
 .ex-card-menu {
@@ -104,7 +104,7 @@
   line-height: 1;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--motion-fast), color var(--motion-fast);
 }
 
 .card-menu-btn:hover,
@@ -129,7 +129,7 @@
   box-shadow: var(--shadow-md);
   padding: var(--space-1) 0;
   z-index: 100;
-  animation: menu-pop 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: menu-pop var(--motion-fast) var(--reveal-ease) both;
 }
 
 .card-menu-item {
@@ -184,6 +184,7 @@
   color: var(--ink);
   cursor: pointer;
   line-height: 1.2;
+  margin: 0;
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -273,7 +274,7 @@
   width: 100%;
   height: auto;
   display: block;
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--motion-slow) var(--reveal-ease);
 }
 
 .ex-ident-wrap:hover .ex-ident {
@@ -282,7 +283,7 @@
 
 .ex-ident-wrap:active .ex-ident {
   transform: scale(0.96);
-  transition-duration: 0.1s;
+  transition-duration: var(--motion-fast);
 }
 
 /* ── Image lightbox ──────────────────────────────────────────────────────────*/
@@ -300,7 +301,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  animation: lightbox-in 0.18s ease;
+  animation: lightbox-in var(--motion-base) ease;
   cursor: zoom-out;
 }
 
@@ -315,7 +316,7 @@
 /* ── PR display ──────────────────────────────────────────────────────────────*/
 .ex-pr-inline {
   margin-bottom: var(--space-1);
-  transition: background 0.3s;
+  transition: background var(--motion-slow);
   border-radius: var(--radius-sm);
   padding: var(--space-1) 0;
 }
@@ -334,7 +335,7 @@
 
 .ex-pr-inline.pr-just-set {
   background: rgba(200, 117, 0, 0.12);
-  animation: pr-pop 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: pr-pop 500ms var(--reveal-ease);
   position: relative;
   overflow: hidden;
 }
@@ -414,7 +415,7 @@
   gap: var(--space-2);
   padding: var(--space-2) 0;
   border-bottom: 1px solid transparent;
-  transition: background 0.15s, opacity 0.15s;
+  transition: background var(--motion-fast), opacity var(--motion-fast);
 }
 
 .hist-row:hover {
@@ -440,7 +441,7 @@
 .hist-row.is-editing {
   background: var(--bg-soft);
   border-radius: var(--radius-sm);
-  animation: row-edit-in 180ms ease;
+  animation: row-edit-in var(--motion-base) ease;
 }
 
 .hist-row.is-editing .hist-actions button {
@@ -545,7 +546,7 @@
   font-size: 14px;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: background 0.1s, color 0.1s, opacity 0.15s;
+  transition: background var(--motion-fast), color var(--motion-fast), opacity var(--motion-fast);
   opacity: 0;
 }
 
@@ -672,19 +673,19 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--rule);
   margin-top: var(--space-2);
-  animation: add-form-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: add-form-in var(--motion-base) var(--reveal-ease) both;
   transform-origin: top center;
 }
 
 .add-form.log-redesign > * {
-  animation: log-zone-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: log-zone-in var(--motion-base) var(--reveal-ease) both;
 }
 
-.add-form.log-redesign > *:nth-child(1) { animation-delay:  50ms; }
-.add-form.log-redesign > *:nth-child(2) { animation-delay: 100ms; }
-.add-form.log-redesign > *:nth-child(3) { animation-delay: 150ms; }
-.add-form.log-redesign > *:nth-child(4) { animation-delay: 200ms; }
-.add-form.log-redesign > *:nth-child(n+5) { animation-delay: 250ms; }
+.add-form.log-redesign > *:nth-child(1) { animation-delay: calc(var(--stagger-step) * 1); }
+.add-form.log-redesign > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 2); }
+.add-form.log-redesign > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 3); }
+.add-form.log-redesign > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 4); }
+.add-form.log-redesign > *:nth-child(n+5) { animation-delay: calc(var(--stagger-step) * 5); }
 
 .log-topbar {
   display: flex;
@@ -705,7 +706,7 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--motion-fast), color var(--motion-fast);
 }
 
 .log-dismiss:hover {
@@ -757,7 +758,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.12s, transform 0.1s var(--press-ease);
+  transition: background var(--motion-fast), transform var(--motion-fast) var(--press-ease);
 }
 
 .log-adj-btn:active {
@@ -779,7 +780,7 @@
   outline: none;
   padding: 0;
   line-height: 1;
-  transition: font-size 0.1s;
+  transition: font-size var(--motion-fast);
 }
 
 .log-hero-input.mono::placeholder {
@@ -811,7 +812,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--motion-fast), color var(--motion-fast);
 }
 
 .unit-btn.on {
@@ -836,7 +837,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: background 0.12s, transform 0.1s var(--press-ease);
+  transition: background var(--motion-fast), transform var(--motion-fast) var(--press-ease);
 }
 
 .chip:active {
@@ -886,7 +887,7 @@
   border-radius: var(--radius-sm);
   padding: var(--space-2);
   outline: none;
-  transition: border-color 0.1s, box-shadow 0.1s;
+  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
 }
 
 .reps-input.mono:focus {
@@ -939,7 +940,7 @@
   font-size: var(--text-base);
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.12s var(--press-ease), opacity 0.15s;
+  transition: transform var(--motion-fast) var(--press-ease), opacity var(--motion-fast);
 }
 
 .btn-log-primary:active {
@@ -966,7 +967,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background var(--motion-fast);
 }
 
 .btn-log-secondary:hover {
@@ -1059,7 +1060,7 @@
 
 .log-edit-advanced-toggle .caret {
   display: inline-block;
-  transition: transform 0.15s;
+  transition: transform var(--motion-fast);
 }
 
 .log-edit-advanced-toggle .caret.open {
@@ -1077,7 +1078,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background var(--motion-fast);
 }
 
 .inline-edit-delete-btn:hover {
@@ -1101,7 +1102,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+  transition: background var(--motion-fast), border-color var(--motion-fast);
 }
 
 .hist-add:hover {
@@ -1126,7 +1127,7 @@
   font-size: var(--text-sm);
   cursor: pointer;
   text-align: center;
-  transition: color 0.12s;
+  transition: color var(--motion-fast);
   margin-top: var(--space-2);
 }
 
@@ -1141,7 +1142,7 @@
 }
 
 .hist-row-reveal {
-  animation: hist-reveal 0.22s var(--reveal-ease) both;
+  animation: hist-reveal var(--motion-base) var(--reveal-ease) both;
 }
 
 /* ── Page ─────────────────────────────────────────────────────────────────────*/
@@ -1173,7 +1174,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background var(--motion-fast);
 }
 
 .add-exercise-btn:hover {
@@ -1307,7 +1308,7 @@
 .archived-chevron {
   color: var(--ink-4);
   flex-shrink: 0;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--motion-base) var(--move-ease);
 }
 
 .archived-chevron.open {
@@ -1368,7 +1369,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background var(--motion-fast);
 }
 
 .archived-actions button:hover {
@@ -1416,7 +1417,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--motion-fast), color var(--motion-fast);
 }
 
 .section-head button:hover {
@@ -1495,7 +1496,7 @@
   box-shadow: var(--shadow-md);
   padding: var(--space-1) 0;
   z-index: 50;
-  animation: menu-pop 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: menu-pop var(--motion-fast) var(--reveal-ease) both;
 }
 
 .stretch-menu-item {
@@ -1571,14 +1572,11 @@
 
 /* ── Filter bar ──────────────────────────────────────────────────────────────*/
 .filter-bar {
-  position: fixed;
-  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-3));
-  right: var(--space-4);
-  z-index: 10;
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
   padding: 0;
+  margin-bottom: var(--space-2);
 }
 
 .filter-btn {
@@ -1591,7 +1589,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  transition: background var(--motion-fast), color var(--motion-fast), border-color var(--motion-fast);
 }
 
 .filter-btn.on {
@@ -1619,7 +1617,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--motion-fast), color var(--motion-fast);
   white-space: nowrap;
 }
 
@@ -1661,7 +1659,7 @@
   justify-content: center;
   z-index: 300;
   padding: var(--space-4);
-  animation: overlay-in 0.18s ease both;
+  animation: overlay-in var(--motion-base) ease both;
 }
 
 .confirm-dialog {
@@ -1674,7 +1672,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  animation: dialog-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: dialog-in var(--motion-base) var(--reveal-ease) both;
 }
 
 .confirm-msg {
@@ -1700,7 +1698,7 @@
   font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.1s var(--press-ease);
+  transition: transform var(--motion-fast) var(--press-ease);
 }
 
 .btn-primary:active {
@@ -1788,7 +1786,7 @@
 
 .stagnation-expandable {
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: opacity var(--motion-fast);
 }
 .stagnation-expandable:hover { opacity: 0.8; }
 .stagnation-expandable:focus-visible { outline: 2px solid var(--accent); border-radius: 4px; }
@@ -1802,7 +1800,7 @@
   border-top: 5px solid currentColor;
   opacity: 0.5;
   margin-left: 2px;
-  transition: transform 0.2s;
+  transition: transform var(--motion-base);
   vertical-align: middle;
 }
 [aria-expanded="true"] .stagnation-expand-hint {
@@ -1845,7 +1843,7 @@
   background: color-mix(in srgb, var(--ink-4) 6%, transparent);
   font-size: 12px;
   line-height: 1.4;
-  animation: detail-in 0.18s ease;
+  animation: detail-in var(--motion-base) ease;
 }
 @keyframes detail-in {
   from { opacity: 0; transform: translateY(-4px); }
