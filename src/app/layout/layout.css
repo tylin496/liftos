@@ -19,6 +19,7 @@
   position: sticky;
   top: 0;
   z-index: 20;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   height: calc(var(--header-h) + var(--safe-top));
   padding: var(--safe-top) var(--space-4) 0;
   /* 3-column grid: left (brand/empty) | center (tab title) | right (actions).
@@ -31,6 +32,10 @@
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
   border-bottom: 1px solid var(--rule);
+}
+
+.shell--header-hidden .shell-header {
+  transform: translateY(-100%);
 }
 
 .shell-brand {

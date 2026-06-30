@@ -28,6 +28,8 @@ export function Shell({ session }: { session: Session }) {
   const [tabVersions, setTabVersions] = useState<Record<TabId, number>>(
     { overview: 0, training: 0, nutrition: 0, health: 0 },
   );
+  const [headerHidden, setHeaderHidden] = useState(false);
+  const lastScrollY = useRef(0);
 
   function switchTab(next: TabId) {
     if (next !== tab) {
@@ -36,6 +38,7 @@ export function Shell({ session }: { session: Session }) {
       setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
     }
     setTab(next);
+    setHeaderHidden(false);
     window.scrollTo({ top: 0, behavior: "instant" });
   }
   const contentRef = useRef<HTMLElement | null>(null);
@@ -90,10 +93,27 @@ export function Shell({ session }: { session: Session }) {
     };
   }, []);
 
+  useEffect(() => {
+    function onScroll() {
+      const y = window.scrollY;
+      const delta = y - lastScrollY.current;
+      if (y < 60) {
+        setHeaderHidden(false);
+      } else if (delta > 6) {
+        setHeaderHidden(true);
+      } else if (delta < -6) {
+        setHeaderHidden(false);
+      }
+      lastScrollY.current = y;
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <HeaderActionProvider>
       <NavContext.Provider value={switchTab}>
-        <div className="shell">
+        <div className={`shell${headerHidden ? " shell--header-hidden" : ""}`}>
           <Header user={session.user} tab={tab} />
           <main ref={contentRef} className="shell-content">
             {TAB_ORDER.map((tabId) => {
