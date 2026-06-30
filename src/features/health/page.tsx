@@ -15,11 +15,13 @@ interface MetricSpec {
   unit: string;
   decimals: number;
   color: string;
+  /** Rolling-bucket size in days; also the Card's "this period" averaging window. */
+  bucket: number;
 }
 
 const METRICS: MetricSpec[] = [
-  { key: "weight_kg",    label: "Weight",   unit: "kg", decimals: 1, color: "#5e9cf5" },
-  { key: "body_fat_pct", label: "Body Fat", unit: "%",  decimals: 1, color: "#bf5af2" },
+  { key: "weight_kg",    label: "Weight",   unit: "kg", decimals: 1, color: "#5e9cf5", bucket: 7  },
+  { key: "body_fat_pct", label: "Body Fat", unit: "%",  decimals: 1, color: "#bf5af2", bucket: 14 },
 ];
 
 const FIXED_DAYS = 180;
@@ -353,10 +355,10 @@ export function HealthPage() {
     if (!data) return [];
     return METRICS.map((spec) => {
       const s = series(data.metrics, spec.key);
-      const thisWeek = rollingAvg(s, 7, 0);
-      const prevWeek = rollingAvg(s, 7, 7);
+      const thisWeek = rollingAvg(s, spec.bucket, 0);
+      const prevWeek = rollingAvg(s, spec.bucket, spec.bucket);
       const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
-      const bucketed = bucketSeries(s, { spanDays: 180, bucketDays: 7 });
+      const bucketed = bucketSeries(s, { spanDays: 180, bucketDays: spec.bucket });
       const dateRange = formatDateRange(bucketed);
       return { spec, bucketed, thisWeek, change, dateRange, readingCount: s.length };
     });
