@@ -103,16 +103,35 @@ export default async function handler(req, res) {
     }
     const { data, error: dbErr } = await supabase
       .from("nutrition_entries")
-      .select("entry_date, calories, protein")
+      .select("entry_date, calories, protein, dietary_exported_at")
       .eq("user_id", userId)
       .eq("entry_date", date)
       .maybeSingle();
     if (dbErr) return res.status(500).json({ error: dbErr.message });
+
+    // Already exported once → return nulls so the Shortcut logs nothing.
+    // Makes manual re-runs safe (Apple Health's logging is append-only).
+    if (data?.dietary_exported_at) {
+      return res
+        .status(200)
+        .json({ ok: true, date, calories: null, protein: null, alreadyExported: true });
+    }
+
+    // First export of a day that actually has data → hand back the values
+    // and stamp it so any later run skips.
+    if (data && data.calories != null) {
+      await supabase
+        .from("nutrition_entries")
+        .update({ dietary_exported_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .eq("entry_date", date);
+    }
     return res.status(200).json({
       ok: true,
       date,
       calories: data?.calories ?? null,
       protein: data?.protein ?? null,
+      alreadyExported: false,
     });
   }
 
