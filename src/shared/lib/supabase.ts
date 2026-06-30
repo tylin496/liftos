@@ -19,8 +19,16 @@ const realClient = createClient<Database>(
 
 // In bypass mode, swap in the in-memory mock so all API calls work without a
 // real auth session. The mock implements the same query-builder interface.
+const isMock = import.meta.env.VITE_DEV_BYPASS_AUTH === "true";
+
+if (isMock && import.meta.env.DEV) {
+  console.warn(
+    "[LiftOS] VITE_DEV_BYPASS_AUTH=true — using in-memory MOCK data. No reads/writes hit real Supabase.",
+  );
+}
+
 export const supabase = (
-  import.meta.env.VITE_DEV_BYPASS_AUTH === "true" ? mockSupabase : realClient
+  isMock ? mockSupabase : realClient
 ) as unknown as typeof realClient;
 
 // Dev-only console handle for debugging / preview verification.

@@ -95,6 +95,14 @@
   -webkit-user-select: none;
 }
 
+/* Empty-chart placeholder (fewer than 2 points) */
+.health-chart-empty {
+  height: 80px;
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+  opacity: 0.4;
+}
+
 /* ── TDEE hero ───────────────────────────────────────────────────────── */
 .health-tdee-num {
   font-size: var(--text-4xl);

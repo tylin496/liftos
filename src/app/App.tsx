@@ -25,11 +25,26 @@ const DEV_SESSION: Session = {
   },
 };
 
-export function App() {
-  const { session, loading } = useAuth();
+const IS_MOCK = import.meta.env.VITE_DEV_BYPASS_AUTH === "true";
 
-  if (import.meta.env.VITE_DEV_BYPASS_AUTH === "true") {
-    return <Shell session={DEV_SESSION} />;
+// Dev-only marker so it's unmistakable when the app is running against the
+// in-memory mock instead of real Supabase — prevents debugging "bugs" that
+// only exist (or don't) in mock data.
+function MockBadge() {
+  if (!IS_MOCK || !import.meta.env.DEV) return null;
+  return <div className="mock-badge">MOCK DATA</div>;
+}
+
+export function App() {
+  const { session, loading, error } = useAuth();
+
+  if (IS_MOCK) {
+    return (
+      <>
+        <Shell session={DEV_SESSION} />
+        <MockBadge />
+      </>
+    );
   }
 
   if (!isSupabaseConfigured) {
@@ -42,6 +57,25 @@ export function App() {
             Add <code>VITE_SUPABASE_ANON_KEY</code> to <code>.env.local</code> and
             restart the dev server.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="auth-gate">
+        <div className="auth-card">
+          <div className="auth-brand">LiftOS</div>
+          <p className="auth-tagline">Couldn't reach your account</p>
+          <p className="page-note">{error.message}</p>
+          <button
+            type="button"
+            className="app-error-retry"
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
         </div>
       </div>
     );

@@ -11,11 +11,6 @@ function isoToday(): string {
   return localDateStr();
 }
 
-function isoMonthStart(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-}
-
 function sinceDate(days: number): string {
   return localDateStrDaysAgo(days);
 }
@@ -56,8 +51,6 @@ export interface OverviewData {
   weightWeekAgo: number | null;
   tdee: number | null;
   tdeePrev: number | null;
-  prThisMonth: number;
-  sessionsThisWeek: number;
   strength: StrengthSummary;
   compoundProgress: CompoundProgress | null;
 }
@@ -90,7 +83,6 @@ function compoundPct(slugLogs: Array<{ log_date: string | null; raw: string | nu
 
 export async function fetchOverview(): Promise<OverviewData> {
   const today = isoToday();
-  const monthStart = isoMonthStart();
   const weekAgo = sinceDate(7);
 
   const [entryRes, configRes, metricsRes, logsRes, pullFirstRes, rowFirstRes] = await Promise.all([
@@ -167,32 +159,16 @@ export async function fetchOverview(): Promise<OverviewData> {
   // Training logs
   const logs = logsRes.data ?? [];
 
-  // Sessions this week = distinct log_date in last 7 days
-  const recentDates = new Set(
-    logs.filter((l) => l.log_date && l.log_date >= weekAgo).map((l) => l.log_date),
-  );
-  const sessionsThisWeek = recentDates.size;
-
-  // Group logs by exercise for PR count + the performance-trend summary
+  // Group logs by exercise for the performance-trend summary
   const bySlug: Record<string, typeof logs> = {};
   for (const l of logs) {
     if (!l.exercise_slug) continue;
     (bySlug[l.exercise_slug] ??= []).push(l);
   }
 
-  // PRs this month = exercises whose best e1RM this month beats their all-time best before this month
-  let prThisMonth = 0;
   const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, total: 0, exercises: [] };
 
   for (const slugLogs of Object.values(bySlug)) {
-    const before = slugLogs.filter((l) => l.log_date && l.log_date < monthStart);
-    const thisMonth = slugLogs.filter((l) => l.log_date && l.log_date >= monthStart);
-    if (thisMonth.length) {
-      const bestBefore = maxE1RM(before.map((l) => ({ raw: l.raw })));
-      const bestThis = maxE1RM(thisMonth.map((l) => ({ raw: l.raw })));
-      if (bestThis > bestBefore) prThisMonth++;
-    }
-
     // Performance trend: need ≥4 logs to compare recent 3 vs prior sessions
     if (slugLogs.length < 4) continue;
     strength.total++;
@@ -261,23 +237,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     weightWeekAgo,
     tdee,
     tdeePrev,
-    prThisMonth,
-    sessionsThisWeek,
     strength,
     compoundProgress,
   };
-}
-
-function maxE1RM(logs: Array<{ raw: string | null }>): number {
-  let best = 0;
-  for (const l of logs) {
-    if (!l.raw) continue;
-    const p = parse(l.raw);
-    if (!p) continue;
-    const w = score(p);
-    if (!Number.isFinite(w)) continue;
-    const e = epley1RM(w, p.reps);
-    if (e > best) best = e;
-  }
-  return best;
 }

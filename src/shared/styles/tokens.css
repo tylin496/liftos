@@ -36,6 +36,11 @@
   --gold: #c87500;
   --blue: #007aff;
 
+  /* ── Health chart metric colors (iOS-style; read fine on light + dark) ── */
+  --health-weight: #5e9cf5;
+  --health-bodyfat: #bf5af2;
+  --health-leanmass: #30d158;
+
   /* ── Fonts ────────────────────────────────────────────────────────── */
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
