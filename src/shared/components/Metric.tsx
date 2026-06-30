@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
    - MetricCaption: the muted context line ("vs 14 days").
    ──────────────────────────────────────────────────────────────────────── */
 
-export type MetricSize = "xl" | "lg" | "md";
+export type MetricSize = "xl" | "lg" | "sm" | "md";
 
 export function MetricValue({
   size = "lg",

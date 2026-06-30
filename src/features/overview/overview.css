@@ -240,6 +240,14 @@
   margin-top: var(--space-1);
 }
 
+/* Delta + caption on one baseline under the stat value (Weight / TDEE). */
+.ov-stat-sub-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
 
 /* ─── Recovery Card ──────────────────────────────────────────────────────── */
 
@@ -305,32 +313,11 @@
   color: var(--ink-3);
 }
 
-.ov-rec-metric-val {
-  font-family: var(--font-mono);
-  font-size: var(--text-xl);
-  font-weight: 700;
-  color: var(--ink);
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.ov-rec-metric-unit {
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-4);
-}
-
-.ov-rec-metric-delta {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-4);
+/* Reserve the delta line's height so cards with no delta don't sit shorter.
+   The number itself comes from the shared <MetricDelta>. */
+.ov-rec-metric-delta-slot {
   min-height: 1em;
 }
-
-.ov-rec-metric-delta.good { color: var(--good); }
-.ov-rec-metric-delta.bad  { color: var(--bad); }
 
 .ov-rec-insight {
   font-size: var(--text-sm);
@@ -421,19 +408,6 @@
   flex-direction: column;
   gap: var(--space-1);
 }
-
-.ov-th-ret-big {
-  font-family: var(--font-mono);
-  font-size: var(--text-4xl);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-}
-
-.ov-th-ret-big.good { color: var(--good); }
-.ov-th-ret-big.bad  { color: var(--bad); }
 
 .ov-th-ret-sub {
   font-size: var(--text-sm);

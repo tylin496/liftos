@@ -1,20 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchOverview, type OverviewData } from "./api";
 import { RECOVERY_STATUS_COLOR, type RecoverySnapshot } from "@features/health/math";
-
-function fmtWeightDelta(
-  latest: number | null,
-  weekAgo: number | null,
-): { text: string; cls: string } {
-  if (latest == null || weekAgo == null) return { text: "—", cls: "empty" };
-  const d = parseFloat((latest - weekAgo).toFixed(1));
-  if (d === 0) return { text: "±0 kg", cls: "" };
-  const sign = d > 0 ? "+" : "";
-  return { text: `${sign}${d} kg`, cls: d > 0 ? "bad" : "good" };
-}
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCountUp } from "@shared/hooks/useCountUp";
-import { TrendIcon } from "@shared/components/TrendIcon";
+import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
@@ -212,9 +201,12 @@ function TrainingHealthCard({
 
         {retentionPct !== null && (
           <div className="ov-th-ret-hero">
-            <span className={`ov-th-ret-big${retentionPct >= 95 ? " good" : retentionPct >= 85 ? "" : " bad"}`}>
+            <MetricValue
+              size="xl"
+              tone={retentionPct >= 95 ? "good" : retentionPct >= 85 ? undefined : "bad"}
+            >
               {retCount}%
-            </span>
+            </MetricValue>
             <span className="ov-th-ret-sub">Retention</span>
           </div>
         )}
@@ -295,19 +287,15 @@ function RecoveryMetric({
 }) {
   const fmt = (v: number) =>
     v.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  const isGood = delta == null ? null : higherBetter ? delta >= 0 : delta <= 0;
-  const deltaCls = isGood == null ? "" : isGood ? " good" : " bad";
-  const sign = delta == null ? "" : delta > 0 ? "+" : delta < 0 ? "−" : "±";
 
   return (
     <div className="ov-rec-metric">
       <span className="ov-rec-metric-label">{label}</span>
-      <span className="ov-rec-metric-val">
+      <MetricValue size="md" unit={value != null ? unit : undefined}>
         {value != null ? fmt(value) : "—"}
-        {value != null && <span className="ov-rec-metric-unit"> {unit}</span>}
-      </span>
-      <span className={`ov-rec-metric-delta${deltaCls}`}>
-        {delta != null ? `${sign}${fmt(Math.abs(delta))}` : ""}
+      </MetricValue>
+      <span className="ov-rec-metric-delta-slot">
+        <MetricDelta value={delta} higherBetter={higherBetter} decimals={decimals} />
       </span>
     </div>
   );
@@ -389,17 +377,20 @@ export function OverviewPage() {
         <button type="button" className="ov-stat" onClick={() => nav("health")}>
           <span className="ov-stat-label">Weight</span>
           {data?.weightLatest != null ? (
-            (() => {
-              const weightDelta = fmtWeightDelta(data.weightLatest, data?.weightWeekAgo ?? null);
-              return (
-                <>
-                  <span className="ov-stat-val">{data.weightLatest} kg</span>
-                  <span className={`ov-stat-sub${weightDelta.cls ? ` ${weightDelta.cls}` : ""}`}>
-                    {weightDelta.text} / 7 days
-                  </span>
-                </>
-              );
-            })()
+            <>
+              <MetricValue size="sm" unit="kg">{data.weightLatest}</MetricValue>
+              <span className="ov-stat-sub-row">
+                {data.weightWeekAgo != null ? (
+                  <MetricDelta
+                    value={parseFloat((data.weightLatest - data.weightWeekAgo).toFixed(1))}
+                    higherBetter={false}
+                    decimals={1}
+                    unit="kg"
+                  />
+                ) : null}
+                <MetricCaption>/ 7 days</MetricCaption>
+              </span>
+            </>
           ) : (
             <>
               <span className="ov-stat-val empty">{data ? "—" : "–"}</span>
@@ -412,22 +403,19 @@ export function OverviewPage() {
           <span className="ov-stat-label">TDEE</span>
           {data?.tdee != null ? (
             <>
-              <span className="ov-stat-val">
-                {tdeeCount.toLocaleString()}
-                {data.tdeePrev != null && (() => {
-                  const diff = data.tdee - data.tdeePrev;
-                  const up = diff > 40, down = diff < -40;
-                  const dir = up ? "up" : down ? "down" : "flat";
-                  const color = up ? "var(--good)" : down ? "var(--bad)" : "var(--ink-4)";
-                  return (
-                    <span className="ov-tdee-arrow" style={{ color }}>
-                      <TrendIcon dir={dir} />
-                      {(up || down) ? Math.abs(Math.round(diff)) : null}
-                    </span>
-                  );
-                })()}
+              <MetricValue size="sm" unit="kcal/day">{tdeeCount.toLocaleString()}</MetricValue>
+              <span className="ov-stat-sub-row">
+                {data.tdeePrev != null ? (
+                  // higherBetter — per design call, a rising TDEE reads green here;
+                  // it's a deliberate UX choice, not an objective "good".
+                  <MetricDelta
+                    value={data.tdee - data.tdeePrev}
+                    higherBetter
+                    threshold={40}
+                  />
+                ) : null}
+                <MetricCaption>vs 14 days</MetricCaption>
               </span>
-              <span className="ov-stat-sub">vs 14 days ago</span>
             </>
           ) : (
             <>

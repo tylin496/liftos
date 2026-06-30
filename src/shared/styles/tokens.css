@@ -67,6 +67,7 @@
      --bad / --ink-4 — no new colours. */
   --metric-xl: var(--text-4xl);     /* 34 — top hero: TDEE, retention */
   --metric-lg: var(--text-3xl);     /* 28 — metric cards: weight, body fat */
+  --metric-sm: var(--text-2xl);     /* 24 — dual-stat grid: Overview Weight/TDEE */
   --metric-md: var(--text-xl);      /* 20 — compact rows: recovery, KPI */
   --metric-unit: var(--text-base);  /* 15 — unit suffix */
   --metric-delta: var(--text-sm);   /* 13 — change value */

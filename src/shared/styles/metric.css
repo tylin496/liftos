@@ -19,6 +19,7 @@
 
 .metric-val--xl { font-size: var(--metric-xl); }
 .metric-val--lg { font-size: var(--metric-lg); }
+.metric-val--sm { font-size: var(--metric-sm); }
 .metric-val--md { font-size: var(--metric-md); }
 
 .metric-val--good { color: var(--good); }
