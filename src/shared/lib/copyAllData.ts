@@ -30,18 +30,30 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   const metrics = health?.metrics ?? [];
   const tdeeEst = health?.tdee ?? estimateTdee([], []);
 
-  type MetricKey = "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal";
+  type MetricKey =
+    | "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal"
+    | "steps" | "exercise_minutes" | "sleep_seconds" | "resting_heart_rate" | "hrv_sdnn_ms";
   const METRIC_SPECS: { key: MetricKey; decimals: number }[] = [
-    { key: "weight_kg", decimals: 2 },
-    { key: "body_fat_pct", decimals: 1 },
-    { key: "active_energy_kcal", decimals: 0 },
+    { key: "weight_kg",           decimals: 2 },
+    { key: "body_fat_pct",        decimals: 1 },
+    { key: "active_energy_kcal",  decimals: 0 },
     { key: "resting_energy_kcal", decimals: 0 },
+    { key: "steps",               decimals: 0 },
+    { key: "exercise_minutes",    decimals: 0 },
+    { key: "sleep_seconds",       decimals: 0 },
+    { key: "resting_heart_rate",  decimals: 0 },
+    { key: "hrv_sdnn_ms",         decimals: 1 },
   ];
   const COPY_KEY: Record<MetricKey, string> = {
-    weight_kg: "weight",
-    body_fat_pct: "bodyFat",
-    active_energy_kcal: "activeEnergy",
+    weight_kg:           "weight",
+    body_fat_pct:        "bodyFat",
+    active_energy_kcal:  "activeEnergy",
     resting_energy_kcal: "restingEnergy",
+    steps:               "steps",
+    exercise_minutes:    "exerciseMinutes",
+    sleep_seconds:       "sleepSeconds",
+    resting_heart_rate:  "restingHeartRate",
+    hrv_sdnn_ms:         "hrv",
   };
 
   const healthSummary: Record<string, unknown> = {};
@@ -67,10 +79,15 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     const row = metrics.find((m) => m.metric_date === date);
     return {
       date,
-      weight: row?.weight_kg ?? null,
-      bodyFat: row?.body_fat_pct ?? null,
-      activeEnergy: row?.active_energy_kcal ?? null,
-      restingEnergy: row?.resting_energy_kcal ?? null,
+      weight:           row?.weight_kg ?? null,
+      bodyFat:          row?.body_fat_pct ?? null,
+      activeEnergy:     row?.active_energy_kcal ?? null,
+      restingEnergy:    row?.resting_energy_kcal ?? null,
+      steps:            row?.steps ?? null,
+      exerciseMinutes:  row?.exercise_minutes ?? null,
+      sleepSeconds:     row?.sleep_seconds ?? null,
+      restingHeartRate: row?.resting_heart_rate ?? null,
+      hrv:              row?.hrv_sdnn_ms ?? null,
     };
   });
 
@@ -299,10 +316,15 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       tdeeRestingDays: tdeeEst.restingDays,
       tdeeActiveDays: tdeeEst.activeDays,
       latest: {
-        weight: (healthSummary.weight as any)?.latest ?? null,
-        bodyFat: (healthSummary.bodyFat as any)?.latest ?? null,
-        activeEnergy: (healthSummary.activeEnergy as any)?.latest ?? null,
-        restingEnergy: (healthSummary.restingEnergy as any)?.latest ?? null,
+        weight:           (healthSummary.weight as any)?.latest ?? null,
+        bodyFat:          (healthSummary.bodyFat as any)?.latest ?? null,
+        activeEnergy:     (healthSummary.activeEnergy as any)?.latest ?? null,
+        restingEnergy:    (healthSummary.restingEnergy as any)?.latest ?? null,
+        steps:            (healthSummary.steps as any)?.latest ?? null,
+        exerciseMinutes:  (healthSummary.exerciseMinutes as any)?.latest ?? null,
+        sleepSeconds:     (healthSummary.sleepSeconds as any)?.latest ?? null,
+        restingHeartRate: (healthSummary.restingHeartRate as any)?.latest ?? null,
+        hrv:              (healthSummary.hrv as any)?.latest ?? null,
       },
       summary: healthSummary,
       timeline: healthTimeline,
