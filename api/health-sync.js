@@ -1,10 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
 // POST /api/health-sync
-// Ingest endpoint for the nightly Apple Shortcut. Payload (DO NOT change shape):
+// Ingest endpoint for the Apple Shortcut. Payload (DO NOT change shape):
 //   { date: "YYYY-MM-DD", weight: number|"", bodyFat: number|"",
 //     activeEnergy: number|"", restingEnergy: number|"" }
-// Empty strings become null. Upserts one row per date into Supabase body_metrics.
+// Upserts one row per date into Supabase body_metrics. Empty/non-numeric
+// fields are OMITTED from the upsert (not written as null), so running the
+// Shortcut multiple times a day never overwrites a previously-synced value
+// with a blank. Only fields that arrive with a real number are updated.
 //
 // Required server env (Vercel project settings):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HEALTH_SYNC_USER_ID
@@ -34,15 +37,20 @@ export function buildRecord(body) {
   if (typeof date !== "string" || !DATE_RE.test(date)) {
     return { error: "Invalid or missing 'date' (expected YYYY-MM-DD)" };
   }
-  return {
-    record: {
-      metric_date: date,
-      weight_kg: num(body.weight),
-      body_fat_pct: num(body.bodyFat),
-      active_energy_kcal: intOrNull(body.activeEnergy),
-      resting_energy_kcal: intOrNull(body.restingEnergy),
-    },
-  };
+
+  // Only include fields that carry a real value — null/blank fields are
+  // dropped so they don't overwrite an existing row's value on conflict.
+  const record = { metric_date: date };
+  const weight = num(body.weight);
+  if (weight !== null) record.weight_kg = weight;
+  const bodyFat = num(body.bodyFat);
+  if (bodyFat !== null) record.body_fat_pct = bodyFat;
+  const active = intOrNull(body.activeEnergy);
+  if (active !== null) record.active_energy_kcal = active;
+  const resting = intOrNull(body.restingEnergy);
+  if (resting !== null) record.resting_energy_kcal = resting;
+
+  return { record };
 }
 
 export default async function handler(req, res) {
