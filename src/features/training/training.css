@@ -696,11 +696,6 @@
   color: var(--ink-3);
 }
 
-.expr-assist-preview {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-}
-
 /* ── Editor drawer ───────────────────────────────────────────────────────────*/
 .ex-editor-drawer {
   border-top: 1px solid var(--rule);

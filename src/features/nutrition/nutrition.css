@@ -44,22 +44,6 @@
   gap: var(--space-3);
 }
 
-/* ── Carousel ───────────────────────────────────────────────────────── */
-.seg-carousel-viewport {
-  overflow: hidden;
-}
-
-.seg-carousel-track {
-  display: flex;
-  transition: transform var(--motion-slow) var(--move-ease);
-  will-change: transform;
-}
-
-.seg-carousel-panel {
-  min-width: 100%;
-  width: 100%;
-}
-
 /* ── Segmented sub-nav ───────────────────────────────────────────────── */
 .seg {
   position: relative;
@@ -620,31 +604,10 @@
   align-items: flex-end;
 }
 
-.nutri-trend-bar {
-  width: 100%;
-  border-radius: 3px 3px 0 0;
-  min-height: 4px;
-  transform-origin: bottom;
-  animation: bar-rise var(--motion-slow) var(--reveal-ease) both;
-  animation-delay: calc(var(--bar-index, 0) * var(--stagger-step));
-}
-
+/* Shared bar-grow animation — consumed by .ntb-pair (dual-bar trend below). */
 @keyframes bar-rise {
   from { transform: scaleY(0); opacity: 0; }
   to   { transform: scaleY(1); opacity: 1; }
-}
-
-.nutri-trend-bar.is-on-plan   { background: var(--good); }
-.nutri-trend-bar.is-surplus   { background: var(--bad); }
-.nutri-trend-bar.is-over      { background: var(--gold); }
-.nutri-trend-bar.is-extreme   { background: var(--bad); opacity: 0.7; }
-.nutri-trend-bar.is-under     { background: var(--ink-3); opacity: 0.4; }
-.nutri-trend-bar.is-missing   {
-  min-height: 14px;
-  height: 14px;
-  border: 1.5px dashed var(--rule-strong);
-  background: transparent;
-  border-radius: 3px;
 }
 
 .nutri-trend-day {

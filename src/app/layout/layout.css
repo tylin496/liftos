@@ -248,19 +248,6 @@
   animation: rise-in var(--motion-slow) var(--reveal-ease) both;
 }
 
-/* ── Skeleton loading ───────────────────────────────────────────────── */
-.skel {
-  border-radius: var(--radius-sm);
-  background: var(--bg-soft);
-  animation: skel-fade 1.6s ease-in-out infinite;
-}
-
-.skel-line { height: 14px; }
-.skel-line--sm { height: 11px; }
-.skel-line--lg { height: 20px; }
-.skel-num  { height: 34px; border-radius: var(--radius-sm); }
-.skel-bar  { height: 8px;  border-radius: var(--radius-pill); }
-
 .page-eyebrow {
   font-size: var(--text-2xs);
   font-weight: 700;
