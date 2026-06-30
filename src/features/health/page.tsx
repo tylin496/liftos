@@ -33,12 +33,21 @@ function series(metrics: BodyMetric[], key: MetricKey) {
     .filter((p): p is { date: string; value: number } => p.value != null);
 }
 
+interface ChartPoint {
+  date: string;       // representative (middle) date — used for x positioning
+  dateStart: string;  // first day covered by this bucket
+  dateEnd: string;    // last day covered by this bucket
+  value: number;
+}
+
 function bucketSeries(
   pts: { date: string; value: number }[],
   bucketDays: number,
-): { date: string; value: number }[] {
+): ChartPoint[] {
   if (!pts.length) return [];
-  if (bucketDays <= 1) return pts;
+  if (bucketDays <= 1) {
+    return pts.map((p) => ({ date: p.date, dateStart: p.date, dateEnd: p.date, value: p.value }));
+  }
 
   const MS = 86400000;
   const buckets = new Map<number, { dates: string[]; values: number[] }>();
@@ -52,8 +61,11 @@ function bucketSeries(
     .sort((a, b) => a - b)
     .map((k) => {
       const { dates, values } = buckets.get(k)!;
+      // dates arrive oldest → newest, so [0] / last bound the week
       return {
         date: dates[Math.floor(dates.length / 2)],
+        dateStart: dates[0],
+        dateEnd: dates[dates.length - 1],
         value: values.reduce((s, v) => s + v, 0) / values.length,
       };
     });
@@ -79,7 +91,7 @@ function LineChart({
   decimals = 0,
   unit = "",
 }: {
-  points: { date: string; value: number }[];
+  points: ChartPoint[];
   color: string;
   decimals?: number;
   unit?: string;
@@ -148,9 +160,14 @@ function LineChart({
   const hp = hovered !== null ? points[hovered] : null;
   const hx = hovered !== null ? toX(hovered) : 0;
   const hy = hovered !== null ? toY(points[hovered].value) : 0;
-  // Format tooltip date: "Jun 15"
+  // Each point is a 7-day average, so the tooltip shows the week it spans,
+  // e.g. "22 Jun – 28 Jun" (single day when the bucket holds one reading).
+  const fmtDay = (iso: string) =>
+    new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const hDate = hp
-    ? new Date(hp.date + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    ? hp.dateStart === hp.dateEnd
+      ? fmtDay(hp.dateEnd)
+      : `${fmtDay(hp.dateStart)} – ${fmtDay(hp.dateEnd)}`
     : "";
   const hVal = hp ? fmt(hp.value, decimals) : "";
   // Keep tooltip label inside chart bounds
