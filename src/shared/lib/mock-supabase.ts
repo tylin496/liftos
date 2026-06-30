@@ -193,13 +193,17 @@ function buildNutritionEntries() {
 const NUTRITION_ENTRIES = buildNutritionEntries();
 
 // ── Body metrics ───────────────────────────────────────────────────────────────
-// 90 days of Apple Health data. Weight trending down from 97.5 → 96.8.
+// 180 days of Apple Health data so the 6-month chart fills its window.
+// Weight trending down from 99.0 → 96.8 over the half-year.
+
+const BODY_METRIC_DAYS = 180;
 
 function buildBodyMetrics() {
   const metrics = [];
-  for (let i = 0; i < 90; i++) {
-    const date = daysAgo(89 - i);
-    const weightBase = 97.5 - (i / 89) * 0.7; // 97.5 → 96.8
+  const last = BODY_METRIC_DAYS - 1;
+  for (let i = 0; i < BODY_METRIC_DAYS; i++) {
+    const date = daysAgo(last - i);
+    const weightBase = 99.0 - (i / last) * 2.2; // 99.0 → 96.8
     const weight = Math.round((weightBase + fakeRand(i, -0.3, 0.3)) * 10) / 10;
     const resting = Math.round(fakeRand(i * 2, 1860, 1940));
     const active = Math.round(fakeRand(i * 5, 350, 720));
