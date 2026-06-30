@@ -283,6 +283,13 @@ function AnimatedTdee({ value }: { value: number }) {
   return <>{count.toLocaleString()}</>;
 }
 
+/* Hero metric number — tweens from the value on screen to the new one
+   (e.g. weight 92.3 → 92.1) instead of snapping. */
+function AnimatedMetric({ value, decimals }: { value: number; decimals: number }) {
+  const count = useCountUp(value, 650, decimals);
+  return <>{fmt(count, decimals)}</>;
+}
+
 /* Subtle per-component direction vs the previous period. Arrow only (the
    headline carries the magnitude); resting usually reads flat since its
    30-day window barely shifts, while active is what actually moves. */
@@ -456,7 +463,7 @@ export function HealthPage() {
           <div className="health-metric-hero">
             {lbmCard.thisWeek != null ? (
               <>
-                <span className="health-metric-val">{fmt(lbmCard.thisWeek, 1)}</span>
+                <span className="health-metric-val"><AnimatedMetric value={lbmCard.thisWeek} decimals={1} /></span>
                 <span className="health-unit">kg</span>
               </>
             ) : (
@@ -500,7 +507,7 @@ export function HealthPage() {
             <div className="health-metric-hero">
               {thisWeek != null ? (
                 <>
-                  <span className="health-metric-val">{fmt(thisWeek, spec.decimals)}</span>
+                  <span className="health-metric-val"><AnimatedMetric value={thisWeek} decimals={spec.decimals} /></span>
                   <span className="health-unit">{spec.unit}</span>
                 </>
               ) : (

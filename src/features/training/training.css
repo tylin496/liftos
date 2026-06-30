@@ -563,7 +563,7 @@
   align-items: center;
   height: 17px;
   padding: 0 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -864,7 +864,7 @@
 .unit-btn {
   padding: 4px 14px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink-3);
   font-family: var(--font-ui);
@@ -890,7 +890,7 @@
 .chip {
   padding: 5px 10px;
   border: 1px solid var(--rule);
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   background: var(--bg-soft);
   color: var(--ink-2);
   font-family: var(--font-mono);
@@ -1160,7 +1160,7 @@
   font-size: var(--text-sm);
   text-align: center;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   transition: color var(--motion-fast), background var(--motion-fast);
 }
 
@@ -1364,7 +1364,7 @@
   color: var(--ink-4);
   background: var(--bg-soft);
   padding: 2px 8px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
 }
 
 .archived-chevron {
@@ -1423,7 +1423,7 @@
 
 .archived-actions button {
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--rule);
   background: var(--bg-soft);
   color: var(--ink-2);
@@ -1508,7 +1508,7 @@
   width: 24px;
   height: 24px;
   border: none;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.35);
   color: #fff;
   font-size: var(--text-sm);
@@ -1616,7 +1616,7 @@
 .filter-btn {
   padding: 2px var(--space-3);
   border: 1px solid var(--rule);
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--ink-3);
   font-family: var(--font-ui);
@@ -1787,7 +1787,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 2px 8px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
 }
 
 .stagnation-pct {

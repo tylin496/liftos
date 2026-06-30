@@ -168,6 +168,7 @@ function TrainingHealthCard({
   const [showAllOnTrack, setShowAllOnTrack] = useState(false);
   const hasData = strength.total > 0;
   const retentionPct = compoundProgress ? Math.round(compoundProgress.overall * 100) : null;
+  const retCount = useCountUp(retentionPct ?? 0, 600);
   const attention = strength.watch;
 
   // Attention always sits above On Track and is ordered worst-first
@@ -207,7 +208,7 @@ function TrainingHealthCard({
         {retentionPct !== null && (
           <div className="ov-th-ret-hero">
             <span className={`ov-th-ret-big${retentionPct >= 95 ? " good" : retentionPct >= 85 ? "" : " bad"}`}>
-              {retentionPct}%
+              {retCount}%
             </span>
             <span className="ov-th-ret-sub">Retention</span>
           </div>
@@ -276,6 +277,7 @@ export function OverviewPage() {
   const activity = useTabActivity();
   const nav = useNav();
   const toast = useToast();
+  const tdeeCount = useCountUp(data?.tdee ?? 0, 500);
 
   useEffect(() => {
     fetchOverview()
@@ -343,7 +345,7 @@ export function OverviewPage() {
           {data?.tdee != null ? (
             <>
               <span className="ov-stat-val">
-                {data.tdee.toLocaleString()}
+                {tdeeCount.toLocaleString()}
                 {data.tdeePrev != null && (() => {
                   const diff = data.tdee - data.tdeePrev;
                   const up = diff > 40, down = diff < -40;

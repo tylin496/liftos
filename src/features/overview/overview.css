@@ -93,7 +93,7 @@
 
 .ov-bar-track {
   height: 6px;
-  border-radius: 99px;
+  border-radius: var(--radius-pill);
   background: var(--bg-soft);
   overflow: hidden;
 }
@@ -101,7 +101,7 @@
 /* Start at 0, no transition until .anim is applied after first frame */
 .ov-bar-fill {
   height: 100%;
-  border-radius: 99px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--blue) 58%, var(--bg-soft)),
@@ -558,7 +558,7 @@
 }
 
 .ov-th-ex-icon {
-  font-size: var(--text-xs);
+  font-size: var(--text-2xs);
   color: var(--bad);
   flex-shrink: 0;
 }
