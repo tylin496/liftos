@@ -93,6 +93,15 @@ export function rollingAvg(pts: { date: string; value: number }[], days = 7, off
 
 export type RecoveryStatus = "Ready" | "Good" | "Fair" | "Needs Recovery";
 
+/** Status → semantic color token. Shared by the Health card and the Overview
+ *  card so the four tiers always read the same color. */
+export const RECOVERY_STATUS_COLOR: Record<RecoveryStatus, string> = {
+  Ready:              "var(--good)",
+  Good:               "var(--blue)",
+  Fair:               "var(--gold)",
+  "Needs Recovery":   "var(--bad)",
+};
+
 export interface RecoverySnapshot {
   sleepHours: number | null;
   hrv: number | null;

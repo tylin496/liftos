@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchOverview, type OverviewData } from "./api";
+import { RECOVERY_STATUS_COLOR, type RecoverySnapshot } from "@features/health/math";
 
 function fmtWeightDelta(
   latest: number | null,
@@ -271,6 +272,90 @@ function TrainingHealthCard({
   );
 }
 
+/* ── Recovery Card ─────────────────────────────────────────────────────── */
+
+// Compact mirror of the Health tab's Recovery card: status word + the three
+// signals against their 30-day baseline + the shared one-line insight. No
+// chart, gauge, or score — Overview answers "how am I today?" at a glance;
+// trends live in the Health tab.
+function RecoveryMetric({
+  label,
+  value,
+  unit,
+  decimals,
+  delta,
+  higherBetter,
+}: {
+  label: string;
+  value: number | null;
+  unit: string;
+  decimals: number;
+  delta: number | null;
+  higherBetter: boolean;
+}) {
+  const fmt = (v: number) =>
+    v.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const isGood = delta == null ? null : higherBetter ? delta >= 0 : delta <= 0;
+  const deltaCls = isGood == null ? "" : isGood ? " good" : " bad";
+  const sign = delta == null ? "" : delta > 0 ? "+" : delta < 0 ? "−" : "±";
+
+  return (
+    <div className="ov-rec-metric">
+      <span className="ov-rec-metric-label">{label}</span>
+      <span className="ov-rec-metric-val">
+        {value != null ? fmt(value) : "—"}
+        {value != null && <span className="ov-rec-metric-unit"> {unit}</span>}
+      </span>
+      <span className={`ov-rec-metric-delta${deltaCls}`}>
+        {delta != null ? `${sign}${fmt(Math.abs(delta))}` : ""}
+      </span>
+    </div>
+  );
+}
+
+function RecoveryCard({ snap, onNav }: { snap: RecoverySnapshot | null; onNav: () => void }) {
+  if (!snap || !snap.status) {
+    return (
+      <button type="button" className="page-card ov-recovery ov-recovery--empty" onClick={onNav}>
+        <div className="ov-rec-head">
+          <span className="ov-rec-title">Recovery</span>
+        </div>
+        <p className="ov-no-entry" style={{ textAlign: "left" }}>
+          No recovery data yet — sync sleep, HRV & resting HR from Apple Health.
+        </p>
+      </button>
+    );
+  }
+
+  const sleepDelta = snap.sleepHours != null && snap.sleepBaseline != null
+    ? snap.sleepHours - snap.sleepBaseline : null;
+  const hrvDelta = snap.hrv != null && snap.hrvBaseline != null
+    ? snap.hrv - snap.hrvBaseline : null;
+  const rhrDelta = snap.rhr != null && snap.rhrBaseline != null
+    ? snap.rhr - snap.rhrBaseline : null;
+  const color = RECOVERY_STATUS_COLOR[snap.status];
+
+  return (
+    <button type="button" className="page-card ov-recovery" onClick={onNav}>
+      <div className="ov-rec-head">
+        <span className="ov-rec-title">Recovery</span>
+        <span
+          className="ov-rec-status"
+          style={{ color, background: `color-mix(in srgb, ${color} 12%, transparent)` }}
+        >
+          {snap.status}
+        </span>
+      </div>
+      <div className="ov-rec-metrics">
+        <RecoveryMetric label="Sleep" value={snap.sleepHours} unit="h"   decimals={1} delta={sleepDelta} higherBetter />
+        <RecoveryMetric label="HRV"   value={snap.hrv}        unit="ms"  decimals={0} delta={hrvDelta}   higherBetter />
+        <RecoveryMetric label="RHR"   value={snap.rhr}        unit="bpm" decimals={0} delta={rhrDelta}   higherBetter={false} />
+      </div>
+      {snap.insight && <p className="ov-rec-insight">{snap.insight}</p>}
+    </button>
+  );
+}
+
 /* ── Overview Page ─────────────────────────────────────────────────────── */
 
 export function OverviewPage() {
@@ -352,6 +437,8 @@ export function OverviewPage() {
           )}
         </button>
       </div>
+
+      {data && <RecoveryCard snap={data.recovery} onNav={() => nav("health")} />}
 
       {data && (
         <TrainingHealthCard

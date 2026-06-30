@@ -1,6 +1,8 @@
 import { supabase } from "@shared/lib/supabase";
 import type { Database } from "@shared/lib/database.types";
 import { computeTdeeWindows } from "@features/health/tdee";
+import { computeRecovery, type RecoverySnapshot } from "@features/health/math";
+import type { BodyMetric } from "@features/health/api";
 import { parse, score } from "@features/training/parser";
 import { epley1RM } from "@features/training/logic";
 import { localDateStr, localDateStrDaysAgo } from "@shared/lib/date";
@@ -52,6 +54,7 @@ export interface OverviewData {
   weightWeekAgo: number | null;
   tdee: number | null;
   tdeePrev: number | null;
+  recovery: RecoverySnapshot | null;
   strength: StrengthSummary;
   compoundProgress: CompoundProgress | null;
 }
@@ -98,7 +101,7 @@ export async function fetchOverview(): Promise<OverviewData> {
       .maybeSingle(),
     supabase
       .from("body_metrics")
-      .select("metric_date, weight_kg, active_energy_kcal, resting_energy_kcal")
+      .select("metric_date, weight_kg, active_energy_kcal, resting_energy_kcal, sleep_seconds, hrv_sdnn_ms, resting_heart_rate")
       .gte("metric_date", sinceDate(60))
       .order("metric_date", { ascending: true }),
     supabase
@@ -156,6 +159,12 @@ export async function fetchOverview(): Promise<OverviewData> {
   const { tdee: tdeeEst, tdeePrev: tdeePrevEst } = computeTdeeWindows(metrics);
   const tdee = tdeeEst.tdee;
   const tdeePrev = tdeePrevEst.tdee;
+
+  // Recovery: reuse the Health tab's calculation verbatim (single source of
+  // truth). The 60-day metrics window covers its 30-day baseline. Null status
+  // means no recovery data → the card renders its empty state.
+  const recoverySnap = computeRecovery(metrics as BodyMetric[]);
+  const recovery = recoverySnap.status ? recoverySnap : null;
 
   // Training logs
   const logs = logsRes.data ?? [];
@@ -239,6 +248,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     weightWeekAgo,
     tdee,
     tdeePrev,
+    recovery,
     strength,
     compoundProgress,
   };

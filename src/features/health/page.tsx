@@ -6,6 +6,7 @@ import {
   rollingAvg,
   regressionSlope,
   computeRecovery,
+  RECOVERY_STATUS_COLOR,
   type MetricKey,
   type ChartPoint,
   type RecoverySnapshot,
@@ -230,13 +231,6 @@ function ComponentTrend({ cur, prev }: { cur: number | null; prev: number | null
   );
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  Ready:              "var(--good)",
-  Good:               "var(--blue)",
-  Fair:               "var(--gold)",
-  "Needs Recovery":   "var(--bad)",
-};
-
 function RecoveryRow({
   label,
   value,
@@ -282,7 +276,7 @@ function RecoveryCard({ snap }: { snap: RecoverySnapshot }) {
   const rhrDelta = snap.rhr != null && snap.rhrBaseline != null
     ? snap.rhr - snap.rhrBaseline : null;
 
-  const color = STATUS_COLOR[snap.status];
+  const color = RECOVERY_STATUS_COLOR[snap.status];
 
   return (
     <section className="page-card health-recovery">

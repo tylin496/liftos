@@ -241,6 +241,103 @@
 }
 
 
+/* ─── Recovery Card ──────────────────────────────────────────────────────── */
+
+.ov-recovery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
+}
+
+@media (hover: hover) {
+  .ov-recovery:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.ov-recovery:active {
+  transform: scale(var(--tap-scale));
+  box-shadow: var(--shadow-sm);
+  transition-duration: var(--motion-fast);
+}
+
+.ov-rec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ov-rec-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ov-rec-status {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.ov-rec-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.ov-rec-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ov-rec-metric-label {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.ov-rec-metric-val {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ov-rec-metric-unit {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-4);
+}
+
+.ov-rec-metric-delta {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-4);
+  min-height: 1em;
+}
+
+.ov-rec-metric-delta.good { color: var(--good); }
+.ov-rec-metric-delta.bad  { color: var(--bad); }
+
+.ov-rec-insight {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+  margin: 0;
+}
+
 /* ─── Training Health Card ───────────────────────────────────────────────── */
 
 .ov-training-health {
