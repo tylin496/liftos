@@ -12,6 +12,7 @@ import { NavContext } from "./NavContext";
 import { TabActivityContext } from "./TabActivityContext";
 import { ConfirmProvider } from "@shared/components/ConfirmDialog";
 import { ToastProvider } from "@shared/components/Toast";
+import { NutritionConfigProvider } from "@features/nutrition/NutritionConfigContext";
 import "./layout.css";
 
 const PAGES: Record<TabId, () => JSX.Element> = {
@@ -127,6 +128,7 @@ export function Shell({ session }: { session: Session }) {
   return (
     <ToastProvider>
     <ConfirmProvider>
+    <NutritionConfigProvider>
     <HeaderActionProvider>
       <HeaderTitleProvider>
       <NavContext.Provider value={switchTab}>
@@ -150,6 +152,7 @@ export function Shell({ session }: { session: Session }) {
       </NavContext.Provider>
       </HeaderTitleProvider>
     </HeaderActionProvider>
+    </NutritionConfigProvider>
     </ConfirmProvider>
     </ToastProvider>
   );
