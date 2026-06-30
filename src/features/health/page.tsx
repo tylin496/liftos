@@ -263,6 +263,22 @@ function AnimatedTdee({ value }: { value: number }) {
   return <>{count.toLocaleString()}</>;
 }
 
+/* Subtle per-component direction vs the previous period. Arrow only (the
+   headline carries the magnitude); resting usually reads flat since its
+   30-day window barely shifts, while active is what actually moves. */
+function ComponentTrend({ cur, prev }: { cur: number | null; prev: number | null | undefined }) {
+  if (cur == null || prev == null) return null;
+  const diff = cur - prev;
+  const up = diff > 20, down = diff < -20;
+  const dir = up ? "up" : down ? "down" : "flat";
+  const color = up ? "var(--accent)" : down ? "var(--bad)" : "var(--ink-4)";
+  return (
+    <span className="health-tdee-component-trend" style={{ color }}>
+      <TrendIcon dir={dir} size={12} />
+    </span>
+  );
+}
+
 export function HealthPage() {
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -341,6 +357,7 @@ export function HealthPage() {
                 <span className="health-tdee-component-label">Resting</span>
                 <span className="health-tdee-component-val">
                   {tdee.avgResting?.toLocaleString()} kcal/day
+                  <ComponentTrend cur={tdee.avgResting} prev={tdeePrev?.avgResting} />
                 </span>
                 <span className="health-tdee-component-window">
                   {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
@@ -350,6 +367,7 @@ export function HealthPage() {
                 <span className="health-tdee-component-label">Active</span>
                 <span className="health-tdee-component-val">
                   {tdee.avgActive?.toLocaleString()} kcal/day
+                  <ComponentTrend cur={tdee.avgActive} prev={tdeePrev?.avgActive} />
                 </span>
                 <span className="health-tdee-component-window">
                   {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"}

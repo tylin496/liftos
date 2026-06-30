@@ -139,6 +139,16 @@
   color: var(--ink-3);
 }
 
+.health-tdee-num .ov-tdee-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: var(--space-1);
+  font-size: var(--text-base);
+  font-weight: 700;
+  vertical-align: middle;
+}
+
 .health-tdee-method {
   font-size: var(--text-sm);
   color: var(--ink-3);
@@ -197,9 +207,17 @@
 }
 
 .health-tdee-component-val {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-size: var(--text-lg);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.health-tdee-component-trend {
+  display: inline-flex;
+  align-items: center;
 }
 
 .health-tdee-component-window {
