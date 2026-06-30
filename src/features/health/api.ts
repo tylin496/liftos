@@ -1,6 +1,6 @@
 import { supabase } from "@shared/lib/supabase";
 import type { Database } from "@shared/lib/database.types";
-import { estimateTdee, type TdeeEstimate } from "./tdee";
+import { computeTdeeWindows, type TdeeEstimate } from "./tdee";
 
 export type BodyMetric = Database["public"]["Tables"]["body_metrics"]["Row"];
 
@@ -32,29 +32,7 @@ export async function fetchHealthData(days = 180): Promise<HealthData> {
   const fetchDays = Math.max(days, 60);
   const allMetrics = await fetchBodyMetrics(fetchDays);
 
-  const cutoff30 = sinceDate(30);
-  const cutoff14 = sinceDate(14);
-  const cutoff60 = sinceDate(60);
-  const cutoff28 = sinceDate(28);
-
-  const tdee = estimateTdee(
-    allMetrics
-      .filter((m) => m.metric_date >= cutoff30)
-      .map((m) => ({ resting: m.resting_energy_kcal })),
-    allMetrics
-      .filter((m) => m.metric_date >= cutoff14)
-      .map((m) => ({ active: m.active_energy_kcal })),
-  );
-
-  // Previous period: resting 30–60 days ago, active 14–28 days ago
-  const tdeePrev = estimateTdee(
-    allMetrics
-      .filter((m) => m.metric_date >= cutoff60 && m.metric_date < cutoff30)
-      .map((m) => ({ resting: m.resting_energy_kcal })),
-    allMetrics
-      .filter((m) => m.metric_date >= cutoff28 && m.metric_date < cutoff14)
-      .map((m) => ({ active: m.active_energy_kcal })),
-  );
+  const { tdee, tdeePrev } = computeTdeeWindows(allMetrics);
 
   const cutoffDisplay = sinceDate(days);
   const metrics = allMetrics.filter((m) => m.metric_date >= cutoffDisplay);

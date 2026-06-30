@@ -1,6 +1,6 @@
 import { supabase } from "@shared/lib/supabase";
 import type { Database } from "@shared/lib/database.types";
-import { estimateTdee } from "@features/health/tdee";
+import { computeTdeeWindows } from "@features/health/tdee";
 import { parse, score } from "@features/training/parser";
 import { epley1RM } from "@features/training/logic";
 
@@ -57,7 +57,6 @@ export interface OverviewData {
   weightWeekAgo: number | null;
   tdee: number | null;
   tdeePrev: number | null;
-  tdeeTrend: { date: string; value: number }[];
   prThisMonth: number;
   sessionsThisWeek: number;
   strength: StrengthSummary;
@@ -108,7 +107,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     supabase
       .from("body_metrics")
       .select("metric_date, weight_kg, active_energy_kcal, resting_energy_kcal")
-      .gte("metric_date", sinceDate(44))
+      .gte("metric_date", sinceDate(60))
       .order("metric_date", { ascending: true }),
     supabase
       .from("training_logs")
@@ -160,32 +159,11 @@ export async function fetchOverview(): Promise<OverviewData> {
   const weekAgoMetric = weightPoints.filter((m) => m.date <= weekAgo).at(-1);
   const weightWeekAgo = weekAgoMetric?.w ?? null;
 
-  // TDEE: 30-day resting avg + 14-day active avg (metrics span 44 days)
-  const cutoff14 = sinceDate(14);
-  const tdeeEst = estimateTdee(
-    metrics.map((m) => ({ resting: m.resting_energy_kcal })),
-    metrics
-      .filter((m) => m.metric_date >= cutoff14)
-      .map((m) => ({ active: m.active_energy_kcal })),
-  );
+  // TDEE: shared windowing (30-day resting + 14-day active) — same source of
+  // truth as the Health card so the two TDEE numbers never diverge.
+  const { tdee: tdeeEst, tdeePrev: tdeePrevEst } = computeTdeeWindows(metrics);
   const tdee = tdeeEst.tdee;
-
-  // TDEE 14 days ago: same algorithm, window ending at cutoff14
-  const cutoff28 = sinceDate(28);
-  const tdeePrevEst = estimateTdee(
-    metrics
-      .filter((m) => m.metric_date < cutoff14)
-      .map((m) => ({ resting: m.resting_energy_kcal })),
-    metrics
-      .filter((m) => m.metric_date >= cutoff28 && m.metric_date < cutoff14)
-      .map((m) => ({ active: m.active_energy_kcal })),
-  );
   const tdeePrev = tdeePrevEst.tdee;
-
-  // Daily TDEE trend: days where both active + resting are present
-  const tdeeTrend = metrics
-    .filter((m) => m.active_energy_kcal != null && m.resting_energy_kcal != null)
-    .map((m) => ({ date: m.metric_date, value: m.active_energy_kcal! + m.resting_energy_kcal! }));
 
   // Training logs
   const logs = logsRes.data ?? [];
@@ -284,7 +262,6 @@ export async function fetchOverview(): Promise<OverviewData> {
     weightWeekAgo,
     tdee,
     tdeePrev,
-    tdeeTrend,
     prThisMonth,
     sessionsThisWeek,
     strength,
