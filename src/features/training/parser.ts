@@ -110,35 +110,6 @@ export function score(parsed: Parsed | null): number {
   return parsed.weight;
 }
 
-/** Total reps; a single number (no slash) means 3 consistent sets → ×3. */
-export function totalReps(reps: string): number {
-  if (!reps) return 0;
-  const segs = String(reps).split(/[/\-]/);
-  const nums = segs.map((n) => parseInt(n, 10) || 0);
-  return segs.length === 1 ? nums[0] * 3 : nums.reduce((a, b) => a + b, 0);
-}
-
-export function setCount(reps: string): number {
-  if (!reps) return 0;
-  const segs = String(reps).split(/[/\-]/);
-  return segs.length === 1 ? 3 : segs.length;
-}
-
-/** >0 if a is a better PR than b: higher kg, then more total reps. */
-export function comparePR(a: Parsed | null, b: Parsed | null): number {
-  if (!a || !Number.isFinite(a.weight)) return -1;
-  if (!b || !Number.isFinite(b.weight)) return 1;
-  const wa = score(a);
-  const wb = score(b);
-  if (wa !== wb) return wa - wb;
-  return totalReps(a.reps) - totalReps(b.reps);
-}
-
-export function fmtWeight(n: number, unit?: string | null): string {
-  if (!Number.isFinite(n)) return "—";
-  return (Math.round(n * 1000) / 1000).toString() + " " + (unit || "kg");
-}
-
 export function formatRepsDisplay(reps: string): string {
   if (!reps) return "";
   const segs = String(reps).split(/[/\-]/);

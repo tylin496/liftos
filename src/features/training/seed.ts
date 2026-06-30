@@ -9,8 +9,6 @@ export const SPLITS: { id: SplitId; name: string }[] = [
   { id: "legs", name: "Legs" },
 ];
 
-export const BODYWEIGHT_DEFAULT = 97.19;
-
 export interface SeedExercise {
   slug: string;
   name: string;

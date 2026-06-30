@@ -8,10 +8,6 @@ export const SUPABASE_URL =
 
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
 
-export const isLocalhost =
-  typeof location !== "undefined" &&
-  ["localhost", "127.0.0.1"].includes(location.hostname);
-
 if (!SUPABASE_ANON_KEY) {
   // Surfaced loudly in dev so a missing .env.local is obvious immediately.
   console.warn(

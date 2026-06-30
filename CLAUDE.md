@@ -28,7 +28,7 @@ Supabase → features/*/api.ts → page.tsx → 子元件
 | `ExprDisplay.tsx` | 重量表達式顯示元件、fmtWeightNum、isLbUnit |
 | `logFormHelpers.ts` | 常數、工具函數、useScrollAboveKeyboard |
 | `StagnationBadge.tsx` | 停滯/進步徽章元件 |
-| `ConfirmDialog.tsx` | ConfirmProvider、useConfirm |
+| `@shared/components/ConfirmDialog.tsx` | ConfirmProvider、useConfirm（位於 shared，非 training 目錄）|
 | `logic.ts` | 統計計算（computeStats、buildStagnationView 等）|
 | `parser.ts` | 重量表達式解析（parse、score、normalize）|
 | `api.ts` | 所有 Supabase 操作 |

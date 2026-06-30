@@ -5,7 +5,6 @@ import { DEFAULTS, phaseFromDeficit } from "./logic";
 export type NutritionEntry = Database["public"]["Tables"]["nutrition_entries"]["Row"];
 export type NutritionConfig = Database["public"]["Tables"]["nutrition_config"]["Row"];
 
-export const PHASE_NAMES = ["Aggressive Cut", "Moderate Cut", "Cruise", "Maintenance"] as const;
 export const DEFAULT_PHASE_DEFICITS = [805, 655, 455, 150] as const;
 
 async function currentUserId(): Promise<string> {

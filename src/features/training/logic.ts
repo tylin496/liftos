@@ -1,7 +1,7 @@
 // Pure stat functions operating on TrainingLog[] from Supabase.
 
 import type { TrainingLog } from "./api";
-import { parse, score, totalReps } from "./parser";
+import { parse, score } from "./parser";
 
 export type TimeFilter = "3mo" | "year" | "all";
 
@@ -140,9 +140,6 @@ export function timelineDate(isoDate: string): { mon: string; day: string } {
     day: String(d.getDate()).padStart(2, "0"),
   };
 }
-
-// ─── re-export totalReps for convenience ─────────────────────────────────────
-export { totalReps };
 
 // ─── Stagnation / Strength Retention ─────────────────────────────────────────
 
