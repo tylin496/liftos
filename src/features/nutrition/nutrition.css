@@ -1832,12 +1832,14 @@
   font-weight: 900;
 }
 
-/* Missed (past, unlogged) days: low solid grey nub — a quiet gap, not a dashed
-   placeholder. Future days draw nothing at all (see history.tsx). */
+/* Missed (past, unlogged) days: short column, not a pill.
+   Future days draw nothing at all (see history.tsx). */
 .ntb-pair--missing .ntb-bar--missing {
   height: 12px !important;
+  max-width: 9px;
+  border-radius: 3px;
   border: 0;
-  background: var(--rule-strong);
+  background: color-mix(in srgb, var(--rule-strong) 75%, transparent);
   box-shadow: none;
 }
 
