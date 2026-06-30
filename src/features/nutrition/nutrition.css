@@ -583,8 +583,6 @@
 }
 
 .nutri-save {
-  position: relative;
-  overflow: hidden;
   margin-top: var(--space-1);
   padding: var(--space-4);
   border: none;
@@ -594,21 +592,6 @@
   font-size: var(--text-base);
   font-weight: 700;
   transition: transform var(--motion-fast) var(--press-ease), opacity var(--motion-fast);
-}
-
-.nutri-save::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 35%,
-    rgba(255, 255, 255, 0.22) 50%,
-    transparent 65%
-  );
-  background-size: 200% 100%;
-  animation: btn-shine 2.8s ease-in-out infinite;
-  pointer-events: none;
 }
 
 @media (hover: hover) {
