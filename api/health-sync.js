@@ -1,7 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 
-// POST /api/health-sync
-// Ingest endpoint for the Apple Shortcut. Payload (DO NOT change shape):
+// /api/health-sync — Apple Health <-> LiftOS bridge for the Apple Shortcuts.
+//   POST → ingest body metrics (Apple Health → LiftOS body_metrics).
+//   GET  ?date=YYYY-MM-DD → export a day's logged calories + protein
+//          (LiftOS nutrition_entries → Apple Health Dietary Energy/Protein).
+//
+// POST payload (DO NOT change shape):
 //   { date: "YYYY-MM-DD", weight: number|"", bodyFat: number|"",
 //     activeEnergy: number|"", restingEnergy: number|"" }
 // Upserts one row per date into Supabase body_metrics. Empty/non-numeric
@@ -55,11 +59,11 @@ export function buildRecord(body) {
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-sync-secret");
 
   if (req.method === "OPTIONS") return res.status(204).end();
-  if (req.method !== "POST") {
+  if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
@@ -82,14 +86,40 @@ export default async function handler(req, res) {
     });
   }
 
-  const body =
-    typeof req.body === "string" ? safeParse(req.body) : req.body;
-  const { record, error } = buildRecord(body);
-  if (error) return res.status(400).json({ error });
-
   const supabase = createClient(url, serviceKey, {
     auth: { persistSession: false },
   });
+
+  // GET = nutrition export (LiftOS → Apple Health). Returns one day's logged
+  // calories + protein so a Shortcut can write them into Apple Health as
+  // Dietary Energy / Protein. (Folded in here rather than its own file to
+  // stay under Vercel's 12-function Hobby limit.)
+  if (req.method === "GET") {
+    const date = req.query?.date;
+    if (typeof date !== "string" || !DATE_RE.test(date)) {
+      return res
+        .status(400)
+        .json({ error: "Invalid or missing 'date' (expected YYYY-MM-DD)" });
+    }
+    const { data, error: dbErr } = await supabase
+      .from("nutrition_entries")
+      .select("entry_date, calories, protein")
+      .eq("user_id", userId)
+      .eq("entry_date", date)
+      .maybeSingle();
+    if (dbErr) return res.status(500).json({ error: dbErr.message });
+    return res.status(200).json({
+      ok: true,
+      date,
+      calories: data?.calories ?? null,
+      protein: data?.protein ?? null,
+    });
+  }
+
+  // POST = body metrics ingest (Apple Health → LiftOS).
+  const body = typeof req.body === "string" ? safeParse(req.body) : req.body;
+  const { record, error } = buildRecord(body);
+  if (error) return res.status(400).json({ error });
 
   const { data, error: dbErr } = await supabase
     .from("body_metrics")

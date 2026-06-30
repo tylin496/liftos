@@ -216,7 +216,11 @@ export function computeTrend(logsAsc: TrainingLog[]): TrendResult | null {
   if (sessions.length < 2) return null;
 
   const last = sessions[sessions.length - 1][1];
-  const refIdx = sessions.length >= 3 ? sessions.length - 3 : sessions.length - 2;
+  // Compare to the immediately previous session, not a fixed window back.
+  // A fixed 3-sessions-back reference reads a dip-then-recover (V-shape) as
+  // "declining" because the reference lands on the pre-dip high. The previous
+  // session is never stale, so this matches the per-entry +Xkg delta.
+  const refIdx = sessions.length - 2;
   const ref = sessions[refIdx][1];
   const change = (last - ref) / ref;
 
@@ -272,7 +276,11 @@ function buildStatusReason(
   trend: string | undefined,
   entries: LogEntry[],
   prEntry: LogEntry | null,
+  pct: number,
 ): string | null {
+  if (status === "rebuilding") {
+    return `Climbing back · ${Math.round(pct * 100)}% of PR`;
+  }
   if (status === "review") {
     if (trend === "declining") {
       const streak = countDecliningStreak(entries);
@@ -308,6 +316,7 @@ const RETENTION_LABELS: Record<string, string> = {
   "on-track": "On Track",
   watch: "Below PR",
   review: "Review",
+  rebuilding: "Rebuilding",
 };
 
 /** Pass ALL logs (not time-filtered) so the badge reflects the all-time PR. */
@@ -316,7 +325,13 @@ export function buildStagnationView(logsAsc: TrainingLog[]): StagnationView | nu
   const t = computeTrend(logsAsc);
   if (!s) return null;
 
-  const { pct, status, prEntry, prRatio } = s;
+  const { pct, status: baseStatus, prEntry, prRatio } = s;
+  // Direction beats distance-from-PR: if you're below PR but the latest session
+  // is clearly climbing back, surface "Rebuilding" instead of a red "Review".
+  const status =
+    (baseStatus === "review" || baseStatus === "watch") && t?.trend === "recovering"
+      ? "rebuilding"
+      : baseStatus;
   const isAtPR = parseFloat((pct * 100).toFixed(1)) >= 100;
   const prBoost = prRatio ? Math.round(prRatio * 100) : 0;
   const isNewPR = prBoost > 100;
@@ -328,8 +343,9 @@ export function buildStagnationView(logsAsc: TrainingLog[]): StagnationView | nu
   const prDate = !showPR ? fmtInspectorDate(prEntry.log.log_date ?? "") : null;
   const expandable = !!prFmt;
   const entries = logsAsc.map(toLogEntry).filter((e): e is LogEntry => e !== null);
-  const reason = buildStatusReason(status, t?.trend, entries, prEntry);
-  const needsExplaining = status === "review" || status === "watch";
+  const reason = buildStatusReason(status, t?.trend, entries, prEntry, pct);
+  const needsExplaining =
+    status === "review" || status === "watch" || status === "rebuilding";
 
   return { pct, status, showPR, prLabel, label, prFmt, prDate, expandable, reason, needsExplaining, t: t ?? null };
 }

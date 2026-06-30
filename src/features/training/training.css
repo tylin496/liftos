@@ -1841,12 +1841,14 @@
 .stagnation-on-track .stagnation-label  { background: #dce8f5; color: #2a5580; }
 .stagnation-watch .stagnation-label     { background: transparent; border: 1.5px solid color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
 .stagnation-review .stagnation-label    { background: #fde8e8; color: #b52828; }
+.stagnation-rebuilding .stagnation-label { background: #d9f0ef; color: #14706b; }
 
 @media (prefers-color-scheme: dark) {
   .stagnation-excellent .stagnation-label { background: rgba(45,138,78,0.18);   color: #4cd476; }
   .stagnation-on-track .stagnation-label  { background: rgba(10,132,255,0.15);  color: #6ab4ff; }
   .stagnation-watch .stagnation-label     { background: var(--accent-glow);     border: none;   color: var(--accent); }
   .stagnation-review .stagnation-label    { background: rgba(255,107,107,0.15); color: #ff6b6b; }
+  .stagnation-rebuilding .stagnation-label { background: rgba(45,212,191,0.15);  color: #5eead4; }
 }
 
 .stagnation-trend {
