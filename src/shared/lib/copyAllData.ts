@@ -1,8 +1,9 @@
 import { fetchHealthData } from "@features/health/api";
 import { getConfig, getEntries, targetsFromConfig } from "@features/nutrition/api";
+import { monthlyStats } from "@features/nutrition/logic";
 import { fetchExercises, fetchLogsBySlug, loadStretches } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
-import { computeStats, computeTrend, epley1RM } from "@features/training/logic";
+import { computeStats, computeTrend, epley1RM, buildStagnationView } from "@features/training/logic";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
 
@@ -135,6 +136,74 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     });
   }
 
+  // ── Insights (pre-computed signals, independent of the export slice) ──────────
+  // Weight rate-of-change in kg/week over the available window.
+  const weightRatePerWeekKg = (() => {
+    if (weightPts.length < 2) return null;
+    const first = weightPts[0];
+    const last = weightPts.at(-1)!;
+    const days = (new Date(last.date).getTime() - new Date(first.date).getTime()) / 86_400_000;
+    if (days < 1) return null;
+    return +(((last.v - first.v) / days) * 7).toFixed(3);
+  })();
+
+  // Nutrition adherence / streak / double-hit over the export window.
+  const nutritionAdherence = monthlyStats(
+    sortedEntries.map((e) => ({
+      date: e.entry_date,
+      calories: e.calories,
+      protein: e.protein,
+      tdee: e.tdee,
+      deficitTarget: e.deficit_target,
+      proteinTarget: e.protein_target,
+    })),
+  );
+
+  // Training: flag exercises that are plateauing or declining, with the reason.
+  const trainingAttention: {
+    name: string;
+    status: string;
+    retentionPct: number;
+    trendPct: number | null;
+    reason: string | null;
+  }[] = [];
+  let improvingCount = 0;
+  for (const ex of exercises) {
+    if (ex.archived) continue;
+    const asc = (allLogsBySlug[ex.slug] ?? []).map((e) => e.log);
+    const sv = buildStagnationView(asc);
+    if (!sv) continue;
+    if (sv.status === "excellent" || sv.status === "on-track") improvingCount++;
+    if (sv.status === "watch" || sv.status === "review") {
+      trainingAttention.push({
+        name: ex.name,
+        status: sv.status,
+        retentionPct: +(sv.pct * 100).toFixed(1),
+        trendPct: sv.t ? +(sv.t.change * 100).toFixed(1) : null,
+        reason: sv.reason ?? null,
+      });
+    }
+  }
+
+  const insights = {
+    weight: { ratePerWeekKg: weightRatePerWeekKg },
+    nutrition: {
+      adherencePct: nutritionAdherence.adherencePct,
+      onPlanDays: nutritionAdherence.onPlan,
+      loggedDays: nutritionAdherence.logged,
+      currentStreak: nutritionAdherence.currentStreak,
+      doubleHitCount: nutritionAdherence.doubleHitCount,
+      doubleHitPct: nutritionAdherence.doubleHitPct,
+      distribution: nutritionAdherence.distribution,
+    },
+    training: {
+      exercisesTracked: improvingCount + trainingAttention.length,
+      improvingCount,
+      needsAttentionCount: trainingAttention.length,
+      attention: trainingAttention,
+    },
+  };
+
   const buildTraining = (logsPerEx: number) =>
     SPLITS.map((split) => {
       const splitExercises = exercises.filter(
@@ -199,7 +268,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 2.0,
+    schema: 2.1,
     generatedAt: now.toISOString(),
     units: { weight: "kg", energy: "kcal" },
     summary: {
@@ -211,6 +280,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       daysTracked,
       deficit: deficitSummary,
     },
+    insights,
     profile: {
       height: null,
       trainingAgeMonths: null,
