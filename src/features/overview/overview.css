@@ -369,3 +369,264 @@
 .ov-focus-watch     { color: var(--bad);  background: color-mix(in srgb, var(--bad) 12%, transparent); }
 .ov-focus-improving { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
 
+/* ─── Training Health Card ───────────────────────────────────────────────── */
+
+.ov-training-health {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--rule);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* When used as a plain nav button (no data state) */
+.ov-training-health--nav {
+  gap: var(--space-3);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
+}
+
+@media (hover: hover) {
+  .ov-training-health--nav:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.ov-training-health--nav:active {
+  transform: scale(var(--tap-scale));
+  box-shadow: var(--shadow-sm);
+  transition-duration: var(--motion-fast);
+}
+
+/* Summary button (the always-visible toggle target) */
+.ov-th-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+  .ov-th-summary:hover .ov-th-chevron {
+    color: var(--ink-2);
+  }
+}
+
+.ov-th-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ov-th-label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ov-th-chevron {
+  font-size: var(--text-base);
+  color: var(--ink-4);
+  line-height: 1;
+  transition: transform 0.2s ease, color var(--motion-base);
+}
+
+.ov-training-health.is-expanded .ov-th-chevron {
+  transform: rotate(180deg);
+}
+
+.ov-th-ret-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ov-th-ret-big {
+  font-family: var(--font-mono);
+  font-size: var(--text-4xl);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.ov-th-ret-big.good { color: var(--good); }
+.ov-th-ret-big.bad  { color: var(--bad); }
+
+.ov-th-ret-sub {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.ov-th-status {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--rule);
+}
+
+.ov-th-attention {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--bad);
+}
+
+.ov-th-all-good {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* Expanded content */
+.ov-th-expanded {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--space-4);
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+  gap: 0;
+}
+
+.ov-th-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--rule);
+}
+
+.ov-th-section:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.ov-th-sect-head {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: var(--space-2);
+}
+
+.ov-th-sect-head.attention {
+  color: var(--bad);
+}
+
+/* Exercise row */
+.ov-th-ex-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.ov-th-ex-row.watch {
+  grid-template-columns: 1fr auto auto;
+}
+
+.ov-th-ex-name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov-th-ex-icon {
+  font-size: var(--text-xs);
+  color: var(--bad);
+  flex-shrink: 0;
+}
+
+.ov-th-ex-pct {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.ov-th-ex-pct.bad { color: var(--bad); }
+
+.ov-th-ex-trend {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bad);
+  flex-shrink: 0;
+}
+
+/* Show N more (On Track overflow) */
+.ov-th-show-more {
+  align-self: flex-start;
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--motion-base);
+}
+
+@media (hover: hover) {
+  .ov-th-show-more:hover {
+    color: var(--ink);
+  }
+}
+
+/* Open Training link */
+.ov-th-nav-btn {
+  align-self: flex-end;
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-4);
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--motion-base);
+}
+
+@media (hover: hover) {
+  .ov-th-nav-btn:hover {
+    color: var(--ink);
+  }
+}
+
+/* ─── Weight stat sub-line colour ────────────────────────────────────────── */
+
+.ov-stat-sub.good { color: var(--good); }
+.ov-stat-sub.bad  { color: var(--bad); }
+

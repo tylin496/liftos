@@ -128,44 +128,141 @@ function HeroCard({ data }: { data: OverviewData | null }) {
   );
 }
 
-/* ── Compound Progress Card ────────────────────────────────────────────── */
+/* ── Training Health Card ──────────────────────────────────────────────── */
 
-function CompoundProgressCard({
-  progress,
+// Retention < 85% reads as a deeper hole than a recent dip — surface it as
+// "Review" (urgent) vs "Watch" (keep an eye on it).
+function exerciseRetention(ex: import("./api").StrengthExercise): number {
+  return ex.latestE1RM / ex.prE1RM;
+}
+
+function ExerciseRow({ exercise }: { exercise: import("./api").StrengthExercise }) {
+  const retention = exerciseRetention(exercise);
+  const retPct = Math.round(retention * 100);
+  const isWatch = exercise.status === "watch";
+  const tier = retention < 0.85 ? "Review" : "Watch";
+  return (
+    <div className={`ov-th-ex-row${isWatch ? " watch" : ""}`}>
+      <span className="ov-th-ex-name">
+        {isWatch && <span className="ov-th-ex-icon" aria-hidden>⚠</span>}
+        {exercise.name}
+      </span>
+      <span className={`ov-th-ex-pct${isWatch ? " bad" : ""}`}>{retPct}%</span>
+      {isWatch && <span className="ov-th-ex-trend">{tier}</span>}
+    </div>
+  );
+}
+
+const ON_TRACK_PREVIEW = 5;
+
+function TrainingHealthCard({
+  strength,
+  compoundProgress,
+  onNav,
 }: {
-  progress: import("./api").CompoundProgress;
+  strength: import("./api").StrengthSummary;
+  compoundProgress: import("./api").CompoundProgress | null;
+  onNav: () => void;
 }) {
-  const [barsReady, setBarsReady] = useState(false);
-  const rafRef = useRef(0);
-  useEffect(() => {
-    rafRef.current = requestAnimationFrame(() => setBarsReady(true));
-    return () => cancelAnimationFrame(rafRef.current);
-  }, []);
+  const [expanded, setExpanded] = useState(false);
+  const [showAllOnTrack, setShowAllOnTrack] = useState(false);
+  const hasData = strength.total > 0;
+  const retentionPct = compoundProgress ? Math.round(compoundProgress.overall * 100) : null;
+  const attention = strength.watch;
 
-  const overallPct = Math.round(progress.overall * 100);
+  // Attention always sits above On Track and is ordered worst-first
+  // (lowest retention), so the most urgent exercise is the first thing read.
+  const watchExercises = strength.exercises
+    .filter((e) => e.status === "watch")
+    .sort((a, b) => exerciseRetention(a) - exerciseRetention(b));
+  const onTrackExercises = strength.exercises.filter((e) => e.status !== "watch");
+  const onTrackVisible = showAllOnTrack
+    ? onTrackExercises
+    : onTrackExercises.slice(0, ON_TRACK_PREVIEW);
+  const onTrackHidden = onTrackExercises.length - onTrackVisible.length;
+
+  if (!hasData) {
+    return (
+      <button type="button" className="page-card ov-training-health ov-training-health--nav" onClick={onNav}>
+        <span className="ov-th-label">Training</span>
+        <p className="ov-no-entry" style={{ textAlign: "left" }}>
+          Log at least 4 sessions per exercise to see training health.
+        </p>
+      </button>
+    );
+  }
 
   return (
-    <section className="page-card ov-compound">
-      <div className="section-head"><h2>Performance Progress</h2></div>
-      <p className="ov-compound-overall">{overallPct}%</p>
-      <div className="ov-compound-list">
-        {progress.items.map(({ slug, label, pct }) => {
-          const p = Math.round(pct * 100);
-          return (
-            <div key={slug} className="ov-compound-row">
-              <span className="ov-compound-label" title={label}>{label}</span>
-              <div className="ov-bar-track ov-compound-track">
-                <div
-                  className={`ov-bar-fill${barsReady ? " anim" : ""}${p >= 100 ? " complete" : ""}`}
-                  style={{ width: barsReady ? `${p}%` : "0%" }}
-                />
+    <div className={`page-card ov-training-health${expanded ? " is-expanded" : ""}`}>
+      <button
+        type="button"
+        className="ov-th-summary"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="ov-th-top">
+          <span className="ov-th-label">Training</span>
+          <span className="ov-th-chevron" aria-hidden>▾</span>
+        </div>
+
+        {retentionPct !== null && (
+          <div className="ov-th-ret-hero">
+            <span className={`ov-th-ret-big${retentionPct >= 95 ? " good" : retentionPct >= 85 ? "" : " bad"}`}>
+              {retentionPct}%
+            </span>
+            <span className="ov-th-ret-sub">Retention</span>
+          </div>
+        )}
+
+        <div className="ov-th-status">
+          {attention > 0 ? (
+            <span className="ov-th-attention">{attention} Attention</span>
+          ) : (
+            <span className="ov-th-all-good">All exercises on track</span>
+          )}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="ov-th-expanded">
+          {watchExercises.length > 0 && (
+            <div className="ov-th-section">
+              <div className="ov-th-sect-head attention">
+                Attention ({watchExercises.length})
               </div>
-              <span className="ov-compound-pct">{p}%</span>
+              {watchExercises.map((ex) => (
+                <ExerciseRow key={ex.slug} exercise={ex} />
+              ))}
             </div>
-          );
-        })}
-      </div>
-    </section>
+          )}
+
+          {onTrackExercises.length > 0 && (
+            <div className="ov-th-section">
+              <div className="ov-th-sect-head">
+                On Track ({onTrackExercises.length})
+              </div>
+              {onTrackVisible.map((ex) => (
+                <ExerciseRow key={ex.slug} exercise={ex} />
+              ))}
+              {(onTrackHidden > 0 || showAllOnTrack) && (
+                <button
+                  type="button"
+                  className="ov-th-show-more"
+                  onClick={() => setShowAllOnTrack((v) => !v)}
+                >
+                  {showAllOnTrack ? "Show less" : `Show ${onTrackHidden} more`}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {expanded && (
+        <button type="button" className="ov-th-nav-btn" onClick={onNav}>
+          Open Training →
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -221,15 +318,24 @@ export function OverviewPage() {
       <div className="ov-grid-2">
         <button type="button" className="ov-stat" onClick={() => nav("health")}>
           <span className="ov-stat-label">Weight</span>
-          {(() => {
-            const weightDelta = fmtWeightDelta(data?.weightLatest ?? null, data?.weightWeekAgo ?? null);
-            return (
-              <>
-                <span className={`ov-stat-val ${weightDelta.cls}`}>{weightDelta.text}</span>
-                <span className="ov-stat-sub">vs 7 days ago</span>
-              </>
-            );
-          })()}
+          {data?.weightLatest != null ? (
+            (() => {
+              const weightDelta = fmtWeightDelta(data.weightLatest, data?.weightWeekAgo ?? null);
+              return (
+                <>
+                  <span className="ov-stat-val">{data.weightLatest} kg</span>
+                  <span className={`ov-stat-sub${weightDelta.cls ? ` ${weightDelta.cls}` : ""}`}>
+                    {weightDelta.text} / 7 days
+                  </span>
+                </>
+              );
+            })()
+          ) : (
+            <>
+              <span className="ov-stat-val empty">{data ? "—" : "–"}</span>
+              <span className="ov-stat-sub">{data ? "no data" : "kg"}</span>
+            </>
+          )}
         </button>
 
         <button type="button" className="ov-stat" onClick={() => nav("health")}>
@@ -262,25 +368,13 @@ export function OverviewPage() {
         </button>
       </div>
 
-      <div className="ov-grid-2">
-        <button type="button" className="ov-stat" onClick={() => nav("training")}>
-          <span className="ov-stat-label">PRs</span>
-          <span className={`ov-stat-val${data && data.prThisMonth > 0 ? " gold" : data ? " empty" : ""}`}>
-            {data ? data.prThisMonth : "0"}
-          </span>
-          <span className="ov-stat-sub">this month</span>
-        </button>
-
-        <button type="button" className="ov-stat" onClick={() => nav("training")}>
-          <span className="ov-stat-label">Sessions</span>
-          <span className={`ov-stat-val${data && data.sessionsThisWeek === 0 ? " empty" : ""}`}>
-            {data ? data.sessionsThisWeek : "0"}
-          </span>
-          <span className="ov-stat-sub">this week</span>
-        </button>
-      </div>
-
-      {data?.compoundProgress && <CompoundProgressCard progress={data.compoundProgress} />}
+      {data && (
+        <TrainingHealthCard
+          strength={data.strength}
+          compoundProgress={data.compoundProgress}
+          onNav={() => nav("training")}
+        />
+      )}
     </div>
   );
 }
