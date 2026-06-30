@@ -57,7 +57,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
         phase_deficits: [...savedDefs, intake] as unknown as any,
         height_cm: numOrNull(height),
         training_start_date: trainingStartDate || null,
-        training_age_months: liveTrainingMonths,
+        training_age_months: liveTrainingMonths == null ? null : Math.round(liveTrainingMonths),
         target_body_fat_pct: numOrNull(targetBf),
       });
       setConfig(updated);
