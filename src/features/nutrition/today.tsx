@@ -537,7 +537,7 @@ export function TodayView({
       const below = calResult.deficit - targets.deficitTarget;
       return `${below.toLocaleString()} kcal below budget`;
     }
-    if (calResult.state === "extreme") return "Consider eating more";
+    if (calResult.state === "extreme") return "Well below target";
     return "";
   })();
 
@@ -556,6 +556,14 @@ export function TodayView({
     : calResult.state === "on-plan" ? "tone-good"
     : ""
     : "";
+
+  // Overall day status badge (Today card, top-right)
+  const dayStatus = !hasEntry ? null
+    : doubleHit ? { label: "Great", tone: "gold" }
+    : calResult.isSurplus ? { label: "Surplus", tone: "warn" }
+    : calResult.state === "extreme" ? { label: "Low", tone: "warn" }
+    : (calResult.state === "on-plan" || calResult.state === "over") ? { label: "On plan", tone: "green" }
+    : { label: "Tracking", tone: "neutral" };
 
   const isEditing = editField !== null;
 
@@ -631,6 +639,7 @@ export function TodayView({
           isEditing ? "is-editing" : "",
           !hasEntry ? "is-empty" : "",
           doubleHit ? "double-hit" : "",
+          hideNav ? "is-compact" : "",
           savedPulse ? "saved-pulse" : "",
           navDir === "forward" ? "day-nav-forward" : navDir === "backward" ? "day-nav-backward" : "",
         ].filter(Boolean).join(" ")}
@@ -640,6 +649,12 @@ export function TodayView({
           <div className="daily-card-top-right">
             {!hasEntry && !isEditing && (
               <span className="dc-pill dc-pill--empty">No entry</span>
+            )}
+            {dayStatus && !isEditing && (
+              <span className={`dc-pill dc-pill--status dc-pill--${dayStatus.tone}`}>
+                <span className="dc-pill-dot" aria-hidden />
+                {dayStatus.label}
+              </span>
             )}
             {hasEntry && !isEditing && (
               <button

@@ -291,8 +291,8 @@
 .ov-compound-pct {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--ink-3);
+  font-weight: 600;
+  color: var(--ink-4);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

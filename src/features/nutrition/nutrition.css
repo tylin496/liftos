@@ -1413,6 +1413,14 @@
   padding: var(--space-5);
 }
 
+/* Overview context: trim height so the Today card sits closer to the KPI row */
+.daily-card.is-compact {
+  padding: var(--space-4) var(--space-5);
+}
+.daily-card.is-compact .daily-card-top {
+  margin-bottom: var(--space-3);
+}
+
 .daily-card-top {
   display: flex;
   align-items: center;
@@ -1461,6 +1469,30 @@
 .dc-pill--green {
   background: color-mix(in srgb, var(--good) 14%, transparent);
   color: var(--good);
+}
+
+.dc-pill--warn {
+  background: color-mix(in srgb, var(--bad) 14%, transparent);
+  color: var(--bad);
+}
+
+.dc-pill--neutral {
+  background: var(--bg-soft);
+  color: var(--ink-3);
+}
+
+/* Status badge: leading dot + label */
+.dc-pill--status {
+  gap: 5px;
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+.dc-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 /* ── Copy button ─────────────────────────────────────────────────────── */
