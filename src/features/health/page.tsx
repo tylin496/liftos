@@ -72,8 +72,6 @@ function rollingAvg(pts: { date: string; value: number }[], days = 7, offsetDays
   return window.reduce((s, p) => s + p.value, 0) / window.length;
 }
 
-const MONTH_ABBR = ["J","F","M","A","M","J","J","A","S","O","N","D"];
-
 function LineChart({
   points,
   color,
@@ -209,7 +207,7 @@ function LineChart({
         {/* X-axis labels */}
         {tickIndices.map((i) => {
           const d = new Date(points[i].date + "T12:00:00");
-          const label = MONTH_ABBR[d.getMonth()];
+          const label = d.toLocaleDateString(undefined, { month: "short" });
           return (
             <text
               key={i}
