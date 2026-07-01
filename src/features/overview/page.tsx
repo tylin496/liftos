@@ -35,7 +35,8 @@ function fmtTopbarDate(): string {
 
 function greeting(user: ReturnType<typeof useSessionUser>): string {
   const hour = new Date().getHours();
-  const time = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  const time =
+    hour < 5 ? "night" : hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
   const name =
     (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??
     user?.email?.split("@")[0] ??
