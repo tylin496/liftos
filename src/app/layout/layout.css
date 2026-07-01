@@ -148,6 +148,25 @@
     calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
 }
 
+/* While a horizontal tab slide is in flight, both panels are stacked and
+   translated independently. Clip the overflow so the incoming/outgoing pages
+   don't spill sideways, and hold a viewport height so the layout doesn't
+   collapse for the ~300ms the animation runs. */
+.shell-content.is-sliding {
+  position: relative;
+  overflow: hidden;
+  min-height: calc(100dvh - var(--header-h) - var(--safe-top) - var(--tabbar-h) - var(--safe-bottom));
+  touch-action: pan-y;
+}
+
+.shell-content.is-sliding .tab-panel {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  right: var(--space-4);
+  will-change: transform;
+}
+
 
 /* ── Tab bar ────────────────────────────────────────────────────────── */
 .tabbar {
