@@ -5,6 +5,10 @@ import { defaultLogDate, getCalorieResult, getProteinResult, toDateStr } from ".
 import { useToast } from "@shared/components/Toast";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
+import { MetricCaption } from "@shared/components/Metric";
+import { Badge } from "@shared/components/Badge";
+import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
+import "@shared/components/nutriGrid.css";
 
 const MIN_DATE = "2026-02-09";
 const INITIAL_HISTORY_MONTHS = 6;
@@ -263,7 +267,7 @@ export function TodayView({
 }) {
   const toast = useToast();
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [editField, setEditField] = useState<"calories" | "protein" | null>(null);
+  const [editField, setEditField] = useState<MacroField | null>(null);
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
   const [loading, setLoading] = useState(true);
@@ -273,8 +277,6 @@ export function TodayView({
   const celebration = useCelebration();
   const [navDir, setNavDir] = useState<"forward" | "backward" | null>(null);
 
-  const calInputRef = useRef<HTMLInputElement>(null);
-  const protInputRef = useRef<HTMLInputElement>(null);
   const calNumRef = useRef<HTMLElement>(null);
   const protNumRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -329,15 +331,6 @@ export function TodayView({
     if (calNumRef.current && calN > 0) animateCountUp(calNumRef.current, calN, sig);
     if (protNumRef.current && protN > 0) animateCountUp(protNumRef.current, protN, sig);
   }, [loading]);
-
-  // Focus right input when edit opens
-  useEffect(() => {
-    if (editField === "calories") {
-      setTimeout(() => { calInputRef.current?.focus(); calInputRef.current?.select(); }, 40);
-    } else if (editField === "protein") {
-      setTimeout(() => { protInputRef.current?.focus(); protInputRef.current?.select(); }, 40);
-    }
-  }, [editField]);
 
   // Keyboard arrow navigation
   useEffect(() => {
@@ -459,10 +452,6 @@ export function TodayView({
     } finally {
       setSaving(false);
     }
-  }
-
-  function handleSave() {
-    doSave(Number(calories) || 0, Number(protein) || 0);
   }
 
   function handleDelete() {
@@ -614,177 +603,73 @@ export function TodayView({
           <h2 className="daily-card-heading">{isToday ? "Today" : labelFor(date)}</h2>
           <div className="daily-card-top-right">
             {!hasEntry && !isEditing && (
-              <span className="dc-pill dc-pill--empty">No entry</span>
+              <Badge tone="neutral">No entry</Badge>
             )}
             {dayStatus && !isEditing && (
-              <span className={`dc-pill dc-pill--status dc-pill--${dayStatus.tone}`}>
-                <span className="dc-pill-dot" aria-hidden />
-                {dayStatus.label}
-              </span>
+              <Badge tone="gold">{dayStatus.label}</Badge>
             )}
           </div>
         </div>
 
         {isEditing ? (
-          /* ── Inline entry form ── */
-          <div className="settlement-form">
-            <label className="sf-input-card">
-              <span className="sf-label">Calories</span>
-              <div className="sf-row">
-                <input
-                  ref={calInputRef}
-                  type="number"
-                  inputMode="numeric"
-                  value={calories}
-                  placeholder="0"
-                  onChange={(e) => {
-                    let digits = e.target.value.replace(/\D/g, "");
-                    if (digits.length > 4) digits = digits.slice(0, 4);
-                    setCalories(digits);
-                    if (digits.length === 4) {
-                      protInputRef.current?.focus();
-                      protInputRef.current?.select();
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      if (editField === "calories") {
-                        setEditField("protein");
-                      } else {
-                        handleSave();
-                      }
-                    }
-                    if (e.key === "Escape") { haptic("tap"); setEditField(null); }
-                  }}
-                />
-                <span className="sf-unit">kcal</span>
-              </div>
-            </label>
-            <label className="sf-input-card">
-              <span className="sf-label">Protein</span>
-              <div className="sf-row">
-                <input
-                  ref={protInputRef}
-                  type="number"
-                  inputMode="numeric"
-                  value={protein}
-                  placeholder="0"
-                  onChange={(e) => {
-                    let digits = e.target.value.replace(/\D/g, "");
-                    if (digits.length > 3) digits = digits.slice(0, 3);
-                    setProtein(digits);
-                    if (digits.length === 3) {
-                      doSave(Number(calories) || 0, Number(digits));
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSave();
-                    if (e.key === "Escape") { haptic("tap"); setEditField(null); }
-                  }}
-                />
-                <span className="sf-unit">g</span>
-              </div>
-            </label>
-            <div className="sf-actions">
-              <button
-                className="nutri-save"
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? "Saving…" : hasEntry ? "Update entry" : "Save entry"}
-              </button>
-              <div className="sf-secondary">
-                {hasEntry && (
-                  <button
-                    className="sf-delete-link"
-                    type="button"
-                    onClick={() => { haptic("warning"); handleDelete(); }}
-                  >
-                    Delete entry
-                  </button>
-                )}
-                <button
-                  className="sf-cancel-link"
-                  type="button"
-                  onClick={() => { haptic("tap"); setEditField(null); }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+          <MacroEditFields
+            calories={calories}
+            protein={protein}
+            onCaloriesChange={setCalories}
+            onProteinChange={setProtein}
+            activeField={editField ?? "calories"}
+            onActiveFieldChange={setEditField}
+            onSave={doSave}
+            onCancel={() => { haptic("tap"); setEditField(null); }}
+            onDelete={hasEntry ? () => { haptic("warning"); handleDelete(); } : undefined}
+            saving={saving}
+            hasEntry={hasEntry}
+          />
         ) : (
-          /* ── Stat rows ── */
-          <div className="daily-metrics">
-            {hasEntry ? (
-              <>
-                <button
-                  className="stat-row"
-                  type="button"
-                  aria-label="Edit calories"
-                  onClick={() => openEdit("calories")}
-                >
-                  <span className="stat-main">
-                    <span ref={calNumRef} className={`stat-number ${calTone}`}>
-                      {calNum.toLocaleString()}
-                    </span>
-                    <span className="stat-unit">kcal</span>
-
+          /* ── Stat grid ── */
+          <div className="nutri-grid">
+            <button type="button" className="nutri-col" aria-label="Edit calories" onClick={() => openEdit("calories")}>
+              <span className="nutri-label">Calories</span>
+              {hasEntry ? (
+                <>
+                  <span className="metric-val metric-val--lg">
+                    <span ref={calNumRef} className={calTone}>{calNum.toLocaleString()}</span>
+                    <span className="metric-unit">kcal</span>
                   </span>
-                  <span className="stat-label">Calories</span>
-                  <span className={`stat-note${calResult.isSurplus || calResult.state === "extreme" ? " stat-note--warn" : calResult.state === "on-plan" ? " stat-note--good" : ""}`}>
+                  <MetricCaption className={calResult.isSurplus || calResult.state === "extreme" ? "tone-bad" : calResult.state === "on-plan" ? "tone-good" : ""}>
                     {calNote}
-                  </span>
-                </button>
-                <button
-                  className="stat-row"
-                  type="button"
-                  aria-label="Edit protein"
-                  onClick={() => openEdit("protein")}
-                >
-                  <span className="stat-main">
-                    <span ref={protNumRef} className={`stat-number${protResult.celebrated ? " tone-good" : ""}`}>
-                      {protNum}
-                    </span>
-                    <span className="stat-unit">g</span>
-                  </span>
-                  <span className="stat-label">Protein</span>
-                  <span className={`stat-note${protResult.celebrated ? " stat-note--good" : ""}`}>
-                    {protNote}
-                  </span>
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  className="stat-row stat-row--empty"
-                  type="button"
-                  aria-label="Log calories"
-                  onClick={() => openEdit("calories")}
-                >
-                  <span className="stat-main">
+                  </MetricCaption>
+                </>
+              ) : (
+                <>
+                  <span className="metric-val metric-val--lg">
                     <span className="stat-number--empty">—</span>
-                    <span className="stat-unit">kcal</span>
+                    <span className="metric-unit">kcal</span>
                   </span>
-                  <span className="stat-label">Calories</span>
-                  <span className="stat-note">Target {targets.calorieTarget.toLocaleString()} kcal</span>
-                </button>
-                <button
-                  className="stat-row stat-row--empty"
-                  type="button"
-                  aria-label="Log protein"
-                  onClick={() => openEdit("protein")}
-                >
-                  <span className="stat-main">
+                  <MetricCaption>Target {targets.calorieTarget.toLocaleString()} kcal</MetricCaption>
+                </>
+              )}
+            </button>
+            <button type="button" className="nutri-col" aria-label="Edit protein" onClick={() => openEdit("protein")}>
+              <span className="nutri-label">Protein</span>
+              {hasEntry ? (
+                <>
+                  <span className="metric-val metric-val--lg nutri-val--blue">
+                    <span ref={protNumRef}>{protNum}</span>
+                    <span className="metric-unit">g</span>
+                  </span>
+                  <MetricCaption className={protResult.celebrated ? "tone-good" : ""}>{protNote}</MetricCaption>
+                </>
+              ) : (
+                <>
+                  <span className="metric-val metric-val--lg">
                     <span className="stat-number--empty">—</span>
-                    <span className="stat-unit">g</span>
+                    <span className="metric-unit">g</span>
                   </span>
-                  <span className="stat-label">Protein</span>
-                  <span className="stat-note">Target {targets.proteinTarget}g</span>
-                </button>
-              </>
-            )}
+                  <MetricCaption>Target {targets.proteinTarget}g</MetricCaption>
+                </>
+              )}
+            </button>
           </div>
         )}
       </section>

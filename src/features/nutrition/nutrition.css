@@ -44,71 +44,6 @@
   gap: var(--space-3);
 }
 
-/* ── Segmented sub-nav ───────────────────────────────────────────────── */
-.seg {
-  position: relative;
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  background: var(--bg-soft);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--space-3);
-}
-
-/* sliding pill behind the active item */
-.seg-thumb {
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc((100% - 6px - (var(--seg-n, 3) - 1) * 2px) / var(--seg-n, 3));
-  background: var(--bg-card);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
-  pointer-events: none;
-  transform: translateX(calc(var(--seg-idx, 0) * (100% + 2px)));
-  transition: transform var(--motion-base) var(--move-ease);
-  z-index: 0;
-}
-
-.seg-item {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  border: none;
-  background: none;
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-  transition: color var(--motion-base);
-}
-
-.seg-item.is-active {
-  color: var(--ink);
-}
-
-.seg-item:active {
-  transform: scale(var(--tap-scale));
-  transition-duration: var(--motion-fast);
-}
-
-.seg-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: var(--space-1);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--ink-4);
-  line-height: 1;
-}
-
-.seg-item.is-active .seg-count {
-  color: var(--ink-3);
-}
-
 /* ── History ─────────────────────────────────────────────────────────── */
 .hist-badge {
   font-size: var(--text-2xs);
@@ -769,148 +704,24 @@
   gap: var(--space-2);
 }
 
-/* ── Status pills ────────────────────────────────────────────────────── */
-.dc-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-pill);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  line-height: 1.5;
-}
-
-.dc-pill--empty {
-  background: var(--bg-soft);
-  color: var(--ink-4);
-}
-
-.dc-pill--gold {
-  background: color-mix(in srgb, var(--gold) 14%, transparent);
-  color: var(--gold);
-}
-
-.dc-pill--green {
-  background: color-mix(in srgb, var(--good) 14%, transparent);
-  color: var(--good);
-}
-
-.dc-pill--warn {
-  background: color-mix(in srgb, var(--bad) 14%, transparent);
-  color: var(--bad);
-}
-
-.dc-pill--neutral {
-  background: var(--bg-soft);
-  color: var(--ink-3);
-}
-
-/* Status badge: leading dot + label */
-.dc-pill--status {
-  gap: var(--space-1);
-  text-transform: none;
-  letter-spacing: 0.01em;
-}
-
-.dc-pill-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
 /* ── Copy button ─────────────────────────────────────────────────────── */
-/* ── Stat rows ───────────────────────────────────────────────────────── */
-.daily-metrics {
-  display: flex;
-  flex-direction: column;
-}
+/* ── Stat grid ───────────────────────────────────────────────────────── */
+/* Layout is the shared .nutri-grid (shared/components/nutriGrid.css); values
+   render via the shared metric-val/metric-unit/metric-caption classes. */
 
-.stat-row {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: var(--space-4) 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-  border-bottom: 1px solid var(--rule);
-  transition: opacity var(--motion-fast);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.stat-row:last-child {
-  border-bottom: none;
-  padding-bottom: 2px;
-}
-
-.stat-row:first-child {
-  padding-top: 2px;
-}
-
-.stat-row:active { opacity: 0.72; }
-
-.stat-main {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.stat-number {
-  font-size: clamp(32px, 6.8vw, 45px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  color: var(--ink);
-  transition: color var(--motion-base);
-}
-
-/* Big calorie/protein hero keeps its signature clamp size; the unit drops
-   to the canonical fixed size so "kcal"/"g" read like every other tab. */
-.stat-unit {
-  font-size: var(--metric-unit);
-  font-weight: 600;
-  color: var(--ink-3);
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-4);
-  margin-top: 2px;
-}
-
-.stat-note {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-3);
-}
-
-.stat-note--good { color: var(--good); }
-.stat-note--warn { color: var(--bad); }
-
-/* Empty stat rows: same column layout as filled rows so the card height
+/* Empty stat cell: same column layout as a filled one so the card height
    doesn't jump when an entry is logged — only the number is dimmed to "—". */
 .stat-number--empty {
-  font-size: clamp(32px, 6.8vw, 45px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
   color: var(--ink-4);
-  line-height: 1;
 }
 
-/* Skeleton loading overlay for stat rows */
-.loading-card .stat-number,
-.loading-card .stat-number--empty {
+/* Skeleton loading overlay for the stat grid */
+.daily-card.loading-card .metric-unit {
+  visibility: hidden;
+}
+
+.daily-card.loading-card .metric-val,
+.daily-card.loading-card .stat-number--empty {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   background: linear-gradient(
@@ -925,102 +736,9 @@
 }
 
 /* ── Inline settlement form ──────────────────────────────────────────── */
+/* .settlement-form / .sf-* rules live in shared/components/macroEditFields.css
+   (MacroEditFields is shared with Overview's Hero card). */
 .daily-card.is-editing .daily-metrics { display: none; }
-
-.settlement-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  animation: rise-in var(--motion-base) var(--reveal-ease) both;
-}
-
-.sf-input-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--rule);
-  cursor: text;
-}
-
-.sf-input-card:last-of-type { border-bottom: none; }
-
-.sf-label {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-3);
-}
-
-.sf-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-
-.sf-row input {
-  flex: 1;
-  min-width: 0;
-  background: none;
-  border: none;
-  outline: none;
-  font-family: var(--font-ui);
-  font-size: clamp(36px, 7.6vw, 50px);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  padding: 0;
-  -webkit-tap-highlight-color: transparent;
-  color-scheme: dark;
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.sf-row input::placeholder { color: var(--ink-4); }
-
-.sf-unit {
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  color: var(--ink-3);
-  flex-shrink: 0;
-}
-
-.sf-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-}
-
-.sf-secondary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sf-delete-link {
-  background: none;
-  border: none;
-  padding: var(--space-1) 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--bad);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.sf-cancel-link {
-  background: none;
-  border: none;
-  padding: var(--space-1) 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
 
 /* ── Saved-pulse: flash the card on successful save ──────────────────── */
 .daily-card.saved-pulse {

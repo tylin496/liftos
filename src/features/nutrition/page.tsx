@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNutritionConfig } from "./NutritionConfigContext";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
+import { PageTopBar } from "@shared/components/PageTopBar";
 import { TodayView } from "./today";
 import { HistoryView } from "./history";
 import { defaultLogDate } from "./logic";
@@ -16,6 +17,8 @@ export function NutritionPage() {
 
   return (
     <div className="page">
+      <PageTopBar eyebrow="NUTRITION" title="Today" />
+
       {config && (
         <>
           <TodayView
