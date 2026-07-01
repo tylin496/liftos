@@ -509,7 +509,7 @@ export function TodayView({
       const short = targets.deficitTarget - calResult.deficit;
       return `${short.toLocaleString()} kcal short`;
     }
-    if (calResult.state === "on-plan") return calResult.isPerfect ? "Perfect!" : "On Plan ✓";
+    if (calResult.state === "on-plan") return "✓ On Plan";
     if (calResult.state === "over") {
       const below = calResult.deficit - targets.deficitTarget;
       return `${below.toLocaleString()} kcal below budget`;
