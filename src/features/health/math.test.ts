@@ -104,6 +104,21 @@ describe("rollingAvg", () => {
     expect(rollingAvg(pts, 7, 0)).toBeCloseTo(105, 10);
   });
 
+  it("uses calendar days, not the last N available samples", () => {
+    const pts = [
+      { date: "2026-05-01", value: 1 },
+      { date: "2026-05-15", value: 1 },
+      { date: "2026-05-31", value: 1 },
+      { date: "2026-06-01", value: 100 },
+      { date: "2026-06-15", value: 110 },
+      { date: "2026-06-30", value: 200 },
+    ];
+
+    // Latest is 2026-06-30, so offset 1 anchors the window on 2026-06-29.
+    // The 30 calendar-day window is 2026-05-31..2026-06-29 inclusive.
+    expect(rollingAvg(pts, 30, 1)).toBeCloseTo((1 + 100 + 110) / 3, 10);
+  });
+
   it("returns null when the offset window contains no readings", () => {
     const pts = [
       { date: "2026-06-29", value: 100 },

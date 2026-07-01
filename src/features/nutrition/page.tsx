@@ -41,7 +41,6 @@ export function NutritionPage() {
             calendarOpen={calendarOpen}
             onCalendarOpenChange={setCalendarOpen}
           />
-          <NutritionInsightCard refreshKey={entryVersion} />
           <HistoryView
             config={config}
             date={date}
@@ -49,6 +48,7 @@ export function NutritionPage() {
             entryVersion={entryVersion}
             onOpenCalendar={() => setCalendarOpen(true)}
           />
+          <NutritionInsightCard refreshKey={entryVersion} />
         </>
       )}
     </div>
