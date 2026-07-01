@@ -474,7 +474,7 @@
 .ov-th-all-good {
   font-size: var(--text-base);
   font-weight: 500;
-  color: var(--ink-3);
+  color: var(--good);
 }
 
 /* Expanded content */

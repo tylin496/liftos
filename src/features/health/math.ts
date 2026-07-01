@@ -97,7 +97,7 @@ export type RecoveryStatus = "Ready" | "Good" | "Fair" | "Needs Recovery";
  *  card so the four tiers always read the same color. */
 export const RECOVERY_STATUS_COLOR: Record<RecoveryStatus, string> = {
   Ready:              "var(--good)",
-  Good:               "var(--blue)",
+  Good:               "var(--good)",
   Fair:               "var(--gold)",
   "Needs Recovery":   "var(--bad)",
 };
