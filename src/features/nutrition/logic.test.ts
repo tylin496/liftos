@@ -2,8 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   getCalorieResult,
   getProteinResult,
-  fatLossKg,
-  formatFatLossKg,
   phaseFromDeficit,
 } from "./logic";
 
@@ -61,26 +59,6 @@ describe("getProteinResult", () => {
     const r = getProteinResult(160, 180); // gap 20 > 18
     expect(r.celebrated).toBe(false);
     expect(r.progress).toBe(89); // round(160/180)
-  });
-});
-
-describe("fatLossKg", () => {
-  it("converts a deficit to kg at 7700 kcal/kg", () => {
-    expect(fatLossKg(7700)).toBe(1);
-    expect(fatLossKg(3850)).toBe(0.5);
-  });
-
-  it("clamps negative (surplus) totals to zero", () => {
-    expect(fatLossKg(-1000)).toBe(0);
-  });
-});
-
-describe("formatFatLossKg", () => {
-  it("formats by magnitude band", () => {
-    expect(formatFatLossKg(0)).toBe("0");
-    expect(formatFatLossKg(0.5)).toBe("0.50");
-    expect(formatFatLossKg(2.34)).toBe("2.3");
-    expect(formatFatLossKg(12.3)).toBe("12");
   });
 });
 

@@ -1,8 +1,6 @@
 // Nutrition business logic — ported faithfully from legacy/nutrition/app.js.
 // Pure, typed, framework-free so it is trivial to test and reuse.
 
-export const FAT_KCAL_PER_KG = 7700;
-
 export const DEFAULTS = {
   tdee: 2705,
   proteinTarget: 180,
@@ -92,16 +90,6 @@ export function getProteinResult(
   };
 }
 
-export const fatLossKg = (totalDeficit: number) => Math.max(0, totalDeficit) / FAT_KCAL_PER_KG;
-
-export function formatFatLossKg(value: number): string {
-  const kg = Number(value);
-  if (!Number.isFinite(kg) || kg <= 0) return "0";
-  if (kg >= 10) return Math.round(kg).toLocaleString();
-  if (kg >= 1) return kg.toLocaleString(undefined, { maximumFractionDigits: 1 });
-  return kg.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 // ── Aggregations (weekly trend, monthly adherence) ─────────────────────────
 
 export interface DayInput {
@@ -121,8 +109,6 @@ export interface WeeklyStats {
   logged: number;
   avgCalories: number;
   avgProtein: number;
-  totalDeficit: number;
-  fatLossKg: number;
   consistency: Consistency | null;
 }
 
@@ -131,7 +117,6 @@ export function weeklyStats(days: DayInput[]): WeeklyStats {
   const cals = logged.map((d) => d.calories as number);
   const prots = logged.filter((d) => d.protein != null).map((d) => d.protein as number);
   const nets = logged.map((d) => (d.tdee ?? DEFAULTS.tdee) - (d.calories as number));
-  const totalDeficit = nets.reduce((a, b) => a + b, 0);
 
   let consistency: Consistency | null = null;
   if (nets.length > 0 && nets.length < 3) {
@@ -146,8 +131,6 @@ export function weeklyStats(days: DayInput[]): WeeklyStats {
     logged: logged.length,
     avgCalories: Math.round(mean(cals)),
     avgProtein: Math.round(mean(prots)),
-    totalDeficit: Math.round(totalDeficit),
-    fatLossKg: fatLossKg(totalDeficit),
     consistency,
   };
 }

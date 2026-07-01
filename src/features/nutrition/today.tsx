@@ -518,13 +518,14 @@ export function TodayView({
     return "";
   })();
 
-  // Protein note
+  // Protein note — protein is a one-sided floor: only the shortfall drives a
+  // decision (eat more). Above the target there's nothing to act on, so we
+  // don't dress "over" up as a delta. Just: how much more, or done.
   const protNote = (() => {
     if (!hasEntry) return `Target ${targets.proteinTarget}g`;
-    const delta = protNum - targets.proteinTarget;
-    if (Math.abs(delta) <= 2) return "Perfect!";
-    if (delta > 0) return `+${delta}g above target`;
-    return `${Math.abs(delta)}g to go`;
+    const gap = targets.proteinTarget - protNum;
+    if (gap > 0) return `${gap}g to go`;
+    return "✓ Target met";
   })();
 
   const calTone = hasEntry
@@ -534,13 +535,11 @@ export function TodayView({
     : ""
     : "";
 
-  // Overall day status badge (Today card, top-right)
-  const dayStatus = !hasEntry ? null
-    : doubleHit ? { label: "Double Hit", tone: "gold" }
-    : calResult.isSurplus ? { label: "Surplus", tone: "warn" }
-    : calResult.state === "extreme" ? { label: "Low", tone: "warn" }
-    : (calResult.state === "on-plan" || calResult.state === "over") ? { label: "On Plan", tone: "green" }
-    : { label: "Tracking", tone: "neutral" };
+  // Day status badge (Today card, top-right). A pill only earns its place when
+  // it says something the per-row notes don't. "On Plan"/"Surplus"/"Low"/
+  // "Tracking" just restate calNote — so the only pill left is the reward the
+  // notes can't carry: Double Hit.
+  const dayStatus = hasEntry && doubleHit ? { label: "Double Hit", tone: "gold" } : null;
 
   const isEditing = editField !== null;
 
@@ -749,9 +748,6 @@ export function TodayView({
                       {protNum}
                     </span>
                     <span className="stat-unit">g</span>
-                    {protResult.celebrated && !doubleHit && (
-                      <span className="dc-pill dc-pill--green">On Track</span>
-                    )}
                   </span>
                   <span className="stat-label">Protein</span>
                   <span className={`stat-note${protResult.celebrated ? " stat-note--good" : ""}`}>
