@@ -80,7 +80,7 @@ create index on public.training_logs (user_id, exercise_slug, log_date);
 
 -- ───────────────────────────── health ──────────────────────────────
 -- Fed by the iOS Shortcut → Edge Function. One row per day.
-create table public.body_metrics (
+create table public.health_metrics (
   id                 uuid primary key default gen_random_uuid(),
   user_id            uuid not null references auth.users (id) on delete cascade,
   metric_date        date not null,
@@ -102,7 +102,7 @@ create trigger trg_nutrition_config_updated before update on public.nutrition_co
   for each row execute function public.set_updated_at();
 create trigger trg_exercises_updated before update on public.exercises
   for each row execute function public.set_updated_at();
-create trigger trg_body_metrics_updated before update on public.body_metrics
+create trigger trg_health_metrics_updated before update on public.health_metrics
   for each row execute function public.set_updated_at();
 
 -- ────────────────────────── Row Level Security ─────────────────────
@@ -112,7 +112,7 @@ declare t text;
 begin
   foreach t in array array[
     'nutrition_entries', 'nutrition_config', 'exercises',
-    'training_logs', 'body_metrics'
+    'training_logs', 'health_metrics'
   ]
   loop
     execute format('alter table public.%I enable row level security;', t);
