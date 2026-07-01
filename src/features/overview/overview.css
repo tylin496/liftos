@@ -98,6 +98,7 @@
   background: none;
   border: none;
   box-shadow: none;
+  margin-top: var(--space-3);
   padding: 2px 2px var(--space-5);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -556,5 +557,4 @@
     color: var(--ink);
   }
 }
-
 
