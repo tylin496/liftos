@@ -294,6 +294,7 @@ function RecoveryCard({ snap }: { snap: RecoverySnapshot }) {
           {snap.status}
         </span>
       </div>
+      <p className="health-metric-eyebrow">{periodLabel(30)}</p>
       <div className="health-recovery-rows">
         <RecoveryRow label="Sleep" value={snap.sleepHours} unit="h"   delta={sleepDelta} higherBetter />
         <RecoveryRow label="HRV"   value={snap.hrv}        unit="ms"  delta={hrvDelta}   higherBetter />
