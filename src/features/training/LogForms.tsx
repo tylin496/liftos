@@ -12,6 +12,8 @@ import {
   repsStringToValues,
   composeRepsMulti,
   useScrollAboveKeyboard,
+  useWeightAdjuster,
+  useAssistAdjuster,
 } from "./logFormHelpers";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -130,7 +132,6 @@ export function AddEntryForm({
   const [unit, setUnit] = useState<"kg" | "lbs">(isLbUnit(lastParsed?.unit) ? "lbs" : "kg");
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
-  const weightRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
 
@@ -142,18 +143,11 @@ export function AddEntryForm({
       ? normalize(`${effectiveWeightExpr}${suffix} *${reps}`)
       : "";
   const preview = raw ? parse(raw) : null;
-
-  function adjustWeight(delta: number) {
-    const base = preview?.weight ?? (parseFloat(weightExpr) || 0);
-    const next = Math.max(0, base + delta);
-    setWeightExpr(String(+next.toFixed(4)));
-    weightRef.current?.focus();
-  }
-
-  function appendToken(tok: string) {
-    setWeightExpr((s) => s + tok);
-    weightRef.current?.focus();
-  }
+  const { weightRef, adjustWeight, appendToken } = useWeightAdjuster(
+    weightExpr,
+    setWeightExpr,
+    preview?.weight,
+  );
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -317,12 +311,13 @@ export function AddAssistedForm({
   const [repValues, setRepValues] = useState(() => emptyRepValues(n));
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
-  const assistRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const bodyweightTouchedRef = useRef(false);
   useScrollAboveKeyboard(formRef);
 
-  // Prefill from latest Health weight when no prior saved value exists
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Prefill from latest Health weight when no prior saved value exists.
+  // Guard on a ref (not the `bodyweight` state) so a user typing while this
+  // request is in flight never gets overwritten once it resolves.
   useEffect(() => {
     if (lastBw) return;
     supabase
@@ -333,8 +328,11 @@ export function AddAssistedForm({
       .limit(1)
       .single()
       .then(({ data }) => {
-        if (data?.weight_kg && !bodyweight) setBodyweight(String(data.weight_kg));
+        if (data?.weight_kg && !bodyweightTouchedRef.current) {
+          setBodyweight(String(data.weight_kg));
+        }
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const parsedAssist = parseFloat(assistance) || 0;
@@ -343,12 +341,7 @@ export function AddAssistedForm({
     parsedBw > 0 && parsedAssist > 0 ? +(parsedBw - parsedAssist).toFixed(2) : null;
   const reps = composeRepsMulti(repValues, "");
   const isValid = effectiveLoad !== null && effectiveLoad > 0 && reps.length > 0;
-
-  function adjustAssist(delta: number) {
-    const next = Math.max(0, parsedAssist + delta);
-    setAssistance(String(+next.toFixed(2)));
-    assistRef.current?.focus();
-  }
+  const { assistRef, adjustAssist } = useAssistAdjuster(setAssistance, parsedAssist);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -422,7 +415,10 @@ export function AddAssistedForm({
           <input
             className="log-bw-input mono"
             value={bodyweight}
-            onChange={(e) => setBodyweight(e.target.value)}
+            onChange={(e) => {
+              bodyweightTouchedRef.current = true;
+              setBodyweight(e.target.value);
+            }}
             placeholder="0"
             aria-label="Bodyweight kg"
             inputMode="text"
@@ -498,7 +494,6 @@ export function InlineEditEntry({
   const [note, setNote] = useState(log.note ?? "");
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
-  const weightRef = useRef<HTMLInputElement | null>(null);
 
   const suffix = unit === "lbs" ? " lbs" : "";
   const reps = composeRepsMulti(repValues, "");
@@ -507,18 +502,11 @@ export function InlineEditEntry({
       ? normalize(`${weightExpr.trim()}${suffix} *${reps}`)
       : "";
   const preview = raw ? parse(raw) : null;
-
-  function adjustWeight(delta: number) {
-    const base = preview?.weight ?? (parseFloat(weightExpr) || 0);
-    const next = Math.max(0, base + delta);
-    setWeightExpr(String(+next.toFixed(4)));
-    weightRef.current?.focus();
-  }
-
-  function appendToken(tok: string) {
-    setWeightExpr((s) => s + tok);
-    weightRef.current?.focus();
-  }
+  const { weightRef, adjustWeight, appendToken } = useWeightAdjuster(
+    weightExpr,
+    setWeightExpr,
+    preview?.weight,
+  );
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -661,7 +649,6 @@ export function InlineEditAssistedEntry({
   );
   const [note, setNote] = useState(log.note ?? "");
   const formRef = useRef<HTMLFormElement | null>(null);
-  const assistRef = useRef<HTMLInputElement | null>(null);
   useScrollAboveKeyboard(formRef);
 
   const parsedAssist = parseFloat(assistance) || 0;
@@ -670,12 +657,7 @@ export function InlineEditAssistedEntry({
     parsedBw > 0 && parsedAssist > 0 ? +(parsedBw - parsedAssist).toFixed(2) : null;
   const reps = composeRepsMulti(repValues, "");
   const isValid = effectiveLoad !== null && effectiveLoad > 0 && reps.length > 0;
-
-  function adjustAssist(delta: number) {
-    const next = Math.max(0, parsedAssist + delta);
-    setAssistance(String(+next.toFixed(2)));
-    assistRef.current?.focus();
-  }
+  const { assistRef, adjustAssist } = useAssistAdjuster(setAssistance, parsedAssist);
 
   function save(e: React.FormEvent) {
     e.preventDefault();

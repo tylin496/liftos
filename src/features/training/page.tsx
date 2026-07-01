@@ -4,9 +4,9 @@ import { ErrorState } from "@shared/components/ErrorState";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useHeaderTitle } from "@app/layout/HeaderTitleContext";
-import { supabase } from "@shared/lib/supabase";
 import {
   ensureSeeded,
+  currentUserId,
   fetchExercises,
   fetchLogsBySlug,
   addExercise,
@@ -176,10 +176,10 @@ function StretchCard({
               ⋯
             </button>
             {menuOpen && (
-              <div className="stretch-menu-popup">
+              <div className="menu-popup stretch-menu-popup">
                 <button
                   type="button"
-                  className="stretch-menu-item"
+                  className="menu-item stretch-menu-item"
                   onClick={() => {
                     setEditing(true);
                     setMenuOpen(false);
@@ -189,7 +189,7 @@ function StretchCard({
                 </button>
                 <button
                   type="button"
-                  className="stretch-menu-item"
+                  className="menu-item stretch-menu-item"
                   disabled={uploading}
                   onClick={() => {
                     fileInputRef.current?.click();
@@ -200,7 +200,7 @@ function StretchCard({
                 </button>
                 <button
                   type="button"
-                  className="stretch-menu-item danger"
+                  className="menu-item stretch-menu-item danger"
                   onClick={() => {
                     setMenuOpen(false);
                     onRemove();
@@ -503,6 +503,9 @@ function TrainingPageInner() {
   const [addingExercise, setAddingExercise] = useState(false);
   const [stretches, setStretches] = useState<Record<SplitId, StretchItem[]>>(loadStretches);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  // Slugs currently in an optimistic-delete undo window — a background reloadAll
+  // must not resurrect them, since the server row hasn't committed the delete yet.
+  const pendingDeleteSlugsRef = useRef<Set<string>>(new Set());
 
   // Horizontal swipe → switch split. Native listeners so we can
   // stopPropagation past Shell's tab-swipe (this page owns the gesture).
@@ -561,7 +564,8 @@ function TrainingPageInner() {
   const reloadAll = useCallback(async () => {
     try {
       const [ex, lg] = await Promise.all([fetchExercises(), fetchLogsBySlug()]);
-      setExercises(ex);
+      const pending = pendingDeleteSlugsRef.current;
+      setExercises(pending.size ? ex.filter((e) => !pending.has(e.slug)) : ex);
       setLogs(lg);
     } catch (e) {
       setError(String((e as Error)?.message ?? e));
@@ -609,9 +613,8 @@ function TrainingPageInner() {
     assisted: boolean,
   ) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not signed in");
-      await addExercise(user.id, split, name, target, note, assisted);
+      const userId = await currentUserId();
+      await addExercise(userId, split, name, target, note, assisted);
       setAddingExercise(false);
       await reloadAll();
       toast(`${name} added`, "success");
@@ -620,15 +623,40 @@ function TrainingPageInner() {
     }
   }
 
+  // Reorder moves are queued so two moves fired in quick succession (even on
+  // different cards) run one at a time against the post-reload exercise list,
+  // instead of racing each other from stale pre-move state.
+  const reorderQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const exercisesRef = useRef<Exercise[]>([]);
+  useEffect(() => {
+    exercisesRef.current = exercises ?? [];
+  }, [exercises]);
+
+  function queueReorder(task: () => Promise<void>): Promise<void> {
+    const run = reorderQueueRef.current.then(task, task);
+    reorderQueueRef.current = run.catch(() => {});
+    return run;
+  }
+
+  async function moveExercise(slug: string, direction: -1 | 1) {
+    const userId = await currentUserId();
+    await queueReorder(async () => {
+      const list = exercisesRef.current.filter(
+        (e) => e.split === split && !e.archived,
+      );
+      const idx = list.findIndex((e) => e.slug === slug);
+      const otherIdx = idx + direction;
+      if (idx < 0 || otherIdx < 0 || otherIdx >= list.length) return;
+      const slugs = list.map((e) => e.slug);
+      [slugs[idx], slugs[otherIdx]] = [slugs[otherIdx], slugs[idx]];
+      await reorderExercises(userId, slugs);
+      await reloadAll();
+    });
+  }
+
   async function handleMoveUp(slug: string) {
     try {
-      const list = activeExercises;
-      const idx = list.findIndex((e) => e.slug === slug);
-      if (idx <= 0) return;
-      const slugs = list.map((e) => e.slug);
-      [slugs[idx - 1], slugs[idx]] = [slugs[idx], slugs[idx - 1]];
-      await reorderExercises(slugs);
-      await reloadAll();
+      await moveExercise(slug, -1);
     } catch (err) {
       toast(String((err as Error)?.message ?? err), "error");
     }
@@ -636,13 +664,7 @@ function TrainingPageInner() {
 
   async function handleMoveDown(slug: string) {
     try {
-      const list = activeExercises;
-      const idx = list.findIndex((e) => e.slug === slug);
-      if (idx < 0 || idx >= list.length - 1) return;
-      const slugs = list.map((e) => e.slug);
-      [slugs[idx], slugs[idx + 1]] = [slugs[idx + 1], slugs[idx]];
-      await reorderExercises(slugs);
-      await reloadAll();
+      await moveExercise(slug, 1);
     } catch (err) {
       toast(String((err as Error)?.message ?? err), "error");
     }
@@ -671,14 +693,18 @@ function TrainingPageInner() {
         next.splice(Math.min(idx, next.length), 0, ex);
         return next;
       });
+    pendingDeleteSlugsRef.current.add(slug);
     // Optimistically hide from list
     setExercises((prev) => prev?.filter((e) => e.slug !== slug) ?? prev);
     const commit = setTimeout(async () => {
       if (undone) return;
       try {
-        await deleteExerciseAndLogs(slug);
+        const userId = await currentUserId();
+        await deleteExerciseAndLogs(userId, slug);
+        pendingDeleteSlugsRef.current.delete(slug);
         await reloadAll();
       } catch (err) {
+        pendingDeleteSlugsRef.current.delete(slug);
         restore();
         toast(String((err as Error)?.message ?? err), "error");
       }
@@ -687,6 +713,7 @@ function TrainingPageInner() {
       label: "Undo",
       onClick: () => {
         undone = true;
+        pendingDeleteSlugsRef.current.delete(slug);
         clearTimeout(commit);
         restore();
       },

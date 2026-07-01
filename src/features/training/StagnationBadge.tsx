@@ -1,4 +1,4 @@
-import { type StagnationView, type TrendResult, fmtInspectorDate } from "./logic";
+import { type StagnationView, fmtInspectorDate } from "./logic";
 import { TrendIcon, type TrendDir } from "@shared/components/TrendIcon";
 
 const TREND_DIRS: Record<string, TrendDir> = {
@@ -83,22 +83,17 @@ export function StagnationDetail({
           </span>
         </div>
       )}
-      {(t as TrendResult | null)?.trend === "uncertain" &&
-        (t as TrendResult).refDate &&
-        (t as TrendResult).lastDate && (
-          <div className="data-check-detail">
-            <span className="data-check-label">Jump detected</span>
-            <span className="data-check-row">
-              <span className="data-check-dates">
-                {fmtInspectorDate((t as TrendResult).refDate!)} →{" "}
-                {fmtInspectorDate((t as TrendResult).lastDate!)}
-              </span>
-              <span className="data-check-pct">
-                {Math.round(Math.abs((t as TrendResult).change) * 100)}%
-              </span>
+      {t && t.trend === "uncertain" && t.refDate && t.lastDate && (
+        <div className="data-check-detail">
+          <span className="data-check-label">Jump detected</span>
+          <span className="data-check-row">
+            <span className="data-check-dates">
+              {fmtInspectorDate(t.refDate)} → {fmtInspectorDate(t.lastDate)}
             </span>
-          </div>
-        )}
+            <span className="data-check-pct">{Math.round(Math.abs(t.change) * 100)}%</span>
+          </span>
+        </div>
+      )}
     </>
   );
 }

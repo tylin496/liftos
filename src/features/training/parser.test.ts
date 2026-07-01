@@ -73,6 +73,14 @@ describe("parse", () => {
     expect(parse("")).toBeNull();
     expect(parse("just a note")).toBeNull();
   });
+
+  it("rejects a second multiplier instead of swallowing it as a note", () => {
+    expect(parse("100*8*2")).toBeNull();
+  });
+
+  it("rejects negative assistance", () => {
+    expect(parse("70-(-5)*8")).toBeNull();
+  });
 });
 
 describe("score", () => {

@@ -1192,20 +1192,18 @@
   text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
-/* Missed (past, unlogged) days: dashed ghost bar, full-ish height.
-   Future days draw nothing at all (see history.tsx). */
+/* No entry (past unlogged, or future): solid grey placeholder bar. */
 .ntb-pair--missing .ntb-bar--missing {
   height: 44px !important;
   max-width: 18px;
   border-radius: var(--radius-pill);
-  border: 1.5px dashed var(--rule-strong);
-  background: transparent;
+  background: var(--rule-strong);
   box-shadow: none;
 }
 
-/* Selected placeholder: dashed border glows accent */
+/* Selected placeholder: grey bar glows accent */
 .nutri-trend-col.is-selected .ntb-bar--missing {
-  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 35%, var(--rule-strong));
   box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 

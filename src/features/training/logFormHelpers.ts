@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import type { CSSProperties, RefObject } from "react";
+import { useEffect, useRef } from "react";
+import type { CSSProperties, Dispatch, RefObject, SetStateAction } from "react";
 import type { Exercise } from "./api";
 import { localDateStr } from "@shared/lib/date";
 
@@ -56,6 +56,45 @@ export function composeRepsMulti(values: string[], defaultRep: string): string {
   if (!first) return "";
   if (resolved.every((x) => x === first)) return resolved.join("/");
   return resolved.join("/");
+}
+
+/** Shared +/− stepper + free-text token append for weight-expression inputs. */
+export function useWeightAdjuster(
+  weightExpr: string,
+  setWeightExpr: Dispatch<SetStateAction<string>>,
+  previewWeight: number | null | undefined,
+) {
+  const weightRef = useRef<HTMLInputElement | null>(null);
+
+  function adjustWeight(delta: number) {
+    const base = previewWeight ?? (parseFloat(weightExpr) || 0);
+    const next = Math.max(0, base + delta);
+    setWeightExpr(String(+next.toFixed(4)));
+    weightRef.current?.focus();
+  }
+
+  function appendToken(tok: string) {
+    setWeightExpr((s) => s + tok);
+    weightRef.current?.focus();
+  }
+
+  return { weightRef, adjustWeight, appendToken };
+}
+
+/** Shared +/− stepper for assistance-kg inputs. */
+export function useAssistAdjuster(
+  setAssistance: Dispatch<SetStateAction<string>>,
+  parsedAssist: number,
+) {
+  const assistRef = useRef<HTMLInputElement | null>(null);
+
+  function adjustAssist(delta: number) {
+    const next = Math.max(0, parsedAssist + delta);
+    setAssistance(String(+next.toFixed(2)));
+    assistRef.current?.focus();
+  }
+
+  return { assistRef, adjustAssist };
 }
 
 export function useScrollAboveKeyboard(formRef: RefObject<HTMLFormElement | null>) {

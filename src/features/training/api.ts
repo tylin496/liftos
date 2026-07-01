@@ -6,7 +6,7 @@ import { SEED, SPLITS, type SplitId } from "./seed";
 export type Exercise = Database["public"]["Tables"]["exercises"]["Row"];
 export type TrainingLog = Database["public"]["Tables"]["training_logs"]["Row"];
 
-async function currentUserId(): Promise<string> {
+export async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) throw error ?? new Error("Not signed in");
   return data.user.id;
@@ -141,6 +141,7 @@ export async function addExercise(
     .from("exercises")
     .select("sort_order")
     .eq("split", split)
+    .eq("user_id", userId)
     .order("sort_order", { ascending: false })
     .limit(1);
   const maxOrder = existing?.[0]?.sort_order ?? -1;
@@ -197,18 +198,32 @@ export async function updateExercise(slug: string, patch: ExercisePatch): Promis
 }
 
 /** Update sort_order for each slug by its index position in the array. */
-export async function reorderExercises(slugs: string[]): Promise<void> {
-  await Promise.all(
+export async function reorderExercises(userId: string, slugs: string[]): Promise<void> {
+  const results = await Promise.all(
     slugs.map((slug, i) =>
-      supabase.from("exercises").update({ sort_order: i }).eq("slug", slug),
+      supabase
+        .from("exercises")
+        .update({ sort_order: i })
+        .eq("slug", slug)
+        .eq("user_id", userId),
     ),
   );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) throw failed.error;
 }
 
 /** Delete exercise and all its training_logs. */
-export async function deleteExerciseAndLogs(slug: string): Promise<void> {
-  await supabase.from("training_logs").delete().eq("exercise_slug", slug);
-  const { error } = await supabase.from("exercises").delete().eq("slug", slug);
+export async function deleteExerciseAndLogs(userId: string, slug: string): Promise<void> {
+  await supabase
+    .from("training_logs")
+    .delete()
+    .eq("exercise_slug", slug)
+    .eq("user_id", userId);
+  const { error } = await supabase
+    .from("exercises")
+    .delete()
+    .eq("slug", slug)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 

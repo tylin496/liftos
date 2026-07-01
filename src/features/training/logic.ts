@@ -111,10 +111,10 @@ export function computeHistDelta(
   if (dw > 0) return { text: `+${parseFloat(Math.abs(dw).toFixed(2))} kg` };
   if (dw !== 0) return null; // weight dropped — stay silent
 
-  // Rep fallback: only when same set count
+  // Rep fallback: compare total reps regardless of set-count (a set added or
+  // removed at the same weight should still surface as a gain/no-op, not hide).
   const cSegs = String(cp.reps || "").split(/[/\-]/);
   const pSegs = String(pp.reps || "").split(/[/\-]/);
-  if (cSegs.length !== pSegs.length) return null;
 
   const cTotal = cSegs.reduce((a, s) => a + (parseInt(s, 10) || 0), 0);
   const pTotal = pSegs.reduce((a, s) => a + (parseInt(s, 10) || 0), 0);

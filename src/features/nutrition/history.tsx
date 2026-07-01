@@ -308,7 +308,7 @@ export function HistoryView({
                   )}
                 </div>
 
-                {/* Bars: real → missed (past) → future (nothing) */}
+                {/* Bars: real → missed (past) or future (grey placeholder) */}
                 <div className="nutri-trend-bars">
                   {hasCal || hasProtein ? (
                     <div className="ntb-pair" style={{ "--bar-index": i } as React.CSSProperties}>
@@ -321,7 +321,7 @@ export function HistoryView({
                         style={{ height: hasProtein ? `${protPct}%` : "7px" }}
                       />
                     </div>
-                  ) : isFuture ? null : (
+                  ) : (
                     <div className="ntb-pair ntb-pair--missing" style={{ "--bar-index": i } as React.CSSProperties}>
                       <div className="ntb-bar ntb-bar--missing" />
                       <div className="ntb-bar ntb-bar--missing" />

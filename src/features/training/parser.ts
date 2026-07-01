@@ -91,13 +91,20 @@ export function parse(raw: string): Parsed | null {
   const unit = (m[2]?.toLowerCase() as Parsed["unit"]) || null;
   const reps = m[3];
   const notes = (m[4] || "").trim();
+  // A trailing "*"/"×" almost never means a real note — it means the reps
+  // regex above stopped at the first multiplier and swallowed a second one
+  // (e.g. "100*8*2"). Reject instead of silently discarding it as a note.
+  if (/^[*×]/.test(notes)) return null;
 
   let assisted: Parsed["assisted"] = null;
   const am = weightExpr.match(/^([\d.]+)\s*-\s*\(([^)]+)\)\s*$/);
   if (am) {
     const bw = Number(am[1]);
     const assist = evalArith(am[2]);
-    if (Number.isFinite(bw) && Number.isFinite(assist)) assisted = { bw, assist };
+    // Negative assistance is nonsensical (would make the lift heavier than
+    // bodyweight) — reject rather than silently reinterpreting as a plain lift.
+    if (!Number.isFinite(bw) || !Number.isFinite(assist) || assist < 0) return null;
+    assisted = { bw, assist };
   }
 
   return { raw, weightExpr, weight: evalArith(weightExpr), reps, notes, unit, assisted };

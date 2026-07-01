@@ -129,6 +129,7 @@ export function ExerciseCard({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const addingLogRef = useRef(false);
 
   useEffect(() => {
     setMetaTarget(exercise.target ?? "");
@@ -161,8 +162,15 @@ export function ExerciseCard({
     () => filterByTime(effectiveLogsAsc, timeFilter),
     [effectiveLogsAsc, timeFilter],
   );
-  const stats = useMemo(() => computeStats(filteredAsc), [filteredAsc]);
-  // Stagnation uses ALL logs (unfiltered, undeleted) for all-time PR accuracy
+  // Stats use ALL logs (unfiltered, undeleted) so the PR badge/confetti reflect
+  // the all-time record, not just what's inside the current time-filter window.
+  const stats = useMemo(() => computeStats(effectiveLogsAsc), [effectiveLogsAsc]);
+  // Index of the all-time-best log within the currently displayed (filtered) window,
+  // so the history list can still highlight it when it's visible.
+  const prIndexInFiltered = useMemo(
+    () => (stats.best ? filteredAsc.indexOf(stats.best.log) : -1),
+    [filteredAsc, stats.best],
+  );
   const stagView = useMemo(() => buildStagnationView(effectiveLogsAsc), [effectiveLogsAsc]);
 
   // For display: newest first
@@ -184,6 +192,8 @@ export function ExerciseCard({
   }
 
   async function handleAdd(raw: string, date: string, note: string) {
+    if (addingLogRef.current) return;
+    addingLogRef.current = true;
     const oldBestE1RM = stats.best?.e1rm ?? -1;
     try {
       const newLog = await addLog({
@@ -215,6 +225,8 @@ export function ExerciseCard({
     } catch (err) {
       haptic("error");
       toast(String((err as Error)?.message ?? err), "error");
+    } finally {
+      addingLogRef.current = false;
     }
   }
 
@@ -358,10 +370,10 @@ export function ExerciseCard({
           ⋯
         </button>
         {menuT.mounted && (
-          <div className={`card-menu-popup${menuT.closing ? " is-closing" : ""}`} role="menu">
+          <div className={`menu-popup card-menu-popup${menuT.closing ? " is-closing" : ""}`} role="menu">
             <button
               type="button"
-              className="card-menu-item"
+              className="menu-item card-menu-item"
               disabled={!!isFirst || isMoving}
               onClick={async () => {
                 setMenuOpen(false);
@@ -380,7 +392,7 @@ export function ExerciseCard({
             </button>
             <button
               type="button"
-              className="card-menu-item"
+              className="menu-item card-menu-item"
               disabled={!!isLast || isMoving}
               onClick={async () => {
                 setMenuOpen(false);
@@ -399,7 +411,7 @@ export function ExerciseCard({
             </button>
             <button
               type="button"
-              className="card-menu-item"
+              className="menu-item card-menu-item"
               disabled={uploading}
               onClick={() => {
                 fileInputRef.current?.click();
@@ -411,7 +423,7 @@ export function ExerciseCard({
             <div className="card-menu-sep" />
             <button
               type="button"
-              className="card-menu-item danger"
+              className="menu-item card-menu-item danger"
               onClick={() => {
                 archiveExercise();
                 setMenuOpen(false);
@@ -529,7 +541,7 @@ export function ExerciseCard({
           visible.map((log, vi) => {
             // prIndex is index in filteredAsc; vi 0 = newest = last in asc
             const ascIdx = filteredAsc.length - 1 - vi;
-            const isPR = ascIdx === stats.prIndex;
+            const isPR = ascIdx === prIndexInFiltered;
             const isEditing = editId === log.id;
             const isNew = newLogId === log.id;
             const revealing = justExpanded && vi >= 3;
@@ -651,17 +663,17 @@ export function ExerciseCard({
 
       {/* ── Log set form or button ── */}
       {adding ? (
-        logs[0]?.kind === "assisted" ? (
+        effectiveLogs[0]?.kind === "assisted" ? (
           <AddAssistedForm
             setCount={sc}
-            lastLog={logs[0] ?? null}
+            lastLog={effectiveLogs[0] ?? null}
             onAdd={handleAdd}
             onCancel={() => setAdding(false)}
           />
         ) : (
           <AddEntryForm
             setCount={sc}
-            lastRaw={logs.find((l) => l.kind !== "assisted")?.raw ?? ""}
+            lastRaw={effectiveLogs.find((l) => l.kind !== "assisted")?.raw ?? ""}
             onAdd={handleAdd}
             onCancel={() => setAdding(false)}
           />

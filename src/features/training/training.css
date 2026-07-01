@@ -130,25 +130,24 @@
   to { opacity: 0; transform: scale(0.97) translateY(-4px); }
 }
 
-.card-menu-popup {
+/* Shared dropdown-menu pattern (card ⋯ menu, stretch ⋯ menu). */
+.menu-popup {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  min-width: 180px;
   background: var(--bg-card);
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
   padding: var(--space-1) 0;
-  z-index: 100;
   animation: menu-pop var(--motion-fast) var(--reveal-ease) both;
 }
 
-.card-menu-popup.is-closing {
+.menu-popup.is-closing {
   animation: menu-pop-out var(--motion-fast) var(--move-ease) both;
 }
 
-.card-menu-item {
+.menu-item {
   display: block;
   width: 100%;
   padding: var(--space-2) var(--space-4);
@@ -161,17 +160,22 @@
   cursor: pointer;
 }
 
-.card-menu-item:hover {
+.menu-item:hover {
   background: var(--bg-soft);
 }
 
-.card-menu-item:disabled {
+.menu-item:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-.card-menu-item.danger {
+.menu-item.danger {
   color: var(--bad);
+}
+
+.card-menu-popup {
+  min-width: 180px;
+  z-index: 100;
 }
 
 .card-menu-sep {
@@ -1211,10 +1215,10 @@
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-3);
-  border: 1px dashed var(--accent);
+  border: 1px dashed var(--rule-strong);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--accent);
+  color: var(--ink-3);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
   font-weight: 600;
@@ -1223,7 +1227,7 @@
 }
 
 .add-exercise-btn:hover {
-  background: var(--accent-soft);
+  background: var(--bg-soft);
 }
 
 .add-ex-form {
@@ -1503,38 +1507,12 @@
 }
 
 .stretch-menu-popup {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
   min-width: 120px;
-  background: var(--bg-card);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
-  padding: var(--space-1) 0;
   z-index: 50;
-  animation: menu-pop var(--motion-fast) var(--reveal-ease) both;
 }
 
 .stretch-menu-item {
-  display: block;
-  width: 100%;
   padding: var(--space-2) var(--space-3);
-  border: none;
-  background: transparent;
-  color: var(--ink);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  text-align: left;
-  cursor: pointer;
-}
-
-.stretch-menu-item:hover {
-  background: var(--bg-soft);
-}
-
-.stretch-menu-item.danger {
-  color: var(--bad);
 }
 
 .stretch-edit-form {
