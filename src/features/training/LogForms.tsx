@@ -326,7 +326,7 @@ export function AddAssistedForm({
   useEffect(() => {
     if (lastBw) return;
     supabase
-      .from("body_metrics")
+      .from("health_metrics")
       .select("weight_kg, metric_date")
       .not("weight_kg", "is", null)
       .order("metric_date", { ascending: false })

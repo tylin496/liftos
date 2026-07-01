@@ -221,6 +221,9 @@ function buildBodyMetrics() {
       active_energy_kcal: active,
       steps,
       exercise_minutes: exercise,
+      sleep_seconds: Math.round(fakeRand(i * 17, 23400, 28800)), // ~6.5–8 h
+      hrv_sdnn_ms: Math.round(fakeRand(i * 19, 48, 68)),
+      resting_heart_rate: Math.round(fakeRand(i * 23, 50, 58)),
       body_fat_pct: Math.round((22.0 - (i / last) * 2.0 + fakeRand(i * 7, -0.3, 0.3)) * 10) / 10,
       created_at: date + "T06:00:00Z",
       updated_at: date + "T06:00:00Z",
@@ -238,7 +241,7 @@ const mockDb = {
   training_logs: [...TRAINING_LOGS] as unknown as Record<string, unknown>[],
   nutrition_config: [{ ...NUTRITION_CONFIG }] as Record<string, unknown>[],
   nutrition_entries: [...NUTRITION_ENTRIES] as Record<string, unknown>[],
-  body_metrics: [...BODY_METRICS] as Record<string, unknown>[],
+  health_metrics: [...BODY_METRICS] as Record<string, unknown>[],
 };
 
 type TableName = keyof typeof mockDb;

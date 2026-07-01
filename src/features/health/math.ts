@@ -91,7 +91,16 @@ export function rollingAvg(pts: { date: string; value: number }[], days = 7, off
   return window.reduce((s, p) => s + p.value, 0) / window.length;
 }
 
-export type RecoveryStatus = "Ready" | "Good" | "Fair" | "Strained";
+export type RecoveryStatus = "Ready" | "Good" | "Fair" | "Needs Recovery";
+
+/** Status → semantic color token. Shared by the Health card and the Overview
+ *  card so the four tiers always read the same color. */
+export const RECOVERY_STATUS_COLOR: Record<RecoveryStatus, string> = {
+  Ready:              "var(--good)",
+  Good:               "var(--blue)",
+  Fair:               "var(--gold)",
+  "Needs Recovery":   "var(--bad)",
+};
 
 export interface RecoverySnapshot {
   sleepHours: number | null;
@@ -103,6 +112,8 @@ export interface RecoverySnapshot {
   /** 0–3: how many metrics are at or above their personal baseline */
   score: number;
   status: RecoveryStatus | null;
+  /** one-line, informational read on today's recovery vs. baseline */
+  insight: string | null;
   /** date string of the most recent reading used */
   date: string | null;
 }
@@ -133,13 +144,30 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
     : score === 3 ? "Ready"
     : score === 2 ? "Good"
     : score === 1 ? "Fair"
-    : "Strained";
+    : "Needs Recovery";
+
+  // Insight: an informational read driven by all three signals together, not a
+  // single metric and not a command. When more than one signal is off we say so
+  // at the aggregate level; when exactly one is off we name it. The app reports
+  // the state — the user decides what to do with it.
+  const sleepLow = sleepHours != null && sleepBaseline != null && sleepHours < sleepBaseline * 0.95;
+  const hrvLow   = hrv != null && hrvBaseline != null && hrv < hrvBaseline * 0.95;
+  const rhrHigh  = rhr != null && rhrBaseline != null && rhr > rhrBaseline * 1.05;
+  const downCount = (sleepLow ? 1 : 0) + (hrvLow ? 1 : 0) + (rhrHigh ? 1 : 0);
+
+  let insight: string | null;
+  if (!hasAny) insight = null;
+  else if (downCount === 0) insight = "Recovery above baseline.";
+  else if (downCount >= 2) insight = "Multiple recovery markers below baseline.";
+  else if (sleepLow) insight = "Sleep below baseline.";
+  else if (hrvLow) insight = "HRV below baseline.";
+  else insight = "Resting heart rate elevated.";
 
   const dates = [sleepPts.at(-1)?.date, hrvPts.at(-1)?.date, rhrPts.at(-1)?.date]
     .filter((d): d is string => d != null);
   const date = dates.length ? dates.sort().at(-1)! : null;
 
-  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, score, status, date };
+  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, score, status, insight, date };
 }
 
 export function regressionSlope(pts: { date: string; value: number }[], days = 28): number | null {

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ErrorState } from "@shared/components/ErrorState";
+import { MetricValue } from "@shared/components/Metric";
 import { getEntries, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
 import {
-  formatFatLossKg,
   getCalorieResult,
   getProteinResult,
   monthlyStats,
@@ -254,25 +254,16 @@ export function HistoryView({
         {/* KPI row */}
         <div className="nutri-kpi-row">
           <div className="nutri-kpi">
-            <span className="nutri-kpi-val">
+            <MetricValue size="md" unit={week.avgCalories > 0 ? "kcal" : undefined}>
               {week.avgCalories > 0 ? week.avgCalories.toLocaleString() : "—"}
-              {week.avgCalories > 0 && <small>kcal</small>}
-            </span>
+            </MetricValue>
             <span className="nutri-kpi-label">Avg Cal</span>
           </div>
           <div className="nutri-kpi">
-            <span className="nutri-kpi-val">
+            <MetricValue size="md" unit={week.avgProtein > 0 ? "g" : undefined}>
               {week.avgProtein > 0 ? week.avgProtein : "—"}
-              {week.avgProtein > 0 && <small>g</small>}
-            </span>
+            </MetricValue>
             <span className="nutri-kpi-label">Avg Protein</span>
-          </div>
-          <div className="nutri-kpi">
-            <span className="nutri-kpi-val">
-              {formatFatLossKg(week.fatLossKg)}
-              <small>kg</small>
-            </span>
-            <span className="nutri-kpi-label">Est. Fat Loss</span>
           </div>
         </div>
       </section>
@@ -314,15 +305,15 @@ export function HistoryView({
           {(() => {
             const denom = month.logged || 1;
             const labels: Record<string, string> = {
-              "on-plan": "On Plan",
               under: "Under",
               over: "Over",
-              extreme: "Extreme",
+              extreme: "Low",
               surplus: "Surplus",
             };
-            const rest: CalorieState[] = ["under", "over", "extreme", "surplus"];
-            rest.sort((a, b) => (month.distribution[b] || 0) - (month.distribution[a] || 0));
-            const rows: CalorieState[] = ["on-plan", ...rest];
+            // On-plan is already the Adherence hero above — the distribution
+            // only shows *how* the off-plan days miss.
+            const rows: CalorieState[] = ["under", "over", "extreme", "surplus"];
+            rows.sort((a, b) => (month.distribution[b] || 0) - (month.distribution[a] || 0));
             return rows.map((s) => {
               const count = month.distribution[s] || 0;
               return (

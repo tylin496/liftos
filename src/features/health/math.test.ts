@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { series, bucketSeries, rollingAvg, regressionSlope } from "./math";
+import { series, bucketSeries, rollingAvg, regressionSlope, computeRecovery } from "./math";
 import type { BodyMetric } from "./api";
 
 // Helper: build a sequential daily series from a start date.
@@ -120,6 +120,76 @@ describe("rollingAvg", () => {
     ]);
     expect(rollingAvg(pts, 7, 0)).toBeCloseTo(9, 10);
     expect(rollingAvg(pts, 7, 7)).toBeCloseTo(1, 10);
+  });
+});
+
+describe("computeRecovery", () => {
+  // Baseline = 30-day average *before* the latest reading. So each fixture is
+  // 30 flat baseline days followed by one final day we vary. Baselines:
+  // sleep 7h (25200s), HRV 60ms, RHR 55bpm. The latest day is judged "off" by
+  // the same ±5% threshold computeRecovery uses (sleep/HRV low, RHR high).
+  const BASE = { sleep_seconds: 25200, hrv_sdnn_ms: 60, resting_heart_rate: 55 };
+
+  function recoveryMetrics(final: Partial<typeof BASE>): BodyMetric[] {
+    const MS = 86400000;
+    const t0 = new Date("2026-06-01T12:00:00").getTime();
+    const days: BodyMetric[] = [];
+    for (let i = 0; i < 30; i++) {
+      days.push({
+        metric_date: new Date(t0 + i * MS).toISOString().slice(0, 10),
+        ...BASE,
+      } as unknown as BodyMetric);
+    }
+    days.push({
+      metric_date: new Date(t0 + 30 * MS).toISOString().slice(0, 10),
+      ...BASE,
+      ...final,
+    } as unknown as BodyMetric);
+    return days;
+  }
+
+  it("0 signals off -> Ready, recovery above baseline", () => {
+    const snap = computeRecovery(recoveryMetrics({}));
+    expect(snap.score).toBe(3);
+    expect(snap.status).toBe("Ready");
+    expect(snap.insight).toBe("Recovery above baseline.");
+  });
+
+  it("sleep only off -> Good, names sleep", () => {
+    const snap = computeRecovery(recoveryMetrics({ sleep_seconds: 21600 })); // 6h < 6.65h
+    expect(snap.score).toBe(2);
+    expect(snap.status).toBe("Good");
+    expect(snap.insight).toBe("Sleep below baseline.");
+  });
+
+  it("HRV only off -> Good, names HRV", () => {
+    const snap = computeRecovery(recoveryMetrics({ hrv_sdnn_ms: 55 })); // < 57
+    expect(snap.score).toBe(2);
+    expect(snap.status).toBe("Good");
+    expect(snap.insight).toBe("HRV below baseline.");
+  });
+
+  it("RHR only off -> Good, names resting heart rate", () => {
+    const snap = computeRecovery(recoveryMetrics({ resting_heart_rate: 60 })); // > 57.75
+    expect(snap.score).toBe(2);
+    expect(snap.status).toBe("Good");
+    expect(snap.insight).toBe("Resting heart rate elevated.");
+  });
+
+  it("two signals off -> Fair, aggregate insight (no single metric named)", () => {
+    const snap = computeRecovery(recoveryMetrics({ sleep_seconds: 21600, hrv_sdnn_ms: 55 }));
+    expect(snap.score).toBe(1);
+    expect(snap.status).toBe("Fair");
+    expect(snap.insight).toBe("Multiple recovery markers below baseline.");
+  });
+
+  it("all three off -> Needs Recovery, aggregate insight", () => {
+    const snap = computeRecovery(
+      recoveryMetrics({ sleep_seconds: 21600, hrv_sdnn_ms: 55, resting_heart_rate: 60 }),
+    );
+    expect(snap.score).toBe(0);
+    expect(snap.status).toBe("Needs Recovery");
+    expect(snap.insight).toBe("Multiple recovery markers below baseline.");
   });
 });
 

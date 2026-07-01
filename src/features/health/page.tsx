@@ -6,15 +6,17 @@ import {
   rollingAvg,
   regressionSlope,
   computeRecovery,
+  RECOVERY_STATUS_COLOR,
   type MetricKey,
   type ChartPoint,
   type RecoverySnapshot,
 } from "./math";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
+import { ErrorState } from "@shared/components/ErrorState";
 import { buildAllDataJson, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { TrendIcon } from "@shared/components/TrendIcon";
-import { ErrorState } from "@shared/components/ErrorState";
+import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import "./health.css";
 
@@ -230,20 +232,6 @@ function ComponentTrend({ cur, prev }: { cur: number | null; prev: number | null
   );
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  Ready:    "var(--good)",
-  Good:     "var(--blue)",
-  Fair:     "var(--gold)",
-  Strained: "var(--bad)",
-};
-
-const FOOTER_TEXT: Record<number, string> = {
-  3: "All 3 above 30-day baseline",
-  2: "2 of 3 above 30-day baseline",
-  1: "1 of 3 above 30-day baseline",
-  0: "Below 30-day baseline",
-};
-
 function RecoveryRow({
   label,
   value,
@@ -257,24 +245,15 @@ function RecoveryRow({
   delta: number | null;
   higherBetter: boolean;
 }) {
-  const isGood = delta == null ? null : higherBetter ? delta >= 0 : delta <= 0;
-  const deltaColor = isGood == null ? "var(--ink-4)"
-    : isGood ? "var(--good)" : "var(--bad)";
-  const sign = delta == null ? "" : delta > 0 ? "+" : "";
   const decimals = unit === "h" ? 1 : 0;
 
   return (
     <div className="health-recovery-row">
       <span className="health-recovery-row-label">{label}</span>
-      <span className="health-recovery-row-val">
+      <MetricValue size="md" unit={value != null ? unit : undefined} className="health-recovery-row-val">
         {value != null ? fmt(value, decimals) : "—"}
-        {value != null && <span className="health-unit"> {unit}</span>}
-      </span>
-      {delta != null && (
-        <span className="health-recovery-row-delta" style={{ color: deltaColor }}>
-          {sign}{fmt(Math.abs(delta), decimals)}{unit}
-        </span>
-      )}
+      </MetricValue>
+      <MetricDelta value={delta} higherBetter={higherBetter} decimals={decimals} />
     </div>
   );
 }
@@ -289,7 +268,7 @@ function RecoveryCard({ snap }: { snap: RecoverySnapshot }) {
   const rhrDelta = snap.rhr != null && snap.rhrBaseline != null
     ? snap.rhr - snap.rhrBaseline : null;
 
-  const color = STATUS_COLOR[snap.status];
+  const color = RECOVERY_STATUS_COLOR[snap.status];
 
   return (
     <section className="page-card health-recovery">
@@ -304,7 +283,7 @@ function RecoveryCard({ snap }: { snap: RecoverySnapshot }) {
         <RecoveryRow label="HRV"   value={snap.hrv}        unit="ms"  delta={hrvDelta}   higherBetter />
         <RecoveryRow label="RHR"   value={snap.rhr}        unit="bpm" delta={rhrDelta}   higherBetter={false} />
       </div>
-      <p className="health-recovery-footer">{FOOTER_TEXT[snap.score]}</p>
+      {snap.insight && <p className="health-recovery-footer">{snap.insight}</p>}
     </section>
   );
 }
@@ -379,7 +358,84 @@ export function HealthPage() {
 
   return (
     <div className="page health">
-      {/* TDEE hero — fixed windows, independent of period selector */}
+      {recovery && <RecoveryCard snap={recovery} />}
+
+      {/* Metric skeleton while loading */}
+      {!data && [0, 1, 2].map((i) => (
+        <section className="page-card health-metric loading-card" key={i}>
+          <div className="health-metric-head">
+            <span className="health-metric-label">Weight</span>
+          </div>
+          <p className="health-metric-eyebrow">THIS WEEK</p>
+          <div className="health-metric-hero">
+            <span className="health-metric-val">00.0</span>
+            <span className="health-unit">kg</span>
+          </div>
+          <div className="health-skel-chart" />
+        </section>
+      ))}
+
+      {/* Metric cards — Apple Health style */}
+      {cards.map(({ spec, bucketed, thisWeek, change, readingCount }) => {
+        return (
+          <section className="page-card health-metric" key={spec.key}>
+            <div className="health-metric-head">
+              <span className="health-metric-label">{spec.label}</span>
+              {spec.key === "weight_kg" && weightPace != null ? (
+                // Pace is shown neutral (grey) — a rate, not a good/bad verdict.
+                <MetricDelta value={weightPace} decimals={2} unit="kg/wk" />
+              ) : change != null && readingCount >= 2 ? (
+                // Body fat (and any future loss-is-good metric): down = green.
+                <MetricDelta
+                  value={change}
+                  higherBetter={spec.key === "body_fat_pct" ? false : undefined}
+                  decimals={spec.decimals}
+                  unit={spec.unit}
+                />
+              ) : null}
+            </div>
+
+            <p className="health-metric-eyebrow">{periodLabel(spec.bucket)}</p>
+            <div className="health-metric-hero">
+              {thisWeek != null ? (
+                <MetricValue size="lg" unit={spec.unit}>
+                  <AnimatedMetric value={thisWeek} decimals={spec.decimals} />
+                </MetricValue>
+              ) : (
+                <MetricValue size="lg" className="health-metric-val--empty">—</MetricValue>
+              )}
+            </div>
+            <LineChart points={bucketed} color={spec.color} decimals={spec.decimals} unit={spec.unit} />
+          </section>
+        );
+      })}
+
+      {/* Lean Mass card — derived from weight × (1 - body_fat%) */}
+      {lbmCard && (
+        <section className="page-card health-metric">
+          <div className="health-metric-head">
+            <span className="health-metric-label">Lean Mass</span>
+            {lbmCard.change != null && lbmCard.readingCount >= 2 && (
+              <MetricDelta value={lbmCard.change} higherBetter decimals={1} unit="kg" />
+            )}
+          </div>
+          <p className="health-metric-eyebrow">{periodLabel(14)}</p>
+          <div className="health-metric-hero">
+            {lbmCard.thisWeek != null ? (
+              <MetricValue size="lg" unit="kg">
+                <AnimatedMetric value={lbmCard.thisWeek} decimals={1} />
+              </MetricValue>
+            ) : (
+              <MetricValue size="lg" className="health-metric-val--empty">—</MetricValue>
+            )}
+          </div>
+          <LineChart points={lbmCard.bucketed} color="var(--health-leanmass)" decimals={1} unit="kg" />
+        </section>
+      )}
+
+      {/* TDEE — a derived metabolic estimate, so it sits last, after the body-
+          state cards (Recovery / Weight / Body Fat / Lean Mass). Fixed windows,
+          independent of any period selector. */}
       <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
         <p className="page-eyebrow">CURRENT TDEE</p>
         {!data ? (
@@ -390,20 +446,14 @@ export function HealthPage() {
         ) : tdee?.tdee != null ? (
           <>
             <div className="health-tdee-num">
-              <AnimatedTdee value={tdee.tdee} />
-              <span className="health-unit"> kcal/day</span>
-              {tdeePrev?.tdee != null && (() => {
-                const diff = tdee.tdee - tdeePrev.tdee;
-                const up = diff > 40, down = diff < -40;
-                const dir = up ? "up" : down ? "down" : "flat";
-                const color = up ? "var(--accent)" : down ? "var(--bad)" : "var(--ink-4)";
-                return (
-                  <span className="ov-tdee-arrow" style={{ color }}>
-                    <TrendIcon dir={dir} size={15} />
-                    {(up || down) ? Math.abs(Math.round(diff)) : null}
-                  </span>
-                );
-              })()}
+              <MetricValue size="xl" unit="kcal/day">
+                <AnimatedTdee value={tdee.tdee} />
+              </MetricValue>
+              {tdeePrev?.tdee != null && (
+                // higherBetter — a rising TDEE reads green here by design choice,
+                // matching the Overview TDEE stat; not an objective "good".
+                <MetricDelta value={tdee.tdee - tdeePrev.tdee} higherBetter threshold={40} />
+              )}
             </div>
             <div className="health-tdee-components">
               <div className="health-tdee-component">
@@ -434,95 +484,6 @@ export function HealthPage() {
           </p>
         )}
       </section>
-
-      {recovery && <RecoveryCard snap={recovery} />}
-
-      {/* Metric skeleton while loading */}
-      {!data && [0, 1, 2].map((i) => (
-        <section className="page-card health-metric loading-card" key={i}>
-          <div className="health-metric-head">
-            <span className="health-metric-label">Weight</span>
-          </div>
-          <p className="health-metric-eyebrow">THIS WEEK</p>
-          <div className="health-metric-hero">
-            <span className="health-metric-val">00.0</span>
-            <span className="health-unit">kg</span>
-          </div>
-          <div className="health-skel-chart" />
-        </section>
-      ))}
-
-      {/* Metric cards — Apple Health style */}
-      {cards.map(({ spec, bucketed, thisWeek, change, readingCount }) => {
-        const changePositive = change != null && change > 0;
-        const changeNegative = change != null && change < 0;
-        const changeCls =
-          change == null || readingCount < 2
-            ? ""
-            : spec.key === "weight_kg" || spec.key === "body_fat_pct"
-            ? changeNegative ? " health-metric-change--down" : changePositive ? " health-metric-change--up" : ""
-            : "";
-
-        return (
-          <section className="page-card health-metric" key={spec.key}>
-            <div className="health-metric-head">
-              <span className="health-metric-label">{spec.label}</span>
-              {spec.key === "weight_kg" && weightPace != null ? (
-                <span className={`health-metric-change${
-                  weightPace < -0.05 ? " health-metric-change--down" : weightPace > 0.05 ? " health-metric-change--up" : ""
-                }`}>
-                  {weightPace > 0 ? "+" : ""}{fmt(weightPace, 2)} kg/wk
-                </span>
-              ) : change != null && readingCount >= 2 ? (
-                <span className={`health-metric-change${changeCls}`}>
-                  {change > 0 ? "+" : ""}{fmt(change, spec.decimals)} {spec.unit}
-                </span>
-              ) : null}
-            </div>
-
-            <p className="health-metric-eyebrow">{periodLabel(spec.bucket)}</p>
-            <div className="health-metric-hero">
-              {thisWeek != null ? (
-                <>
-                  <span className="health-metric-val"><AnimatedMetric value={thisWeek} decimals={spec.decimals} /></span>
-                  <span className="health-unit">{spec.unit}</span>
-                </>
-              ) : (
-                <span className="health-metric-val health-metric-val--empty">—</span>
-              )}
-            </div>
-            <LineChart points={bucketed} color={spec.color} decimals={spec.decimals} unit={spec.unit} />
-          </section>
-        );
-      })}
-
-      {/* Lean Mass card — derived from weight × (1 - body_fat%) */}
-      {lbmCard && (
-        <section className="page-card health-metric">
-          <div className="health-metric-head">
-            <span className="health-metric-label">Lean Mass</span>
-            {lbmCard.change != null && lbmCard.readingCount >= 2 && (
-              <span className={`health-metric-change${
-                lbmCard.change > 0 ? " health-metric-change--down" : lbmCard.change < 0 ? " health-metric-change--up" : ""
-              }`}>
-                {lbmCard.change > 0 ? "+" : ""}{fmt(lbmCard.change, 1)} kg
-              </span>
-            )}
-          </div>
-          <p className="health-metric-eyebrow">{periodLabel(14)}</p>
-          <div className="health-metric-hero">
-            {lbmCard.thisWeek != null ? (
-              <>
-                <span className="health-metric-val"><AnimatedMetric value={lbmCard.thisWeek} decimals={1} /></span>
-                <span className="health-unit">kg</span>
-              </>
-            ) : (
-              <span className="health-metric-val health-metric-val--empty">—</span>
-            )}
-          </div>
-          <LineChart points={lbmCard.bucketed} color="var(--health-leanmass)" decimals={1} unit="kg" />
-        </section>
-      )}
     </div>
   );
 }

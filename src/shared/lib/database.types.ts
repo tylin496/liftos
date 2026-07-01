@@ -14,7 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      body_metrics: {
+      health_metrics: {
         Row: {
           active_energy_kcal: number | null
           body_fat_pct: number | null

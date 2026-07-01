@@ -14,7 +14,7 @@ export interface CelebPayload {
 
 const DEFAULTS: Record<CelebVariant, { icon: string; title: string; sub: string; gold: boolean }> = {
   "logged": { icon: "✓", title: "Logged", sub: "Entry saved", gold: false },
-  "double-hit": { icon: "★", title: "Double hit!", sub: "Deficit and protein on track", gold: true },
+  "double-hit": { icon: "★", title: "Double Hit!", sub: "Deficit and protein on track", gold: true },
   "pr": { icon: "🏆", title: "New PR!", sub: "Personal record", gold: true },
 };
 
