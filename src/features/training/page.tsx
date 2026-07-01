@@ -27,10 +27,10 @@ import { parse, score, formatRepsDisplay } from "./parser";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
-import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
+import { buildTrainingJson } from "@shared/lib/copyAllData";
 import "./training.css";
 
-const copyAllData = () => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS);
+const copyTrainingData = () => buildTrainingJson();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -723,7 +723,7 @@ function TrainingPageInner() {
   usePageHeader({
     eyebrow: "TRAINING",
     title: SPLITS.find((s) => s.id === split)?.name ?? split,
-    onCopy: copyAllData,
+    onCopy: copyTrainingData,
   });
 
   return (

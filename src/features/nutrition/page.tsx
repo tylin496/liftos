@@ -6,10 +6,10 @@ import { HistoryView } from "./history";
 import { NutritionInsightCard } from "./NutritionInsightCard";
 import { recomputeAndPersist } from "./evaluationApi";
 import { defaultLogDate } from "./logic";
-import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
+import { buildNutritionJson } from "@shared/lib/copyAllData";
 import "./nutrition.css";
 
-const copyAllData = () => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS);
+const copyNutritionData = () => buildNutritionJson();
 
 export function NutritionPage() {
   const { config } = useNutritionConfig();
@@ -17,7 +17,7 @@ export function NutritionPage() {
   const [entryVersion, setEntryVersion] = useState(0);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  usePageHeader({ eyebrow: "NUTRITION", title: "Today", onCopy: copyAllData });
+  usePageHeader({ eyebrow: "NUTRITION", title: "Today", onCopy: copyNutritionData });
 
   // New data landed → refresh the day/history immediately, then recompute the
   // shared evaluation in the background and bump again so the Insight card picks

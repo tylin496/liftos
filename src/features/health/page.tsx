@@ -16,7 +16,7 @@ import { useCountUp } from "@shared/hooks/useCountUp";
 import { TrendIcon } from "@shared/components/TrendIcon";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
-import { buildAllDataJson, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
+import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import "./health.css";
 
@@ -37,7 +37,7 @@ const METRICS: MetricSpec[] = [
 ];
 
 const FIXED_DAYS = 180;
-const copyHealthData = () => buildAllDataJson(FIXED_DAYS, EXPORT_NUTRITION_DAYS);
+const copyHealthData = () => buildHealthJson();
 
 /* Small static trend indicator on each Trend card's header — a glance-only
    180-day shape, not a scrubbable chart (that's a deliberate design call,
