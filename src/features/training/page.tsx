@@ -28,6 +28,8 @@ import {
 import { computeStats } from "./logic";
 import { parse, score, formatRepsDisplay } from "./parser";
 import type { TimeFilter } from "./logic";
+import { SegmentedControl } from "@shared/components/SegmentedControl";
+import { PageTopBar } from "@shared/components/PageTopBar";
 import "./training.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -731,30 +733,19 @@ function TrainingPageInner() {
       className="page tr-page"
       ref={contentRef}
     >
+      <PageTopBar eyebrow="TRAINING" title={SPLITS.find((s) => s.id === split)?.name ?? split} />
+
       {/* ── Segment control ── */}
       <div className="tr-top-row">
-        <div
-          className="seg"
-          role="tablist"
-          style={{ "--seg-idx": splitIds.indexOf(split), "--seg-n": splitIds.length } as React.CSSProperties}
-        >
-          <span className="seg-thumb" aria-hidden />
-          {SPLITS.map((s) => {
-            const count = (exercises ?? []).filter((e) => e.split === s.id && !e.archived).length;
-            return (
-              <button
-                key={s.id}
-                role="tab"
-                aria-selected={split === s.id}
-                className={`seg-item${split === s.id ? " is-active" : ""}`}
-                onClick={() => changeSplit(s.id)}
-              >
-                {s.name}
-                {count > 0 && <span className="seg-count">{count}</span>}
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedControl
+          options={SPLITS.map((s) => ({
+            id: s.id,
+            label: s.name,
+            count: (exercises ?? []).filter((e) => e.split === s.id && !e.archived).length,
+          }))}
+          value={split}
+          onChange={(id) => changeSplit(id as SplitId)}
+        />
       </div>
 
       {error && <ErrorState message={error} />}
