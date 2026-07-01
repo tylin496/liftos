@@ -107,24 +107,31 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     ? Math.round(logged.reduce((s, e) => s + (e.protein ?? 0), 0) / logged.length)
     : null;
 
-  // 30-day slices for the top-level summary
-  const cutoff30 = new Date(now.getTime() - 30 * 86_400_000).toISOString().slice(0, 10);
+  // 30-day slices for the top-level summary. Canonical "short window" for the
+  // recency-weighted numbers (avg cal/protein, weight30d, deficit).
+  const SHORT_WINDOW_DAYS = 30;
+  const cutoff30 = new Date(now.getTime() - SHORT_WINDOW_DAYS * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
   const logged30 = logged.filter((e) => e.entry_date >= cutoff30);
+  // When the short window has no data, emit null — NOT the 60d average — so a
+  // field named *_30d never silently carries a full-window value.
   const avgCalories30d = logged30.length
     ? Math.round(logged30.reduce((s, e) => s + (e.calories ?? 0), 0) / logged30.length)
-    : avgCalories;
+    : null;
   const avgProtein30d = logged30.length
     ? Math.round(logged30.reduce((s, e) => s + (e.protein ?? 0), 0) / logged30.length)
-    : avgProtein;
+    : null;
 
   const weightPts = metrics
     .filter((m) => m.weight_kg != null)
     .map((m) => ({ date: m.metric_date, v: m.weight_kg as number }));
   const currentWeight = weightPts.length ? weightPts.at(-1)!.v : null;
   const weight30dPts = weightPts.filter((p) => p.date >= cutoff30);
+  // null (not currentWeight) when the short window is empty — see *_30d note above.
   const weight30d = weight30dPts.length
     ? +( weight30dPts.reduce((s, p) => s + p.v, 0) / weight30dPts.length).toFixed(2)
-    : currentWeight;
+    : null;
 
   // daysTracked = distinct dates with a calorie entry in the nutrition window
   const daysTracked = logged.length;
@@ -137,7 +144,8 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     deficitDaily != null
       ? {
           daily: deficitDaily,
-          // 7700 kcal ≈ 1 kg fat; divide by 30 to get kg/month
+          windowDays: SHORT_WINDOW_DAYS, // deficit is derived from the 30d avg
+          // 7700 kcal ≈ 1 kg fat; project over 30 days to get kg/month
           estimatedFatLoss: +((deficitDaily * 30) / 7700).toFixed(2),
         }
       : null;
@@ -155,14 +163,23 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   }
 
   // ── Insights (pre-computed signals, independent of the export slice) ──────────
-  // Weight rate-of-change in kg/week over the available window.
-  const weightRatePerWeekKg = (() => {
-    if (weightPts.length < 2) return null;
+  // Weight rate-of-change in kg/week over the full available window (first→last
+  // point), NOT the 30d slice used by summary.weight30d. windowDays makes that
+  // window explicit so the two weight numbers can't be conflated.
+  const weightTrend = (() => {
+    const dataPoints = weightPts.length;
+    if (dataPoints < 2) return { ratePerWeekKg: null, windowDays: null, dataPoints };
     const first = weightPts[0];
     const last = weightPts.at(-1)!;
-    const days = (new Date(last.date).getTime() - new Date(first.date).getTime()) / 86_400_000;
-    if (days < 1) return null;
-    return +(((last.v - first.v) / days) * 7).toFixed(3);
+    const windowDays = Math.round(
+      (new Date(last.date).getTime() - new Date(first.date).getTime()) / 86_400_000,
+    );
+    if (windowDays < 1) return { ratePerWeekKg: null, windowDays, dataPoints };
+    return {
+      ratePerWeekKg: +(((last.v - first.v) / windowDays) * 7).toFixed(3),
+      windowDays,
+      dataPoints,
+    };
   })();
 
   // Nutrition adherence / streak / double-hit over the export window.
@@ -204,8 +221,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   }
 
   const insights = {
-    weight: { ratePerWeekKg: weightRatePerWeekKg },
+    weight: weightTrend,
     nutrition: {
+      windowDays: nutritionDays, // adherence/streak/distribution span the full nutrition window (not 30d)
       adherencePct: nutritionAdherence.adherencePct,
       onPlanDays: nutritionAdherence.onPlan,
       loggedDays: nutritionAdherence.logged,
@@ -294,8 +312,10 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       weight30d,
       avgCalories30d,
       avgProtein30d,
+      shortWindowDays: SHORT_WINDOW_DAYS, // window for weight30d / avg*30d / deficit
       tdee: tdeeKcal,
       daysTracked,
+      daysTrackedWindowDays: nutritionDays, // daysTracked counts logged days over the full nutrition window
       deficit: deficitSummary,
     },
     insights,
