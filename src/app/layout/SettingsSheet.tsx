@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useToast } from "@shared/components/Toast";
+import { signOut } from "@shared/lib/auth";
 import { useNutritionConfig } from "@features/nutrition/NutritionConfigContext";
 import { saveConfig, targetsFromConfig, phaseDefsFromConfig } from "@features/nutrition/api";
 import { phaseFromDeficit, trainingMonthsFromStart } from "@features/nutrition/logic";
@@ -120,6 +121,10 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
           </button>
 
           {error && <p className="auth-error">{error}</p>}
+
+          <button type="button" className="settings-sign-out" onClick={() => void signOut()}>
+            Sign out
+          </button>
         </div>
       </div>
     </>,

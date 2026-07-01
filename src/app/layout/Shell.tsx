@@ -7,8 +7,8 @@ import { HealthPage } from "@features/health/page";
 import { Header } from "./Header";
 import { TabBar, type TabId } from "./TabBar";
 import { HeaderActionProvider } from "./HeaderActionContext";
-import { HeaderTitleProvider } from "./HeaderTitleContext";
-import { SettingsSheetProvider } from "./SettingsSheetContext";
+import { SettingsSheetProvider, useSettingsSheet } from "./SettingsSheetContext";
+import { SettingsSheet } from "./SettingsSheet";
 import { SessionUserProvider } from "./SessionContext";
 import { NavContext } from "./NavContext";
 import { TabActivityContext } from "./TabActivityContext";
@@ -26,6 +26,13 @@ const PAGES: Record<TabId, () => JSX.Element> = {
 const TAB_ORDER: TabId[] = ["overview", "training", "nutrition", "health"];
 
 const SLIDE_MS = 320;
+
+// Single Settings sheet instance for the whole app — both PageTopBar's avatar
+// (per screen) and anything else that calls openSettings() share this one.
+function GlobalSettingsSheet() {
+  const { open, closeSettings } = useSettingsSheet();
+  return <SettingsSheet open={open} onClose={closeSettings} />;
+}
 
 export function Shell({ session }: { session: Session }) {
   const [tab, setTab] = useState<TabId>(
@@ -201,10 +208,9 @@ export function Shell({ session }: { session: Session }) {
     <NutritionConfigProvider>
     <SettingsSheetProvider>
     <HeaderActionProvider>
-      <HeaderTitleProvider>
       <NavContext.Provider value={switchTab}>
         <div className={`shell${headerHidden ? " shell--header-hidden" : ""}${scrolled ? " shell--scrolled" : ""}`}>
-          <Header user={session.user} tab={tab} />
+          <Header />
           <main ref={contentRef} className={`shell-content${slide ? " is-sliding" : ""}`}>
             {TAB_ORDER.map((tabId) => {
               if (!visited.has(tabId)) return null;
@@ -241,8 +247,8 @@ export function Shell({ session }: { session: Session }) {
           </main>
           <TabBar active={tab} onChange={switchTab} />
         </div>
+        <GlobalSettingsSheet />
       </NavContext.Provider>
-      </HeaderTitleProvider>
     </HeaderActionProvider>
     </SettingsSheetProvider>
     </NutritionConfigProvider>

@@ -3,7 +3,6 @@ import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { ErrorState } from "@shared/components/ErrorState";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
-import { useHeaderTitle } from "@app/layout/HeaderTitleContext";
 import {
   ensureSeeded,
   currentUserId,
@@ -490,7 +489,6 @@ function ArchivedSection({
 function TrainingPageInner() {
   const toast = useToast();
   const activity = useTabActivity();
-  const { setTitle } = useHeaderTitle();
 
   const [split, setSplit] = useState<SplitId>(() => {
     const saved = sessionStorage.getItem("tr-split");
@@ -555,13 +553,7 @@ function TrainingPageInner() {
     prevSplitIdx.current = splitIds.indexOf(split);
     setSplit(id);
     sessionStorage.setItem("tr-split", id);
-    setTitle(SPLITS.find((s) => s.id === id)?.name ?? id);
   }
-
-  // Sync header title on mount
-  useEffect(() => {
-    setTitle(SPLITS.find((s) => s.id === split)?.name ?? split);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reloadAll = useCallback(async () => {
     try {
