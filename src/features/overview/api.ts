@@ -4,7 +4,8 @@ import { fetchHealthData, type BodyMetric } from "@features/health/api";
 import { parse, score } from "@features/training/parser";
 import { epley1RM } from "@features/training/logic";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
-import { computeGoal, type Goal } from "./goal";
+import { computeGoal, cutBaselineAt, type Goal } from "./goal";
+import { saveConfig } from "@features/nutrition/api";
 
 export type StrengthStatus = "improving" | "stable" | "watch";
 
@@ -50,11 +51,11 @@ export interface OverviewData {
   goal: Goal | null;
   /** Target body fat from config (null = goal not configured). */
   targetBodyFat: number | null;
-  /** Anchored cut-start date, or null when no baseline has been set yet — the
-   *  card shows its one-time initializer in that state. */
+  /** Persisted cut-start date, or null when no baseline is set yet — the card
+   *  shows its one-time initializer in that state. */
   cutStartDate: string | null;
-  /** Raw body metrics (180-day window) — the initializer computes the baseline
-   *  at a chosen date from these. */
+  /** Raw body metrics — the initializer snapshots the baseline at a chosen date
+   *  from these (once, at Save). */
   metrics: BodyMetric[];
 }
 
@@ -86,9 +87,8 @@ function compoundPct(slugLogs: Array<{ log_date: string | null; raw: string | nu
 
 export async function fetchOverview(): Promise<OverviewData> {
   const [health, logsRes, pullFirstRes, rowFirstRes, nutritionState, configRes] = await Promise.all([
-    // 180 days so a cut baseline can be anchored to any date within ~6 months.
-    // Recovery's 7/30-day windows anchor to the latest reading, so the wider
-    // window doesn't shift its baseline.
+    // 180 days of body metrics. Recovery's 7/30-day windows anchor to the latest
+    // reading, so the wider window doesn't shift its baseline.
     fetchHealthData(180),
     supabase
       .from("training_logs")
@@ -113,9 +113,9 @@ export async function fetchOverview(): Promise<OverviewData> {
       .maybeSingle(),
     // Shared nutrition state — a plain read; recompute happens on data change.
     getNutritionState(),
-    // Goal Provider config: the target plus the fixed cut baseline. Both the
-    // start date and the starting body fat are set once (migration / config) and
-    // only ever read here — there is no in-app UI to change them.
+    // Goal Provider config: the target plus the persisted cut baseline
+    // (cut_start_date + cut_start_body_fat_pct). Set once via config and only ever
+    // read here — there is no in-app UI. To restart a cut, edit these directly.
     supabase
       .from("nutrition_config")
       .select("target_body_fat_pct, cut_start_date, cut_start_body_fat_pct")
@@ -228,7 +228,7 @@ export async function fetchOverview(): Promise<OverviewData> {
 
   // Primary Goal — computed entirely upstream in the Provider. The card only
   // renders the finished payload; swapping goal types never touches this call.
-  // Progress is anchored to the fixed cut baseline when one exists.
+  // Progress is anchored to the persisted cut baseline body fat.
   const goal = computeGoal(
     metrics as BodyMetric[],
     configRes.data?.target_body_fat_pct ?? null,
@@ -246,5 +246,23 @@ export async function fetchOverview(): Promise<OverviewData> {
     cutStartDate: configRes.data?.cut_start_date ?? null,
     metrics: metrics as BodyMetric[],
   };
+}
+
+/** Anchor the cut baseline to `startDate` — the one-time initialization. Snapshots
+ *  the smoothed body composition at that date into config, freezing the Cut Progress
+ *  starting line (progress reads the persisted value, never recomputed). After this
+ *  the initializer never shows again (cut_start_date is set). To restart a cut later,
+ *  edit the nutrition_config.cut_start_* fields directly — there is intentionally no
+ *  in-app restart/reset/cancel flow. Throws if the date has no readings nearby. */
+export async function saveCutBaseline(startDate: string, metrics: BodyMetric[]) {
+  const { bodyFatPct, weightKg } = cutBaselineAt(metrics, startDate);
+  if (bodyFatPct == null) {
+    throw new Error("No body-fat readings near that date to anchor the baseline.");
+  }
+  return saveConfig({
+    cut_start_date: startDate,
+    cut_start_body_fat_pct: bodyFatPct,
+    cut_start_weight: weightKg,
+  });
 }
 

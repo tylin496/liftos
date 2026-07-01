@@ -41,6 +41,40 @@ export interface Goal {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+/** Average of the readings in the `days`-day window starting on `startDate`
+ *  (inclusive). Used ONCE at Save time to turn a chosen cut-start date into a
+ *  smoothed snapshot; the result is persisted and never recomputed on read.
+ *  Returns null when the window holds no readings. */
+function windowAvgFrom(pts: { date: string; value: number }[], startDate: string, days: number): number | null {
+  const end = new Date(startDate + "T12:00:00");
+  end.setDate(end.getDate() + days - 1);
+  const endStr = end.toISOString().slice(0, 10);
+  const window = pts.filter((p) => p.date >= startDate && p.date <= endStr);
+  if (!window.length) return null;
+  return window.reduce((s, p) => s + p.value, 0) / window.length;
+}
+
+/** Smoothed body composition on the day a cut began — the 14-day body-fat and
+ *  weight averages starting at `startDate`. Called once, by the one-time baseline
+ *  initializer, to snapshot an immutable starting line into config (progress then
+ *  reads that persisted value, not this). Returns nulls when the window holds no
+ *  readings (e.g. the date predates the fetched metrics). */
+export function cutBaselineAt(
+  metrics: BodyMetric[],
+  startDate: string,
+): { bodyFatPct: number | null; weightKg: number | null } {
+  const bfPts = metrics
+    .filter((m) => m.body_fat_pct != null)
+    .map((m) => ({ date: m.metric_date, value: m.body_fat_pct as number }));
+  const wtPts = metrics
+    .filter((m) => m.weight_kg != null)
+    .map((m) => ({ date: m.metric_date, value: m.weight_kg as number }));
+  return {
+    bodyFatPct: windowAvgFrom(bfPts, startDate, 14),
+    weightKg: windowAvgFrom(wtPts, startDate, 14),
+  };
+}
+
 /** Build the fat-loss Goal payload, or null when there isn't enough body-
  *  composition data (no target, or no weight+bodyfat readings) to evaluate. */
 export function computeGoal(
@@ -73,9 +107,9 @@ export function computeGoal(
   const remainingWeight = currentWeight - goalWeight;
 
   // Progress = fraction of the body-fat gap closed since the starting point.
-  // The start line is the fixed cut baseline from config — a value set once and
-  // never drifting. If it hasn't been filled in yet, fall back to the current
-  // 14-day average, which reads as 0% progress. Already-at-or-below-target
+  // The start line is the fixed cut baseline persisted in config (`cutStartBodyFat`)
+  // — a value set once and never drifting. If it isn't set, fall back to the
+  // current 14-day average, which reads as 0% progress. Already-at-or-below-target
   // reads as 100%.
   const startBodyFat = cutStartBodyFat ?? bodyFat14dAvg;
   const span = startBodyFat - targetBodyFat;

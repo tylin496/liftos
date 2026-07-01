@@ -80,9 +80,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Status is a judgment word → coloured by severity (COLOR-SYSTEM rule 3),
-   matching Recovery's Good/Fair/Poor. The Trend row stays neutral: it's a
-   number, not a verdict. */
+/* Both the Trend rate and the Status word are coloured by pace severity
+   (COLOR-SYSTEM: colour lives on the change/verdict), matching Recovery's
+   Good/Fair/Poor. The plain latest-weight number above stays neutral ink. */
 .ov-weight-val.is-good { color: var(--good); }
 .ov-weight-val.is-warn { color: var(--gold); }
 .ov-weight-val.is-bad  { color: var(--bad); }
@@ -98,8 +98,7 @@
   background: none;
   border: none;
   box-shadow: none;
-  margin-top: var(--space-3);
-  padding: 2px 2px var(--space-5);
+  padding: 2px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -243,6 +242,77 @@
   font-size: var(--text-2xs);
   color: var(--ink-4);
   margin-top: var(--space-4);
+}
+
+/* ─── Cut baseline initializer (one-time) ────────────────────────────────── */
+
+.goal-init {
+  display: flex;
+  flex-direction: column;
+}
+
+.goal-init-lede {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+
+.goal-init-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+  font-size: var(--role-field-label-size);
+  font-weight: var(--role-field-label-weight);
+  color: var(--role-field-label-color);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.goal-init-field input {
+  font-family: var(--font-ui);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--ink);
+}
+
+.goal-init-field input:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.goal-init-preview {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.goal-init-save {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-color);
+  font-size: var(--text-base);
+  font-weight: 700;
+  transition: transform var(--motion-fast) var(--press-ease), opacity var(--motion-fast);
+}
+
+.goal-init-save:not(:disabled):active {
+  transform: scale(var(--tap-scale));
+}
+
+.goal-init-save:disabled {
+  opacity: 0.55;
 }
 
 /* ─── Recovery Card ──────────────────────────────────────────────────────── */

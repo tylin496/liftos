@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { fetchOverview, type OverviewData } from "./api";
+import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
+import { cutBaselineAt } from "./goal";
+import type { BodyMetric } from "@features/health/api";
 import { RECOVERY_STATUS_COLOR, type RecoverySnapshot } from "@features/health/math";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { useInView } from "@shared/hooks/useInView";
@@ -122,6 +124,64 @@ function CutProgressCard({ goal, onNav }: { goal: Goal; onNav: () => void }) {
   );
 }
 
+// One-time initializer: pins the starting line for the current cut. Shown ONLY
+// while no baseline exists (target set but cut_start_date null); after Save it
+// never appears again. The chosen date's smoothed body composition is snapshotted
+// into config and progress reads that persisted value — it is never recomputed.
+// Deliberately NOT today's date — the user picks when this cut actually began,
+// so the months already behind them still count. No restart / reset / cancel:
+// to begin a new cut, edit nutrition_config.cut_start_* directly.
+function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved: () => void }) {
+  const [date, setDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const preview = date ? cutBaselineAt(metrics, date) : null;
+  const canSave = !!date && preview?.bodyFatPct != null;
+
+  async function handleSave() {
+    if (!canSave) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await saveCutBaseline(date, metrics);
+      onSaved();
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="page-card goal goal-init">
+      <div className="goal-head">
+        <span className="goal-label">Cut Progress</span>
+      </div>
+      <p className="goal-init-lede">
+        Set when this cut began. Progress is measured from that fixed point, so the
+        months already behind you still count.
+      </p>
+      <label className="goal-init-field">
+        <span>Cut start date</span>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      </label>
+      {date && (
+        <p className="goal-init-preview">
+          {preview?.bodyFatPct != null
+            ? `Baseline: ${preview.bodyFatPct.toFixed(1)}% body fat${
+                preview.weightKg != null ? ` · ${preview.weightKg.toFixed(1)} kg` : ""
+              }`
+            : "No readings near that date — pick a date with body-fat data."}
+        </p>
+      )}
+      <button type="button" className="goal-init-save" onClick={handleSave} disabled={!canSave || saving}>
+        {saving ? "Saving…" : "Create baseline"}
+      </button>
+      {error && <p className="auth-error">{error}</p>}
+    </div>
+  );
+}
+
 /* ── Weight Card ───────────────────────────────────────────────────────── */
 
 // Weight answers one question: am I losing at the right rate? Latest weight +
@@ -157,7 +217,7 @@ function WeightCard({
       <div className="ov-weight-rows">
         <div className="ov-weight-row">
           <span className="ov-weight-key">Trend</span>
-          <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
+          <span className={`ov-weight-val${trend != null && tone ? ` is-${tone}` : ""}`}>{trend != null ? fmtTrend(trend) : "—"}</span>
         </div>
         <div className="ov-weight-row">
           <span className="ov-weight-key">Status</span>
@@ -387,10 +447,13 @@ export function OverviewPage() {
   const nav = useNav();
   const user = useSessionUser();
 
-  useEffect(() => {
+  const load = () =>
     fetchOverview()
       .then(setData)
       .catch((e) => setError(String(e?.message ?? e)));
+
+  useEffect(() => {
+    void load();
   }, [activity]);
 
   usePageHeader({ eyebrow: fmtTopbarDate(), title: greeting(user), onCopy: copyAllData });
@@ -409,7 +472,11 @@ export function OverviewPage() {
         <SystemCard rec={data.nutritionState.recommendation} onNav={(tab) => nav(tab)} />
       )}
 
-      {data?.goal && <CutProgressCard goal={data.goal} onNav={() => nav("health")} />}
+      {data && data.targetBodyFat != null && data.cutStartDate == null ? (
+        <CutBaselineCard metrics={data.metrics} onSaved={() => void load()} />
+      ) : (
+        data?.goal && <CutProgressCard goal={data.goal} onNav={() => nav("health")} />
+      )}
 
       {data && (
         <WeightCard weightLatest={data.weightLatest} state={data.nutritionState} onNav={() => nav("health")} />

@@ -117,6 +117,7 @@ export type Database = {
         Row: {
           cut_start_body_fat_pct: number | null
           cut_start_date: string | null
+          cut_start_weight: number | null
           height_cm: number | null
           phase_deficits: Json
           protein_target: number
@@ -130,6 +131,7 @@ export type Database = {
         Insert: {
           cut_start_body_fat_pct?: number | null
           cut_start_date?: string | null
+          cut_start_weight?: number | null
           height_cm?: number | null
           phase_deficits?: Json
           protein_target?: number
@@ -143,6 +145,7 @@ export type Database = {
         Update: {
           cut_start_body_fat_pct?: number | null
           cut_start_date?: string | null
+          cut_start_weight?: number | null
           height_cm?: number | null
           phase_deficits?: Json
           protein_target?: number

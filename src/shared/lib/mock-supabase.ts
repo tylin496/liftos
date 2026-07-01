@@ -164,6 +164,10 @@ const NUTRITION_CONFIG = {
   height_cm: 178,
   training_age_months: 36,
   target_body_fat_pct: 12,
+  // Cut baseline starts unset — the one-time initializer sets it on first entry.
+  cut_start_date: null,
+  cut_start_body_fat_pct: null,
+  cut_start_weight: null,
   updated_at: "2026-06-01T00:00:00Z",
 };
 
