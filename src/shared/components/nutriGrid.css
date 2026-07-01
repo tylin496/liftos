@@ -37,10 +37,6 @@
 .nutri-delta.bad { color: var(--bad); }
 .nutri-delta.neutral { color: var(--ink-3); }
 
-/* Calories/Protein big stats are fixed identity tints, not a good/bad tone. */
-.nutri-val--green { color: var(--good); }
-.nutri-val--blue { color: var(--blue); }
-
 /* Empty stat cell: same column layout as a filled one so the card height
    doesn't jump when an entry is logged — only the number is dimmed to "—". */
 .stat-number--empty { color: var(--ink-4); }

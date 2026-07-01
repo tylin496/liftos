@@ -332,6 +332,17 @@ class MockBuilder {
     return this;
   }
 
+  // Negated filter. Only the shapes we actually use are supported — today that's
+  // `.not("col", "is", null)` (i.e. WHERE col IS NOT NULL) and plain equality.
+  not(col: string, op: string, val: unknown) {
+    if (op === "is" && val === null) {
+      this._filters.push((r) => r[col] != null);
+    } else {
+      this._filters.push((r) => r[col] !== val);
+    }
+    return this;
+  }
+
   order(_col: string, _opts?: { ascending?: boolean }) {
     this._sorts.push([_col, _opts?.ascending !== false]);
     return this;

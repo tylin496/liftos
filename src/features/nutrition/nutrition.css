@@ -117,6 +117,39 @@
   letter-spacing: 0.06em;
 }
 
+/* Hold state — no current→new change, so the target itself is the one hero
+   focal point instead of the (absent) new-target accent. */
+.ni-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ni-hero-val {
+  font-family: var(--font-mono);
+  font-size: var(--metric-lg);
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.ni-verdict {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--bg-soft);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
 .ni-rec-reason {
   margin: 0;
   font-size: var(--role-secondary-size);
@@ -158,6 +191,49 @@
   font-weight: 600;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
+}
+
+.ni-cell-value.status-good {
+  color: var(--good);
+}
+.ni-cell-value.status-gold {
+  color: var(--gold);
+}
+.ni-cell-value.status-bad {
+  color: var(--bad);
+}
+
+/* Confidence cell is tappable when its value needs explaining (fresh target). */
+.ni-cell-expandable {
+  cursor: pointer;
+}
+
+.ni-cell-caret {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--role-caption-color);
+  font-family: var(--font-sans);
+  transition: transform 0.15s ease;
+}
+
+.ni-cell-expandable[aria-expanded="true"] .ni-cell-caret {
+  transform: rotate(90deg);
+}
+
+/* Revealed explanation for a capped confidence — reads as a caption. */
+.ni-conf-reason {
+  margin: 0;
+  padding-top: var(--space-3);
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ni-cell-caret {
+    transition: none;
+  }
 }
 
 /* ── Skeleton loading state ────────────────────────────────────────────── */

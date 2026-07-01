@@ -588,7 +588,7 @@ export function TodayView({
             <button type="button" className="nutri-col" aria-label="Edit calories" onClick={() => openEdit("calories")}>
               <span className="nutri-label">Calories</span>
               {hasEntry ? (
-                <span ref={calNumRef} className="metric-val metric-val--lg nutri-val--green">
+                <span ref={calNumRef} className="metric-val metric-val--lg">
                   {calNum.toLocaleString()}
                 </span>
               ) : (
@@ -600,7 +600,7 @@ export function TodayView({
             <button type="button" className="nutri-col" aria-label="Edit protein" onClick={() => openEdit("protein")}>
               <span className="nutri-label">Protein</span>
               {hasEntry ? (
-                <span ref={protNumRef} className="metric-val metric-val--lg nutri-val--blue">
+                <span ref={protNumRef} className="metric-val metric-val--lg">
                   {protNum}
                 </span>
               ) : (

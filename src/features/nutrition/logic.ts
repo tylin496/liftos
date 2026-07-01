@@ -98,6 +98,7 @@ export function getProteinResult(
 export function calorieTone(hasEntry: boolean, calResult: CalorieResult): "good" | "bad" | null {
   if (!hasEntry) return null;
   if (calResult.isSurplus || calResult.state === "extreme") return "bad";
+  if (calResult.state === "on-plan") return "good";
   return null;
 }
 
