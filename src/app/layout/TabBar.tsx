@@ -5,11 +5,9 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
     id: "overview",
     label: "Overview",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <rect x="3" y="3" width="7" height="7" rx="1.5" />
-        <rect x="14" y="3" width="7" height="7" rx="1.5" />
-        <rect x="3" y="14" width="7" height="7" rx="1.5" />
-        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 11.5L12 4l8 7.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
@@ -17,8 +15,12 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
     id: "training",
     label: "Training",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M1 7.1H3V5.9A1.5 1.5 0 0 1 4.5 4.4H6.5A1.5 1.5 0 0 1 8 5.9V9.5H16V5.9A1.5 1.5 0 0 1 17.5 4.4H19.5A1.5 1.5 0 0 1 21 5.9V7.1H23V16.9H21V18.1A1.5 1.5 0 0 1 19.5 19.6H17.5A1.5 1.5 0 0 1 16 18.1V14.5H8V18.1A1.5 1.5 0 0 1 6.5 19.6H4.5A1.5 1.5 0 0 1 3 18.1V16.9H1Z" />
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2.5" y="9.5" width="3" height="5" rx="1" fill="currentColor" />
+        <rect x="18.5" y="9.5" width="3" height="5" rx="1" fill="currentColor" />
+        <rect x="5.5" y="7.5" width="2.5" height="9" rx="1" fill="currentColor" />
+        <rect x="16" y="7.5" width="2.5" height="9" rx="1" fill="currentColor" />
+        <rect x="8" y="11" width="8" height="2" rx="1" fill="currentColor" />
       </svg>
     ),
   },
@@ -26,10 +28,12 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
     id: "nutrition",
     label: "Nutrition",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M3 2v7c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2V2" />
-        <line x1="7" y1="11" x2="7" y2="22" />
-        <path d="M21 2a5 5 0 0 0-5 5v6h3v9" />
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M7 3v6M10 3v6M13 3v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <path d="M7 9c0 2.1 1.3 3 3 3s3-.9 3-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <path d="M10 12v9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <path d="M17 3c1.8.3 2.6 2.4 2.6 5s-1 5.3-2.6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M17 14v7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -37,8 +41,8 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
     id: "health",
     label: "Health",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 13h3.2l1.8-4 3 8 2-6.5 1.4 2.5H21" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
