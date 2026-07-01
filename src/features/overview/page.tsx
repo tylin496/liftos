@@ -131,7 +131,7 @@ function HeroCard({ data, onSaved }: { data: OverviewData | null; onSaved: () =>
         />
       ) : (
         <div className="nutri-grid">
-          <button type="button" className="nutri-col" onClick={() => openEdit("calories")}>
+          <button type="button" className="nutri-col" aria-label="Edit calories" onClick={() => openEdit("calories")}>
             <span className="nutri-label">Calories</span>
             <MetricValue size="lg" tone="good">{kcalCount.toLocaleString()}</MetricValue>
             {kcalTarget > 0 && <MetricCaption>of {kcalTarget.toLocaleString()} kcal</MetricCaption>}
@@ -142,7 +142,7 @@ function HeroCard({ data, onSaved }: { data: OverviewData | null; onSaved: () =>
               </span>
             )}
           </button>
-          <button type="button" className="nutri-col" onClick={() => openEdit("protein")}>
+          <button type="button" className="nutri-col" aria-label="Edit protein" onClick={() => openEdit("protein")}>
             <span className="nutri-label">Protein</span>
             <MetricValue size="lg" className="nutri-val--blue">{proteinCount}</MetricValue>
             {proteinTarget > 0 && <MetricCaption>of {proteinTarget} g</MetricCaption>}
@@ -232,14 +232,13 @@ function TrainingHealthCard({
 
   return (
     <div className={`page-card ov-training-health${expanded ? " is-expanded" : ""}`}>
-      <button
-        type="button"
-        className="ov-th-summary"
-        onClick={() => setExpanded((v) => !v)}
-      >
+      {/* Tapping the header navigates to Training (matches Weight·TDEE's
+          whole-card-navigates pattern) — expand/collapse is the dedicated
+          "{N} more on track" toggle below, not this header. */}
+      <button type="button" className="ov-th-summary" onClick={onNav}>
         <div className="ov-th-top">
           <span className="ov-th-label">Training</span>
-          <span className="ov-th-chevron" aria-hidden>▾</span>
+          <span className="ov-th-chevron" aria-hidden>›</span>
         </div>
 
         {retentionPct !== null && (
@@ -300,10 +299,6 @@ function TrainingHealthCard({
               )}
             </div>
           )}
-
-          <button type="button" className="ov-th-nav-btn" onClick={onNav}>
-            Open Training →
-          </button>
         </div>
       )}
     </div>

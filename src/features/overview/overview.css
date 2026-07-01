@@ -184,7 +184,7 @@
   transition-duration: var(--motion-fast);
 }
 
-/* Summary button (the always-visible toggle target) */
+/* Summary button — navigates to Training (like Weight·TDEE's whole-card nav) */
 .ov-th-summary {
   display: flex;
   flex-direction: column;
@@ -219,14 +219,10 @@
 }
 
 .ov-th-chevron {
-  font-size: var(--text-base);
+  font-size: var(--text-xl);
   color: var(--ink-4);
   line-height: 1;
-  transition: transform 0.2s ease, color var(--motion-base);
-}
-
-.ov-training-health.is-expanded .ov-th-chevron {
-  transform: rotate(180deg);
+  transition: color var(--motion-base);
 }
 
 .ov-th-ret-hero {
@@ -399,25 +395,5 @@
   }
 }
 
-/* Open Training link */
-.ov-th-nav-btn {
-  align-self: flex-end;
-  margin-top: var(--space-3);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-4);
-  background: none;
-  border: none;
-  padding: var(--space-1) 0;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: color var(--motion-base);
-}
-
-@media (hover: hover) {
-  .ov-th-nav-btn:hover {
-    color: var(--ink);
-  }
-}
 
 
