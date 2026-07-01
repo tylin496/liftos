@@ -16,7 +16,7 @@ React / Vite / TypeScript。4 個 tab，每個是一個獨立 feature。
 ```
 Supabase → features/*/api.ts → page.tsx → 子元件
 ```
-每個 feature 的 `api.ts` 包含所有 Supabase 查詢。不要在元件裡直接呼叫 supabase（除了 AddAssistedForm 的 body_metrics prefill）。
+每個 feature 的 `api.ts` 包含所有 Supabase 查詢。不要在元件裡直接呼叫 supabase（除了 AddAssistedForm 的 health_metrics prefill）。
 
 ## Training Feature 結構（最複雜）
 原本一個 1760 行的 ExerciseCard.tsx 已拆分為：

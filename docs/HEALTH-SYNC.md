@@ -14,7 +14,7 @@ The nightly Apple Shortcut POSTs to **`/api/health-sync`** (Vercel function in
 ```
 
 - Empty strings → `null`. Energies are rounded to integers; weight/body-fat keep decimals.
-- Upserts one row per `date` into `body_metrics` (unique key `user_id, metric_date`).
+- Upserts one row per `date` into `health_metrics` (unique key `user_id, metric_date`).
 - Idempotent: re-running the Shortcut for a date overwrites that day.
 
 ## Required env (Vercel project settings)

@@ -37,7 +37,7 @@ Supabase (專案 gcznowwjbeqihhllllpz, ap-northeast-2, PG17)
 ├── Postgres  ← 唯一資料來源
 │   ├── nutrition_entries / nutrition_config
 │   ├── exercises / training_logs
-│   └── body_metrics          ← Apple Health
+│   └── health_metrics          ← Apple Health
 ├── Auth (Google) + RLS       ← 每張表 4 條 policy: auth.uid() = user_id
 └── Edge Function: health-sync ← iOS Shortcut 唯一入口（共用 secret + service role）
 ```
@@ -94,7 +94,7 @@ Postgres view 或前端計算皆可（個人 app 前端足夠）。"Update Targe
 - **P0 地基** ✅ Vite+TS shell、4 tab、design tokens、Supabase client、Supabase Auth gate（程式完成；Google provider 待 dashboard 設定）、schema 已上線、型別已產生。
 - **P1 Nutrition** — `legacy/nutrition/app.js` 移植成 React + Supabase。
 - **P2 Training** — Lift Log 搬入 + 接 Supabase。
-- **P3 Health + health-sync** — body_metrics 頁 + Edge Function + iOS Shortcut。
+- **P3 Health + health-sync** — health_metrics 頁 + Edge Function + iOS Shortcut。
 - **P4 自動 TDEE + Overview** — 回歸算 TDEE、寫回方案、首頁聚合。
 - **資料搬遷** — 一次性 Notion → Supabase 腳本（兩邊舊資料）。
 
