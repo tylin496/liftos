@@ -6,6 +6,8 @@ import { signOut } from "@shared/lib/auth";
 import { useNutritionConfig } from "@features/nutrition/NutritionConfigContext";
 import { saveConfig, targetsFromConfig, phaseDefsFromConfig } from "@features/nutrition/api";
 import { phaseFromDeficit, trainingMonthsFromStart } from "@features/nutrition/logic";
+import logoUrl from "@shared/assets/logo.png";
+import { version as APP_VERSION } from "../../../package.json";
 
 function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => void }) {
   const { config, setConfig } = useNutritionConfig();
@@ -126,6 +128,12 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
           <button type="button" className="settings-sign-out" onClick={() => void signOut()}>
             Sign out
           </button>
+
+          <div className="settings-about">
+            <img className="settings-about-mark" src={logoUrl} alt="" />
+            <span className="settings-about-name">LiftOS</span>
+            <span className="settings-about-ver">v{APP_VERSION}</span>
+          </div>
         </div>
       </div>
     </>,

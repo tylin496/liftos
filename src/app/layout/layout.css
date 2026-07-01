@@ -368,3 +368,95 @@
 .settings-sign-out:active {
   transform: scale(var(--tap-scale));
 }
+
+/* Cold-start splash — brand moment shown once, fades into Overview */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  background: var(--bg);
+}
+.splash.is-leaving { animation: fade-out var(--motion-slow) ease forwards; }
+.splash::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 340px;
+  height: 340px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--accent-glow), transparent 62%);
+  filter: blur(8px);
+}
+.splash-mark {
+  width: 96px;
+  height: 96px;
+  z-index: 1;
+  animation: mark-in var(--motion-slow) var(--reveal-ease) both;
+}
+.splash-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 26px var(--accent-glow));
+}
+.splash-word {
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  z-index: 1;
+  animation: word-in var(--motion-slow) var(--reveal-ease) 90ms both;
+}
+.splash-word b { color: var(--accent); }
+.splash-tag {
+  position: absolute;
+  bottom: 44px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  z-index: 1;
+  animation: word-in var(--motion-slow) var(--reveal-ease) 180ms both;
+}
+@keyframes mark-in {
+  from { opacity: 0; transform: scale(0.82) translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes word-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Settings — low-key brand footer */
+.settings-about {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.settings-about-mark {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  opacity: 0.9;
+}
+.settings-about-name {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ink-2);
+  letter-spacing: -0.01em;
+}
+.settings-about-ver {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+}

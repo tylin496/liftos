@@ -7,6 +7,7 @@ import { HealthPage } from "@features/health/page";
 import { TabBar, type TabId } from "./TabBar";
 import { SettingsSheetProvider, useSettingsSheet } from "./SettingsSheetContext";
 import { SettingsSheet } from "./SettingsSheet";
+import { Splash } from "./Splash";
 import { SessionUserProvider } from "./SessionContext";
 import { NavContext } from "./NavContext";
 import { TabActivityContext } from "./TabActivityContext";
@@ -69,6 +70,20 @@ export function Shell({ session }: { session: Session }) {
   >(null);
   const slideRef = useRef(slide);
   slideRef.current = slide;
+
+  // Cold-start splash: shown once on first mount, then fades out into Overview.
+  // `splash` keeps it mounted; `splashLeaving` triggers the fade-out class just
+  // before unmount. reduced-motion skips straight past (300ms, no animation).
+  const [splash, setSplash] = useState(true);
+  const [splashLeaving, setSplashLeaving] = useState(false);
+  useEffect(() => {
+    if (!splash) return;
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const hold = reduced ? 300 : 1000;
+    const leaveT = window.setTimeout(() => setSplashLeaving(true), hold);
+    const doneT = window.setTimeout(() => setSplash(false), hold + 340);
+    return () => { clearTimeout(leaveT); clearTimeout(doneT); };
+  }, [splash]);
   const settleTimer = useRef<number | null>(null);
   const pendingScrollTopRef = useRef(false);
 
@@ -257,6 +272,7 @@ export function Shell({ session }: { session: Session }) {
           <TabBar active={highlight} onChange={switchTab} />
         </div>
         <GlobalSettingsSheet />
+        {splash && <Splash leaving={splashLeaving} />}
       </PageHeaderContext.Provider>
       </NavContext.Provider>
     </SettingsSheetProvider>
