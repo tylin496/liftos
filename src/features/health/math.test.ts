@@ -163,6 +163,12 @@ describe("computeRecovery", () => {
     return days;
   }
 
+  function setLastDays(metrics: BodyMetric[], count: number, patch: Partial<typeof BASE>): BodyMetric[] {
+    return metrics.map((m, i) =>
+      i >= metrics.length - count ? ({ ...m, ...patch } as BodyMetric) : m,
+    );
+  }
+
   it("0 signals off -> Ready, holding-steady read", () => {
     const snap = computeRecovery(recoveryMetrics({}));
     expect(snap.score).toBe(3);
@@ -171,10 +177,10 @@ describe("computeRecovery", () => {
   });
 
   it("sleep only off -> Good, names sleep", () => {
-    const snap = computeRecovery(recoveryMetrics({ sleep_seconds: 21600 })); // 6h < 6.65h
+    const snap = computeRecovery(setLastDays(recoveryMetrics({}), 7, { sleep_seconds: 21600 })); // 6h < 6.65h
     expect(snap.score).toBe(2);
     expect(snap.status).toBe("Good");
-    expect(snap.insight).toBe("Sleep is running below your 30-day baseline — recovery's holding up.");
+    expect(snap.insight).toBe("Sleep 7-day average is running below your 30-day baseline — recovery's holding up.");
   });
 
   it("excludes obvious incomplete sleep records from the sleep baseline", () => {
@@ -185,22 +191,46 @@ describe("computeRecovery", () => {
     expect(snap.sleepBaseline).toBeCloseTo(7, 10);
   });
 
+  it("uses the valid 7-day sleep average as the current sleep value", () => {
+    const metrics = setLastDays(recoveryMetrics({}), 7, { sleep_seconds: 21600 });
+    metrics[metrics.length - 1] = { ...metrics[metrics.length - 1], sleep_seconds: 7200 } as BodyMetric;
+
+    const snap = computeRecovery(metrics);
+    expect(snap.sleepHours).toBeCloseTo((6 * 6 + 7) / 7, 10);
+  });
+
+  it("uses available days when fewer than 7 readings exist in the current window", () => {
+    const metrics = recoveryMetrics({});
+    metrics[metrics.length - 1] = {
+      ...metrics[metrics.length - 1],
+      sleep_seconds: 28800,
+      hrv_sdnn_ms: 70,
+      resting_heart_rate: 50,
+    } as BodyMetric;
+    const snap = computeRecovery(metrics.filter((_m, i) => i < metrics.length - 7 || i === metrics.length - 1));
+    expect(snap.sleepHours).toBeCloseTo(8, 10);
+    expect(snap.hrv).toBeCloseTo(70, 10);
+    expect(snap.rhr).toBeCloseTo(50, 10);
+  });
+
   it("HRV only off -> Good, names HRV", () => {
-    const snap = computeRecovery(recoveryMetrics({ hrv_sdnn_ms: 55 })); // < 57
+    const snap = computeRecovery(setLastDays(recoveryMetrics({}), 7, { hrv_sdnn_ms: 55 })); // < 57
     expect(snap.score).toBe(2);
     expect(snap.status).toBe("Good");
-    expect(snap.insight).toBe("HRV is running below your 30-day baseline — recovery's holding up.");
+    expect(snap.hrv).toBeCloseTo(55, 10);
+    expect(snap.insight).toBe("HRV 7-day average is running below your 30-day baseline — recovery's holding up.");
   });
 
   it("RHR only off -> Good, names resting heart rate", () => {
-    const snap = computeRecovery(recoveryMetrics({ resting_heart_rate: 60 })); // > 57.75
+    const snap = computeRecovery(setLastDays(recoveryMetrics({}), 7, { resting_heart_rate: 60 })); // > 57.75
     expect(snap.score).toBe(2);
     expect(snap.status).toBe("Good");
-    expect(snap.insight).toBe("Resting HR is running above your 30-day baseline — recovery's holding up.");
+    expect(snap.rhr).toBeCloseTo(60, 10);
+    expect(snap.insight).toBe("Resting HR 7-day average is running above your 30-day baseline — recovery's holding up.");
   });
 
   it("two signals off -> Fair, aggregate insight (no single metric named)", () => {
-    const snap = computeRecovery(recoveryMetrics({ sleep_seconds: 21600, hrv_sdnn_ms: 55 }));
+    const snap = computeRecovery(setLastDays(recoveryMetrics({}), 7, { sleep_seconds: 21600, hrv_sdnn_ms: 55 }));
     expect(snap.score).toBe(1);
     expect(snap.status).toBe("Fair");
     expect(snap.insight).toBe("Several markers are running under your 30-day baseline — recovery's a little down.");
@@ -208,7 +238,7 @@ describe("computeRecovery", () => {
 
   it("all three off -> Needs Recovery, aggregate insight", () => {
     const snap = computeRecovery(
-      recoveryMetrics({ sleep_seconds: 21600, hrv_sdnn_ms: 55, resting_heart_rate: 60 }),
+      setLastDays(recoveryMetrics({}), 7, { sleep_seconds: 21600, hrv_sdnn_ms: 55, resting_heart_rate: 60 }),
     );
     expect(snap.score).toBe(0);
     expect(snap.status).toBe("Needs Recovery");

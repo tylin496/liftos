@@ -114,7 +114,7 @@ export interface RecoverySnapshot {
   /** 0–3: how many metrics are at or above their personal baseline */
   score: number;
   status: RecoveryStatus | null;
-  /** one-line, informational read on today's recovery vs. baseline */
+  /** one-line, informational read on recent recovery vs. baseline */
   insight: string | null;
   /** date string of the most recent reading used */
   date: string | null;
@@ -127,10 +127,10 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   const hrvPts   = series(metrics, "hrv_sdnn_ms");
   const rhrPts   = series(metrics, "resting_heart_rate");
 
-  const sleepRaw = sleepPts.at(-1)?.value ?? null;
+  const sleepRaw = rollingAvg(sleepBaselinePts, 7, 0);
   const sleepHours = sleepRaw != null ? sleepRaw / 3600 : null;
-  const hrv = hrvPts.at(-1)?.value ?? null;
-  const rhr = rhrPts.at(-1)?.value ?? null;
+  const hrv = rollingAvg(hrvPts, 7, 0);
+  const rhr = rollingAvg(rhrPts, 7, 0);
 
   // Baseline = 30-day average before (not including) the latest reading
   const sleepBaseRaw = rollingAvg(sleepBaselinePts, 30, 1);
@@ -150,10 +150,10 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
     : score === 1 ? "Fair"
     : "Needs Recovery";
 
-  // Insight: a short, plain-language read of where the user sits against their
-  // 30-day baseline. When a marker is off we name it; when everything's holding
-  // we surface the strongest one. Descriptive, not prescriptive — the read
-  // reflects the state, it never tells the user what to do.
+  // Insight: a short, plain-language read of where the user's 7-day averages sit
+  // against their 30-day baseline. When a marker is off we name it; when
+  // everything's holding we surface the strongest one. Descriptive, not
+  // prescriptive — the read reflects the state, it never tells the user what to do.
   const sleepLow = sleepHours != null && sleepBaseline != null && sleepHours < sleepBaseline * 0.95;
   const hrvLow   = hrv != null && hrvBaseline != null && hrv < hrvBaseline * 0.95;
   const rhrHigh  = rhr != null && rhrBaseline != null && rhr > rhrBaseline * 1.05;
@@ -181,10 +181,10 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   let insight: string | null;
   if (!hasAny) insight = null;
   else if (downCount >= 2) insight = `Several markers are running under your 30-day baseline — ${read}.`;
-  else if (sleepLow) insight = `Sleep is running below your 30-day baseline — ${read}.`;
-  else if (hrvLow) insight = `HRV is running below your 30-day baseline — ${read}.`;
-  else if (rhrHigh) insight = `Resting HR is running above your 30-day baseline — ${read}.`;
-  else if (above.length) insight = `${above[0].label} is running ${above[0].dir} your 30-day baseline — ${read}.`;
+  else if (sleepLow) insight = `Sleep 7-day average is running below your 30-day baseline — ${read}.`;
+  else if (hrvLow) insight = `HRV 7-day average is running below your 30-day baseline — ${read}.`;
+  else if (rhrHigh) insight = `Resting HR 7-day average is running above your 30-day baseline — ${read}.`;
+  else if (above.length) insight = `${above[0].label} 7-day average is running ${above[0].dir} your 30-day baseline — ${read}.`;
   else insight = `You're holding steady at your 30-day baseline — ${read}.`;
 
   const dates = [sleepPts.at(-1)?.date, hrvPts.at(-1)?.date, rhrPts.at(-1)?.date]
