@@ -177,6 +177,14 @@ describe("computeRecovery", () => {
     expect(snap.insight).toBe("Sleep is running below your 30-day baseline — recovery's holding up.");
   });
 
+  it("excludes obvious incomplete sleep records from the sleep baseline", () => {
+    const metrics = recoveryMetrics({});
+    metrics[0] = { ...metrics[0], sleep_seconds: 7200 } as BodyMetric;
+
+    const snap = computeRecovery(metrics);
+    expect(snap.sleepBaseline).toBeCloseTo(7, 10);
+  });
+
   it("HRV only off -> Good, names HRV", () => {
     const snap = computeRecovery(recoveryMetrics({ hrv_sdnn_ms: 55 })); // < 57
     expect(snap.score).toBe(2);

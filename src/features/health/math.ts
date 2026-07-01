@@ -93,6 +93,8 @@ export function rollingAvg(pts: { date: string; value: number }[], days = 7, off
 
 export type RecoveryStatus = "Ready" | "Good" | "Fair" | "Needs Recovery";
 
+const MIN_VALID_SLEEP_SECONDS = 3 * 60 * 60;
+
 /** Status → semantic color token. Shared by the Health card and the Overview
  *  card so the four tiers always read the same color. */
 export const RECOVERY_STATUS_COLOR: Record<RecoveryStatus, string> = {
@@ -120,6 +122,8 @@ export interface RecoverySnapshot {
 
 export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   const sleepPts = series(metrics, "sleep_seconds");
+  // Filters obvious HealthKit/incomplete sleep records, not genuine short sleep.
+  const sleepBaselinePts = sleepPts.filter((p) => p.value >= MIN_VALID_SLEEP_SECONDS);
   const hrvPts   = series(metrics, "hrv_sdnn_ms");
   const rhrPts   = series(metrics, "resting_heart_rate");
 
@@ -129,7 +133,7 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   const rhr = rhrPts.at(-1)?.value ?? null;
 
   // Baseline = 30-day average before (not including) the latest reading
-  const sleepBaseRaw = rollingAvg(sleepPts, 30, 1);
+  const sleepBaseRaw = rollingAvg(sleepBaselinePts, 30, 1);
   const sleepBaseline = sleepBaseRaw != null ? sleepBaseRaw / 3600 : null;
   const hrvBaseline  = rollingAvg(hrvPts,  30, 1);
   const rhrBaseline  = rollingAvg(rhrPts,  30, 1);
