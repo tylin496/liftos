@@ -268,13 +268,6 @@
   transition-duration: var(--motion-fast);
 }
 
-.page-title {
-  font-size: var(--text-2xl);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin: 0 0 var(--space-2);
-}
-
 .page-note {
   font-size: var(--text-sm);
   color: var(--ink-3);

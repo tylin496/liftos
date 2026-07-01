@@ -294,18 +294,6 @@
   opacity: 0.55;
 }
 
-.nutri-save--saved {
-  background: var(--good);
-  opacity: 1 !important;
-  animation: nutri-save-pop 0.32s var(--press-ease) both;
-}
-
-@keyframes nutri-save-pop {
-  0%   { transform: scale(0.96); }
-  55%  { transform: scale(1.03); }
-  100% { transform: scale(1); }
-}
-
 /* ── Nutrition calendar modal ────────────────────────────────────────── */
 .ncal-backdrop {
   position: fixed;
