@@ -71,21 +71,29 @@ export function HistoryView({
   // Slide direction for the week-change animation, mirroring the Today card.
   const [weekNavDir, setWeekNavDir] = useState<"forward" | "backward" | null>(null);
   const weekRef = useRef<HTMLElement>(null);
+  // The week strip browses independently of the page's selected `date`, so the
+  // ‹ › chevrons don't drag the Today card (and the whole page) along with them.
+  const [weekAnchor, setWeekAnchor] = useState(date);
+  // Re-centre the strip when the page's day changes elsewhere (tapping a bar,
+  // the Today card's own day nav).
+  useEffect(() => setWeekAnchor(date), [date]);
 
   const defaultTargets = useMemo(() => targetsFromConfig(config), [config]);
 
   const todayStrNow = toDateStr(new Date());
+  const canGoBack = shiftDate(weekAnchor, -7) >= MIN_DATE;
 
   // Change week: jump ±7 days (same weekday), clamped to [MIN_DATE, today].
+  // Only moves the strip's own anchor — the page's selected day is untouched.
   function navigateWeek(dir: "forward" | "backward") {
     const delta = dir === "forward" ? 7 : -7;
-    let next = shiftDate(date, delta);
+    let next = shiftDate(weekAnchor, delta);
     if (dir === "forward" && next > todayStrNow) next = todayStrNow;
     if (dir === "backward" && next < MIN_DATE) return;
-    if (next === date) return;
+    if (next === weekAnchor) return;
     haptic("select");
     setWeekNavDir(dir);
-    onDateChange(next);
+    setWeekAnchor(next);
   }
 
   // Clear the slide class once the animation finishes so it can replay.
@@ -93,7 +101,7 @@ export function HistoryView({
     if (!weekNavDir) return;
     const t = setTimeout(() => setWeekNavDir(null), 360);
     return () => clearTimeout(t);
-  }, [weekNavDir, date]);
+  }, [weekNavDir, weekAnchor]);
 
   // Horizontal swipe on the week strip changes the week. Stop the gesture from
   // bubbling to Shell's tab-swipe handler.
@@ -140,7 +148,7 @@ export function HistoryView({
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
     };
-  }, [date, todayStrNow]);
+  }, [weekAnchor, todayStrNow]);
 
   useEffect(() => {
     const today = new Date();
@@ -149,22 +157,22 @@ export function HistoryView({
     // contains the selected day, so navigating to an older week still has data.
     const monthFrom = new Date(today);
     monthFrom.setDate(today.getDate() - 29);
-    const sel = new Date(date + "T12:00:00");
+    const sel = new Date(weekAnchor + "T12:00:00");
     const selMonday = new Date(sel);
     selMonday.setDate(sel.getDate() - ((sel.getDay() + 6) % 7));
     const from = selMonday < monthFrom ? selMonday : monthFrom;
     getEntries(toDateStr(from), to)
       .then(setEntries)
       .catch((e) => setError(String(e?.message ?? e)));
-  }, [entryVersion, date]);
+  }, [entryVersion, weekAnchor]);
 
   const { week, month, trend7, todayStr, isCurrentWeek } = useMemo(() => {
     const todayStr = toDateStr(new Date());
     const inputs = (entries ?? []).map(toInput);
 
-    // Build Mon–Sun for the week containing the SELECTED day, so the strip and
-    // its KPIs track day navigation instead of being pinned to the live week.
-    const anchor = new Date(date + "T12:00:00");
+    // Build Mon–Sun for the week the strip is currently browsing (weekAnchor),
+    // independent of the page's selected day.
+    const anchor = new Date(weekAnchor + "T12:00:00");
     const dow = anchor.getDay(); // 0=Sun … 6=Sat
     const monday = new Date(anchor);
     monday.setDate(anchor.getDate() - ((dow + 6) % 7)); // shift to Monday
@@ -197,7 +205,7 @@ export function HistoryView({
     const monthInputs = inputs.filter((d) => d.date >= monthFromStr && d.date <= todayStr);
 
     return { week: weeklyStats(logged7), month: monthlyStats(monthInputs), trend7, todayStr, isCurrentWeek };
-  }, [entries, date]);
+  }, [entries, weekAnchor]);
 
   if (error) {
     return <ErrorState message={error} />;
@@ -233,17 +241,52 @@ export function HistoryView({
         }`}
       >
         <div className="section-head">
-          <p className="page-eyebrow" style={{ margin: 0 }}>
-            {isCurrentWeek
-              ? "This Week"
-              : `${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
-          </p>
+          <div className="hist-week-head">
+            <p className="page-eyebrow" style={{ margin: 0 }}>THIS WEEK</p>
+            <div className="hist-week-nav">
+              <button
+                type="button"
+                className="hist-week-chevron"
+                onClick={() => navigateWeek("backward")}
+                disabled={!canGoBack}
+                aria-label="Previous week"
+              >
+                ‹
+              </button>
+              <span className="hist-week-range">
+                {`${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
+              </span>
+              <button
+                type="button"
+                className="hist-week-chevron"
+                onClick={() => navigateWeek("forward")}
+                disabled={isCurrentWeek}
+                aria-label="Next week"
+              >
+                ›
+              </button>
+            </div>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
             {week.consistency && (
               <span className={`hist-badge badge-${week.consistency.toLowerCase()}`}>
                 {week.consistency}
               </span>
             )}
+          </div>
+        </div>
+
+        {/* KPI row — sits above the chart, unit-style copy */}
+        <div className="nutri-kpi-row">
+          <div className="nutri-kpi">
+            <MetricValue size="md" unit={week.avgCalories > 0 ? "kcal avg" : undefined}>
+              {week.avgCalories > 0 ? week.avgCalories.toLocaleString() : "—"}
+            </MetricValue>
+          </div>
+          <div className="nutri-kpi">
+            <MetricValue size="md" unit={week.avgProtein > 0 ? "g avg" : undefined}>
+              {week.avgProtein > 0 ? week.avgProtein : "—"}
+            </MetricValue>
           </div>
         </div>
 
@@ -343,20 +386,16 @@ export function HistoryView({
           })}
         </div>
 
-        {/* KPI row */}
-        <div className="nutri-kpi-row">
-          <div className="nutri-kpi">
-            <MetricValue size="md" unit={week.avgCalories > 0 ? "kcal" : undefined}>
-              {week.avgCalories > 0 ? week.avgCalories.toLocaleString() : "—"}
-            </MetricValue>
-            <span className="nutri-kpi-label">Avg Cal</span>
-          </div>
-          <div className="nutri-kpi">
-            <MetricValue size="md" unit={week.avgProtein > 0 ? "g" : undefined}>
-              {week.avgProtein > 0 ? week.avgProtein : "—"}
-            </MetricValue>
-            <span className="nutri-kpi-label">Avg Protein</span>
-          </div>
+        {/* Colour legend — matches the dual-bar colours */}
+        <div className="nutri-trend-legend">
+          <span className="nutri-trend-legend-item">
+            <span className="nutri-trend-legend-dot" style={{ background: "var(--good)" }} />
+            Calories
+          </span>
+          <span className="nutri-trend-legend-item">
+            <span className="nutri-trend-legend-dot" style={{ background: "var(--blue)" }} />
+            Protein
+          </span>
         </div>
       </section>
 

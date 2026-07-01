@@ -69,8 +69,8 @@ function HeroCard({ data, onSaved }: { data: OverviewData | null; onSaved: () =>
     setProtein(savedProtein != null ? String(savedProtein) : "");
   }, [savedKcal, savedProtein, editing]);
 
-  const kcalTarget = nutritionTargets?.calorieTarget ?? 0;
   const proteinTarget = nutritionTargets?.proteinTarget ?? 0;
+  const calorieTarget = nutritionTargets?.calorieTarget ?? 0;
   const deficitTarget = nutritionTargets?.deficitTarget ?? 0;
   const tdeeTarget = nutritionTargets?.tdeeTarget ?? 0;
 
@@ -151,7 +151,7 @@ function HeroCard({ data, onSaved }: { data: OverviewData | null; onSaved: () =>
             ) : (
               <MetricValue size="lg" className="stat-number--empty">—</MetricValue>
             )}
-            {kcalTarget > 0 && <MetricCaption>of {kcalTarget.toLocaleString()} kcal</MetricCaption>}
+            {tdeeTarget > 0 && <MetricCaption>of {calorieTarget.toLocaleString()} kcal</MetricCaption>}
             {calNote && (
               <span className={`nutri-delta ${calTone ?? "neutral"}`}>{calNote}</span>
             )}
@@ -176,32 +176,43 @@ function HeroCard({ data, onSaved }: { data: OverviewData | null; onSaved: () =>
 
 /* ── Training Health Card ──────────────────────────────────────────────── */
 
-// The row's % is "% of all-time PR" (how close to your best). The watch flag,
-// however, comes from the recent-vs-prior trend (api `status`/`trend`) — a
-// different metric. So for flagged rows we surface that trend delta, which is
-// what actually earned the flag, instead of a label derived from the % (which
-// could read as a contradiction, e.g. "97% · Review").
+// On-track rows show "% of all-time PR" (how close to your best). Flagged
+// (watch) rows instead carry a STALLED badge counting whole weeks since the
+// last new best — that's what actually earned the flag, and it reads clearer
+// than a % that could look like a contradiction (e.g. "97% · Review").
 function exerciseRetention(ex: import("./api").StrengthExercise): number {
   return ex.latestE1RM / ex.prE1RM;
 }
 
-function fmtTrend(trend: number): string {
-  const pct = Math.round((trend - 1) * 100);
-  if (pct === 0) return "±0%";
-  return pct > 0 ? `↑${pct}%` : `↓${Math.abs(pct)}%`;
+function fmtStalled(weeks: number): string {
+  if (weeks < 1) return "STALLED";
+  return `STALLED ${weeks} ${weeks === 1 ? "WK" : "WKS"}`;
+}
+
+function fmtSignedDelta(value: number, decimals: number, unit?: string): string {
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "±";
+  const abs = Math.abs(value).toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return unit ? `${sign}${abs} ${unit}` : `${sign}${abs}`;
 }
 
 function ExerciseRow({ exercise }: { exercise: import("./api").StrengthExercise }) {
-  const retPct = Math.round(exerciseRetention(exercise) * 100);
   const isWatch = exercise.status === "watch";
+  if (isWatch) {
+    return (
+      <div className="ov-th-ex-row watch">
+        <span className="ov-th-ex-name">{exercise.name}</span>
+        <span className="ov-th-stalled">{fmtStalled(exercise.stalledWeeks)}</span>
+      </div>
+    );
+  }
+  const retPct = Math.round(exerciseRetention(exercise) * 100);
   return (
-    <div className={`ov-th-ex-row${isWatch ? " watch" : ""}`}>
-      <span className="ov-th-ex-name">
-        {isWatch && <span className="ov-th-ex-icon" aria-hidden>⚠</span>}
-        {exercise.name}
-      </span>
+    <div className="ov-th-ex-row">
+      <span className="ov-th-ex-name">{exercise.name}</span>
       <span className="ov-th-ex-pct">{retPct}%</span>
-      {isWatch && <span className="ov-th-ex-trend">{fmtTrend(exercise.trend)}</span>}
     </div>
   );
 }
@@ -259,7 +270,7 @@ function TrainingHealthCard({
 
         {retentionPct !== null && (
           <div className="ov-th-ret-hero">
-            <MetricValue size="sm">{retCount}%</MetricValue>
+            <MetricValue size="md">{retCount}%</MetricValue>
             <MetricCaption>of tracked lifts on track</MetricCaption>
           </div>
         )}
@@ -270,7 +281,7 @@ function TrainingHealthCard({
           urgent signal; On Track is the reassurance detail, kept collapsed. */}
       {watchExercises.length > 0 && (
         <div className="ov-th-section">
-          <div className="ov-th-sect-head attention">Attention · {watchExercises.length}</div>
+          <div className="ov-th-sect-head">Attention · {watchExercises.length}</div>
           {watchExercises.map((ex) => (
             <ExerciseRow key={ex.slug} exercise={ex} />
           ))}
@@ -352,7 +363,7 @@ function RecoveryMetric({
         {value != null ? fmt(value) : "—"}
       </MetricValue>
       <span className="ov-rec-metric-delta-slot">
-        <MetricDelta value={delta} higherBetter={higherBetter} decimals={decimals} />
+        <MetricDelta value={delta} higherBetter={higherBetter} decimals={decimals} unit="vs 30d" />
       </span>
     </div>
   );
@@ -444,12 +455,9 @@ export function OverviewPage() {
               <div className="ov-dual-val-row">
                 <MetricValue size="sm" unit="kg">{data.weightLatest}</MetricValue>
                 {data.weightWeekAgo != null && (
-                  <MetricDelta
-                    value={parseFloat((data.weightLatest - data.weightWeekAgo).toFixed(1))}
-                    higherBetter={false}
-                    decimals={1}
-                    unit="kg"
-                  />
+                  <span className="nutri-delta neutral">
+                    {fmtSignedDelta(parseFloat((data.weightLatest - data.weightWeekAgo).toFixed(1)), 1, "kg")}
+                  </span>
                 )}
               </div>
             </>
@@ -464,12 +472,12 @@ export function OverviewPage() {
           <span className="ov-stat-label">TDEE · 14D</span>
           {data?.tdee != null ? (
             <>
-              <MetricValue size="sm" unit="kcal">{tdeeCount.toLocaleString()}</MetricValue>
-              {data.tdeePrev != null && (
-                // No higherBetter — TDEE rising or falling isn't good/bad,
-                // so the delta always reads flat/neutral.
-                <MetricDelta value={data.tdee - data.tdeePrev} threshold={40} />
-              )}
+              <div className="ov-dual-val-row">
+                <MetricValue size="sm" unit="kcal">{tdeeCount.toLocaleString()}</MetricValue>
+                {data.tdeePrev != null && (
+                  <MetricDelta value={data.tdee - data.tdeePrev} higherBetter threshold={40} />
+                )}
+              </div>
             </>
           ) : (
             <span className="ov-stat-val empty">{data ? "—" : "0"}</span>

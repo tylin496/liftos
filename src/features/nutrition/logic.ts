@@ -98,8 +98,6 @@ export function getProteinResult(
 export function calorieTone(hasEntry: boolean, calResult: CalorieResult): "good" | "bad" | null {
   if (!hasEntry) return null;
   if (calResult.isSurplus || calResult.state === "extreme") return "bad";
-  if (calResult.state === "on-plan" || calResult.state === "under") return "good";
-  if (calResult.state === "over") return "bad";
   return null;
 }
 
@@ -110,12 +108,12 @@ export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficit
     const short = deficitTarget - calResult.deficit;
     return `${short.toLocaleString()} kcal short`;
   }
-  if (calResult.state === "on-plan") return "✓ On Plan";
+  if (calResult.state === "on-plan") return "✓ On plan";
   if (calResult.state === "over") {
     const below = calResult.deficit - deficitTarget;
     return `${below.toLocaleString()} kcal below budget`;
   }
-  if (calResult.state === "extreme") return "Well below target";
+  if (calResult.state === "extreme") return "Well under budget";
   return "";
 }
 
@@ -125,7 +123,7 @@ export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficit
 export function proteinNote(hasEntry: boolean, protNum: number, proteinTarget: number): string {
   if (!hasEntry) return "";
   const gap = proteinTarget - protNum;
-  return gap > 0 ? `${gap}g to go` : "✓ Target met";
+  return gap > 0 ? `${gap}g to floor` : "✓ Floor met";
 }
 
 // ── Aggregations (weekly trend, monthly adherence) ─────────────────────────

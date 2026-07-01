@@ -301,7 +301,7 @@ function buildStatusReason(
     if (daysSinceLastGap(entries) > 21) return "Returning from a break";
     return null;
   }
-  if (status === "on-track") return "Within retention target";
+  if (status === "on-track") return "Maintaining strength";
   if (status === "excellent" && prEntry?.log.log_date) {
     const days = Math.round(
       (Date.now() - new Date(prEntry.log.log_date + "T12:00:00").getTime()) / 86400000,

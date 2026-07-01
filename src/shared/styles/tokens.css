@@ -34,7 +34,7 @@
   --bad: #e03535;
   --good: #1d9149;
   --gold: #c87500;
-  --blue: #007aff;
+  --blue: #5e9cf5;
 
   /* ── Health chart metric colors (iOS-style; read fine on light + dark) ── */
   --health-weight: #5e9cf5;
@@ -143,7 +143,7 @@
     --good: #4cd476;
     --bad: #ff6b6b;
     --gold: #ffbf3f;
-    --blue: #0a84ff;
+    --blue: #5e9cf5;
     --card-blur: blur(22px);
     --glass-bg: rgba(26, 26, 26, 0.55);
     --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.4), 0 8px 22px -6px rgba(0, 0, 0, 0.42), 0 22px 50px -18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);

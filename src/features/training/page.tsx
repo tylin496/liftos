@@ -848,18 +848,15 @@ function TrainingPageInner() {
       </div>
 
       {/* ── Time filter ── */}
-      <div className="filter-bar">
-        {(["3mo", "year", "all"] as TimeFilter[]).map((f) => (
-          <button
-            key={f}
-            type="button"
-            className={`filter-btn${timeFilter === f ? " on" : ""}`}
-            onClick={() => setTimeFilter(f)}
-          >
-            {f === "3mo" ? "3M" : f === "year" ? "Y" : "All"}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        options={[
+          { id: "3mo", label: "3M" },
+          { id: "year", label: "1Y" },
+          { id: "all", label: "All" },
+        ]}
+        value={timeFilter}
+        onChange={(id) => setTimeFilter(id as TimeFilter)}
+      />
     </div>
   );
 }

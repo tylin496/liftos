@@ -514,7 +514,7 @@ export function TodayView({
   const calToneVal = calorieTone(hasEntry, calResult);
 
   // Day status badge (Today card, top-right). A pill only earns its place when
-  // it says something the per-row notes don't. "On Plan"/"Surplus"/"Low"/
+  // it says something the per-row notes don't. "On plan"/"Surplus"/"Low"/
   // "Tracking" just restate calNote — so the only pill left is the reward the
   // notes can't carry: Double Hit.
   const showDoubleHit = hasEntry && doubleHit;
@@ -552,7 +552,14 @@ export function TodayView({
         ].filter(Boolean).join(" ")}
       >
         <div className="daily-card-top">
-          {!isToday && <h2 className="daily-card-heading">{labelFor(date)}</h2>}
+          <button
+            type="button"
+            className="daily-card-heading"
+            aria-label="Open date picker"
+            onClick={() => { haptic("select"); setCalendarOpen(true); }}
+          >
+            {isToday ? "TODAY · NUTRITION" : labelFor(date)}
+          </button>
           <div className="daily-card-top-right">
             {!hasEntry && !isEditing && (
               <Badge tone="neutral">No entry</Badge>
@@ -590,7 +597,7 @@ export function TodayView({
                 <span className="metric-val metric-val--lg stat-number--empty">—</span>
               )}
               {targets.calorieTarget > 0 && <MetricCaption>of {targets.calorieTarget.toLocaleString()} kcal</MetricCaption>}
-              {calNote && <span className={`nutri-delta ${calToneVal ?? "neutral"}`}>{calNote}</span>}
+              <span className={`nutri-delta ${calToneVal ?? "neutral"}`}>{calNote || "\u00A0"}</span>
             </button>
             <button type="button" className="nutri-col" aria-label="Edit protein" onClick={() => openEdit("protein")}>
               <span className="nutri-label">Protein</span>
@@ -602,7 +609,7 @@ export function TodayView({
                 <span className="metric-val metric-val--lg stat-number--empty">—</span>
               )}
               {targets.proteinTarget > 0 && <MetricCaption>of {targets.proteinTarget}g</MetricCaption>}
-              {protNote && <span className={`nutri-delta ${protResult.celebrated ? "good" : "neutral"}`}>{protNote}</span>}
+              <span className={`nutri-delta ${protResult.celebrated ? "good" : "neutral"}`}>{protNote || "\u00A0"}</span>
             </button>
           </div>
         )}

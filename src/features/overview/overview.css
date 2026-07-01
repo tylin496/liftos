@@ -21,7 +21,7 @@
 
 .ov-dual {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-4);
   width: 100%;
   text-align: left;
@@ -55,6 +55,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
+  white-space: nowrap;
 }
 
 .ov-dual-divider {
@@ -153,8 +154,11 @@
 
 .ov-rec-insight {
   font-size: var(--text-sm);
+  line-height: 1.55;
   color: var(--ink-4);
-  margin: 0;
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
 }
 
 /* ─── Training Health Card ───────────────────────────────────────────────── */
@@ -239,7 +243,6 @@
 
 .ov-th-status {
   padding-top: var(--space-3);
-  border-top: 1px solid var(--rule);
 }
 
 .ov-th-all-good {
@@ -252,18 +255,17 @@
 .ov-th-toggle {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  justify-content: center;
+  gap: var(--space-2);
   margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--rule);
+  padding-top: var(--space-4);
   width: 100%;
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink-3);
   background: none;
-  border-left: none;
-  border-right: none;
-  border-bottom: none;
+  border: none;
+  border-top: 1px solid var(--rule);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: color var(--motion-base);
@@ -291,7 +293,6 @@
   flex-direction: column;
   padding-top: var(--space-4);
   margin-top: var(--space-4);
-  border-top: 1px solid var(--rule);
   gap: 0;
 }
 
@@ -300,11 +301,9 @@
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-3) 0;
-  border-top: 1px solid var(--rule);
 }
 
 .ov-th-section:first-child {
-  border-top: none;
   padding-top: 0;
 }
 
@@ -317,9 +316,8 @@
   margin-bottom: var(--space-2);
 }
 
-.ov-th-sect-head.attention {
-  color: var(--bad);
-}
+/* Attention label stays neutral — red lives on the STALLED badge, not the
+   section header (fixed text-color rule: only badges/deltas carry colour). */
 
 /* Exercise row */
 .ov-th-ex-row {
@@ -330,8 +328,15 @@
   padding: var(--space-1) 0;
 }
 
+/* Attention rows read like a headline + status badge: bigger name, red pill */
 .ov-th-ex-row.watch {
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
+  padding: var(--space-2) 0;
+}
+
+.ov-th-ex-row.watch .ov-th-ex-name {
+  font-size: var(--text-lg);
+  font-weight: 600;
 }
 
 .ov-th-ex-name {
@@ -346,12 +351,6 @@
   white-space: nowrap;
 }
 
-.ov-th-ex-icon {
-  font-size: var(--text-2xs);
-  color: var(--bad);
-  flex-shrink: 0;
-}
-
 .ov-th-ex-pct {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -361,13 +360,19 @@
   flex-shrink: 0;
 }
 
-.ov-th-ex-trend {
+/* STALLED N WKS pill — the only coloured element on an Attention row */
+.ov-th-stalled {
+  justify-self: end;
+  flex-shrink: 0;
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
   color: var(--bad);
-  flex-shrink: 0;
+  background: color-mix(in srgb, var(--bad) 15%, transparent);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
 }
 
 /* Show N more (On Track overflow) */

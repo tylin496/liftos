@@ -24,15 +24,13 @@
 
 .nutri-label {
   font-size: var(--text-sm);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .nutri-delta {
   font-size: var(--metric-delta);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .nutri-delta.good { color: var(--good); }

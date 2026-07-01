@@ -146,22 +146,42 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
     : score === 1 ? "Fair"
     : "Needs Recovery";
 
-  // Insight: an informational read driven by all three signals together, not a
-  // single metric and not a command. When more than one signal is off we say so
-  // at the aggregate level; when exactly one is off we name it. The app reports
-  // the state — the user decides what to do with it.
+  // Insight: a short, plain-language read of where the user sits against their
+  // 30-day baseline. When a marker is off we name it; when everything's holding
+  // we surface the strongest one. Descriptive, not prescriptive — the read
+  // reflects the state, it never tells the user what to do.
   const sleepLow = sleepHours != null && sleepBaseline != null && sleepHours < sleepBaseline * 0.95;
   const hrvLow   = hrv != null && hrvBaseline != null && hrv < hrvBaseline * 0.95;
   const rhrHigh  = rhr != null && rhrBaseline != null && rhr > rhrBaseline * 1.05;
   const downCount = (sleepLow ? 1 : 0) + (hrvLow ? 1 : 0) + (rhrHigh ? 1 : 0);
 
+  // Closing clause, driven by the overall status.
+  const read =
+    status === "Ready" ? "recovery looks solid"
+    : status === "Good" ? "recovery's holding up"
+    : status === "Fair" ? "recovery's a little down"
+    : "recovery's running low";
+
+  // Strongest marker above baseline (for the all-clear case). Only named when
+  // it's meaningfully above (≥2%), so an at-baseline day doesn't claim "above".
+  const above = [
+    sleepHours != null && sleepBaseline != null
+      ? { label: "Sleep",      dir: "above", mag: (sleepHours - sleepBaseline) / sleepBaseline } : null,
+    hrv != null && hrvBaseline != null
+      ? { label: "HRV",        dir: "above", mag: (hrv - hrvBaseline) / hrvBaseline } : null,
+    rhr != null && rhrBaseline != null
+      ? { label: "Resting HR", dir: "below", mag: (rhrBaseline - rhr) / rhrBaseline } : null,
+  ].filter((c): c is { label: string; dir: string; mag: number } => c != null && c.mag >= 0.02)
+    .sort((a, b) => b.mag - a.mag);
+
   let insight: string | null;
   if (!hasAny) insight = null;
-  else if (downCount === 0) insight = "Recovery above baseline.";
-  else if (downCount >= 2) insight = "Multiple recovery markers below baseline.";
-  else if (sleepLow) insight = "Sleep below baseline.";
-  else if (hrvLow) insight = "HRV below baseline.";
-  else insight = "Resting heart rate elevated.";
+  else if (downCount >= 2) insight = `Several markers are running under your 30-day baseline — ${read}.`;
+  else if (sleepLow) insight = `Sleep is running below your 30-day baseline — ${read}.`;
+  else if (hrvLow) insight = `HRV is running below your 30-day baseline — ${read}.`;
+  else if (rhrHigh) insight = `Resting HR is running above your 30-day baseline — ${read}.`;
+  else if (above.length) insight = `${above[0].label} is running ${above[0].dir} your 30-day baseline — ${read}.`;
+  else insight = `You're holding steady at your 30-day baseline — ${read}.`;
 
   const dates = [sleepPts.at(-1)?.date, hrvPts.at(-1)?.date, rhrPts.at(-1)?.date]
     .filter((d): d is string => d != null);

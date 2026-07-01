@@ -24,6 +24,7 @@ export interface StrengthExercise {
   latestE1RM: number;  // most recent session best
   prE1RM: number;      // all-time best across all sessions
   trend: number;       // recent-3-avg / prior-avg — the ratio that drives `status`
+  stalledWeeks: number; // whole weeks since the last session that set a new best
 }
 
 export interface StrengthSummary {
@@ -206,7 +207,9 @@ export async function fetchOverview(): Promise<OverviewData> {
       const e = epley1RM(w, p.reps);
       byDate[l.log_date] = Math.max(byDate[l.log_date] ?? 0, e);
     }
-    const sessionBests = Object.values(byDate).filter((v) => v > 0);
+    // Dates ascending (query is ordered by log_date), each with its session best.
+    const datedBests = Object.entries(byDate).filter(([, v]) => v > 0);
+    const sessionBests = datedBests.map(([, v]) => v);
     if (sessionBests.length < 4) { strength.total--; continue; }
 
     // recent 3 vs the rest (prior sessions)
@@ -223,6 +226,20 @@ export async function fetchOverview(): Promise<OverviewData> {
     const slug = slugLogs[0].exercise_slug!;
     const latestE1RM = recent[recent.length - 1];
     const prE1RM = Math.max(...sessionBests);
+
+    // Weeks stalled: span from the last session that set a new running best to
+    // the most recent session. A rising lift lands its PR on (or near) the last
+    // session → ~0; a stalled one carries weeks of no new best.
+    let runningMax = -Infinity;
+    let prDate = datedBests[0][0];
+    for (const [date, e] of datedBests) {
+      if (e > runningMax) { runningMax = e; prDate = date; }
+    }
+    const lastDate = datedBests[datedBests.length - 1][0];
+    const stalledWeeks = Math.floor(
+      (Date.parse(lastDate) - Date.parse(prDate)) / (7 * 24 * 60 * 60 * 1000),
+    );
+
     strength.exercises.push({
       slug,
       name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -230,6 +247,7 @@ export async function fetchOverview(): Promise<OverviewData> {
       latestE1RM,
       prE1RM,
       trend: ratio,
+      stalledWeeks,
     });
   }
 

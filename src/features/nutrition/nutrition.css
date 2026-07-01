@@ -427,7 +427,10 @@
 /* ── 7-day trend bars ────────────────────────────────────────────────── */
 .nutri-trend {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* minmax(0, 1fr) lets tracks shrink below the nowrap value labels' min-content
+     width — without it, wide labels like "1,997" push the 7th column past the
+     card edge and clip it. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--space-2);
   margin-top: var(--space-4);
 }
@@ -464,14 +467,12 @@
 
 .nutri-trend-day.is-today { color: var(--accent); }
 
-/* ── KPI row ─────────────────────────────────────────────────────────── */
+/* ── KPI row — sits above the chart, directly under the week header ───── */
 .nutri-kpi-row {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-2);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
-  margin-top: var(--space-4);
+  margin-top: var(--space-3);
 }
 
 .nutri-kpi {
@@ -482,12 +483,72 @@
 
 /* KPI value + unit now render via the shared <MetricValue size="md">. */
 
-.nutri-kpi-label {
+/* ── Week nav — ‹ › chevrons flanking the week-range title ───────────── */
+.hist-week-head {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.hist-week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+}
+
+.hist-week-range {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+  line-height: 1;
+}
+
+.hist-week-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: var(--text-lg);
+  line-height: 1;
+  color: var(--ink-3);
+  border-radius: var(--radius-sm);
+}
+
+.hist-week-chevron:active { transform: scale(var(--tap-scale)); }
+
+.hist-week-chevron:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* ── Colour legend — dots matching the dual-bar colours ──────────────── */
+.nutri-trend-legend {
+  display: flex;
+  justify-content: flex-start;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.nutri-trend-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   color: var(--ink-4);
+}
+
+.nutri-trend-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
 /* ── Last 30 Days — eyebrow is muted here (not the accent used by Today /
@@ -497,11 +558,23 @@
 }
 
 .nutri-month-kpis {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-2);
   margin-top: var(--space-3);
+}
+
+/* Columns must be able to shrink below their content's natural width, and
+   the unit may wrap onto a second line within its own column — the number
+   always stays put on the first line next to it. */
+.nutri-month-kpis .metric-val {
+  min-width: 0;
+  width: 100%;
+}
+
+.nutri-month-kpis .metric-unit {
+  white-space: normal;
+  min-width: 0;
 }
 
 /* ── Skeleton loading state ──────────────────────────────────────────────── */
@@ -532,12 +605,22 @@
 }
 
 .daily-card-heading {
-  font-size: var(--text-2xl);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   margin: 0;
-  color: var(--ink);
+  color: var(--ink-4);
   line-height: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.daily-card-heading:active {
+  transform: scale(var(--tap-scale));
 }
 
 .daily-card-top-right {
@@ -675,7 +758,8 @@
 .ntb-bar {
   flex: 1;
   max-width: 18px;
-  border-radius: var(--radius-pill);
+  /* slightly rounded on all corners — bars sit on a shared baseline */
+  border-radius: 3px;
   min-height: 10px;
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--bg-card) 38%, transparent),
