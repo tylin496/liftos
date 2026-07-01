@@ -10,7 +10,8 @@ import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
 import { useSessionUser } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
-import { nutritionDecision, paceLabel } from "@features/nutrition/recommendation";
+import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
+import { paceLabel } from "@features/nutrition/recommendation";
 import type { Recommendation } from "@features/overview/recommendations";
 import type { Goal } from "./goal";
 import type { TabId } from "@app/layout/TabBar";
@@ -128,7 +129,12 @@ function WeightCard({
   state: NutritionStateFull | null;
   onNav: () => void;
 }) {
-  const trend = state?.evaluation.observedRate ?? null;
+  // observedRate is a real 0-fallback when no trend could be fit (<5 readings in
+  // the window). Present that as "—" rather than a fabricated "±0.00 kg/week".
+  const trend =
+    state != null && state.diagnostics.weightDataPoints >= MIN_TREND_POINTS
+      ? state.evaluation.observedRate
+      : null;
   const status = state ? paceLabel(state.evaluation) : null;
   return (
     <button type="button" className="page-card ov-weight" onClick={onNav}>
@@ -151,25 +157,6 @@ function WeightCard({
           </div>
         )}
       </div>
-    </button>
-  );
-}
-
-/* ── Nutrition Summary ─────────────────────────────────────────────────── */
-
-// Brief nutrition snapshot: the action + the current goal. This is the *what to
-// do* (the Weight card carries the *status*), so the two never read as
-// duplicates. Tap through for the full Insight.
-function NutritionSummary({ state, onNav }: { state: NutritionStateFull; onNav: () => void }) {
-  const decision = nutritionDecision(state.evaluation, state.diagnostics);
-  return (
-    <button type="button" className="page-card ov-nutri-summary" onClick={onNav}>
-      <div className="ov-ns-head">
-        <span className="ov-ns-label">Nutrition</span>
-        <span className="ov-ns-chevron" aria-hidden>›</span>
-      </div>
-      <p className="ov-ns-headline">{decision.actionHeadline}</p>
-      <MetricValue size="md" unit="kcal">{decision.currentTarget.toLocaleString()}</MetricValue>
     </button>
   );
 }
@@ -446,10 +433,6 @@ export function OverviewPage() {
       )}
 
       {data && <RecoveryCard snap={data.recovery} onNav={() => nav("health")} />}
-
-      {data?.nutritionState && (
-        <NutritionSummary state={data.nutritionState} onNav={() => nav("nutrition")} />
-      )}
     </div>
   );
 }

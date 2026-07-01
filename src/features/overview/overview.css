@@ -141,59 +141,6 @@
   color: var(--role-secondary-color);
 }
 
-/* ─── Nutrition Summary (goal + status snapshot) ─────────────────────────── */
-
-.ov-nutri-summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
-}
-
-@media (hover: hover) {
-  .ov-nutri-summary:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-}
-
-.ov-nutri-summary:active {
-  transform: scale(var(--tap-scale));
-  box-shadow: var(--shadow-sm);
-  transition-duration: var(--motion-fast);
-}
-
-.ov-ns-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.ov-ns-label {
-  font-size: var(--role-eyebrow-size);
-  font-weight: var(--role-eyebrow-weight);
-  letter-spacing: var(--role-eyebrow-spacing);
-  text-transform: uppercase;
-  color: var(--role-eyebrow-color);
-}
-
-.ov-ns-chevron {
-  font-size: var(--text-xl);
-  color: var(--ink-4);
-  line-height: 1;
-}
-
-.ov-ns-headline {
-  margin: var(--space-1) 0 var(--space-2);
-  font-size: var(--role-card-headline-size);
-  font-weight: var(--role-card-headline-weight);
-  color: var(--ink);
-}
-
 /* ─── Primary Goal Card ──────────────────────────────────────────────────── */
 
 .metric-val.tone-accent { color: var(--accent); }

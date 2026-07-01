@@ -59,6 +59,11 @@ export interface EvaluateInput {
 
 const KCAL_PER_KG = 7700;
 const WINDOW_DAYS = 21;
+/** Minimum weight readings in the window before a trend can be fit (mirrors
+ *  regressionSlope's own guard). Below this, `evaluate` falls back to
+ *  observedRate = 0 — a placeholder, not a measurement — so surfaces should
+ *  render the rate as "—" rather than a fabricated "0.00 kg/wk". */
+export const MIN_TREND_POINTS = 5;
 /** kg/week deadband around the range edges so the status doesn't flap. */
 const STATUS_EPS = 0.02;
 

@@ -53,60 +53,25 @@
   gap: var(--space-4);
 }
 
-.ni-rows {
-  display: flex;
-  flex-direction: column;
-}
-
-.ni-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-3) 0;
-  border-top: 1px solid var(--rule);
-}
-
-.ni-row:first-child {
-  border-top: none;
-}
-
-.ni-row-label {
-  font-size: var(--role-card-title-size);
-  font-weight: var(--role-card-title-weight);
-  color: var(--role-card-title-color);
-}
-
-.ni-row-value {
-  font-family: var(--font-mono);
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
+/* Decision — leads the card, the focal point. */
 .ni-rec {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
-}
-
-.ni-rec-label {
-  font-size: var(--role-section-title-size);
-  font-weight: var(--role-section-title-weight);
-  letter-spacing: var(--role-section-title-spacing);
-  text-transform: uppercase;
-  color: var(--role-section-title-color);
 }
 
 .ni-rec-headline {
   margin: 0;
-  font-size: var(--role-card-headline-size);
+  font-size: var(--text-xl);
   font-weight: var(--role-card-headline-weight);
+  line-height: 1.2;
   color: var(--ink);
+}
+
+.ni-rec-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
 }
 
 .ni-rec-field {
@@ -137,6 +102,49 @@
   font-weight: var(--role-secondary-weight);
   line-height: 1.55;
   color: var(--role-secondary-color);
+}
+
+/* Evidence — supports the decision, sits below a divider in a 2-col grid. */
+.ni-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.ni-evidence-label {
+  font-size: var(--role-section-title-size);
+  font-weight: var(--role-section-title-weight);
+  letter-spacing: var(--role-section-title-spacing);
+  text-transform: uppercase;
+  color: var(--role-section-title-color);
+}
+
+.ni-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3) var(--space-4);
+}
+
+.ni-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ni-cell-label {
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
+}
+
+.ni-cell-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── History ─────────────────────────────────────────────────────────── */
