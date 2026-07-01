@@ -303,23 +303,18 @@ export function AddAssistedForm({
   const n = Math.max(MIN_SET_COUNT, setCount);
   const lastParsed = lastLog?.raw ? parse(lastLog.raw) : null;
   const lastAssist = lastParsed?.assisted?.assist ?? null;
-  const savedBw = parseFloat(localStorage.getItem(LAST_BW_KEY) ?? "") || 0;
-  const lastBw = lastParsed?.assisted?.bw ?? (savedBw || null);
 
   const [assistance, setAssistance] = useState(lastAssist != null ? String(lastAssist) : "");
-  const [bodyweight, setBodyweight] = useState(lastBw ? String(lastBw) : "");
+  const [bodyweight, setBodyweight] = useState("");
   const [repValues, setRepValues] = useState(() => emptyRepValues(n));
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
   const formRef = useRef<HTMLFormElement | null>(null);
-  const bodyweightTouchedRef = useRef(false);
   useScrollAboveKeyboard(formRef);
 
-  // Prefill from latest Health weight when no prior saved value exists.
-  // Guard on a ref (not the `bodyweight` state) so a user typing while this
-  // request is in flight never gets overwritten once it resolves.
+  // Bodyweight always reflects the latest Health measurement — it's not a
+  // user-editable field, so there's no "touched" guard to protect here.
   useEffect(() => {
-    if (lastBw) return;
     supabase
       .from("health_metrics")
       .select("weight_kg, metric_date")
@@ -328,11 +323,8 @@ export function AddAssistedForm({
       .limit(1)
       .single()
       .then(({ data }) => {
-        if (data?.weight_kg && !bodyweightTouchedRef.current) {
-          setBodyweight(String(data.weight_kg));
-        }
+        if (data?.weight_kg) setBodyweight(String(data.weight_kg));
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const parsedAssist = parseFloat(assistance) || 0;
@@ -415,10 +407,7 @@ export function AddAssistedForm({
           <input
             className="log-bw-input mono"
             value={bodyweight}
-            onChange={(e) => {
-              bodyweightTouchedRef.current = true;
-              setBodyweight(e.target.value);
-            }}
+            readOnly
             placeholder="0"
             aria-label="Bodyweight kg"
             inputMode="text"

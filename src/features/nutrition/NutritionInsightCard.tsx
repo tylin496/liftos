@@ -1,11 +1,14 @@
-// Nutrition Insight — the detailed, read-only view of the shared evaluation.
+// Nutrition Insight — evidence on top, a self-contained decision below.
 //
-// Presentation only: it reads the persisted state and lays it out. No business
-// logic, no recompute — the numbers come straight from `getNutritionState()`.
-// Recompute happens in the data layer (evaluationApi) when new data lands.
+// Presentation only. The top block is pure analysis (Observed rate / Target
+// range / Estimated intake / Confidence — no "what to do"); the Recommendation
+// block is a complete decision (action + target + reason). Numbers come from the
+// persisted evaluation; the decision is the same pure `nutritionDecision` the
+// System card uses, so the two never disagree.
 
 import { useEffect, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
+import { nutritionDecision } from "./recommendation";
 import "./nutrition.css";
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
@@ -15,7 +18,7 @@ function fmtRate(kgPerWeek: number): string {
   return `${sign}${Math.abs(kgPerWeek).toFixed(2)} kg/wk`;
 }
 
-function InsightRow({ label, value }: { label: string; value: string }) {
+function EvidenceRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="ni-row">
       <span className="ni-row-label">{label}</span>
@@ -45,7 +48,6 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
     };
   }, [refreshKey]);
 
-  // Nothing to render until the first read resolves (avoids a flash of empty).
   if (!loaded) return null;
 
   if (!state) {
@@ -59,31 +61,46 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
     );
   }
 
-  const { evaluation: e, diagnostics: d, recommendation: r } = state;
+  const { evaluation: e, diagnostics: d } = state;
+  const decision = nutritionDecision(e, d);
   const hasRange = e.targetRange.min !== e.targetRange.max;
 
   return (
     <section className="page-card ni-card">
       <p className="page-eyebrow">NUTRITION INSIGHT</p>
 
+      {/* Evidence — description only, no action. */}
       <div className="ni-rows">
-        <InsightRow label="Target" value={`${d.calorieTarget.toLocaleString()} kcal`} />
-        <InsightRow label="Observed rate" value={fmtRate(e.observedRate)} />
-        <InsightRow
+        <EvidenceRow label="Observed rate" value={fmtRate(e.observedRate)} />
+        <EvidenceRow
           label="Target range"
-          value={hasRange ? `${e.targetRange.min.toFixed(2)}–${e.targetRange.max.toFixed(2)} kg/wk` : "—"}
+          value={hasRange ? `−${e.targetRange.min.toFixed(2)} – −${e.targetRange.max.toFixed(2)} kg/wk` : "—"}
         />
-        <InsightRow label="Estimated intake" value={`${d.estimatedIntake.toLocaleString()} kcal/day`} />
-        <InsightRow label="Confidence" value={CONFIDENCE_LABEL[e.confidence] ?? e.confidence} />
+        <EvidenceRow label="Estimated intake" value={`≈${d.estimatedIntake.toLocaleString()} kcal/day`} />
+        <EvidenceRow label="Confidence" value={CONFIDENCE_LABEL[e.confidence] ?? e.confidence} />
       </div>
 
-      {r && (
-        <div className="ni-rec">
-          <span className="ni-rec-label">Recommendation</span>
-          <p className="ni-rec-title">{r.title}</p>
-          <p className="ni-rec-sub">{r.subtitle}</p>
+      {/* Decision — a complete recommendation on its own. */}
+      <div className="ni-rec">
+        <span className="ni-rec-label">Recommendation</span>
+        <p className="ni-rec-headline">{decision.actionHeadline}</p>
+
+        <div className="ni-rec-field">
+          <span className="ni-rec-key">Current target</span>
+          <span className="ni-rec-target">{decision.currentTarget.toLocaleString()} kcal</span>
         </div>
-      )}
+        {decision.proposedTarget != null && (
+          <div className="ni-rec-field">
+            <span className="ni-rec-key">New target</span>
+            <span className="ni-rec-target">{decision.proposedTarget.toLocaleString()} kcal</span>
+          </div>
+        )}
+
+        <div className="ni-rec-field">
+          <span className="ni-rec-key">Reason</span>
+          <p className="ni-rec-reason">{decision.reason}</p>
+        </div>
+      </div>
     </section>
   );
 }

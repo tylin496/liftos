@@ -1,15 +1,5 @@
 /* ─── Overview page ──────────────────────────────────────────────────────── */
 
-/* ─── Hero card ──────────────────────────────────────────────────────────── */
-/* Layout is the shared .nutri-grid (shared/components/nutriGrid.css); editing
-   state is the shared <MacroEditFields>. */
-
-.ov-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
 .ov-no-entry {
   font-size: var(--text-sm);
   color: var(--ink-4);
@@ -17,12 +7,12 @@
   padding: var(--space-2) 0;
 }
 
-/* ─── Weight · TDEE dual-column card ─────────────────────────────────────── */
+/* ─── Weight Card (latest + trend + pace) ────────────────────────────────── */
 
-.ov-dual {
+.ov-weight {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-4);
+  flex-direction: column;
+  gap: var(--space-2);
   width: 100%;
   text-align: left;
   cursor: pointer;
@@ -31,47 +21,25 @@
 }
 
 @media (hover: hover) {
-  .ov-dual:hover {
+  .ov-weight:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
 }
 
-.ov-dual:active {
+.ov-weight:active {
   transform: scale(var(--tap-scale));
   box-shadow: var(--shadow-sm);
   transition-duration: var(--motion-fast);
 }
 
-.ov-dual-col {
-  flex: 1;
-  min-width: 0;
+.ov-weight-head {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  justify-content: space-between;
 }
 
-.ov-dual-val-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  white-space: nowrap;
-}
-
-.ov-dual-divider {
-  align-self: stretch;
-  width: 1px;
-  background: var(--rule);
-}
-
-.ov-dual-chevron {
-  flex-shrink: 0;
-  font-size: var(--text-xl);
-  color: var(--ink-4);
-  line-height: 1;
-}
-
-.ov-stat-label {
+.ov-weight-label {
   font-size: var(--role-eyebrow-size);
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
@@ -79,9 +47,37 @@
   color: var(--role-eyebrow-color);
 }
 
-.ov-stat-val.empty {
+.ov-weight-chevron {
+  font-size: var(--text-xl);
   color: var(--ink-4);
-  font-size: var(--text-lg);
+  line-height: 1;
+}
+
+.ov-weight-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.ov-weight-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.ov-weight-key {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.ov-weight-val {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ─── System Card (top-priority recommendation) ──────────────────────────── */
@@ -191,35 +187,114 @@
   line-height: 1;
 }
 
-.ov-ns-cols {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-4);
-}
-
-.ov-ns-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.ov-ns-divider {
-  align-self: stretch;
-  width: 1px;
-  background: var(--rule);
-}
-
-.ov-ns-key {
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-}
-
-.ov-ns-status {
+.ov-ns-headline {
+  margin: var(--space-1) 0 var(--space-2);
   font-size: var(--role-card-headline-size);
   font-weight: var(--role-card-headline-weight);
   color: var(--ink);
+}
+
+/* ─── Primary Goal Card ──────────────────────────────────────────────────── */
+
+.metric-val.tone-accent { color: var(--accent); }
+
+.goal { padding: var(--space-5); }
+
+.goal-label {
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
+  text-transform: uppercase;
+  color: var(--role-eyebrow-color);
+}
+
+.goal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.goal-pct {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--metric-lg);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.goal-bar {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  margin-top: var(--space-3);
+  overflow: hidden;
+}
+
+.goal-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+}
+
+.goal-grid {
+  display: flex;
+  align-items: stretch;
+  margin-top: var(--space-5);
+}
+
+.goal-col { flex: 1; }
+
+.goal-col-label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 6px;
+}
+
+.goal-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--rule);
+  margin: 0 var(--space-5);
+}
+
+.goal-foot {
+  display: flex;
+  align-items: stretch;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.goal-foot-col { flex: 1; }
+
+.goal-progression {
+  font-family: var(--font-mono);
+  font-size: var(--metric-sm);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.goal-progression .goal-arrow {
+  color: var(--ink-4);
+  font-weight: 600;
+}
+
+.goal-basis {
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+  margin-top: var(--space-4);
 }
 
 /* ─── Recovery Card ──────────────────────────────────────────────────────── */

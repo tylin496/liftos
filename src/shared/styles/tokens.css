@@ -27,6 +27,7 @@
      metal/clay rather than safety-vest orange; warmth + restraint. */
   --accent-100: #f6ddd0;
   --accent: #c14d23;
+  --accent-strong: #9c3a17;   /* deeper ember — gradient start (progress bar) */
   --accent-soft: var(--accent-100);
   --accent-glow: rgba(193, 77, 35, 0.18);
 
@@ -192,6 +193,7 @@
     --rule-strong: rgba(235, 235, 245, 0.26);
     --accent-100: #3a1f12;
     --accent: #ff7a45;
+    --accent-strong: #e85f28;   /* deeper ember — gradient start (progress bar) */
     --accent-glow: rgba(255, 122, 69, 0.26);
     --good: #4cd476;
     --bad: #ff6b6b;

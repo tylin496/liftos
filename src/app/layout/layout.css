@@ -14,6 +14,44 @@
   flex-direction: column;
 }
 
+/* ── Dev-only phone frame ───────────────────────────────────────────────
+   Added by Shell.tsx only when import.meta.env.DEV is true (stripped from
+   production builds). Locks the browser preview to iPhone Air width (402px),
+   centres it, and constrains the viewport-fixed chrome (tab bar, settings
+   sheet) to the same column so it reads as a phone. Only kicks in once the
+   window is wider than the frame, so a genuinely narrow window is untouched. */
+@media (min-width: 460px) {
+  .dev-phone-frame body {
+    background: #17181c;
+  }
+  .dev-phone-frame .shell {
+    width: 402px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    background: var(--bg);
+    box-shadow: 0 0 0 1px var(--rule), 0 12px 48px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+  }
+  .dev-phone-frame .tabbar,
+  .dev-phone-frame .settings-sheet,
+  .dev-phone-frame .settings-backdrop {
+    left: 50%;
+    right: auto;
+    width: 402px;
+    margin-left: calc(402px / -2); /* centre the fixed 402px column */
+  }
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+/* Rendered once, outside the horizontally-sliding pager, so the avatar/copy
+   button and the surrounding chrome never move during a tab swipe. */
+.shell-header {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: calc(var(--safe-top) + var(--space-4)) var(--space-4) 0;
+}
+
 /* ── Content ────────────────────────────────────────────────────────── */
 .shell-content {
   flex: 1;
@@ -51,11 +89,11 @@
   left: 0;
   right: 0;
   z-index: 20;
-  min-height: calc(var(--tabbar-h) + var(--safe-bottom));
+  min-height: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-3));
   /* Big top padding so the frosted surface starts well above the icon row and
      the fade has a long runway (no abrupt edge). Token-based (32 + 24 = 56px). */
   padding-top: calc(var(--space-8) + var(--space-6));
-  padding-bottom: var(--safe-bottom);
+  padding-bottom: calc(var(--safe-bottom) + var(--space-3));
   display: flex;
 }
 

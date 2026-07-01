@@ -89,7 +89,7 @@
 .ni-rec {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-3);
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
 }
@@ -102,18 +102,40 @@
   color: var(--role-section-title-color);
 }
 
-.ni-rec-title {
+.ni-rec-headline {
   margin: 0;
   font-size: var(--role-card-headline-size);
   font-weight: var(--role-card-headline-weight);
   color: var(--ink);
 }
 
-.ni-rec-sub {
+.ni-rec-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ni-rec-key {
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ni-rec-target {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.ni-rec-reason {
   margin: 0;
   font-size: var(--role-secondary-size);
   font-weight: var(--role-secondary-weight);
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--role-secondary-color);
 }
 

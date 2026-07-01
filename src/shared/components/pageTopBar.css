@@ -13,6 +13,8 @@
   text-transform: uppercase;
   color: var(--role-eyebrow-color);
   margin: 0 0 var(--space-1);
+  opacity: 1;
+  transition: opacity var(--motion-fast) var(--press-ease);
 }
 
 .page-topbar-title {
@@ -21,6 +23,13 @@
   letter-spacing: -0.02em;
   color: var(--role-page-title-color);
   margin: 0;
+  opacity: 1;
+  transition: opacity var(--motion-fast) var(--press-ease);
+}
+
+.page-topbar-eyebrow.is-fading,
+.page-topbar-title.is-fading {
+  opacity: 0;
 }
 
 .page-topbar-actions {

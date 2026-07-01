@@ -10,6 +10,8 @@ import { SettingsSheet } from "./SettingsSheet";
 import { SessionUserProvider } from "./SessionContext";
 import { NavContext } from "./NavContext";
 import { TabActivityContext } from "./TabActivityContext";
+import { PageHeaderContext, IsActiveTabContext, type PageHeader } from "./PageHeaderContext";
+import { PageTopBar } from "@shared/components/PageTopBar";
 import { ToastProvider } from "@shared/components/Toast";
 import { NutritionConfigProvider } from "@features/nutrition/NutritionConfigContext";
 import "./layout.css";
@@ -24,6 +26,12 @@ const PAGES: Record<TabId, () => JSX.Element> = {
 const TAB_ORDER: TabId[] = ["overview", "training", "nutrition", "health"];
 
 const SLIDE_MS = 320;
+
+// Wraps an index into TAB_ORDER so swiping past the last/first tab loops
+// around instead of dead-ending.
+function wrapIndex(i: number): number {
+  return (i + TAB_ORDER.length) % TAB_ORDER.length;
+}
 
 // Single Settings sheet instance for the whole app — both PageTopBar's avatar
 // (per screen) and anything else that calls openSettings() share this one.
@@ -46,6 +54,11 @@ export function Shell({ session }: { session: Session }) {
   const [tabVersions, setTabVersions] = useState<Record<TabId, number>>(
     { overview: 0, training: 0, nutrition: 0, health: 0 },
   );
+  // Header content (eyebrow/title/onCopy), pushed up by whichever page is
+  // active via usePageHeader. Rendered once, outside the sliding tab panels,
+  // so the avatar/copy button stay anchored during a tab swipe — only this
+  // content cross-fades (see PageTopBar).
+  const [header, setHeader] = useState<PageHeader>({ eyebrow: "", title: "" });
   // Horizontal tab transition. `to` is the neighbour sliding in; `dir` is +1
   // when moving to a higher-index tab (new page enters from the right), −1 for
   // the reverse. `dx` tracks the live finger offset (0 while a tap-triggered
@@ -103,6 +116,16 @@ export function Shell({ session }: { session: Session }) {
     }, 30);
   }
 
+  // Dev-only: constrain the browser preview to iPhone Air width so it reads as a
+  // phone instead of a full-width desktop column. `import.meta.env.DEV` is a
+  // build-time constant — Vite replaces it with `false` in production and
+  // tree-shakes this whole effect out, so the deployed app is never affected.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    document.documentElement.classList.add("dev-phone-frame");
+    return () => document.documentElement.classList.remove("dev-phone-frame");
+  }, []);
+
   const contentRef = useRef<HTMLElement | null>(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -130,9 +153,9 @@ export function Shell({ session }: { session: Session }) {
           axisLocked.current = "h";
           const idx = TAB_ORDER.indexOf(tab);
           const dir: 1 | -1 = dx < 0 ? 1 : -1;
-          const to = TAB_ORDER[idx + dir];
-          dragTo.current = to ?? null;
-          if (to) window.scrollTo({ top: 0, behavior: "instant" });
+          const to = TAB_ORDER[wrapIndex(idx + dir)];
+          dragTo.current = to;
+          window.scrollTo({ top: 0, behavior: "instant" });
         } else if (Math.abs(dy) > 10) {
           axisLocked.current = "v";
         }
@@ -140,7 +163,7 @@ export function Shell({ session }: { session: Session }) {
       if (axisLocked.current === "h") {
         e.preventDefault();
         const to = dragTo.current;
-        if (!to) return; // edge tab, nothing to reveal — rubber-band handled by CSS
+        if (!to) return;
         const dir: 1 | -1 = dx < 0 ? 1 : -1;
         setSlide({ to, dir, dx, settling: false });
       }
@@ -181,7 +204,11 @@ export function Shell({ session }: { session: Session }) {
     <NutritionConfigProvider>
     <SettingsSheetProvider>
       <NavContext.Provider value={switchTab}>
+      <PageHeaderContext.Provider value={setHeader}>
         <div className="shell">
+          <div className="shell-header">
+            <PageTopBar eyebrow={header.eyebrow} title={header.title} onCopy={header.onCopy} />
+          </div>
           <main ref={contentRef} className={`shell-content${slide ? " is-sliding" : ""}`}>
             {TAB_ORDER.map((tabId) => {
               if (!visited.has(tabId)) return null;
@@ -209,9 +236,11 @@ export function Shell({ session }: { session: Session }) {
 
               return (
                 <TabActivityContext.Provider key={tabId} value={tabVersions[tabId]}>
-                  <div className="tab-panel" style={style}>
-                    <Page />
-                  </div>
+                  <IsActiveTabContext.Provider value={tabId === highlight}>
+                    <div className="tab-panel" style={style}>
+                      <Page />
+                    </div>
+                  </IsActiveTabContext.Provider>
                 </TabActivityContext.Provider>
               );
             })}
@@ -219,6 +248,7 @@ export function Shell({ session }: { session: Session }) {
           <TabBar active={highlight} onChange={switchTab} />
         </div>
         <GlobalSettingsSheet />
+      </PageHeaderContext.Provider>
       </NavContext.Provider>
     </SettingsSheetProvider>
     </NutritionConfigProvider>

@@ -24,34 +24,39 @@ function ctx(status: EvalStatus, confidence: Confidence, calorieTarget = 2145): 
   return { nutrition: { evaluation, diagnostics } };
 }
 
-describe("nutritionProvider — derives the action from the evaluation", () => {
-  it("proposes a cut only at high confidence + below_target", () => {
+describe("nutritionProvider — event type + specific action", () => {
+  it("flags an adjustment (event type) with the cut as the action at high confidence", () => {
     const rec = nutritionProvider(ctx("below_target", "high"))!;
-    expect(rec.title).toMatch(/reduce target to 2,045/i);
+    expect(rec.title).toBe("Nutrition adjustment recommended");
+    expect(rec.subtitle).toMatch(/reduce target to 2,045 kcal/i);
     expect(rec.priority).toBe(72);
   });
 
-  it("holds (no change) at medium confidence even when below_target", () => {
+  it("stays on-track and holds at medium confidence", () => {
     const rec = nutritionProvider(ctx("below_target", "medium"))!;
-    expect(rec.title).toMatch(/^hold/i);
+    expect(rec.title).toBe("Nutrition on track");
+    expect(rec.subtitle).toMatch(/^hold 2,145 kcal/i);
     expect(rec.priority).toBe(55);
   });
 
-  it("proposes an increase at high confidence + above_target", () => {
+  it("flags an adjustment with the raise as the action when losing too fast", () => {
     const rec = nutritionProvider(ctx("above_target", "high"))!;
-    expect(rec.title).toMatch(/increase target to 2,295/i);
+    expect(rec.title).toBe("Nutrition adjustment recommended");
+    expect(rec.subtitle).toMatch(/increase target to 2,295 kcal/i);
     expect(rec.priority).toBe(70);
   });
 
-  it("maintains on target", () => {
+  it("is on track when on target", () => {
     const rec = nutritionProvider(ctx("on_target", "high"))!;
-    expect(rec.title).toMatch(/^maintain/i);
+    expect(rec.title).toBe("Nutrition on track");
+    expect(rec.subtitle).toMatch(/maintain 2,145 kcal/i);
     expect(rec.priority).toBe(30);
   });
 
-  it("never proposes a change at low confidence, whatever the status", () => {
+  it("never proposes a change at low confidence", () => {
     const rec = nutritionProvider(ctx("below_target", "low"))!;
-    expect(rec.title).toMatch(/^maintain/i);
+    expect(rec.title).toBe("Nutrition on track");
+    expect(rec.subtitle).toMatch(/gathering data/i);
     expect(rec.priority).toBe(40);
   });
 

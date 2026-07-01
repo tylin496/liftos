@@ -1,6 +1,7 @@
 import { useSessionUser } from "@app/layout/SessionContext";
 import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
+import { useCrossfade } from "@shared/hooks/useCrossfade";
 import "./pageTopBar.css";
 
 export function PageTopBar({
@@ -17,12 +18,18 @@ export function PageTopBar({
   const avatar = user?.user_metadata?.avatar_url as string | undefined;
   const initial = (user?.email ?? "?")[0]?.toUpperCase();
   const { copied, copy } = useCopyButton(onCopy ?? (() => ""));
+  const eyebrowFade = useCrossfade(eyebrow);
+  const titleFade = useCrossfade(title);
 
   return (
     <div className="page-topbar">
       <div>
-        <p className="page-topbar-eyebrow">{eyebrow}</p>
-        <h1 className="page-topbar-title">{title}</h1>
+        <p className={`page-topbar-eyebrow${eyebrowFade.fading ? " is-fading" : ""}`}>
+          {eyebrowFade.displayed}
+        </p>
+        <h1 className={`page-topbar-title${titleFade.fading ? " is-fading" : ""}`}>
+          {titleFade.displayed}
+        </h1>
       </div>
       <div className="page-topbar-actions">
         {onCopy && (

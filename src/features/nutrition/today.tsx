@@ -265,14 +265,17 @@ export function TodayView({
   date,
   onDateChange,
   onSaved,
+  calendarOpen,
+  onCalendarOpenChange,
 }: {
   config: NutritionConfig;
   date: string;
   onDateChange: (date: string) => void;
   onSaved?: () => void;
+  calendarOpen: boolean;
+  onCalendarOpenChange: (open: boolean) => void;
 }) {
   const toast = useToast();
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [editField, setEditField] = useState<MacroField | null>(null);
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
@@ -531,7 +534,7 @@ export function TodayView({
           selected={date}
           todayStr={todayStr}
           onSelect={(d) => { haptic("select"); onDateChange(d); }}
-          onClose={() => setCalendarOpen(false)}
+          onClose={() => onCalendarOpenChange(false)}
           closing={calendarT.closing}
         />
       )}
@@ -552,14 +555,9 @@ export function TodayView({
         ].filter(Boolean).join(" ")}
       >
         <div className="daily-card-top">
-          <button
-            type="button"
-            className="daily-card-heading"
-            aria-label="Open date picker"
-            onClick={() => { haptic("select"); setCalendarOpen(true); }}
-          >
+          <span className="daily-card-heading">
             {isToday ? "TODAY · NUTRITION" : labelFor(date)}
-          </button>
+          </span>
           <div className="daily-card-top-right">
             {!hasEntry && !isEditing && (
               <Badge tone="neutral">No entry</Badge>

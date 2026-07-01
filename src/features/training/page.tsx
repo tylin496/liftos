@@ -26,9 +26,11 @@ import { computeStats } from "./logic";
 import { parse, score, formatRepsDisplay } from "./parser";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
-import { PageTopBar } from "@shared/components/PageTopBar";
+import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import "./training.css";
+
+const copyAllData = () => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -552,6 +554,7 @@ function TrainingPageInner() {
     prevSplitIdx.current = splitIds.indexOf(split);
     setSplit(id);
     sessionStorage.setItem("tr-split", id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const reloadAll = useCallback(async () => {
@@ -717,18 +720,17 @@ function TrainingPageInner() {
     setStretches((prev) => ({ ...prev, [split]: items }));
   }
 
+  usePageHeader({
+    eyebrow: "TRAINING",
+    title: SPLITS.find((s) => s.id === split)?.name ?? split,
+    onCopy: copyAllData,
+  });
 
   return (
     <div
       className="page tr-page"
       ref={contentRef}
     >
-      <PageTopBar
-        eyebrow="TRAINING"
-        title={SPLITS.find((s) => s.id === split)?.name ?? split}
-        onCopy={() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS)}
-      />
-
       {/* ── Segment control ── */}
       <div className="tr-top-row">
         <SegmentedControl

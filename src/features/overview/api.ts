@@ -1,16 +1,11 @@
 import { supabase } from "@shared/lib/supabase";
-import type { Database } from "@shared/lib/database.types";
-import { computeTdeeWindows } from "@features/health/tdee";
 import { computeRecovery, type RecoverySnapshot } from "@features/health/math";
 import type { BodyMetric } from "@features/health/api";
 import { parse, score } from "@features/training/parser";
 import { epley1RM } from "@features/training/logic";
 import { localDateStrDaysAgo } from "@shared/lib/date";
-import { defaultLogDate, DEFAULTS } from "@features/nutrition/logic";
-import { targetsFromConfig } from "@features/nutrition/api";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
-
-type NutritionEntry = Database["public"]["Tables"]["nutrition_entries"]["Row"];
+import { computeGoal, type Goal } from "./goal";
 
 function sinceDate(days: number): string {
   return localDateStrDaysAgo(days);
@@ -48,23 +43,16 @@ export interface CompoundProgress {
 }
 
 export interface OverviewData {
-  today: NutritionEntry | null;
-  nutritionTargets: {
-    calorieTarget: number;
-    proteinTarget: number;
-    tdeeTarget: number;
-    deficitTarget: number;
-  } | null;
   weightLatest: number | null;
-  weightWeekAgo: number | null;
-  tdee: number | null;
-  tdeePrev: number | null;
   recovery: RecoverySnapshot | null;
   strength: StrengthSummary;
   compoundProgress: CompoundProgress | null;
   /** Shared nutrition evaluation + recommendation (single source of truth).
-   *  Read straight from the persisted row — Overview never recomputes it. */
+   *  Feeds the System, Weight, and Nutrition cards — Overview never recomputes. */
   nutritionState: NutritionStateFull | null;
+  /** Primary Goal payload, finished by the upstream Provider (`goal.ts`).
+   *  Null when there's no target or not enough body-composition data. */
+  goal: Goal | null;
 }
 
 // Pull is resolved dynamically (first exercise in Pull split by sort_order).
@@ -94,22 +82,10 @@ function compoundPct(slugLogs: Array<{ log_date: string | null; raw: string | nu
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
-  const today = defaultLogDate();
-  const weekAgo = sinceDate(7);
-
-  const [entryRes, configRes, metricsRes, logsRes, pullFirstRes, rowFirstRes, nutritionState] = await Promise.all([
-    supabase
-      .from("nutrition_entries")
-      .select("*")
-      .eq("entry_date", today)
-      .maybeSingle(),
-    supabase
-      .from("nutrition_config")
-      .select("tdee, protein_target, phase_deficits")
-      .maybeSingle(),
+  const [metricsRes, logsRes, pullFirstRes, rowFirstRes, nutritionState, configRes] = await Promise.all([
     supabase
       .from("health_metrics")
-      .select("metric_date, weight_kg, active_energy_kcal, resting_energy_kcal, sleep_seconds, hrv_sdnn_ms, resting_heart_rate")
+      .select("metric_date, weight_kg, body_fat_pct, active_energy_kcal, resting_energy_kcal, sleep_seconds, hrv_sdnn_ms, resting_heart_rate")
       .gte("metric_date", sinceDate(60))
       .order("metric_date", { ascending: true }),
     supabase
@@ -135,49 +111,15 @@ export async function fetchOverview(): Promise<OverviewData> {
       .maybeSingle(),
     // Shared nutrition state — a plain read; recompute happens on data change.
     getNutritionState(),
+    // Target body fat — the Goal Provider's only config input.
+    supabase.from("nutrition_config").select("target_body_fat_pct").maybeSingle(),
   ]);
 
-  // Nutrition — reuse Nutrition's own target derivation so Overview's Hero
-  // card can compute the exact same on-plan/over/surplus state as Nutrition's
-  // Today card (same underlying daily entry, same feedback).
-  const todayEntry = entryRes.data ?? null;
-  let nutritionTargets: OverviewData["nutritionTargets"] = null;
-  if (todayEntry) {
-    nutritionTargets = {
-      calorieTarget: todayEntry.calorie_target ?? 0,
-      proteinTarget: todayEntry.protein_target ?? 0,
-      tdeeTarget: todayEntry.tdee ?? DEFAULTS.tdee,
-      deficitTarget: todayEntry.deficit_target ?? DEFAULTS.deficitTarget,
-    };
-  } else if (configRes.data) {
-    const t = targetsFromConfig(
-      configRes.data as Pick<
-        Database["public"]["Tables"]["nutrition_config"]["Row"],
-        "tdee" | "protein_target" | "phase_deficits"
-      > as Database["public"]["Tables"]["nutrition_config"]["Row"],
-    );
-    nutritionTargets = {
-      calorieTarget: t.calorieTarget,
-      proteinTarget: t.proteinTarget,
-      tdeeTarget: t.tdee,
-      deficitTarget: t.deficitTarget,
-    };
-  }
-
-  // Weight
+  // Weight — latest reading. The trend/status the Weight card shows comes from
+  // the shared nutrition evaluation (single weight-trend source), not a 7-day
+  // point-to-point delta.
   const metrics = metricsRes.data ?? [];
-  const weightPoints = metrics
-    .filter((m) => m.weight_kg != null)
-    .map((m) => ({ date: m.metric_date, w: m.weight_kg as number }));
-  const weightLatest = weightPoints.at(-1)?.w ?? null;
-  const weekAgoMetric = weightPoints.filter((m) => m.date <= weekAgo).at(-1);
-  const weightWeekAgo = weekAgoMetric?.w ?? null;
-
-  // TDEE: shared windowing (30-day resting + 14-day active) — same source of
-  // truth as the Health card so the two TDEE numbers never diverge.
-  const { tdee: tdeeEst, tdeePrev: tdeePrevEst } = computeTdeeWindows(metrics);
-  const tdee = tdeeEst.tdee;
-  const tdeePrev = tdeePrevEst.tdee;
+  const weightLatest = metrics.filter((m) => m.weight_kg != null).at(-1)?.weight_kg ?? null;
 
   // Recovery: reuse the Health tab's calculation verbatim (single source of
   // truth). The 60-day metrics window covers its 30-day baseline. Null status
@@ -277,16 +219,16 @@ export async function fetchOverview(): Promise<OverviewData> {
       }
     : null;
 
+  // Primary Goal — computed entirely upstream in the Provider. The card only
+  // renders the finished payload; swapping goal types never touches this call.
+  const goal = computeGoal(metrics as BodyMetric[], configRes.data?.target_body_fat_pct ?? null);
+
   return {
-    today: todayEntry,
-    nutritionTargets,
     weightLatest,
-    weightWeekAgo,
-    tdee,
-    tdeePrev,
     recovery,
     strength,
     compoundProgress,
     nutritionState,
+    goal,
   };
 }

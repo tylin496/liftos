@@ -60,16 +60,21 @@ export function HistoryView({
   date,
   onDateChange,
   entryVersion,
+  onOpenCalendar,
 }: {
   config: NutritionConfig;
   date: string;
   onDateChange: (date: string) => void;
   entryVersion: number;
+  onOpenCalendar: () => void;
 }) {
   const [entries, setEntries] = useState<NutritionEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Slide direction for the week-change animation, mirroring the Today card.
+  // Direction for the week-range odometer roll + bar collapse/expand.
   const [weekNavDir, setWeekNavDir] = useState<"forward" | "backward" | null>(null);
+  // True for the brief window where the outgoing week's bars are collapsing,
+  // before weekAnchor actually flips to the new week.
+  const [collapsing, setCollapsing] = useState(false);
   const weekRef = useRef<HTMLElement>(null);
   // The week strip browses independently of the page's selected `date`, so the
   // ‹ › chevrons don't drag the Today card (and the whole page) along with them.
@@ -85,6 +90,8 @@ export function HistoryView({
 
   // Change week: jump ±7 days (same weekday), clamped to [MIN_DATE, today].
   // Only moves the strip's own anchor — the page's selected day is untouched.
+  // The outgoing bars collapse briefly before weekAnchor flips, so the new
+  // week's bars expand in rather than simply replacing the old ones.
   function navigateWeek(dir: "forward" | "backward") {
     const delta = dir === "forward" ? 7 : -7;
     let next = shiftDate(weekAnchor, delta);
@@ -93,7 +100,11 @@ export function HistoryView({
     if (next === weekAnchor) return;
     haptic("select");
     setWeekNavDir(dir);
-    setWeekAnchor(next);
+    setCollapsing(true);
+    window.setTimeout(() => {
+      setWeekAnchor(next);
+      setCollapsing(false);
+    }, 130);
   }
 
   // Clear the slide class once the animation finishes so it can replay.
@@ -233,13 +244,7 @@ export function HistoryView({
   return (
     <>
       {/* ── This Week ── */}
-      <section
-        ref={weekRef}
-        className={`page-card${
-          weekNavDir === "forward" ? " week-nav-forward"
-          : weekNavDir === "backward" ? " week-nav-backward" : ""
-        }`}
-      >
+      <section ref={weekRef} className="page-card">
         <div className="section-head">
           <div className="hist-week-head">
             <p className="page-eyebrow" style={{ margin: 0 }}>THIS WEEK</p>
@@ -253,8 +258,25 @@ export function HistoryView({
               >
                 ‹
               </button>
-              <span className="hist-week-range">
-                {`${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
+              <span
+                className="hist-week-range"
+                role="button"
+                tabIndex={0}
+                aria-label="Open date picker"
+                onClick={() => { haptic("select"); onOpenCalendar(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); haptic("select"); onOpenCalendar(); }
+                }}
+              >
+                <span
+                  key={trend7[0].date}
+                  className={`hist-week-range-roll${
+                    weekNavDir === "forward" ? " roll-forward"
+                    : weekNavDir === "backward" ? " roll-backward" : ""
+                  }`}
+                >
+                  {`${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
+                </span>
               </span>
               <button
                 type="button"
@@ -360,7 +382,10 @@ export function HistoryView({
                 {/* Bars: real → missed (past) or future (grey placeholder) */}
                 <div className="nutri-trend-bars">
                   {hasCal || hasProtein ? (
-                    <div className="ntb-pair" style={{ "--bar-index": i } as React.CSSProperties}>
+                    <div
+                      className={`ntb-pair${collapsing ? " is-collapsing" : ""}`}
+                      style={{ "--bar-index": i } as React.CSSProperties}
+                    >
                       <div
                         className={`ntb-bar ntb-bar-kcal${isSurplus ? " surplus" : ""}`}
                         style={{ height: hasCal ? `${kcalPct}%` : "7px" }}
@@ -371,7 +396,10 @@ export function HistoryView({
                       />
                     </div>
                   ) : (
-                    <div className="ntb-pair ntb-pair--missing" style={{ "--bar-index": i } as React.CSSProperties}>
+                    <div
+                      className={`ntb-pair ntb-pair--missing${collapsing ? " is-collapsing" : ""}`}
+                      style={{ "--bar-index": i } as React.CSSProperties}
+                    >
                       <div className="ntb-bar ntb-bar--missing" />
                       <div className="ntb-bar ntb-bar--missing" />
                     </div>

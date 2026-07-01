@@ -1,15 +1,18 @@
 import { fetchHealthData } from "@features/health/api";
 import { getConfig, getEntries, targetsFromConfig } from "@features/nutrition/api";
 import { monthlyStats, trainingMonthsFromStart } from "@features/nutrition/logic";
-import { fetchExercises, fetchLogsBySlug, loadStretches } from "@features/training/api";
+import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
 import { computeStats, computeTrend, epley1RM, buildStagnationView } from "@features/training/logic";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
 
-export const EXPORT_HEALTH_DAYS = 90;
-export const EXPORT_NUTRITION_DAYS = 45;
+export const EXPORT_HEALTH_DAYS = 60;
+export const EXPORT_NUTRITION_DAYS = 60;
 export const MAX_AI_EXPORT_CHARS = 80_000;
+// Recent training sessions kept per exercise (plus the PR session if it falls
+// outside this window) — full history isn't needed for strength analysis.
+const MAX_TRAINING_LOGS_PER_EXERCISE = 15;
 
 export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritionDays = EXPORT_NUTRITION_DAYS): Promise<string> {
   const now = new Date();
@@ -140,8 +143,6 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       : null;
 
   // ── Training ────────────────────────────────────────────────────────────────
-  const stretches = loadStretches();
-
   // Pre-parse all logs (needed for PR calculation regardless of slice)
   const allLogsBySlug: Record<string, { log: import("@features/training/api").TrainingLog; parsed: ReturnType<typeof parse> | null; w: number | null }[]> = {};
   for (const ex of exercises) {
@@ -232,7 +233,15 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         const allRaw = allParsed.map((e) => e.log);
         const stats = computeStats(allRaw);
         const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
-        const sliced = allParsed.slice(0, logsPerEx);
+
+        // Most recent sessions, plus the PR session if it fell outside that window —
+        // early-progression logs aren't useful once we have stats + PR.
+        const recentCount = Math.min(logsPerEx, MAX_TRAINING_LOGS_PER_EXERCISE);
+        const sliced = allParsed.slice(0, recentCount);
+        if (stats.best && !sliced.some((e) => e.log.id === stats.best!.log.id)) {
+          const prEntry = allParsed.find((e) => e.log.id === stats.best!.log.id);
+          if (prEntry) sliced.push(prEntry);
+        }
 
         const trendResult = computeTrend(allRaw);
         const bestE1RM = stats.best ? +stats.best.e1rm.toFixed(1) : null;
@@ -243,7 +252,6 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         return {
           name: ex.name,
           target: ex.target ?? null,
-          note: ex.note ?? null,
           stats: {
             sessions: sessionDates.length,
             bestE1RM,
@@ -264,17 +272,12 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
             weight: w,
             reps: p?.reps ?? null,
             e1rm: p && w != null ? +epley1RM(w, p.reps).toFixed(1) : null,
-            note: l.note ?? null,
           })),
         };
       });
       return {
         split: split.name,
         exercises: exerciseData,
-        stretches: (stretches[split.id] ?? []).map((s) => ({
-          name: s.name,
-          note: s.note ?? null,
-        })),
       };
     });
 
@@ -286,8 +289,6 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
     schema: 2.1,
-    generatedAt: now.toISOString(),
-    units: { weight: "kg", energy: "kcal" },
     summary: {
       currentWeight,
       weight30d,
@@ -353,10 +354,12 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     training: buildTraining(logsPerEx),
   });
 
-  // Binary search for the largest logsPerEx that fits within MAX_AI_EXPORT_CHARS
+  // Binary search for the largest logsPerEx that fits within MAX_AI_EXPORT_CHARS,
+  // capped at MAX_TRAINING_LOGS_PER_EXERCISE — recent history plus stats/pr is
+  // sufficient, so there's no need to search beyond that.
   let lo = 1;
-  // Upper bound: max logs any exercise has
-  let hi = Math.max(1, ...exercises.map((ex) => (allLogsBySlug[ex.slug]?.length ?? 0)));
+  const maxLogsAnyExercise = Math.max(0, ...exercises.map((ex) => (allLogsBySlug[ex.slug]?.length ?? 0)));
+  let hi = Math.max(1, Math.min(MAX_TRAINING_LOGS_PER_EXERCISE, maxLogsAnyExercise));
   let result = JSON.stringify(buildPayload(lo), null, 2);
 
   if (JSON.stringify(buildPayload(hi), null, 2).length <= MAX_AI_EXPORT_CHARS) {

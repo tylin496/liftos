@@ -108,6 +108,7 @@ export function ExerciseCard({
 
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [justExpanded, setJustExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -550,6 +551,17 @@ export function ExerciseCard({
             const prevLog = visible[vi + 1] ?? null;
             const delta = isPR || !prevLog ? null : computeHistDelta(log, prevLog);
             const isAssisted = log.kind === "assisted";
+            const isExpanded = expandedId === log.id;
+            const rowE1RM = isAssisted
+              ? log.bodyweight != null && log.assistance != null
+                ? epley1RM(log.bodyweight - log.assistance, log.reps ?? "1")
+                : null
+              : (() => {
+                  const p = log.raw ? parse(log.raw) : null;
+                  return p && Number.isFinite(p.weight)
+                    ? epley1RM(score(p), p.reps)
+                    : null;
+                })();
 
             return (
               <div key={log.id}>
@@ -567,6 +579,16 @@ export function ExerciseCard({
                   style={
                     revealing ? { animationDelay: `${(vi - 3) * 32}ms` } : undefined
                   }
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
+                  onClick={() => setExpandedId((id) => (id === log.id ? null : log.id))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setExpandedId((id) => (id === log.id ? null : log.id));
+                    }
+                  }}
                 >
                   <span className="hist-date" title={log.log_date ?? ""}>
                     <span className="hist-date-mon">{td.mon}</span>
@@ -620,7 +642,8 @@ export function ExerciseCard({
                         type="button"
                         title="Edit entry"
                         disabled={deletedLogIds.size > 0}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setAdding(false);
                           setEditId(isEditing ? null : log.id);
                         }}
@@ -630,6 +653,15 @@ export function ExerciseCard({
                     </div>
                   </div>
                 </div>
+
+                {isExpanded && !isEditing && (
+                  <div className="hist-e1rm-detail">
+                    <span className="hist-e1rm-label">Est. 1RM</span>
+                    <span className="hist-e1rm-value mono">
+                      {rowE1RM != null ? `${fmtWeightNum(rowE1RM)} kg` : "—"}
+                    </span>
+                  </div>
+                )}
 
                 {isEditing && (
                   <div className="ex-editor-drawer">
