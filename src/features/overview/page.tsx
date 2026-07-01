@@ -253,7 +253,7 @@ function WeightCard({
       <div className="ov-weight-rows">
         <div className="ov-weight-row">
           <span className="ov-weight-key">Trend</span>
-          <span className={`ov-weight-val${trend != null && tone ? ` is-${tone}` : ""}`}>{trend != null ? fmtTrend(trend) : "—"}</span>
+          <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
         </div>
         <div className="ov-weight-row">
           <span className="ov-weight-key">Status</span>
@@ -423,11 +423,13 @@ function RecoveryMetric({
   return (
     <div className="ov-rec-metric">
       <span className="ov-rec-metric-label">{label}</span>
-      <MetricValue size="md" unit={value != null ? unit : undefined}>
-        {value != null ? fmt(value) : "—"}
-      </MetricValue>
-      <span className="ov-rec-metric-delta-slot">
-        <MetricDelta value={delta} higherBetter={higherBetter} decimals={decimals} />
+      <span className="ov-rec-metric-row">
+        <MetricValue size="md" unit={value != null ? unit : undefined}>
+          {value != null ? fmt(value) : "—"}
+        </MetricValue>
+        <span className="ov-rec-metric-delta-slot">
+          <MetricDelta value={delta} higherBetter={higherBetter} decimals={decimals} />
+        </span>
       </span>
     </div>
   );

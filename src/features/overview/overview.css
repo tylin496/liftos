@@ -80,9 +80,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Both the Trend rate and the Status word are coloured by pace severity
-   (COLOR-SYSTEM: colour lives on the change/verdict), matching Recovery's
-   Good/Fair/Poor. The plain latest-weight number above stays neutral ink. */
+/* Only the Status verdict is coloured by pace severity (COLOR-SYSTEM: colour
+   lives on the change/verdict). Trend is a plain rate number and stays
+   neutral ink, matching the latest-weight number above. */
 .ov-weight-val.is-good { color: var(--good); }
 .ov-weight-val.is-warn { color: var(--gold); }
 .ov-weight-val.is-bad  { color: var(--bad); }
@@ -97,6 +97,7 @@
   text-align: left;
   background: none;
   border: none;
+  border-bottom: 1px solid var(--rule);
   box-shadow: none;
   padding: 2px 2px var(--space-5);
   margin-top: var(--space-2);
@@ -421,7 +422,13 @@
   color: var(--ink-3);
 }
 
-/* Reserve the delta line's height so cards with no delta don't sit shorter.
+.ov-rec-metric-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+/* Reserve the delta's width so cards with no delta don't sit narrower.
    The number itself comes from the shared <MetricDelta>. */
 .ov-rec-metric-delta-slot {
   min-height: 1em;
