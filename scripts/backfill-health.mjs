@@ -49,7 +49,7 @@ for (let i = 0; i < rows.length; i += BATCH) {
   }));
 
   const { error } = await supabase
-    .from("body_metrics")
+    .from("health_metrics")
     .upsert(chunk, { onConflict: "user_id,metric_date" });
 
   if (error) {
