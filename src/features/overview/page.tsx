@@ -72,20 +72,20 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
   );
 }
 
-/* ── Primary Goal Card ─────────────────────────────────────────────────── */
+/* ── Cut Progress Card ─────────────────────────────────────────────────── */
 
-// Where the body-composition journey stands: progress toward the target body
-// fat, current → goal weight, and the body-fat delta. Pure render — the numbers
-// are finished upstream in computeGoal (the Goal provider); the card never
-// computes. Distinct from the Weight card below, which answers the *rate*
-// question (how fast), not the *destination* (how far).
-function GoalCard({ goal, onNav }: { goal: Goal; onNav: () => void }) {
+// How far the cut is from its destination — progress toward target body fat,
+// the goal weight, and what's left. Pure render — every number is finished
+// upstream in computeGoal (the Goal provider); the card holds no business
+// logic. Deliberately does NOT show current weight: that's the Weight card's
+// single source of truth (this card answers "how far", not "where am I now").
+function CutProgressCard({ goal, onNav }: { goal: Goal; onNav: () => void }) {
   const e = goal.evaluation;
   const pct = Math.round(e.progressPct);
   return (
     <button type="button" className="page-card goal" onClick={onNav}>
       <div className="goal-head">
-        <span className="goal-label">Primary Goal</span>
+        <span className="goal-label">Cut Progress</span>
         <span className="goal-pct">{pct}%</span>
       </div>
       <div className="goal-bar">
@@ -93,29 +93,18 @@ function GoalCard({ goal, onNav }: { goal: Goal; onNav: () => void }) {
       </div>
       <div className="goal-grid">
         <div className="goal-col">
-          <div className="goal-col-label">Current</div>
-          <MetricValue size="md" unit="kg">{e.currentWeight.toFixed(1)}</MetricValue>
-        </div>
-        <div className="goal-divider" />
-        <div className="goal-col">
-          <div className="goal-col-label">Goal</div>
+          <div className="goal-col-label">Goal Weight</div>
           <MetricValue size="md" unit="kg">{e.goalWeight.toFixed(1)}</MetricValue>
         </div>
       </div>
       <div className="goal-foot">
         <div className="goal-foot-col">
-          <div className="goal-col-label">Body Fat</div>
-          <div className="goal-progression">
-            {e.currentBodyFat.toFixed(1)}%
-            <span className="goal-arrow">→</span>
-            {e.targetBodyFat}%
-          </div>
+          <div className="goal-col-label">Target Body Fat</div>
+          <div className="goal-progression">{e.targetBodyFat}%</div>
         </div>
         <div className="goal-foot-col">
           <div className="goal-col-label">Remaining</div>
-          <div className="goal-progression">
-            {e.remainingWeight > 0.05 ? `${e.remainingWeight.toFixed(1)} kg` : "Reached"}
-          </div>
+          <div className="goal-progression">{e.remainingWeight.toFixed(1)} kg</div>
         </div>
       </div>
       <p className="goal-basis">Based on 30-day lean mass &amp; 14-day body-fat averages.</p>
@@ -454,7 +443,7 @@ export function OverviewPage() {
 
       {data && <RecoveryCard snap={data.recovery} onNav={() => nav("health")} />}
 
-      {data?.goal && <GoalCard goal={data.goal} onNav={() => nav("health")} />}
+      {data?.goal && <CutProgressCard goal={data.goal} onNav={() => nav("health")} />}
 
       {data?.nutritionState && (
         <NutritionSummary state={data.nutritionState} onNav={() => nav("nutrition")} />
