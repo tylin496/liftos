@@ -583,10 +583,7 @@ export function TodayView({
             <button type="button" className="nutri-col" aria-label="Edit calories" onClick={() => openEdit("calories")}>
               <span className="nutri-label">Calories</span>
               {hasEntry ? (
-                <span
-                  ref={calNumRef}
-                  className={`metric-val metric-val--lg${calToneVal ? ` metric-val--${calToneVal}` : ""}`}
-                >
+                <span ref={calNumRef} className="metric-val metric-val--lg nutri-val--green">
                   {calNum.toLocaleString()}
                 </span>
               ) : (

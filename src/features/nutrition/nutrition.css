@@ -64,91 +64,35 @@
   color: var(--bad);
 }
 
-/* ── Adherence distribution rows (mirrors calorie-tracker) ───────────── */
-.nutri-dist {
+/* ── Adherence distribution — single proportional bar + text legend ──── */
+.nutri-dist-track {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  margin-top: var(--space-4);
+  height: 8px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-top: var(--space-5);
 }
 
-.nutri-dist-head {
-  display: grid;
-  grid-template-columns: 5rem 1fr 3rem auto;
-  gap: 10px;
-  padding-bottom: 4px;
-  margin-bottom: 2px;
-}
-
-.nutri-dist-head span:nth-child(3),
-.nutri-dist-head span:nth-child(4) {
-  text-align: right;
-}
-
-.nutri-dist-head span {
+.nutri-dist-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
   font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--ink-4) 80%, transparent);
-}
-
-.nutri-dist-row {
-  display: grid;
-  grid-template-columns: 5rem 1fr 3rem auto;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-}
-
-.nutri-dist-bar {
-  height: 3px;
-  border-radius: 2px;
-  background: color-mix(in srgb, currentColor 16%, transparent);
-  position: relative;
-}
-
-.nutri-dist-bar::after {
-  content: "";
-  position: absolute;
-  inset-block: 0;
-  left: 0;
-  width: var(--bar-pct, 0%);
-  border-radius: inherit;
-  background: currentColor;
-}
-
-.nutri-dist-label {
-  font-size: var(--text-sm);
-  font-weight: 500;
   color: var(--ink-3);
 }
 
-.nutri-dist-pct {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: currentColor;
-  opacity: 0.7;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+.nutri-dist-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.nutri-dist-value {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--ink);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-/* tint label + value to match the state colour, like calorie-tracker */
-.nutri-dist-row.state-on-plan .nutri-dist-label,
-.nutri-dist-row.state-on-plan .nutri-dist-value,
-.nutri-dist-row.state-extreme .nutri-dist-label,
-.nutri-dist-row.state-extreme .nutri-dist-value,
-.nutri-dist-row.state-surplus .nutri-dist-label,
-.nutri-dist-row.state-surplus .nutri-dist-value {
-  color: currentColor;
+.nutri-dist-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 /* ── Date nav ────────────────────────────────────────────────────────── */
@@ -221,18 +165,6 @@
   opacity: 0.35;
   cursor: default;
 }
-
-/* state colours — used on distribution bar row labels */
-.state-on-plan  { color: var(--blue); }
-.state-under    { color: var(--ink-3); }
-.state-over     { color: var(--ink-3); }
-.state-extreme  { color: var(--gold); }
-.state-surplus  { color: var(--bad); }
-
-/* tone classes — hero numbers (calorie, protein, adherence %) */
-.tone-good { color: var(--good); -webkit-text-fill-color: var(--good); }
-.tone-gold { color: var(--gold); -webkit-text-fill-color: var(--gold); }
-.tone-bad  { color: var(--bad);  -webkit-text-fill-color: var(--bad);  }
 
 /* ── Form ────────────────────────────────────────────────────────────── */
 .nutri-field {
@@ -492,19 +424,6 @@
 /* ── Section head ────────────────────────────────────────────────────── */
 /* .section-head layout is shared in layout.css */
 
-.nutri-month-count {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-4);
-}
-
-/* ── Divider ─────────────────────────────────────────────────────────── */
-.nutri-divider {
-  border: none;
-  border-top: 1px solid var(--rule);
-  margin: var(--space-4) 0 var(--space-3);
-}
-
 /* ── 7-day trend bars ────────────────────────────────────────────────── */
 .nutri-trend {
   display: grid;
@@ -571,83 +490,18 @@
   color: var(--ink-4);
 }
 
-/* ── Adherence hero ──────────────────────────────────────────────────── */
-.nutri-adherence-hero {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: var(--space-3) 0 0;
-}
-
-.nutri-adherence-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+/* ── Last 30 Days — eyebrow is muted here (not the accent used by Today /
+   This Week), and the 3 headline numbers sit in one light KPI row. ────── */
+.nutri-month-card .page-eyebrow {
   color: var(--ink-4);
 }
 
-.nutri-adherence-row {
+.nutri-month-kpis {
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: space-between;
   gap: var(--space-2);
-}
-
-.nutri-adherence-num {
-  font-size: clamp(36px, 7.2vw, 50px);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.nutri-adherence-pct {
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  color: var(--ink-3);
-  line-height: 1;
-}
-
-/* ── Double Hit section ──────────────────────────────────────────────── */
-.nutri-dh {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.nutri-dh-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--good);
-}
-
-.nutri-dh-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-}
-
-.nutri-dh-pct {
-  font-size: clamp(25px, 5vw, 34px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.nutri-dh-sub {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-  font-weight: 500;
-}
-
-/* ── Streak footer ───────────────────────────────────────────────────── */
-.nutri-streak {
-  margin: var(--space-3) 0 0;
-  font-size: var(--text-sm);
-  color: var(--ink-3);
+  margin-top: var(--space-3);
 }
 
 /* ── Skeleton loading state ──────────────────────────────────────────────── */
@@ -783,7 +637,7 @@
 .ntb-val-kcal {
   font-size: var(--text-2xs);
   font-weight: 700;
-  color: var(--ink-3);
+  color: var(--good);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   line-height: 1.2;
@@ -792,11 +646,9 @@
 .ntb-val-prot {
   font-size: var(--text-2xs);
   font-weight: 600;
-  color: var(--good);
+  color: var(--blue);
   line-height: 1.2;
 }
-
-.nutri-trend-col.is-selected .ntb-val-kcal { color: var(--ink); }
 
 /* Override old single-bar trend to support dual pairs */
 .nutri-trend-bars {
@@ -834,8 +686,8 @@
 .ntb-bar-kcal {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, #5ac8fa 58%, var(--bg-soft)),
-    color-mix(in srgb, var(--blue) 58%, var(--bg-soft))
+    color-mix(in srgb, #63e195 58%, var(--bg-soft)),
+    color-mix(in srgb, #34c759 58%, var(--bg-soft))
   );
 }
 
@@ -850,17 +702,17 @@
 .ntb-bar-prot {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, #63e195 58%, var(--bg-soft)),
-    color-mix(in srgb, #34c759 58%, var(--bg-soft))
+    color-mix(in srgb, #5ac8fa 58%, var(--bg-soft)),
+    color-mix(in srgb, var(--blue) 58%, var(--bg-soft))
   );
 }
 
 /* Selected day: vivid colours + glow */
 .nutri-trend-col.is-selected .ntb-bar-kcal {
-  background: linear-gradient(180deg, #5ac8fa, var(--blue));
+  background: linear-gradient(180deg, #63e195, #34c759);
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #ffffff 34%, transparent),
-    0 6px 14px color-mix(in srgb, var(--blue) 16%, transparent);
+    inset 0 1px 0 color-mix(in srgb, #ffffff 28%, transparent),
+    0 6px 13px color-mix(in srgb, #34c759 14%, transparent);
 }
 
 .nutri-trend-col.is-selected .ntb-bar-kcal.surplus {
@@ -871,10 +723,10 @@
 }
 
 .nutri-trend-col.is-selected .ntb-bar-prot {
-  background: linear-gradient(180deg, #63e195, #34c759);
+  background: linear-gradient(180deg, #5ac8fa, var(--blue));
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #ffffff 28%, transparent),
-    0 6px 13px color-mix(in srgb, #34c759 14%, transparent);
+    inset 0 1px 0 color-mix(in srgb, #ffffff 34%, transparent),
+    0 6px 14px color-mix(in srgb, var(--blue) 16%, transparent);
 }
 
 /* Selected weekday label */

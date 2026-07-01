@@ -39,7 +39,8 @@
 .nutri-delta.bad { color: var(--bad); }
 .nutri-delta.neutral { color: var(--ink-3); }
 
-/* Protein's big stat is a fixed blue tint (not a good/bad tone). */
+/* Calories/Protein big stats are fixed identity tints, not a good/bad tone. */
+.nutri-val--green { color: var(--good); }
 .nutri-val--blue { color: var(--blue); }
 
 /* Empty stat cell: same column layout as a filled one so the card height

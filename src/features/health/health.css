@@ -2,158 +2,69 @@
   gap: var(--space-3);
 }
 
-/* ── Metric card header: AVERAGE + big number + date range ──────────── */
-.health-metric-eyebrow {
+/* ── Shared card-title eyebrow — "RECOVERY" / "WEIGHT" / "TDEE" ─────── */
+.health-card-eyebrow {
   font-size: var(--text-2xs);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--ink-4);
-  margin: 0 0 2px;
 }
 
-.health-metric-hero {
+/* ── Trend cards (Weight / Body Fat / Lean Mass) ─────────────────────── */
+.health-trend-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.health-trend-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.health-trend-stat {
   display: flex;
   align-items: baseline;
-  gap: 4px;
-  margin-bottom: 0;
-}
-
-.health-metric-val {
-  font-size: var(--text-3xl);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  line-height: 1;
-}
-
-.health-unit {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--ink-3);
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .health-metric-val--empty {
   color: var(--ink-4);
 }
 
-.health-metric-daterange {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-  margin: 2px 0 var(--space-3);
-}
-
-/* ── Metric label + change row ──────────────────────────────────────── */
-.health-metric-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-2);
-}
-
-.health-metric-label {
-  font-size: var(--text-base);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink);
-}
-
-/* The metric-card change badge is now the shared <MetricDelta> (inline
-   signed text, no pill) — header flex pushes it to the top-right. */
-
-/* ── Line Chart ─────────────────────────────────────────────────────── */
-.health-chart {
-  width: 100%;
-  display: block;
+.health-sparkline {
+  flex-shrink: 0;
   overflow: visible;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
 }
 
-.health-chart-wrap {
-  width: 100%;
-  margin: 0 0 var(--space-1);
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* Empty-chart placeholder (fewer than 2 points) */
-.health-chart-empty {
-  height: 80px;
-  background: var(--bg-soft);
+.health-sparkline-skel {
+  flex-shrink: 0;
+  width: 92px;
+  height: 40px;
   border-radius: var(--radius-sm);
-  opacity: 0.4;
+  background: color-mix(in srgb, var(--ink-4) 8%, transparent);
+  animation: skel-fade 1.6s ease-in-out infinite;
 }
 
-/* ── TDEE card — a key Health output, so the value stays prominent (larger
-      than the metric cards). Its dominance is dialed back through layout
-      instead: a tighter internal rhythm (eyebrow → number → components sit
-      closer together) plus its last position in the tab — not a shrunken
-      number, and not a one-off card padding that would break the shared
-      page-card spacing. ─────────────────────────────────────────────────── */
-.health-tdee .page-eyebrow {
-  margin-bottom: var(--space-1);
-}
-
-/* Hero row: shared <MetricValue size="xl"> + <MetricDelta> on one baseline.
-   font-size stays here so the loading skeleton's .health-skel-num inherits
-   the hero size; the loaded number's own size comes from .metric-val--xl. */
-.health-tdee-num {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  font-size: var(--text-4xl);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  margin: 0 0 var(--space-1);
-  line-height: 1;
-}
-
-.health-tdee-num .health-unit {
-  font-size: var(--text-base);
-  color: var(--ink-3);
-}
-
-
-.health-tdee-components {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
-
-.health-tdee-component {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.health-tdee-component-label {
+.health-trend-range {
   font-size: var(--text-2xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--ink-4);
-}
-
-.health-tdee-component-val {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--rule);
 }
 
 /* ── Skeleton loading state ───────────────────────────────────────────────── */
-.health-tdee.loading-card .health-skel-num,
-.health-metric.loading-card .health-metric-label,
-.health-metric.loading-card .health-metric-val,
-.health-metric.loading-card .health-unit {
+.health-trend.loading-card .health-card-eyebrow,
+.health-trend.loading-card .health-metric-val,
+.health-trend.loading-card .health-unit,
+.health-tdee.loading-card .health-skel-num {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   background: linear-gradient(
@@ -167,59 +78,108 @@
   animation: skel-fade 1.6s ease-in-out infinite !important;
 }
 
-.health-skel-chart {
-  height: 80px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--ink-4) 8%, transparent);
-  animation: skel-fade 1.6s ease-in-out infinite;
-  margin-top: var(--space-3);
+.health-trend.loading-card .health-metric-val {
+  font-size: var(--metric-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── TDEE card — a key Health output, so the value stays prominent (larger
+      than the metric cards). Its dominance is dialed back through layout
+      instead: a tighter internal rhythm (eyebrow → number → components sit
+      closer together) plus its last position in the tab — not a shrunken
+      number, and not a one-off card padding that would break the shared
+      page-card spacing. ─────────────────────────────────────────────────── */
+.health-tdee-num {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--metric-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  margin-top: 6px;
+  line-height: 1;
+}
+
+.health-tdee-num .health-unit {
+  font-size: var(--text-base);
+  color: var(--ink-3);
+}
+
+.health-tdee-components {
+  display: flex;
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.health-tdee-component {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.health-tdee-component-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
 }
 
 /* ── Recovery card ───────────────────────────────────────────────────── */
 .health-recovery-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  margin-bottom: var(--space-3);
+  margin-bottom: 4px;
 }
 
 .health-recovery-status {
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: 700;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
 }
 
 .health-recovery-rows {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 .health-recovery-row {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.health-recovery-row:last-child {
+  border-bottom: none;
 }
 
 .health-recovery-row-label {
-  font-size: var(--text-base);
-  color: var(--ink-3);
-  width: 52px;
-  flex-shrink: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
 }
 
-/* Value styling comes from the shared .metric-val--md; we only need it to
-   take the free space so the delta sits flush right. */
-.health-recovery-row-val {
-  flex: 1;
+.health-recovery-row-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .health-recovery-footer {
   font-size: var(--text-sm);
-  color: var(--ink-4);
-  margin: 0;
+  line-height: 1.55;
+  color: var(--ink-3);
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
 }
 
 .health-tdee-component-trend {
@@ -231,4 +191,3 @@
   font-size: var(--text-sm);
   color: var(--ink-3);
 }
-

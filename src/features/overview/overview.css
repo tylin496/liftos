@@ -51,6 +51,12 @@
   gap: var(--space-1);
 }
 
+.ov-dual-val-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
 .ov-dual-divider {
   align-self: stretch;
   width: 1px;
@@ -231,14 +237,6 @@
   gap: var(--space-1);
 }
 
-.ov-th-ret-sub {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ink-4);
-}
-
 .ov-th-status {
   padding-top: var(--space-3);
   border-top: 1px solid var(--rule);
@@ -247,7 +245,7 @@
 .ov-th-all-good {
   font-size: var(--text-base);
   font-weight: 500;
-  color: var(--good);
+  color: var(--ink-3);
 }
 
 /* "{N} more on track" toggle — sits below Attention, always visible */
@@ -278,9 +276,9 @@
 }
 
 .ov-th-toggle-chevron {
-  font-size: var(--text-2xs);
-  line-height: 1;
-  transition: transform 0.2s ease;
+  color: var(--ink-4);
+  flex-shrink: 0;
+  transition: transform var(--motion-base) var(--move-ease);
 }
 
 .ov-th-toggle-chevron.is-open {
@@ -362,8 +360,6 @@
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
-
-.ov-th-ex-pct.bad { color: var(--bad); }
 
 .ov-th-ex-trend {
   font-size: var(--text-2xs);

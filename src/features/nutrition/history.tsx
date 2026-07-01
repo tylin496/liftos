@@ -14,6 +14,15 @@ import {
 
 const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
 
+// Fixed display order — always all 5 states, on-plan first (matches design spec).
+const DIST_STATES: { key: CalorieState; label: string; color: string }[] = [
+  { key: "on-plan", label: "On plan", color: "var(--blue)" },
+  { key: "under", label: "Under", color: "var(--ink-4)" },
+  { key: "over", label: "Over", color: "var(--ink-4)" },
+  { key: "extreme", label: "Extreme", color: "var(--gold)" },
+  { key: "surplus", label: "Surplus", color: "var(--bad)" },
+];
+
 // Earliest loggable day — mirrors today.tsx.
 const MIN_DATE = "2026-02-09";
 
@@ -213,9 +222,6 @@ export function HistoryView({
     );
   }
 
-  const adherenceTone =
-    month.adherencePct >= 80 ? "tone-good" : month.adherencePct >= 60 ? "tone-gold" : "tone-bad";
-
   return (
     <>
       {/* ── This Week ── */}
@@ -355,75 +361,33 @@ export function HistoryView({
       </section>
 
       {/* ── Last 30 Days ── */}
-      <section className="page-card">
-        <div className="section-head">
-          <p className="page-eyebrow" style={{ margin: 0 }}>Last 30 Days</p>
-          <span className="nutri-month-count">{month.logged} logged</span>
+      <section className="page-card nutri-month-card">
+        <p className="page-eyebrow" style={{ margin: 0 }}>Last 30 Days</p>
+
+        <div className="nutri-month-kpis">
+          <MetricValue size="sm" unit="% adherence">{month.adherencePct}</MetricValue>
+          <MetricValue size="sm" unit="% double hit">{month.doubleHitPct}</MetricValue>
+          <MetricValue size="sm" unit="day streak">{month.currentStreak}</MetricValue>
         </div>
 
-        {/* Adherence hero */}
-        <div className="nutri-adherence-hero">
-          <span className="nutri-adherence-label">Adherence</span>
-          <div className="nutri-adherence-row">
-            <span className={`nutri-adherence-num ${adherenceTone}`}>{month.adherencePct}</span>
-            <span className="nutri-adherence-pct">%</span>
-          </div>
+        {/* Distribution — one proportionally-coloured bar + text legend below */}
+        <div className="nutri-dist-track" aria-hidden="true">
+          {DIST_STATES.map(({ key, color }) => {
+            const pct = Math.round(((month.distribution[key] || 0) / (month.logged || 1)) * 100);
+            return pct > 0 ? <span key={key} style={{ width: `${pct}%`, background: color }} /> : null;
+          })}
         </div>
-
-        <hr className="nutri-divider" />
-
-        {/* Double Hit */}
-        <div className="nutri-dh">
-          <span className="nutri-dh-label">Double Hit</span>
-          <div className="nutri-dh-row">
-            <strong className="nutri-dh-pct tone-good">{month.doubleHitPct}%</strong>
-            <span className="nutri-dh-sub">{month.doubleHitCount}/{month.logged} days</span>
-          </div>
+        <div className="nutri-dist-legend">
+          {DIST_STATES.map(({ key, label, color }) => {
+            const pct = Math.round(((month.distribution[key] || 0) / (month.logged || 1)) * 100);
+            return (
+              <span className="nutri-dist-item" key={key}>
+                <span className="nutri-dist-dot" style={{ background: color }} />
+                {label} {pct}%
+              </span>
+            );
+          })}
         </div>
-
-        <hr className="nutri-divider" />
-
-        {/* Distribution */}
-        <div className="nutri-dist">
-          <div className="nutri-dist-head" aria-hidden="true">
-            <span /><span /><span>%</span><span>days</span>
-          </div>
-          {(() => {
-            const denom = month.logged || 1;
-            const labels: Record<string, string> = {
-              under: "Under",
-              over: "Over",
-              extreme: "Low",
-              surplus: "Surplus",
-            };
-            // On-plan is already the Adherence hero above — the distribution
-            // only shows *how* the off-plan days miss.
-            const rows: CalorieState[] = ["under", "over", "extreme", "surplus"];
-            rows.sort((a, b) => (month.distribution[b] || 0) - (month.distribution[a] || 0));
-            return rows.map((s) => {
-              const count = month.distribution[s] || 0;
-              return (
-                <div key={s} className={`nutri-dist-row state-${s}`}>
-                  <span className="nutri-dist-label">{labels[s]}</span>
-                  <span
-                    className="nutri-dist-bar"
-                    style={{ "--bar-pct": `${Math.round((count / denom) * 100)}%` } as React.CSSProperties}
-                    aria-hidden="true"
-                  />
-                  <span className="nutri-dist-pct">{Math.round((count / denom) * 100)}%</span>
-                  <strong className="nutri-dist-value">{count}</strong>
-                </div>
-              );
-            });
-          })()}
-        </div>
-
-        {/* Streak footer */}
-        {month.currentStreak > 0 && (
-          <p className="nutri-streak">
-            Current streak <span className="tone-good">{month.currentStreak}</span> days
-          </p>
-        )}
       </section>
     </>
   );

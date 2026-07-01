@@ -581,8 +581,8 @@
 
 .hist-pill-pr {
   color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 8%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent);
 }
 
 .hist-pill-gain {

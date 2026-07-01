@@ -147,7 +147,7 @@ function HeroCard({ data, onSaved }: { data: OverviewData | null; onSaved: () =>
           <button type="button" className="nutri-col" aria-label="Edit calories" onClick={() => openEdit("calories")}>
             <span className="nutri-label">Calories</span>
             {hasEntry ? (
-              <MetricValue size="lg" tone={calTone ?? undefined}>{kcalCount.toLocaleString()}</MetricValue>
+              <MetricValue size="lg" className="nutri-val--green">{kcalCount.toLocaleString()}</MetricValue>
             ) : (
               <MetricValue size="lg" className="stat-number--empty">—</MetricValue>
             )}
@@ -200,7 +200,7 @@ function ExerciseRow({ exercise }: { exercise: import("./api").StrengthExercise 
         {isWatch && <span className="ov-th-ex-icon" aria-hidden>⚠</span>}
         {exercise.name}
       </span>
-      <span className={`ov-th-ex-pct${isWatch ? " bad" : ""}`}>{retPct}%</span>
+      <span className="ov-th-ex-pct">{retPct}%</span>
       {isWatch && <span className="ov-th-ex-trend">{fmtTrend(exercise.trend)}</span>}
     </div>
   );
@@ -238,7 +238,7 @@ function TrainingHealthCard({
   if (!hasData) {
     return (
       <button type="button" className="page-card ov-training-health ov-training-health--nav" onClick={onNav}>
-        <span className="ov-th-label">Training</span>
+        <span className="ov-th-label">Training Health</span>
         <p className="ov-no-entry" style={{ textAlign: "left" }}>
           Log at least 4 sessions per exercise to see training health.
         </p>
@@ -253,19 +253,14 @@ function TrainingHealthCard({
           "{N} more on track" toggle below, not this header. */}
       <button type="button" className="ov-th-summary" onClick={onNav}>
         <div className="ov-th-top">
-          <span className="ov-th-label">Training</span>
+          <span className="ov-th-label">Training Health</span>
           <span className="ov-th-chevron" aria-hidden>›</span>
         </div>
 
         {retentionPct !== null && (
           <div className="ov-th-ret-hero">
-            <MetricValue
-              size="xl"
-              tone={retentionPct >= 95 ? "good" : retentionPct >= 85 ? undefined : "bad"}
-            >
-              {retCount}%
-            </MetricValue>
-            <span className="ov-th-ret-sub">Retention</span>
+            <MetricValue size="sm">{retCount}%</MetricValue>
+            <MetricCaption>of tracked lifts on track</MetricCaption>
           </div>
         )}
 
@@ -293,7 +288,12 @@ function TrainingHealthCard({
         onClick={() => setExpanded((v) => !v)}
       >
         {expanded ? "Show less" : `${onTrackExercises.length} more on track`}
-        <span className={`ov-th-toggle-chevron${expanded ? " is-open" : ""}`} aria-hidden>▾</span>
+        <svg
+          className={`ov-th-toggle-chevron${expanded ? " is-open" : ""}`}
+          width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"
+        >
+          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </button>
 
       {expanded && (
@@ -441,15 +441,17 @@ export function OverviewPage() {
           <span className="ov-stat-label">Weight · 7D</span>
           {data?.weightLatest != null ? (
             <>
-              <MetricValue size="sm" unit="kg">{data.weightLatest}</MetricValue>
-              {data.weightWeekAgo != null && (
-                <MetricDelta
-                  value={parseFloat((data.weightLatest - data.weightWeekAgo).toFixed(1))}
-                  higherBetter={false}
-                  decimals={1}
-                  unit="kg"
-                />
-              )}
+              <div className="ov-dual-val-row">
+                <MetricValue size="sm" unit="kg">{data.weightLatest}</MetricValue>
+                {data.weightWeekAgo != null && (
+                  <MetricDelta
+                    value={parseFloat((data.weightLatest - data.weightWeekAgo).toFixed(1))}
+                    higherBetter={false}
+                    decimals={1}
+                    unit="kg"
+                  />
+                )}
+              </div>
             </>
           ) : (
             <span className="ov-stat-val empty">{data ? "—" : "–"}</span>
@@ -464,9 +466,9 @@ export function OverviewPage() {
             <>
               <MetricValue size="sm" unit="kcal">{tdeeCount.toLocaleString()}</MetricValue>
               {data.tdeePrev != null && (
-                // higherBetter — per design call, a rising TDEE reads green here;
-                // it's a deliberate UX choice, not an objective "good".
-                <MetricDelta value={data.tdee - data.tdeePrev} higherBetter threshold={40} />
+                // No higherBetter — TDEE rising or falling isn't good/bad,
+                // so the delta always reads flat/neutral.
+                <MetricDelta value={data.tdee - data.tdeePrev} threshold={40} />
               )}
             </>
           ) : (

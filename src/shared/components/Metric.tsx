@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 /* ── Metric primitives ─────────────────────────────────────────────────────
    One number language for every tab. Composable (not a single config card)
@@ -16,27 +16,22 @@ export type MetricSize = "xl" | "lg" | "sm" | "md";
 export function MetricValue({
   size = "lg",
   unit,
-  tone,
   className,
+  style,
   children,
 }: {
   size?: MetricSize;
   unit?: ReactNode;
-  /** Colour the value itself (e.g. retention <85%). Deltas use MetricDelta. */
-  tone?: "good" | "bad";
   className?: string;
+  /** Fixed identity colour for the handful of metrics that own one (Calories,
+      Protein, Weight, Body Fat, Lean Mass). Every other value stays --ink —
+      no tone-by-state coloring. */
+  style?: CSSProperties;
   children: ReactNode;
 }) {
-  const cls = [
-    "metric-val",
-    `metric-val--${size}`,
-    tone ? `metric-val--${tone}` : "",
-    className ?? "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const cls = ["metric-val", `metric-val--${size}`, className ?? ""].filter(Boolean).join(" ");
   return (
-    <span className={cls}>
+    <span className={cls} style={style}>
       {children}
       {unit != null && <span className="metric-unit">{unit}</span>}
     </span>
