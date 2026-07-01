@@ -248,6 +248,10 @@
   font-weight: 600;
   font-family: var(--font-mono);
   color: var(--ink-3);
+  /* Sized to its content via the `size` attribute (JS) — don't let the flex
+     row shrink it further, so a long exercise name isn't forced to truncate
+     just to make room for a rep-range input wider than its own text. */
+  flex-shrink: 0;
 }
 
 .ex-meta-row {

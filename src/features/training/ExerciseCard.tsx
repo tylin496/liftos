@@ -474,6 +474,7 @@ export function ExerciseCard({
             onBlur={commitMeta}
             placeholder="target"
             aria-label="Target / sets"
+            size={Math.max((metaTarget || "target").length, 4)}
           />
         </div>
         <div className="ex-meta-row">
