@@ -272,14 +272,17 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         const stats = computeStats(allRaw);
         const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
 
-        // Most recent sessions, plus the PR session if it fell outside that window —
+        // allParsed is ascending (oldest→newest); take the tail for the most
+        // recent sessions, plus the PR session if it fell outside that window —
         // early-progression logs aren't useful once we have stats + PR.
         const recentCount = Math.min(logsPerEx, MAX_TRAINING_LOGS_PER_EXERCISE);
-        const sliced = allParsed.slice(0, recentCount);
+        const sliced = allParsed.slice(-recentCount);
         if (stats.best && !sliced.some((e) => e.log.id === stats.best!.log.id)) {
           const prEntry = allParsed.find((e) => e.log.id === stats.best!.log.id);
           if (prEntry) sliced.push(prEntry);
         }
+        // Keep chronological order even when an out-of-window PR was appended.
+        sliced.sort((a, b) => (a.log.log_date ?? "").localeCompare(b.log.log_date ?? ""));
 
         const trendResult = computeTrend(allRaw);
         const bestE1RM = stats.best ? +stats.best.e1rm.toFixed(1) : null;
