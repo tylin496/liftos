@@ -1,10 +1,10 @@
-import { useState } from "react";
 import type { User } from "@shared/lib/auth";
 import { signOut } from "@shared/lib/auth";
 import logoUrl from "@shared/assets/logo.png";
 import type { TabId } from "./TabBar";
 import { useHeaderAction } from "./HeaderActionContext";
 import { useHeaderTitle } from "./HeaderTitleContext";
+import { useSettingsSheet } from "./SettingsSheetContext";
 import { SettingsSheet } from "./SettingsSheet";
 
 const TITLES: Record<TabId, string> = {
@@ -18,7 +18,7 @@ export function Header({ user, tab }: { user: User; tab: TabId }) {
   const avatar = user.user_metadata?.avatar_url as string | undefined;
   const { action } = useHeaderAction();
   const { title } = useHeaderTitle();
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { open: settingsOpen, openSettings, closeSettings } = useSettingsSheet();
 
   // 3-column grid: [left: brand] [center: tab title] [right: actions]
   // Guarantees the tab title is visually centered regardless of action widths.
@@ -39,7 +39,7 @@ export function Header({ user, tab }: { user: User; tab: TabId }) {
         {action}
         <button
           className="shell-gear"
-          onClick={() => setSettingsOpen(true)}
+          onClick={openSettings}
           aria-label="Settings"
         >
           <svg
@@ -67,7 +67,7 @@ export function Header({ user, tab }: { user: User; tab: TabId }) {
           )}
         </button>
       </div>
-      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsSheet open={settingsOpen} onClose={closeSettings} />
     </header>
   );
 }

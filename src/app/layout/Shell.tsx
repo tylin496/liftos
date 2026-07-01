@@ -8,6 +8,8 @@ import { Header } from "./Header";
 import { TabBar, type TabId } from "./TabBar";
 import { HeaderActionProvider } from "./HeaderActionContext";
 import { HeaderTitleProvider } from "./HeaderTitleContext";
+import { SettingsSheetProvider } from "./SettingsSheetContext";
+import { SessionUserProvider } from "./SessionContext";
 import { NavContext } from "./NavContext";
 import { TabActivityContext } from "./TabActivityContext";
 import { ToastProvider } from "@shared/components/Toast";
@@ -195,7 +197,9 @@ export function Shell({ session }: { session: Session }) {
 
   return (
     <ToastProvider>
+    <SessionUserProvider user={session.user}>
     <NutritionConfigProvider>
+    <SettingsSheetProvider>
     <HeaderActionProvider>
       <HeaderTitleProvider>
       <NavContext.Provider value={switchTab}>
@@ -240,7 +244,9 @@ export function Shell({ session }: { session: Session }) {
       </NavContext.Provider>
       </HeaderTitleProvider>
     </HeaderActionProvider>
+    </SettingsSheetProvider>
     </NutritionConfigProvider>
+    </SessionUserProvider>
     </ToastProvider>
   );
 }

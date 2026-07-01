@@ -1,0 +1,96 @@
+.settlement-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  animation: rise-in var(--motion-base) var(--reveal-ease) both;
+}
+
+.sf-input-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--rule);
+  cursor: text;
+}
+
+.sf-input-card:last-of-type { border-bottom: none; }
+
+.sf-label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-3);
+}
+
+.sf-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.sf-row input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-ui);
+  font-size: clamp(36px, 7.6vw, 50px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  color-scheme: dark;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.sf-row input::placeholder { color: var(--ink-4); }
+
+.sf-unit {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+.sf-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.sf-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.sf-delete-link {
+  margin-right: auto;
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--bad);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sf-cancel-link {
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}

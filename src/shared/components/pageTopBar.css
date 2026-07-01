@@ -1,0 +1,56 @@
+.page-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-1);
+}
+
+.page-topbar-eyebrow {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin: 0 0 var(--space-1);
+}
+
+.page-topbar-title {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+}
+
+.page-topbar-avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--accent), var(--bg-soft));
+  transition: transform var(--motion-fast) var(--press-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.page-topbar-avatar:active {
+  transform: scale(var(--tap-scale));
+}
+
+.page-topbar-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.page-topbar-avatar-fallback {
+  color: #fff;
+  font-weight: 700;
+  font-size: var(--text-base);
+}

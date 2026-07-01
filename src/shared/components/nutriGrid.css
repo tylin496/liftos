@@ -1,0 +1,43 @@
+/* 2-column Calories/Protein summary grid — shared by Overview's Hero card
+   and Nutrition's Today card (same underlying daily entry). */
+.nutri-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+}
+
+.nutri-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--motion-fast);
+}
+
+.nutri-col:active { opacity: 0.72; }
+
+.nutri-label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-4);
+}
+
+.nutri-delta {
+  font-size: var(--metric-delta);
+  font-weight: 600;
+}
+
+.nutri-delta.good { color: var(--good); }
+.nutri-delta.bad { color: var(--bad); }
+.nutri-delta.neutral { color: var(--ink-3); }
+
+/* Protein's big stat is a fixed blue tint (not a good/bad tone). */
+.nutri-val--blue { color: var(--blue); }
