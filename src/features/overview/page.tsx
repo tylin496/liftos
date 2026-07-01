@@ -8,6 +8,9 @@ import { ErrorState } from "@shared/components/ErrorState";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
+import { useToast } from "@shared/components/Toast";
+import { saveEntry, getConfig, type NutritionConfig } from "@features/nutrition/api";
+import { defaultLogDate } from "@features/nutrition/logic";
 import "./overview.css";
 
 const MONTH_ABBR = [
@@ -27,21 +30,111 @@ function pct(val: number, target: number): number {
 
 /* ── Hero Card ─────────────────────────────────────────────────────────── */
 
-function HeroCard({ data }: { data: OverviewData | null }) {
-  const today = data?.today;
+function HeroRow({
+  label,
+  unit,
+  editing,
+  value,
+  displayCount,
+  target,
+  pctVal,
+  barsReady,
+  barClass,
+  inputRef,
+  onOpen,
+  onChange,
+  onCommit,
+}: {
+  label: string;
+  unit: string;
+  editing: boolean;
+  value: string;
+  displayCount: number;
+  target: number;
+  pctVal: number;
+  barsReady: boolean;
+  barClass: string;
+  inputRef: React.RefObject<HTMLInputElement>;
+  onOpen: () => void;
+  onChange: (v: string) => void;
+  onCommit: () => void;
+}) {
+  return (
+    <div className="ov-hero-row">
+      <span className="ov-hero-label">{label}</span>
+      <div className="ov-hero-values">
+        {editing ? (
+          <input
+            ref={inputRef}
+            className="ov-hero-input"
+            type="number"
+            inputMode="numeric"
+            value={value}
+            placeholder="0"
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={onCommit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); onCommit(); }
+            }}
+          />
+        ) : (
+          <button type="button" className="ov-hero-num ov-hero-num--edit" onClick={onOpen}>
+            {displayCount.toLocaleString()}
+          </button>
+        )}
+        {target > 0 && (
+          <span className="ov-hero-denom">/ {target.toLocaleString()} {unit}</span>
+        )}
+      </div>
+      {target > 0 && (
+        <div className="ov-bar-track">
+          <div
+            className={`ov-bar-fill ${barClass}${barsReady ? " anim" : ""}${pctVal >= 100 ? " complete" : ""}`}
+            style={{ width: barsReady ? `${pctVal}%` : "0%" }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HeroCard({ data, onSaved }: { data: OverviewData | null; onSaved: () => void }) {
+  const toast = useToast();
   const nutritionTargets = data?.nutritionTargets;
   const tdee = data?.tdee;
 
-  const kcal = today?.calories ?? 0;
-  const protein = today?.protein ?? 0;
+  const savedKcal = data?.today?.calories ?? null;
+  const savedProtein = data?.today?.protein ?? null;
+
+  const [calories, setCalories] = useState("");
+  const [protein, setProtein] = useState("");
+  const [editField, setEditField] = useState<"calories" | "protein" | null>(null);
+  const [saving, setSaving] = useState(false);
+  const configRef = useRef<NutritionConfig | null>(null);
+  const calInputRef = useRef<HTMLInputElement>(null);
+  const protInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync local fields from the saved entry — but never clobber an in-progress
+  // edit. After a save, the refetch flows back here and resets the baseline.
+  useEffect(() => {
+    if (editField !== null) return;
+    setCalories(savedKcal != null ? String(savedKcal) : "");
+    setProtein(savedProtein != null ? String(savedProtein) : "");
+  }, [savedKcal, savedProtein, editField]);
+
+  useEffect(() => {
+    if (editField === "calories") setTimeout(() => calInputRef.current?.select(), 30);
+    else if (editField === "protein") setTimeout(() => protInputRef.current?.select(), 30);
+  }, [editField]);
+
   const kcalTarget = nutritionTargets?.calorieTarget ?? 0;
   const proteinTarget = nutritionTargets?.proteinTarget ?? 0;
 
-  const showBalance = tdee != null && today != null;
-  const balance = showBalance ? kcal - (tdee as number) : 0;
+  const calN = Number(calories) || 0;
+  const protN = Number(protein) || 0;
 
-  const kcalCount = useCountUp(kcal, 400);
-  const proteinCount = useCountUp(protein, 400);
+  const kcalCount = useCountUp(calN, 400);
+  const proteinCount = useCountUp(protN, 400);
 
   const [barsReady, setBarsReady] = useState(false);
   const barRafRef = useRef(0);
@@ -50,57 +143,55 @@ function HeroCard({ data }: { data: OverviewData | null }) {
     return () => cancelAnimationFrame(barRafRef.current);
   }, []);
 
-  const kcalPct = pct(kcal, kcalTarget);
-  const proteinPct = pct(protein, proteinTarget);
+  const hasInput = calories !== "" || protein !== "";
+  const dirty = calN !== (savedKcal ?? 0) || protN !== (savedProtein ?? 0);
+  const showBalance = tdee != null && hasInput;
+  const balance = showBalance ? calN - (tdee as number) : 0;
 
-  if (data && !today && !nutritionTargets) {
-    return (
-      <section className="page-card ov-hero">
-        <p className="ov-hero-eyebrow">Today · {fmtDate()}</p>
-        <p className="ov-no-entry">No entry yet — log your first meal in Nutrition.</p>
-      </section>
-    );
+  async function handleSave() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      if (!configRef.current) configRef.current = await getConfig();
+      await saveEntry(defaultLogDate(), { calories: calN, protein: protN }, configRef.current);
+      setEditField(null);
+      if (navigator.vibrate) navigator.vibrate([18, 30, 18]);
+      onSaved();
+      toast("Logged", "success");
+    } catch (e) {
+      toast(String((e as Error)?.message ?? e), "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <section className="page-card ov-hero">
       <p className="ov-hero-eyebrow">Today · {fmtDate()}</p>
 
-      <div className="ov-hero-row">
-        <span className="ov-hero-label">Calories</span>
-        <div className="ov-hero-values">
-          <span className="ov-hero-num">{kcalCount.toLocaleString()}</span>
-          {kcalTarget > 0 && (
-            <span className="ov-hero-denom">/ {kcalTarget.toLocaleString()} kcal</span>
-          )}
-        </div>
-        {kcalTarget > 0 && (
-          <div className="ov-bar-track">
-            <div
-              className={`ov-bar-fill calorie${barsReady ? " anim" : ""}${kcalPct >= 100 ? " complete" : ""}`}
-              style={{ width: barsReady ? `${kcalPct}%` : "0%" }}
-            />
-          </div>
-        )}
-      </div>
+      <HeroRow
+        label="Calories" unit="kcal"
+        editing={editField === "calories"}
+        value={calories} displayCount={kcalCount}
+        target={kcalTarget} pctVal={pct(calN, kcalTarget)}
+        barsReady={barsReady} barClass="calorie"
+        inputRef={calInputRef}
+        onOpen={() => setEditField("calories")}
+        onChange={setCalories}
+        onCommit={() => setEditField(null)}
+      />
 
-      <div className="ov-hero-row">
-        <span className="ov-hero-label">Protein</span>
-        <div className="ov-hero-values">
-          <span className="ov-hero-num">{proteinCount}</span>
-          {proteinTarget > 0 && (
-            <span className="ov-hero-denom">/ {proteinTarget} g</span>
-          )}
-        </div>
-        {proteinTarget > 0 && (
-          <div className="ov-bar-track">
-            <div
-              className={`ov-bar-fill protein${barsReady ? " anim" : ""}${proteinPct >= 100 ? " complete" : ""}`}
-              style={{ width: barsReady ? `${proteinPct}%` : "0%" }}
-            />
-          </div>
-        )}
-      </div>
+      <HeroRow
+        label="Protein" unit="g"
+        editing={editField === "protein"}
+        value={protein} displayCount={proteinCount}
+        target={proteinTarget} pctVal={pct(protN, proteinTarget)}
+        barsReady={barsReady} barClass="protein"
+        inputRef={protInputRef}
+        onOpen={() => setEditField("protein")}
+        onChange={setProtein}
+        onCommit={() => setEditField(null)}
+      />
 
       {showBalance && (
         <div className="ov-hero-balance">
@@ -110,6 +201,12 @@ function HeroCard({ data }: { data: OverviewData | null }) {
             {Math.abs(balance).toLocaleString()} kcal
           </span>
         </div>
+      )}
+
+      {dirty && (
+        <button type="button" className="ov-hero-save" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving…" : savedKcal == null && savedProtein == null ? "Log today" : "Update"}
+        </button>
       )}
     </section>
   );
@@ -351,13 +448,14 @@ export function OverviewPage() {
   const [error, setError] = useState<string | null>(null);
   const activity = useTabActivity();
   const nav = useNav();
+  const [refreshKey, setRefreshKey] = useState(0);
   const tdeeCount = useCountUp(data?.tdee ?? 0, 500);
 
   useEffect(() => {
     fetchOverview()
       .then(setData)
       .catch((e) => setError(String(e?.message ?? e)));
-  }, [activity]);
+  }, [activity, refreshKey]);
 
   useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
 
@@ -371,7 +469,7 @@ export function OverviewPage() {
 
   return (
     <div className="page">
-      <HeroCard data={data} />
+      <HeroCard data={data} onSaved={() => setRefreshKey((k) => k + 1)} />
 
       <div className="ov-grid-2">
         <button type="button" className="ov-stat" onClick={() => nav("health")}>

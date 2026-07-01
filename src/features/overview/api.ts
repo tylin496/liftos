@@ -5,13 +5,10 @@ import { computeRecovery, type RecoverySnapshot } from "@features/health/math";
 import type { BodyMetric } from "@features/health/api";
 import { parse, score } from "@features/training/parser";
 import { epley1RM } from "@features/training/logic";
-import { localDateStr, localDateStrDaysAgo } from "@shared/lib/date";
+import { localDateStrDaysAgo } from "@shared/lib/date";
+import { defaultLogDate } from "@features/nutrition/logic";
 
 type NutritionEntry = Database["public"]["Tables"]["nutrition_entries"]["Row"];
-
-function isoToday(): string {
-  return localDateStr();
-}
 
 function sinceDate(days: number): string {
   return localDateStrDaysAgo(days);
@@ -86,7 +83,7 @@ function compoundPct(slugLogs: Array<{ log_date: string | null; raw: string | nu
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
-  const today = isoToday();
+  const today = defaultLogDate();
   const weekAgo = sinceDate(7);
 
   const [entryRes, configRes, metricsRes, logsRes, pullFirstRes, rowFirstRes] = await Promise.all([

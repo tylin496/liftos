@@ -88,6 +88,57 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Tappable number — same look as .ov-hero-num, but signals it's editable */
+.ov-hero-num--edit {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* Inline editor — mirrors the hero number so tapping feels in-place */
+.ov-hero-input {
+  font-family: var(--font-mono);
+  font-size: var(--text-4xl);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  width: 4ch;
+  padding: 0;
+  border: none;
+  border-bottom: 2px solid var(--accent);
+  background: none;
+  outline: none;
+}
+
+/* Strip number-spinner chrome */
+.ov-hero-input::-webkit-outer-spin-button,
+.ov-hero-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.ov-hero-save {
+  margin-top: var(--space-4);
+  width: 100%;
+  padding: var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ov-hero-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 /* ─── Progress bars ──────────────────────────────────────────────────────── */
 
 .ov-bar-track {
