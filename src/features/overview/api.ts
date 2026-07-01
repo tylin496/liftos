@@ -6,7 +6,8 @@ import type { BodyMetric } from "@features/health/api";
 import { parse, score } from "@features/training/parser";
 import { epley1RM } from "@features/training/logic";
 import { localDateStrDaysAgo } from "@shared/lib/date";
-import { defaultLogDate } from "@features/nutrition/logic";
+import { defaultLogDate, DEFAULTS } from "@features/nutrition/logic";
+import { targetsFromConfig } from "@features/nutrition/api";
 
 type NutritionEntry = Database["public"]["Tables"]["nutrition_entries"]["Row"];
 
@@ -46,7 +47,12 @@ export interface CompoundProgress {
 
 export interface OverviewData {
   today: NutritionEntry | null;
-  nutritionTargets: { calorieTarget: number; proteinTarget: number } | null;
+  nutritionTargets: {
+    calorieTarget: number;
+    proteinTarget: number;
+    tdeeTarget: number;
+    deficitTarget: number;
+  } | null;
   weightLatest: number | null;
   weightWeekAgo: number | null;
   tdee: number | null;
@@ -94,7 +100,7 @@ export async function fetchOverview(): Promise<OverviewData> {
       .maybeSingle(),
     supabase
       .from("nutrition_config")
-      .select("calorie_target, protein_target")
+      .select("tdee, protein_target, phase_deficits")
       .maybeSingle(),
     supabase
       .from("health_metrics")
@@ -124,22 +130,31 @@ export async function fetchOverview(): Promise<OverviewData> {
       .maybeSingle(),
   ]);
 
-  // Nutrition
+  // Nutrition — reuse Nutrition's own target derivation so Overview's Hero
+  // card can compute the exact same on-plan/over/surplus state as Nutrition's
+  // Today card (same underlying daily entry, same feedback).
   const todayEntry = entryRes.data ?? null;
   let nutritionTargets: OverviewData["nutritionTargets"] = null;
   if (todayEntry) {
     nutritionTargets = {
       calorieTarget: todayEntry.calorie_target ?? 0,
       proteinTarget: todayEntry.protein_target ?? 0,
+      tdeeTarget: todayEntry.tdee ?? DEFAULTS.tdee,
+      deficitTarget: todayEntry.deficit_target ?? DEFAULTS.deficitTarget,
     };
   } else if (configRes.data) {
-    const cfg = configRes.data as { calorie_target?: number; protein_target?: number };
-    if (cfg.calorie_target || cfg.protein_target) {
-      nutritionTargets = {
-        calorieTarget: cfg.calorie_target ?? 0,
-        proteinTarget: cfg.protein_target ?? 0,
-      };
-    }
+    const t = targetsFromConfig(
+      configRes.data as Pick<
+        Database["public"]["Tables"]["nutrition_config"]["Row"],
+        "tdee" | "protein_target" | "phase_deficits"
+      > as Database["public"]["Tables"]["nutrition_config"]["Row"],
+    );
+    nutritionTargets = {
+      calorieTarget: t.calorieTarget,
+      proteinTarget: t.proteinTarget,
+      tdeeTarget: t.tdee,
+      deficitTarget: t.deficitTarget,
+    };
   }
 
   // Weight

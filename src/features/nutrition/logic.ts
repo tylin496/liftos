@@ -90,6 +90,43 @@ export function getProteinResult(
   };
 }
 
+// ── Daily card copy — shared by Overview's Hero card and Nutrition's Today
+// card (same underlying daily entry, so the same feedback language). Only
+// meaningful once an entry exists; callers gate on `hasEntry` themselves and
+// skip rendering when these return "" / null. ──────────────────────────────
+
+export function calorieTone(hasEntry: boolean, calResult: CalorieResult): "good" | "bad" | null {
+  if (!hasEntry) return null;
+  if (calResult.isSurplus || calResult.state === "extreme") return "bad";
+  if (calResult.state === "on-plan") return "good";
+  return null;
+}
+
+export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficitTarget: number): string {
+  if (!hasEntry) return "";
+  if (calResult.isSurplus) return `+${calResult.surplus.toLocaleString()} kcal surplus`;
+  if (calResult.state === "under") {
+    const short = deficitTarget - calResult.deficit;
+    return `${short.toLocaleString()} kcal short`;
+  }
+  if (calResult.state === "on-plan") return "✓ On Plan";
+  if (calResult.state === "over") {
+    const below = calResult.deficit - deficitTarget;
+    return `${below.toLocaleString()} kcal below budget`;
+  }
+  if (calResult.state === "extreme") return "Well below target";
+  return "";
+}
+
+// Protein is a one-sided floor: only the shortfall drives a decision (eat
+// more). Above the target there's nothing to act on, so we don't dress
+// "over" up as a delta — just how much more, or done.
+export function proteinNote(hasEntry: boolean, protNum: number, proteinTarget: number): string {
+  if (!hasEntry) return "";
+  const gap = proteinTarget - protNum;
+  return gap > 0 ? `${gap}g to go` : "✓ Target met";
+}
+
 // ── Aggregations (weekly trend, monthly adherence) ─────────────────────────
 
 export interface DayInput {

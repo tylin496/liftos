@@ -707,19 +707,11 @@
 /* ── Copy button ─────────────────────────────────────────────────────── */
 /* ── Stat grid ───────────────────────────────────────────────────────── */
 /* Layout is the shared .nutri-grid (shared/components/nutriGrid.css); values
-   render via the shared metric-val/metric-unit/metric-caption classes. */
-
-/* Empty stat cell: same column layout as a filled one so the card height
-   doesn't jump when an entry is logged — only the number is dimmed to "—". */
-.stat-number--empty {
-  color: var(--ink-4);
-}
+   render via the shared metric-val/metric-caption classes.
+   .stat-number--empty base rule lives in shared/components/nutriGrid.css
+   (shared with Overview's Hero card). */
 
 /* Skeleton loading overlay for the stat grid */
-.daily-card.loading-card .metric-unit {
-  visibility: hidden;
-}
-
 .daily-card.loading-card .metric-val,
 .daily-card.loading-card .stat-number--empty {
   color: transparent !important;

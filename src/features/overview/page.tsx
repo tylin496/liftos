@@ -14,7 +14,14 @@ import { useNav } from "@app/layout/NavContext";
 import { useSessionUser } from "@app/layout/SessionContext";
 import { useToast } from "@shared/components/Toast";
 import { saveEntry, deleteEntry, getConfig, type NutritionConfig } from "@features/nutrition/api";
-import { defaultLogDate } from "@features/nutrition/logic";
+import {
+  defaultLogDate,
+  getCalorieResult,
+  getProteinResult,
+  calorieTone,
+  calorieNote,
+  proteinNote,
+} from "@features/nutrition/logic";
 import "./overview.css";
 
 const MONTH_ABBR = [
@@ -65,6 +72,8 @@ function HeroCard({ data, onSaved }: { data: OverviewData | null; onSaved: () =>
 
   const kcalTarget = nutritionTargets?.calorieTarget ?? 0;
   const proteinTarget = nutritionTargets?.proteinTarget ?? 0;
+  const deficitTarget = nutritionTargets?.deficitTarget ?? 0;
+  const tdeeTarget = nutritionTargets?.tdeeTarget ?? 0;
 
   const calN = Number(calories) || 0;
   const protN = Number(protein) || 0;
@@ -72,8 +81,13 @@ function HeroCard({ data, onSaved }: { data: OverviewData | null; onSaved: () =>
   const kcalCount = useCountUp(calN, 400);
   const proteinCount = useCountUp(protN, 400);
 
-  const kcalRemaining = kcalTarget > 0 ? kcalTarget - calN : null;
-  const proteinGap = proteinTarget > 0 ? proteinTarget - protN : null;
+  // Same on-plan/over/surplus feedback as Nutrition's Today card — same
+  // underlying daily entry, so the same language.
+  const calResult = getCalorieResult(calN, tdeeTarget, deficitTarget);
+  const protResult = getProteinResult(protN, proteinTarget);
+  const calTone = calorieTone(hasEntry, calResult);
+  const calNote = calorieNote(hasEntry, calResult, deficitTarget);
+  const protNote = proteinNote(hasEntry, protN, proteinTarget);
 
   function openEdit(f: MacroField) {
     setField(f);
@@ -133,23 +147,26 @@ function HeroCard({ data, onSaved }: { data: OverviewData | null; onSaved: () =>
         <div className="nutri-grid">
           <button type="button" className="nutri-col" aria-label="Edit calories" onClick={() => openEdit("calories")}>
             <span className="nutri-label">Calories</span>
-            <MetricValue size="lg" tone="good">{kcalCount.toLocaleString()}</MetricValue>
+            {hasEntry ? (
+              <MetricValue size="lg" tone={calTone ?? undefined}>{kcalCount.toLocaleString()}</MetricValue>
+            ) : (
+              <MetricValue size="lg" className="stat-number--empty">—</MetricValue>
+            )}
             {kcalTarget > 0 && <MetricCaption>of {kcalTarget.toLocaleString()} kcal</MetricCaption>}
-            {kcalRemaining != null && (
-              <span className={`nutri-delta ${kcalRemaining >= 0 ? "good" : "bad"}`}>
-                {kcalRemaining >= 0 ? "−" : "+"}{Math.abs(kcalRemaining).toLocaleString()}{" "}
-                {kcalRemaining >= 0 ? "remaining" : "over"}
-              </span>
+            {calNote && (
+              <span className={`nutri-delta ${calTone ?? "neutral"}`}>{calNote}</span>
             )}
           </button>
           <button type="button" className="nutri-col" aria-label="Edit protein" onClick={() => openEdit("protein")}>
             <span className="nutri-label">Protein</span>
-            <MetricValue size="lg" className="nutri-val--blue">{proteinCount}</MetricValue>
+            {hasEntry ? (
+              <MetricValue size="lg" className="nutri-val--blue">{proteinCount}</MetricValue>
+            ) : (
+              <MetricValue size="lg" className="stat-number--empty">—</MetricValue>
+            )}
             {proteinTarget > 0 && <MetricCaption>of {proteinTarget} g</MetricCaption>}
-            {proteinGap != null && (
-              <span className="nutri-delta neutral">
-                {proteinGap > 0 ? `${proteinGap}g to floor` : "✓ Target met"}
-              </span>
+            {protNote && (
+              <span className={`nutri-delta ${protResult.celebrated ? "good" : "neutral"}`}>{protNote}</span>
             )}
           </button>
         </div>

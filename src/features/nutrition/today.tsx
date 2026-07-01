@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getEntry, saveEntry, deleteEntry, targetsFromConfig, type NutritionConfig } from "./api";
-import { defaultLogDate, getCalorieResult, getProteinResult, toDateStr } from "./logic";
+import {
+  defaultLogDate,
+  getCalorieResult,
+  getProteinResult,
+  calorieTone,
+  calorieNote,
+  proteinNote,
+  toDateStr,
+} from "./logic";
 import { useToast } from "@shared/components/Toast";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
@@ -270,6 +278,12 @@ export function TodayView({
   const [editField, setEditField] = useState<MacroField | null>(null);
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
+  // Whether a *saved* entry exists for this date — distinct from the
+  // calories/protein edit buffer above, which changes on every keystroke.
+  // Basing "hasEntry" on the buffer would flip it true the moment someone
+  // starts typing a brand-new entry, prematurely showing "Update entry" /
+  // "Delete entry" before anything's actually been saved.
+  const [entryExists, setEntryExists] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -299,6 +313,7 @@ export function TodayView({
         clearTimeout(skeletonTimer);
         setCalories(entry?.calories != null ? String(entry.calories) : "");
         setProtein(entry?.protein != null ? String(entry.protein) : "");
+        setEntryExists(entry?.calories != null || entry?.protein != null);
         setLoading(false);
         if (!isNavigating.current) pendingCountUp.current = true;
         isNavigating.current = false;
@@ -411,7 +426,7 @@ export function TodayView({
   const targets = useMemo(() => targetsFromConfig(config), [config]);
   const calNum = Number(calories) || 0;
   const protNum = Number(protein) || 0;
-  const hasEntry = calories !== "" || protein !== "";
+  const hasEntry = entryExists;
   const calResult = getCalorieResult(calNum, targets.tdee, targets.deficitTarget);
   const protResult = getProteinResult(protNum, targets.proteinTarget);
   const doubleHit = calResult.state === "on-plan" && protResult.celebrated;
@@ -439,6 +454,7 @@ export function TodayView({
       setTimeout(() => setSavedPulse(false), 750);
       haptic("success");
       setEditField(null);
+      setEntryExists(true);
       pendingCountUp.current = true;
       onSaved?.();
 
@@ -462,6 +478,7 @@ export function TodayView({
     let undone = false;
     setCalories("");
     setProtein("");
+    setEntryExists(false);
     setEditField(null);
     haptic("warning");
     const commit = setTimeout(async () => {
@@ -473,6 +490,7 @@ export function TodayView({
       } catch (e) {
         setCalories(prevCalories);
         setProtein(prevProtein);
+        setEntryExists(true);
         haptic("error");
         toast(String((e as Error)?.message ?? e), "error");
       } finally {
@@ -486,43 +504,16 @@ export function TodayView({
         clearTimeout(commit);
         setCalories(prevCalories);
         setProtein(prevProtein);
+        setEntryExists(true);
       },
     });
   }
 
-  // Calorie note
-  const calNote = (() => {
-    if (!hasEntry) return `Target ${targets.calorieTarget.toLocaleString()} kcal`;
-    if (calResult.isSurplus) return `+${calResult.surplus.toLocaleString()} kcal surplus`;
-    if (calResult.state === "under") {
-      const short = targets.deficitTarget - calResult.deficit;
-      return `${short.toLocaleString()} kcal short`;
-    }
-    if (calResult.state === "on-plan") return "✓ On Plan";
-    if (calResult.state === "over") {
-      const below = calResult.deficit - targets.deficitTarget;
-      return `${below.toLocaleString()} kcal below budget`;
-    }
-    if (calResult.state === "extreme") return "Well below target";
-    return "";
-  })();
-
-  // Protein note — protein is a one-sided floor: only the shortfall drives a
-  // decision (eat more). Above the target there's nothing to act on, so we
-  // don't dress "over" up as a delta. Just: how much more, or done.
-  const protNote = (() => {
-    if (!hasEntry) return `Target ${targets.proteinTarget}g`;
-    const gap = targets.proteinTarget - protNum;
-    if (gap > 0) return `${gap}g to go`;
-    return "✓ Target met";
-  })();
-
-  const calTone = hasEntry
-    ? calResult.isSurplus ? "tone-bad"
-    : calResult.state === "extreme" ? "tone-bad"
-    : calResult.state === "on-plan" ? "tone-good"
-    : ""
-    : "";
+  // Same note/tone language as Overview's Hero card — same underlying daily
+  // entry, so the same feedback (shared/features/nutrition/logic.ts).
+  const calNote = calorieNote(hasEntry, calResult, targets.deficitTarget);
+  const protNote = proteinNote(hasEntry, protNum, targets.proteinTarget);
+  const calToneVal = calorieTone(hasEntry, calResult);
 
   // Day status badge (Today card, top-right). A pill only earns its place when
   // it says something the per-row notes don't. "On Plan"/"Surplus"/"Low"/
@@ -626,49 +617,34 @@ export function TodayView({
             hasEntry={hasEntry}
           />
         ) : (
-          /* ── Stat grid ── */
+          /* ── Stat grid — same layout/copy as Overview's Hero card ── */
           <div className="nutri-grid">
             <button type="button" className="nutri-col" aria-label="Edit calories" onClick={() => openEdit("calories")}>
               <span className="nutri-label">Calories</span>
               {hasEntry ? (
-                <>
-                  <span className="metric-val metric-val--lg">
-                    <span ref={calNumRef} className={calTone}>{calNum.toLocaleString()}</span>
-                    <span className="metric-unit">kcal</span>
-                  </span>
-                  <MetricCaption className={calResult.isSurplus || calResult.state === "extreme" ? "tone-bad" : calResult.state === "on-plan" ? "tone-good" : ""}>
-                    {calNote}
-                  </MetricCaption>
-                </>
+                <span
+                  ref={calNumRef}
+                  className={`metric-val metric-val--lg${calToneVal ? ` metric-val--${calToneVal}` : ""}`}
+                >
+                  {calNum.toLocaleString()}
+                </span>
               ) : (
-                <>
-                  <span className="metric-val metric-val--lg">
-                    <span className="stat-number--empty">—</span>
-                    <span className="metric-unit">kcal</span>
-                  </span>
-                  <MetricCaption>Target {targets.calorieTarget.toLocaleString()} kcal</MetricCaption>
-                </>
+                <span className="metric-val metric-val--lg stat-number--empty">—</span>
               )}
+              {targets.calorieTarget > 0 && <MetricCaption>of {targets.calorieTarget.toLocaleString()} kcal</MetricCaption>}
+              {calNote && <span className={`nutri-delta ${calToneVal ?? "neutral"}`}>{calNote}</span>}
             </button>
             <button type="button" className="nutri-col" aria-label="Edit protein" onClick={() => openEdit("protein")}>
               <span className="nutri-label">Protein</span>
               {hasEntry ? (
-                <>
-                  <span className="metric-val metric-val--lg nutri-val--blue">
-                    <span ref={protNumRef}>{protNum}</span>
-                    <span className="metric-unit">g</span>
-                  </span>
-                  <MetricCaption className={protResult.celebrated ? "tone-good" : ""}>{protNote}</MetricCaption>
-                </>
+                <span ref={protNumRef} className="metric-val metric-val--lg nutri-val--blue">
+                  {protNum}
+                </span>
               ) : (
-                <>
-                  <span className="metric-val metric-val--lg">
-                    <span className="stat-number--empty">—</span>
-                    <span className="metric-unit">g</span>
-                  </span>
-                  <MetricCaption>Target {targets.proteinTarget}g</MetricCaption>
-                </>
+                <span className="metric-val metric-val--lg stat-number--empty">—</span>
               )}
+              {targets.proteinTarget > 0 && <MetricCaption>of {targets.proteinTarget}g</MetricCaption>}
+              {protNote && <span className={`nutri-delta ${protResult.celebrated ? "good" : "neutral"}`}>{protNote}</span>}
             </button>
           </div>
         )}

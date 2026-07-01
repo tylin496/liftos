@@ -41,3 +41,7 @@
 
 /* Protein's big stat is a fixed blue tint (not a good/bad tone). */
 .nutri-val--blue { color: var(--blue); }
+
+/* Empty stat cell: same column layout as a filled one so the card height
+   doesn't jump when an entry is logged — only the number is dimmed to "—". */
+.stat-number--empty { color: var(--ink-4); }
