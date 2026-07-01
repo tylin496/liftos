@@ -123,7 +123,7 @@ button.copy-all-data-btn {
 }
 
 .page-topbar-avatar-fallback {
-  color: #fff;
+  color: var(--on-color);
   font-weight: 700;
   font-size: var(--text-base);
 }

@@ -49,7 +49,7 @@
   height: 40px;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--ink-4) 8%, transparent);
-  animation: skel-fade 1.6s ease-in-out infinite;
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite;
 }
 
 .health-trend-range {
@@ -75,7 +75,7 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade 1.6s ease-in-out infinite !important;
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
 }
 
 .health-trend.loading-card .health-metric-val {

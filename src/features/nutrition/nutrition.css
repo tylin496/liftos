@@ -62,38 +62,59 @@
 
 .ni-rec-headline {
   margin: 0;
-  font-size: var(--text-xl);
+  font-size: var(--text-2xl);
   font-weight: var(--role-card-headline-weight);
   line-height: 1.2;
   color: var(--ink);
 }
 
-.ni-rec-targets {
+/* Current → New target progression — only the new target is coloured. */
+.ni-prog {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-6);
+  align-items: baseline;
+  gap: var(--space-2);
 }
 
-.ni-rec-field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.ni-rec-key {
-  font-size: var(--role-caption-size);
-  font-weight: var(--role-caption-weight);
-  color: var(--role-caption-color);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.ni-rec-target {
+.ni-prog-current {
   font-family: var(--font-mono);
   font-size: var(--text-lg);
   font-weight: 700;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
+}
+
+.ni-prog-arrow {
+  font-size: var(--text-base);
+  color: var(--ink-4);
+}
+
+.ni-prog-new {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* One-shot pulse when a *new* recommended target appears — draws the eye to the
+   thing to act on. Added in JS only when the value changed, removed on
+   animationend; reduced-motion never triggers it. */
+@keyframes ni-target-attention {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+.ni-prog-new.is-fresh {
+  animation: ni-target-attention var(--motion-slow) var(--reveal-ease);
+}
+
+.ni-prog-hold {
+  font-size: var(--role-caption-size);
+  font-weight: 700;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .ni-rec-reason {
@@ -111,14 +132,6 @@
   gap: var(--space-3);
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
-}
-
-.ni-evidence-label {
-  font-size: var(--role-section-title-size);
-  font-weight: var(--role-section-title-weight);
-  letter-spacing: var(--role-section-title-spacing);
-  text-transform: uppercase;
-  color: var(--role-section-title-color);
 }
 
 .ni-grid {
@@ -313,7 +326,7 @@
   border: none;
   border-radius: var(--radius-sm);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-color);
   font-size: var(--text-base);
   font-weight: 700;
   transition: transform var(--motion-fast) var(--press-ease), opacity var(--motion-fast);
@@ -500,7 +513,7 @@
 
 .ncal-day.is-selected {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-color);
 }
 
 .ncal-day.is-today:not(.is-selected) {
@@ -598,12 +611,18 @@
 
 /* KPI value + unit now render via the shared <MetricValue size="md">. */
 
-/* ── Week nav — ‹ › chevrons flanking the week-range title ───────────── */
+/* ── This Week header — two-level: eyebrow+badge row, nav row below ──── */
 .hist-week-head {
-  display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: var(--space-1);
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.hist-week-toprow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .hist-week-nav {
@@ -611,6 +630,7 @@
   align-items: center;
   justify-content: flex-start;
   gap: var(--space-2);
+  width: 100%;
 }
 
 .hist-week-range {
@@ -627,25 +647,51 @@
   transform: scale(var(--tap-scale));
 }
 
-.hist-week-chevron {
+.hist-week-range-inner {
+  display: inline-block;
+}
+
+.hist-week-range-inner.slide-forward {
+  animation: week-slide-from-right var(--motion-base) var(--move-ease);
+}
+
+.hist-week-range-inner.slide-backward {
+  animation: week-slide-from-left var(--motion-base) var(--move-ease);
+}
+
+@keyframes week-slide-from-right {
+  from { transform: translateX(12px); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes week-slide-from-left {
+  from { transform: translateX(-12px); }
+  to   { transform: translateX(0); }
+}
+
+.hist-week-nav button.hist-week-chevron {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 24px;
   height: 24px;
   border: none;
   background: none;
   padding: 0;
-  font-size: var(--text-lg);
   line-height: 1;
   color: var(--ink-3);
-  border-radius: var(--radius-sm);
+}
+
+.hist-week-chevron svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
 }
 
 .hist-week-chevron:active { transform: scale(var(--tap-scale)); }
 
 .hist-week-chevron:disabled {
-  opacity: 0.3;
   pointer-events: none;
 }
 
@@ -774,7 +820,7 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade 1.6s ease-in-out infinite !important;
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
 }
 
 /* ── Inline settlement form ──────────────────────────────────────────── */
@@ -893,11 +939,7 @@
 }
 
 .ntb-bar-kcal {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, #63e195 58%, var(--bg-soft)),
-    color-mix(in srgb, #34c759 58%, var(--bg-soft))
-  );
+  background: color-mix(in srgb, var(--good) 58%, var(--bg-soft));
 }
 
 .ntb-bar-kcal.surplus {
@@ -911,28 +953,28 @@
 .ntb-bar-prot {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, #5ac8fa 58%, var(--bg-soft)),
+    color-mix(in srgb, color-mix(in srgb, var(--blue) 70%, white) 58%, var(--bg-soft)),
     color-mix(in srgb, var(--blue) 58%, var(--bg-soft))
   );
 }
 
 /* Selected day: vivid colours + glow */
 .nutri-trend-col.is-selected .ntb-bar-kcal {
-  background: linear-gradient(180deg, #63e195, #34c759);
+  background: var(--good);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, #ffffff 28%, transparent),
-    0 6px 13px color-mix(in srgb, #34c759 14%, transparent);
+    0 6px 13px color-mix(in srgb, var(--good) 14%, transparent);
 }
 
 .nutri-trend-col.is-selected .ntb-bar-kcal.surplus {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bad) 75%, #ffb0a6), var(--bad));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bad) 55%, white), var(--bad));
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, #ffffff 22%, transparent),
     0 6px 13px color-mix(in srgb, var(--bad) 17%, transparent);
 }
 
 .nutri-trend-col.is-selected .ntb-bar-prot {
-  background: linear-gradient(180deg, #5ac8fa, var(--blue));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--blue) 70%, white), var(--blue));
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, #ffffff 34%, transparent),
     0 6px 14px color-mix(in srgb, var(--blue) 16%, transparent);
@@ -1033,28 +1075,6 @@
 .daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--reveal-ease) both; }
 .daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--reveal-ease) both; }
 
-/* ── Week range odometer ───────────────────────────────────────────────
-   Only the date-range label rolls vertically like a mechanical counter —
-   the surrounding chevrons/KPI row/card stay put (no whole-card slide). */
-.hist-week-range {
-  overflow: hidden;
-}
-
-.hist-week-range-roll {
-  display: inline-block;
-}
-
-@keyframes week-roll-up {
-  from { transform: translateY(65%); }
-  to   { transform: translateY(0); }
-}
-@keyframes week-roll-down {
-  from { transform: translateY(-65%); }
-  to   { transform: translateY(0); }
-}
-.hist-week-range-roll.roll-forward  { animation: week-roll-up   var(--motion-slow) var(--reveal-ease) both; }
-.hist-week-range-roll.roll-backward { animation: week-roll-down var(--motion-slow) var(--reveal-ease) both; }
-
 /* ── Nutrition loading skeletons ─────────────────────────────────────── */
 /* Week bars skeleton */
 .nutri-skel-week-bars {
@@ -1100,5 +1120,5 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade 1.6s ease-in-out infinite !important;
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
 }

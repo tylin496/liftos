@@ -68,6 +68,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
         aria-modal
         aria-label="Settings"
       >
+        <div className="settings-sheet-grabber" aria-hidden />
         <div className="settings-sheet-header">
           <span className="settings-sheet-title">Settings</span>
           <button className="settings-sheet-close" onClick={onClose} aria-label="Close">
@@ -96,7 +97,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
             <span className="prog-auto-deficit">−{liveDeficit.toLocaleString()} kcal deficit</span>
           </div>
 
-          <p className="settings-section-label" style={{ marginTop: "var(--space-4)" }}>Profile</p>
+          <p className="settings-section-label settings-section-label--spaced">Profile</p>
 
           <label className="nutri-field">
             <span>Height (cm)</span>

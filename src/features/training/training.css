@@ -325,7 +325,7 @@
 .img-lightbox {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--scrim-strong);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -385,7 +385,7 @@
     transparent 60%
   );
   background-size: 200% 100%;
-  animation: pr-sheen 1s ease forwards;
+  animation: pr-sheen var(--motion-sheen) ease forwards;
   pointer-events: none;
 }
 
@@ -537,7 +537,7 @@
 
 .hist-row.hist-row-saved {
   border-radius: var(--radius-sm);
-  animation: row-saved 1.2s ease forwards;
+  animation: row-saved var(--motion-sheen) ease forwards;
 }
 
 .hist-date {
@@ -1018,7 +1018,7 @@
   border: none;
   border-radius: var(--radius-sm);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-color);
   font-family: var(--font-ui);
   font-size: var(--text-base);
   font-weight: 700;
@@ -1520,8 +1520,8 @@
   height: 24px;
   border: none;
   border-radius: var(--radius-pill);
-  background: rgba(0, 0, 0, 0.35);
-  color: #fff;
+  background: var(--scrim-bg);
+  color: var(--on-color);
   font-size: var(--text-sm);
   display: flex;
   align-items: center;
@@ -1581,7 +1581,7 @@
 
 .stretch-edit-actions button:first-child {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-color);
 }
 
 .stretch-edit-actions button:last-child {
@@ -1620,7 +1620,7 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade 1.6s ease-in-out infinite !important;
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
 }
 
 /* ─── Stagnation / Strength Retention Badge ────────────────────────────────── */
@@ -1699,18 +1699,14 @@
 }
 
 /* Status color variants */
-.stagnation-excellent .stagnation-label { background: #dff2e8; color: #1a6e3a; }
-.stagnation-on-track .stagnation-label  { background: #dce8f5; color: #2a5580; }
-.stagnation-watch .stagnation-label     { background: transparent; border: 1.5px solid color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
-.stagnation-review .stagnation-label    { background: #fde8e8; color: #b52828; }
-.stagnation-rebuilding .stagnation-label { background: #d9f0ef; color: #14706b; }
+.stagnation-excellent .stagnation-label { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.stagnation-on-track .stagnation-label  { background: color-mix(in srgb, var(--blue) 18%, transparent); color: var(--blue); }
+.stagnation-watch .stagnation-label     { background: transparent; border: 1.5px solid color-mix(in srgb, var(--gold) 55%, transparent); color: var(--gold); }
+.stagnation-review .stagnation-label    { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+.stagnation-rebuilding .stagnation-label { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); }
 
 @media (prefers-color-scheme: dark) {
-  .stagnation-excellent .stagnation-label { background: rgba(45,138,78,0.18);   color: #4cd476; }
-  .stagnation-on-track .stagnation-label  { background: rgba(10,132,255,0.15);  color: #6ab4ff; }
-  .stagnation-watch .stagnation-label     { background: var(--accent-glow);     border: none;   color: var(--accent); }
-  .stagnation-review .stagnation-label    { background: rgba(255,107,107,0.15); color: #ff6b6b; }
-  .stagnation-rebuilding .stagnation-label { background: rgba(45,212,191,0.15);  color: #5eead4; }
+  .stagnation-watch .stagnation-label     { background: color-mix(in srgb, var(--gold) 18%, transparent); border: none; color: var(--gold); }
 }
 
 .stagnation-trend {
@@ -1724,7 +1720,7 @@
 .stagnation-trend-recovering { color: var(--ink-3); }
 .stagnation-trend-stable     { color: var(--ink-4); }
 .stagnation-trend-declining  { color: var(--bad); }
-.stagnation-trend-uncertain  { color: oklch(0.62 0.14 65); }
+.stagnation-trend-uncertain  { color: var(--gold); }
 
 /* Detail block (expandable) — no background box, just spacing */
 .stagnation-detail {
@@ -1808,7 +1804,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: oklch(0.62 0.14 65);
+  color: var(--gold);
 }
 .data-check-row {
   display: flex;
@@ -1816,7 +1812,7 @@
   gap: 6px;
 }
 .data-check-dates { font-size: var(--text-sm); font-weight: 600; color: var(--ink-2); }
-.data-check-pct   { font-size: var(--text-2xs); color: oklch(0.62 0.14 65); font-weight: 600; }
+.data-check-pct   { font-size: var(--text-2xs); color: var(--gold); font-weight: 600; }
 
 /* Upload error */
 .upload-error {

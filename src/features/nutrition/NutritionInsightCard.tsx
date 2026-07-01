@@ -8,7 +8,7 @@
 // come from the persisted evaluation; the decision is the same pure
 // `nutritionDecision` the System card uses, so the two never disagree.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS } from "./evaluation";
 import { nutritionDecision } from "./recommendation";
@@ -33,6 +33,11 @@ function EvidenceCell({ label, value }: { label: string; value: string }) {
 export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }) {
   const [state, setState] = useState<NutritionStateFull | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [freshTarget, setFreshTarget] = useState(false);
+  // Last proposed target we rendered, so we can pulse only when it actually
+  // changes — not on first load and not on every re-render.
+  const prevProposedRef = useRef<number | null>(null);
+  const seenRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -50,6 +55,28 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
       alive = false;
     };
   }, [refreshKey]);
+
+  // Fire a one-shot attention pulse on .ni-prog-new when the recommended target
+  // changes vs the last time we showed one — the whole point of the card is
+  // "what to do now", so a new target should announce itself. Skips the first
+  // load and honors prefers-reduced-motion.
+  useEffect(() => {
+    if (!state) return;
+    const proposed = nutritionDecision(state.evaluation, state.diagnostics).proposedTarget;
+    const reduce =
+      typeof matchMedia !== "undefined" &&
+      matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (
+      seenRef.current &&
+      proposed != null &&
+      proposed !== prevProposedRef.current &&
+      !reduce
+    ) {
+      setFreshTarget(true);
+    }
+    prevProposedRef.current = proposed;
+    seenRef.current = true;
+  }, [state]);
 
   if (!loaded) return null;
 
@@ -74,18 +101,23 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
     <section className="page-card ni-card">
       {/* Decision — the focal point, read first. */}
       <div className="ni-rec">
+        <span className="page-eyebrow" style={{ margin: 0 }}>Recommendation</span>
         <p className="ni-rec-headline">{decision.actionHeadline}</p>
 
-        <div className="ni-rec-targets">
-          <div className="ni-rec-field">
-            <span className="ni-rec-key">Current target</span>
-            <span className="ni-rec-target">{decision.currentTarget.toLocaleString()} kcal</span>
-          </div>
-          {decision.proposedTarget != null && (
-            <div className="ni-rec-field">
-              <span className="ni-rec-key">New target</span>
-              <span className="ni-rec-target">{decision.proposedTarget.toLocaleString()} kcal</span>
-            </div>
+        <div className="ni-prog">
+          <span className="ni-prog-current">{decision.currentTarget.toLocaleString()} kcal</span>
+          {decision.proposedTarget != null ? (
+            <>
+              <span className="ni-prog-arrow">→</span>
+              <span
+                className={`ni-prog-new${freshTarget ? " is-fresh" : ""}`}
+                onAnimationEnd={() => setFreshTarget(false)}
+              >
+                {decision.proposedTarget.toLocaleString()} kcal
+              </span>
+            </>
+          ) : (
+            <span className="ni-prog-hold">Hold</span>
           )}
         </div>
 
@@ -94,7 +126,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
 
       {/* Evidence — supports the decision; description only, no action. */}
       <div className="ni-evidence">
-        <span className="ni-evidence-label">Evidence</span>
+        <span className="page-eyebrow" style={{ margin: 0 }}>Evidence</span>
         <div className="ni-grid">
           <EvidenceCell label="Observed rate" value={hasTrend ? fmtRate(e.observedRate) : "—"} />
           <EvidenceCell

@@ -170,6 +170,22 @@
   animation: rise-in var(--motion-slow) var(--reveal-ease) both;
 }
 
+/* Scroll-triggered entrance (opt-in via useInView → data-inview). Overrides the
+   mount-time stagger/rise above for cards that gate themselves: they stay hidden
+   until they enter the viewport, then rise in — so cards below the fold don't
+   play their reveal before the user reaches them. Reduced-motion resolves
+   data-inview to "true" immediately and the global reduce rule snaps the
+   animation, so nothing is ever left hidden. */
+.page > [data-inview="false"] {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: none;
+}
+
+.page > [data-inview="true"] {
+  animation: rise-in var(--motion-slow) var(--reveal-ease) both;
+}
+
 .page-eyebrow {
   font-size: var(--role-eyebrow-size);
   font-weight: var(--role-eyebrow-weight);
@@ -238,7 +254,7 @@
 }
 
 .settings-backdrop.is-closing {
-  animation: fade-out var(--motion-base) ease both;
+  animation: fade-out var(--motion-fast) ease both;
 }
 
 .settings-sheet {
@@ -267,6 +283,15 @@
 
 @keyframes sheet-out {
   to { transform: translateY(100%); }
+}
+
+.settings-sheet-grabber {
+  width: 36px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--rule-strong);
+  margin: var(--space-3) auto var(--space-1);
+  flex-shrink: 0;
 }
 
 .settings-sheet-header {
@@ -311,12 +336,14 @@
 
 .settings-section-label {
   font-size: var(--text-2xs);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-4);
   margin: 0;
 }
+
+.settings-section-label--spaced { margin-top: var(--space-4); }
 
 .settings-sign-out {
   margin-top: var(--space-2);

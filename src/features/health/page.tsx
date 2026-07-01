@@ -89,7 +89,7 @@ function ComponentTrend({ cur, prev }: { cur: number | null; prev: number | null
   const diff = cur - prev;
   const up = diff > 20, down = diff < -20;
   const dir = up ? "up" : down ? "down" : "flat";
-  const color = up ? "var(--accent)" : down ? "var(--bad)" : "var(--ink-4)";
+  const color = up ? "var(--good)" : down ? "var(--bad)" : "var(--ink-4)";
   return (
     <span className="health-tdee-component-trend" style={{ color }}>
       <TrendIcon dir={dir} size={12} />

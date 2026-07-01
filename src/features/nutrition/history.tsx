@@ -70,8 +70,6 @@ export function HistoryView({
 }) {
   const [entries, setEntries] = useState<NutritionEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Direction for the week-range odometer roll + bar collapse/expand.
-  const [weekNavDir, setWeekNavDir] = useState<"forward" | "backward" | null>(null);
   // True for the brief window where the outgoing week's bars are collapsing,
   // before weekAnchor actually flips to the new week.
   const [collapsing, setCollapsing] = useState(false);
@@ -82,6 +80,15 @@ export function HistoryView({
   // Re-centre the strip when the page's day changes elsewhere (tapping a bar,
   // the Today card's own day nav).
   useEffect(() => setWeekAnchor(date), [date]);
+
+  // Direction of the last week nav, used to animate the date range label.
+  // Clears itself after the animation so the next nav can replay it.
+  const [weekNavDir, setWeekNavDir] = useState<"forward" | "backward" | null>(null);
+  useEffect(() => {
+    if (!weekNavDir) return;
+    const t = window.setTimeout(() => setWeekNavDir(null), 360);
+    return () => window.clearTimeout(t);
+  }, [weekNavDir]);
 
   const defaultTargets = useMemo(() => targetsFromConfig(config), [config]);
 
@@ -106,13 +113,6 @@ export function HistoryView({
       setCollapsing(false);
     }, 130);
   }
-
-  // Clear the slide class once the animation finishes so it can replay.
-  useEffect(() => {
-    if (!weekNavDir) return;
-    const t = setTimeout(() => setWeekNavDir(null), 360);
-    return () => clearTimeout(t);
-  }, [weekNavDir, weekAnchor]);
 
   // Horizontal swipe on the week strip changes the week. Stop the gesture from
   // bubbling to Shell's tab-swipe handler.
@@ -245,56 +245,55 @@ export function HistoryView({
     <>
       {/* ── This Week ── */}
       <section ref={weekRef} className="page-card">
-        <div className="section-head">
-          <div className="hist-week-head">
+        <div className="section-head hist-week-head">
+          <div className="hist-week-toprow">
             <p className="page-eyebrow" style={{ margin: 0 }}>THIS WEEK</p>
-            <div className="hist-week-nav">
-              <button
-                type="button"
-                className="hist-week-chevron"
-                onClick={() => navigateWeek("backward")}
-                disabled={!canGoBack}
-                aria-label="Previous week"
-              >
-                ‹
-              </button>
-              <span
-                className="hist-week-range"
-                role="button"
-                tabIndex={0}
-                aria-label="Open date picker"
-                onClick={() => { haptic("select"); onOpenCalendar(); }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); haptic("select"); onOpenCalendar(); }
-                }}
-              >
-                <span
-                  key={trend7[0].date}
-                  className={`hist-week-range-roll${
-                    weekNavDir === "forward" ? " roll-forward"
-                    : weekNavDir === "backward" ? " roll-backward" : ""
-                  }`}
-                >
-                  {`${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
-                </span>
-              </span>
-              <button
-                type="button"
-                className="hist-week-chevron"
-                onClick={() => navigateWeek("forward")}
-                disabled={isCurrentWeek}
-                aria-label="Next week"
-              >
-                ›
-              </button>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
             {week.consistency && (
               <span className={`hist-badge badge-${week.consistency.toLowerCase()}`}>
                 {week.consistency}
               </span>
             )}
+          </div>
+          <div className="hist-week-nav">
+            <button
+              type="button"
+              className="hist-week-chevron"
+              onClick={() => navigateWeek("backward")}
+              disabled={!canGoBack}
+              aria-label="Previous week"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span
+              className="hist-week-range"
+              role="button"
+              tabIndex={0}
+              aria-label="Open date picker"
+              onClick={() => { haptic("select"); onOpenCalendar(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); haptic("select"); onOpenCalendar(); }
+              }}
+            >
+              <span
+                key={trend7[0].date}
+                className={`hist-week-range-inner${weekNavDir === "forward" ? " slide-forward" : weekNavDir === "backward" ? " slide-backward" : ""}`}
+              >
+                {`${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
+              </span>
+            </span>
+            <button
+              type="button"
+              className="hist-week-chevron"
+              onClick={() => navigateWeek("forward")}
+              disabled={isCurrentWeek}
+              aria-label="Next week"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
           </div>
         </div>
 

@@ -42,6 +42,9 @@
   --health-bodyfat: #bf5af2;
   --health-leanmass: #30d158;
 
+  /* ── Overlay ── decorative, non-signal colors (theme-invariant) ──────── */
+  --on-color: #fff; /* text/icon on a saturated accent/good/bad/gold surface */
+
   /* ── Fonts ────────────────────────────────────────────────────────── */
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -157,11 +160,10 @@
      overlay darkens its background by the same amount. */
   --scrim-bg: rgba(0, 0, 0, 0.34);
   --scrim-blur: blur(16px);
+  --scrim-strong: rgba(0, 0, 0, 0.85); /* near-opaque backdrop — photo lightbox only */
 
   /* ── Motion ───────────────────────────────────────────────────────── */
-  /* 3 durations · 3 curves · 1 stagger step. Use these everywhere.
-     Celebration/feedback specials (PR pop, confetti, save pulse, shimmer)
-     intentionally run longer and live next to their keyframes. */
+  /* 3 durations · 3 curves · 1 stagger step. Use these everywhere. */
   --motion-fast: 120ms; /* press, hover, color/opacity feedback */
   --motion-base: 220ms; /* enter, menu, modal, crossfade, slides */
   --motion-slow: 340ms; /* card stagger, page transitions */
@@ -170,6 +172,11 @@
   --move-ease: cubic-bezier(0.4, 0, 0.2, 1);     /* slides / positional */
   --stagger-step: 45ms;
   --tap-scale: 0.97;
+
+  /* Expressive tier — celebration / ambient / loading, longer than UI transitions */
+  --motion-celebrate: 900ms;  /* confetti, PR pop */
+  --motion-sheen: 1000ms;     /* row-saved flash, PR sheen sweep */
+  --motion-shimmer: 1600ms;   /* skeleton loading loop */
 
   /* ── Layout ───────────────────────────────────────────────────────── */
   --tabbar-h: 56px;

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchOverview, type OverviewData } from "./api";
 import { RECOVERY_STATUS_COLOR, type RecoverySnapshot } from "@features/health/math";
 import { useCountUp } from "@shared/hooks/useCountUp";
+import { useInView } from "@shared/hooks/useInView";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
@@ -11,7 +12,7 @@ import { useNav } from "@app/layout/NavContext";
 import { useSessionUser } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
-import { paceLabel } from "@features/nutrition/recommendation";
+import { paceLabel, paceTone } from "@features/nutrition/recommendation";
 import type { Recommendation } from "@features/overview/recommendations";
 import type { Goal } from "./goal";
 import type { TabId } from "@app/layout/TabBar";
@@ -64,14 +65,16 @@ const REC_TAB: Record<Recommendation["source"], TabId> = {
 };
 
 function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) => void }) {
+  const { ref, inView } = useInView<HTMLButtonElement>();
   return (
-    <button type="button" className="page-card ov-system" onClick={() => onNav(REC_TAB[rec.source])}>
-      <div className="ov-system-head">
+    <button type="button" ref={ref} data-inview={inView} className="ov-system-banner" onClick={() => onNav(REC_TAB[rec.source])}>
+      <span className="ov-system-dot" />
+      <span className="ov-system-body">
         <span className="ov-system-label">System</span>
-        <span className="ov-system-chevron" aria-hidden>›</span>
-      </div>
-      <p className="ov-system-title">{rec.title}</p>
-      <p className="ov-system-sub">{rec.subtitle}</p>
+        <span className="ov-system-title">{rec.title}</span>
+        <span className="ov-system-sub">{rec.subtitle}</span>
+      </span>
+      <span className="ov-system-chevron" aria-hidden>›</span>
     </button>
   );
 }
@@ -87,25 +90,29 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
 function CutProgressCard({ goal, onNav }: { goal: Goal; onNav: () => void }) {
   const e = goal.evaluation;
   const pct = Math.round(e.progressPct);
+  // Fill the % and the bar from 0 once the card scrolls into view (before that,
+  // hold both at 0 so the reveal is visible when reached). useCountUp and the
+  // bar's width transition both honor prefers-reduced-motion → snap to final.
+  const { ref, inView } = useInView<HTMLButtonElement>();
+  const pctCount = useCountUp(inView ? pct : 0, 700);
+  const barPct = inView ? pct : 0;
   return (
-    <button type="button" className="page-card goal" onClick={onNav}>
+    <button type="button" ref={ref} data-inview={inView} className="page-card goal" onClick={onNav}>
       <div className="goal-head">
         <span className="goal-label">Cut Progress</span>
-        <span className="goal-pct">{pct}%</span>
+        <span className="goal-pct">{pctCount}%</span>
       </div>
       <div className="goal-bar">
-        <div className="goal-bar-fill" style={{ width: `${pct}%` }} />
+        <div className="goal-bar-fill" style={{ width: `${barPct}%` }} />
       </div>
       <div className="goal-detail">
         <div className="goal-row">
           <div className="goal-col-label">Goal</div>
-          <div className="goal-value">
-            <MetricValue size="md" unit="kg">{e.goalWeight.toFixed(1)}</MetricValue>
-            <span className="goal-sep" aria-hidden>·</span>
-            <MetricValue size="md" unit="%">{e.targetBodyFat}</MetricValue>
-          </div>
+          <MetricValue size="md" unit="kg">{e.goalWeight.toFixed(1)}</MetricValue>
+          <div className="goal-sub">{e.targetBodyFat}% body fat</div>
         </div>
-        <div className="goal-row goal-row--rule">
+        <div className="goal-divider" aria-hidden />
+        <div className="goal-row">
           <div className="goal-col-label">Remaining</div>
           <MetricValue size="md" unit="kg">{e.remainingWeight.toFixed(1)}</MetricValue>
         </div>
@@ -136,8 +143,10 @@ function WeightCard({
       ? state.evaluation.observedRate
       : null;
   const status = state ? paceLabel(state.evaluation) : null;
+  const tone = state ? paceTone(state.evaluation) : null;
+  const { ref, inView } = useInView<HTMLButtonElement>();
   return (
-    <button type="button" className="page-card ov-weight" onClick={onNav}>
+    <button type="button" ref={ref} data-inview={inView} className="page-card ov-weight" onClick={onNav}>
       <div className="ov-weight-head">
         <span className="ov-weight-label">Weight</span>
         <span className="ov-weight-chevron" aria-hidden>›</span>
@@ -153,7 +162,7 @@ function WeightCard({
         {status && (
           <div className="ov-weight-row">
             <span className="ov-weight-key">Status</span>
-            <span className="ov-weight-val">{status}</span>
+            <span className={`ov-weight-val${tone ? ` is-${tone}` : ""}`}>{status}</span>
           </div>
         )}
       </div>
@@ -208,9 +217,10 @@ function TrainingHealthCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showAllOnTrack, setShowAllOnTrack] = useState(false);
+  const { ref, inView } = useInView<HTMLDivElement>();
   const hasData = strength.total > 0;
   const retentionPct = compoundProgress ? Math.round(compoundProgress.overall * 100) : null;
-  const retCount = useCountUp(retentionPct ?? 0, 600);
+  const retCount = useCountUp(inView ? (retentionPct ?? 0) : 0, 600);
   const attention = strength.watch;
 
   // Attention always sits above On Track and is ordered worst-first (steepest
@@ -236,7 +246,7 @@ function TrainingHealthCard({
   }
 
   return (
-    <div className={`page-card ov-training-health${expanded ? " is-expanded" : ""}`}>
+    <div ref={ref} data-inview={inView} className={`page-card ov-training-health${expanded ? " is-expanded" : ""}`}>
       {/* Tapping the header navigates to Training (matches Weight·TDEE's
           whole-card-navigates pattern) — expand/collapse is the dedicated
           "{N} more on track" toggle below, not this header. */}
@@ -348,9 +358,10 @@ function RecoveryMetric({
 }
 
 function RecoveryCard({ snap, onNav }: { snap: RecoverySnapshot | null; onNav: () => void }) {
+  const { ref, inView } = useInView<HTMLButtonElement>();
   if (!snap || !snap.status) {
     return (
-      <button type="button" className="page-card ov-recovery ov-recovery--empty" onClick={onNav}>
+      <button type="button" ref={ref} data-inview={inView} className="page-card ov-recovery ov-recovery--empty" onClick={onNav}>
         <div className="ov-rec-head">
           <span className="ov-rec-title">Recovery</span>
         </div>
@@ -370,7 +381,7 @@ function RecoveryCard({ snap, onNav }: { snap: RecoverySnapshot | null; onNav: (
   const color = RECOVERY_STATUS_COLOR[snap.status];
 
   return (
-    <button type="button" className="page-card ov-recovery" onClick={onNav}>
+    <button type="button" ref={ref} data-inview={inView} className="page-card ov-recovery" onClick={onNav}>
       <div className="ov-rec-head">
         <span className="ov-rec-title">Recovery</span>
         <span className="ov-rec-status" style={{ color }}>

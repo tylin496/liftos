@@ -80,36 +80,50 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Status is a judgment word → coloured by severity (COLOR-SYSTEM rule 3),
+   matching Recovery's Good/Fair/Poor. The Trend row stays neutral: it's a
+   number, not a verdict. */
+.ov-weight-val.is-good { color: var(--good); }
+.ov-weight-val.is-warn { color: var(--gold); }
+.ov-weight-val.is-bad  { color: var(--bad); }
+
 /* ─── System Card (top-priority recommendation) ──────────────────────────── */
 
-.ov-system {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
-}
-
-@media (hover: hover) {
-  .ov-system:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-}
-
-.ov-system:active {
-  transform: scale(var(--tap-scale));
-  box-shadow: var(--shadow-sm);
-  transition-duration: var(--motion-fast);
-}
-
-.ov-system-head {
+.ov-system-banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 2px 2px var(--space-5);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ov-system-banner:active {
+  opacity: 0.7;
+}
+
+.ov-system-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.ov-system-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .ov-system-label {
@@ -120,25 +134,25 @@
   color: var(--role-eyebrow-color);
 }
 
-.ov-system-chevron {
-  font-size: var(--text-xl);
-  color: var(--ink-4);
-  line-height: 1;
-}
-
 .ov-system-title {
-  margin: var(--space-1) 0 0;
   font-size: var(--role-card-headline-size);
   font-weight: var(--role-card-headline-weight);
   color: var(--ink);
 }
 
 .ov-system-sub {
-  margin: 0;
   font-size: var(--role-secondary-size);
   font-weight: var(--role-secondary-weight);
   line-height: 1.5;
   color: var(--role-secondary-color);
+}
+
+.ov-system-chevron {
+  flex: none;
+  align-self: center;
+  font-size: var(--text-xl);
+  color: var(--ink-4);
+  line-height: 1;
 }
 
 /* ─── Primary Goal Card ──────────────────────────────────────────────────── */
@@ -186,12 +200,27 @@
   height: 100%;
   border-radius: var(--radius-pill);
   background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+  transition: width var(--motion-slow) var(--reveal-ease);
 }
 
 .goal-detail {
   display: flex;
-  flex-direction: column;
+  align-items: stretch;
   margin-top: var(--space-5);
+}
+
+.goal-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.goal-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--rule);
+  margin: 0 var(--space-5);
 }
 
 .goal-col-label {
@@ -203,23 +232,10 @@
   margin-bottom: 6px;
 }
 
-.goal-row--rule {
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
-}
-
-.goal-value {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.goal-sep {
-  font-family: var(--font-mono);
-  font-weight: 700;
+.goal-sub {
+  font-size: var(--text-2xs);
   color: var(--ink-4);
-  line-height: 1;
+  margin-top: 5px;
 }
 
 .goal-basis {
@@ -301,7 +317,7 @@
   font-weight: var(--role-secondary-weight);
   line-height: 1.55;
   color: var(--role-secondary-color);
-  margin: var(--space-4) 0 0;
+  margin: 0;
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
 }
