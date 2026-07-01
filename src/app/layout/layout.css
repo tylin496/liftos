@@ -52,9 +52,9 @@
   right: 0;
   z-index: 20;
   min-height: calc(var(--tabbar-h) + var(--safe-bottom));
-  /* Big top padding so the frosted surface starts well above the icon row,
-     not just behind the icon+label. calc keeps it token-based (32 + 8 = 40px). */
-  padding-top: calc(var(--space-8) + var(--space-2));
+  /* Big top padding so the frosted surface starts well above the icon row and
+     the fade has a long runway (no abrupt edge). Token-based (32 + 24 = 56px). */
+  padding-top: calc(var(--space-8) + var(--space-6));
   padding-bottom: var(--safe-bottom);
   display: flex;
 }
@@ -73,8 +73,8 @@
   background: color-mix(in srgb, var(--bg) 82%, transparent);
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-mask-image: linear-gradient(to top, #000 45%, transparent);
-  mask-image: linear-gradient(to top, #000 45%, transparent);
+  -webkit-mask-image: linear-gradient(to top, #000 40%, 72%, transparent);
+  mask-image: linear-gradient(to top, #000 40%, 72%, transparent);
 }
 
 .tabbar-item {
@@ -92,16 +92,6 @@
 
 .tabbar-item.is-active {
   color: var(--accent);
-}
-
-.tabbar-item.is-active .tabbar-icon {
-  animation: tab-pop 0.32s var(--press-ease) both;
-}
-
-@keyframes tab-pop {
-  0%   { transform: scale(0.82); opacity: 0.5; }
-  60%  { transform: scale(1.12); }
-  100% { transform: scale(1);   opacity: 1; }
 }
 
 .tabbar-icon svg {
