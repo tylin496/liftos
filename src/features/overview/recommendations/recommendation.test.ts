@@ -20,6 +20,7 @@ function ctx(status: EvalStatus, confidence: Confidence, calorieTarget = 2145): 
     cutMode: "Moderate Cut",
     windowDays: 21,
     weightDataPoints: 21,
+    daysOnTarget: 30,
   };
   return { nutrition: { evaluation, diagnostics } };
 }

@@ -69,6 +69,7 @@ function rowToState(row: Row): NutritionStateFull {
     cutMode: row.cut_mode ?? "",
     windowDays: row.window_days ?? 0,
     weightDataPoints: row.weight_data_points ?? 0,
+    daysOnTarget: row.days_on_target ?? 0,
   };
   const recommendation: Recommendation | null = row.rec_title
     ? {
@@ -100,6 +101,7 @@ function stateToRow(
     cut_mode: diagnostics.cutMode,
     window_days: diagnostics.windowDays,
     weight_data_points: diagnostics.weightDataPoints,
+    days_on_target: diagnostics.daysOnTarget,
     rec_source: recommendation?.source ?? null,
     rec_priority: recommendation?.priority ?? null,
     rec_title: recommendation?.title ?? null,

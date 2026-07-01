@@ -37,6 +37,8 @@ export interface NutritionDiagnostics {
   cutMode: string;
   windowDays: number;
   weightDataPoints: number;
+  /** Trailing consecutive days logged at the current target (0 = just changed). */
+  daysOnTarget: number;
 }
 
 export interface NutritionState {
@@ -66,6 +68,10 @@ const WINDOW_DAYS = 21;
 export const MIN_TREND_POINTS = 5;
 /** kg/week deadband around the range edges so the status doesn't flap. */
 const STATUS_EPS = 0.02;
+/** Below this many trailing days on the current target, the 21-day trend still
+ *  carries weight from the prior target, so a capped confidence is worth
+ *  explaining. Mirrors the "strong" edge of the daysOnTarget confidence bucket. */
+export const FRESH_TARGET_DAYS = 14;
 
 /** Points falling inside the trailing `days` window (mirrors regressionSlope). */
 function windowPoints(pts: { date: string; value: number }[], days: number) {
@@ -137,6 +143,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
     cutMode,
     windowDays: WINDOW_DAYS,
     weightDataPoints,
+    daysOnTarget,
   };
 
   // No band for this cut mode, or not enough weight data to fit a trend → we
@@ -172,4 +179,28 @@ export function evaluate(input: EvaluateInput): NutritionState {
     evaluation: { status, observedRate, targetRange: range, confidence, evaluatedAt },
     diagnostics,
   };
+}
+
+/** On-demand explanation for a capped confidence, shown when the user taps the
+ *  Confidence value. Returns null when there's nothing worth saying — either the
+ *  trend can't be fit (the rate already renders as "—"), confidence is already
+ *  high, or the target has been held long enough that its tenure no longer limits
+ *  the read. The one case it surfaces: a *fresh* target, where the 21-day trend
+ *  still partly reflects the prior target, so the observed rate isn't yet a clean
+ *  verdict on the current one. */
+export function confidenceReason(
+  evaluation: Pick<NutritionEvaluation, "confidence">,
+  diagnostics: Pick<NutritionDiagnostics, "daysOnTarget" | "weightDataPoints">,
+): string | null {
+  const { confidence } = evaluation;
+  const { daysOnTarget, weightDataPoints } = diagnostics;
+  if (weightDataPoints < MIN_TREND_POINTS) return null; // no trend → rate is "—"
+  if (confidence === "high") return null; // tenure isn't the limiter
+  if (daysOnTarget >= FRESH_TARGET_DAYS) return null; // target well-established
+  const label = confidence === "low" ? "Low" : "Medium";
+  const span =
+    daysOnTarget <= 0 ? "only became active today"
+    : daysOnTarget === 1 ? "has only been active for 1 day"
+    : `has only been active for ${daysOnTarget} days`;
+  return `${label} because this target ${span}.`;
 }

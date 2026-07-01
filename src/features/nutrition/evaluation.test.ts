@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluate, type EvaluateInput } from "./evaluation";
+import { evaluate, confidenceReason, type EvaluateInput } from "./evaluation";
 
 const NOW = new Date("2026-07-01T08:00:00Z");
 
@@ -91,5 +91,47 @@ describe("evaluate — diagnostics", () => {
     expect(diagnostics.intakeDifference).toBe(2195 - 2145);
     expect(diagnostics.calorieTarget).toBe(2145);
     expect(diagnostics.cutMode).toBe("Moderate Cut");
+  });
+
+  it("echoes daysOnTarget so surfaces can explain the confidence", () => {
+    const { diagnostics } = evaluate(input({ weightSeries: weightSeries(-0.55), daysOnTarget: 5 }));
+    expect(diagnostics.daysOnTarget).toBe(5);
+  });
+});
+
+describe("confidenceReason", () => {
+  const diag = (over: { daysOnTarget: number; weightDataPoints?: number }) => ({
+    weightDataPoints: 21,
+    ...over,
+  });
+
+  it("explains a fresh target when confidence is capped", () => {
+    expect(confidenceReason({ confidence: "low" }, diag({ daysOnTarget: 7 }))).toBe(
+      "Low because this target has only been active for 7 days.",
+    );
+    expect(confidenceReason({ confidence: "medium" }, diag({ daysOnTarget: 3 }))).toBe(
+      "Medium because this target has only been active for 3 days.",
+    );
+  });
+
+  it("singularizes one day and phrases a same-day change", () => {
+    expect(confidenceReason({ confidence: "low" }, diag({ daysOnTarget: 1 }))).toBe(
+      "Low because this target has only been active for 1 day.",
+    );
+    expect(confidenceReason({ confidence: "low" }, diag({ daysOnTarget: 0 }))).toBe(
+      "Low because this target only became active today.",
+    );
+  });
+
+  it("stays silent once the target is well-established", () => {
+    expect(confidenceReason({ confidence: "medium" }, diag({ daysOnTarget: 14 }))).toBeNull();
+  });
+
+  it("stays silent when confidence is already high", () => {
+    expect(confidenceReason({ confidence: "high" }, diag({ daysOnTarget: 2 }))).toBeNull();
+  });
+
+  it("stays silent when there's no trend to judge (rate shows as —)", () => {
+    expect(confidenceReason({ confidence: "low" }, diag({ daysOnTarget: 2, weightDataPoints: 4 }))).toBeNull();
   });
 });
