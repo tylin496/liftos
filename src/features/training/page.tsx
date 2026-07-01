@@ -829,6 +829,13 @@ function TrainingPageInner() {
         ))}
       </div>
 
+      {/* ── Stretches ── */}
+      <StretchList
+        split={split}
+        stretches={stretches[split] ?? []}
+        onChange={handleStretchChange}
+      />
+
       {/* ── Archived ── */}
       <ArchivedSection
         exercises={archivedExercises}
@@ -854,13 +861,6 @@ function TrainingPageInner() {
           </button>
         )}
       </div>
-
-      {/* ── Stretches ── */}
-      <StretchList
-        split={split}
-        stretches={stretches[split] ?? []}
-        onChange={handleStretchChange}
-      />
 
       {/* ── Time filter ── */}
       <div className="filter-bar">

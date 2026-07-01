@@ -471,6 +471,8 @@ export function OverviewPage() {
     <div className="page">
       <HeroCard data={data} onSaved={() => setRefreshKey((k) => k + 1)} />
 
+      {data && <RecoveryCard snap={data.recovery} onNav={() => nav("health")} />}
+
       <div className="ov-grid-2">
         <button type="button" className="ov-stat" onClick={() => nav("health")}>
           <span className="ov-stat-label">Weight</span>
@@ -523,8 +525,6 @@ export function OverviewPage() {
           )}
         </button>
       </div>
-
-      {data && <RecoveryCard snap={data.recovery} onNav={() => nav("health")} />}
 
       {data && (
         <TrainingHealthCard
