@@ -108,11 +108,11 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-mask-image: linear-gradient(to top, #000 40%, 72%, transparent);
-  mask-image: linear-gradient(to top, #000 40%, 72%, transparent);
+  background: transparent;
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-mask-image: linear-gradient(to top, #000 30%, rgba(0,0,0,.85) 55%, rgba(0,0,0,.4) 78%, transparent);
+  mask-image: linear-gradient(to top, #000 30%, rgba(0,0,0,.85) 55%, rgba(0,0,0,.4) 78%, transparent);
 }
 
 .tabbar-item {

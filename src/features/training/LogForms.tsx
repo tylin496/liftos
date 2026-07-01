@@ -405,12 +405,13 @@ export function AddAssistedForm({
         <div className="log-bw-row">
           <label className="log-bw-label">Bodyweight</label>
           <input
-            className="log-bw-input mono"
+            className="log-bw-input log-bw-input--static mono"
             value={bodyweight}
             readOnly
+            tabIndex={-1}
             placeholder="0"
-            aria-label="Bodyweight kg"
-            inputMode="text"
+            aria-label="Bodyweight kg (from latest Health measurement)"
+            inputMode="none"
             autoComplete="off"
           />
           <span className="log-bw-unit">kg</span>

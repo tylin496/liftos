@@ -147,7 +147,7 @@ export function ExerciseCard({
     return () => document.removeEventListener("mousedown", onDown);
   }, [menuOpen]);
 
-  // Keep menu / lightbox mounted through their exit animation.
+  // Keep the menu mounted through its exit animation.
   const menuT = useExitTransition(menuOpen, 120);
 
   // logs come newest-first from Supabase; reverse for stats (asc)

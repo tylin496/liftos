@@ -302,41 +302,6 @@
   display: block;
 }
 
-/* ── Image lightbox ──────────────────────────────────────────────────────────*/
-@keyframes lightbox-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes lightbox-out {
-  to { opacity: 0; }
-}
-
-.img-lightbox {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim-strong);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-  animation: lightbox-in var(--motion-base) var(--reveal-ease);
-  cursor: zoom-out;
-}
-
-.img-lightbox.is-closing {
-  animation: lightbox-out var(--motion-base) var(--move-ease) both;
-}
-
-.img-lightbox-img {
-  max-width: 100%;
-  max-height: 90dvh;
-  object-fit: contain;
-  border-radius: var(--radius);
-  box-shadow: 0 8px 40px rgba(0,0,0,0.4);
-}
-
 /* ── PR display ──────────────────────────────────────────────────────────────*/
 .ex-pr-inline {
   margin-bottom: var(--space-1);
@@ -531,14 +496,21 @@
 }
 
 .hist-date {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   line-height: 1.1;
-  padding-top: 1px;
 }
 
+/* MON label floats above the day number so only the day is in normal flow —
+   that makes the big day number the row's vertical anchor, keeping it centred
+   with the single-line .expr-result instead of sitting below it. */
 .hist-date-mon {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--ink-4);
@@ -577,8 +549,11 @@
   justify-content: flex-end;
 }
 
-.hist-status {
-  font-size: var(--role-card-headline-size);
+/* Scoped to .ex-history: the bare `.hist-status` class collides with
+   nutrition.css's identical selector; scoping wins regardless of import order.
+   Sized to match the adjacent .expr-result text (was too large before). */
+.ex-history .hist-status {
+  font-size: var(--text-sm);
   font-weight: var(--role-card-headline-weight);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
@@ -1083,6 +1058,14 @@
   color: var(--ink);
 }
 
+/* Read-only bodyweight in the assisted add form: auto-filled from the latest
+   Health measurement, shown as static grey text (user only enters assistance).
+   Double class beats the `.log-bw-input.mono` ink colour above. */
+.log-bw-input.log-bw-input--static {
+  color: var(--ink-3);
+  cursor: default;
+}
+
 .log-bw-unit {
   font-size: var(--text-sm);
   color: var(--ink-3);
@@ -1472,6 +1455,7 @@
   aspect-ratio: 16/9;
   object-fit: cover;
   display: block;
+  margin-top: var(--space-2);
 }
 
 .stretch-card-body {
