@@ -67,6 +67,22 @@ function LineChart({
     return () => ro.disconnect();
   }, []);
 
+  // Scrubbing the hover dot is a horizontal drag — keep it from bubbling up to
+  // Shell's tab-swipe handler, which would otherwise switch tabs mid-scrub.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const stop = (e: TouchEvent) => e.stopPropagation();
+    el.addEventListener("touchstart", stop, { passive: true });
+    el.addEventListener("touchmove", stop, { passive: true });
+    el.addEventListener("touchend", stop, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", stop);
+      el.removeEventListener("touchmove", stop);
+      el.removeEventListener("touchend", stop);
+    };
+  }, []);
+
   if (points.length < 2) {
     return (
       <div className="health-chart-wrap">
