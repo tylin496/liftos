@@ -17,6 +17,7 @@ import { buildAllDataJson, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { TrendIcon } from "@shared/components/TrendIcon";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
+import { PageTopBar } from "@shared/components/PageTopBar";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import "./health.css";
 
@@ -375,6 +376,8 @@ export function HealthPage() {
 
   return (
     <div className="page health">
+      <PageTopBar eyebrow="HEALTH" title="Trends" />
+
       {recovery && <RecoveryCard snap={recovery} />}
 
       {/* Metric skeleton while loading */}
