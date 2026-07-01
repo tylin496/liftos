@@ -198,7 +198,10 @@
 
 .metric-val.tone-accent { color: var(--accent); }
 
-.goal { padding: var(--space-5); }
+.goal {
+  padding: var(--space-5);
+  text-align: left;
+}
 
 .goal-label {
   font-size: var(--role-eyebrow-size);
@@ -238,13 +241,11 @@
   background: linear-gradient(90deg, var(--accent-strong), var(--accent));
 }
 
-.goal-grid {
+.goal-detail {
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
   margin-top: var(--space-5);
 }
-
-.goal-col { flex: 1; }
 
 .goal-col-label {
   font-size: var(--text-2xs);
@@ -255,28 +256,23 @@
   margin-bottom: 6px;
 }
 
-.goal-foot {
-  display: flex;
-  align-items: stretch;
+.goal-row--rule {
   margin-top: var(--space-4);
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
 }
 
-.goal-foot-col { flex: 1; }
-
-.goal-progression {
-  font-family: var(--font-mono);
-  font-size: var(--metric-sm);
-  font-weight: 700;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  line-height: 1;
+.goal-value {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: baseline;
   gap: 6px;
+}
+
+.goal-sep {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--ink-4);
+  line-height: 1;
 }
 
 .goal-basis {
