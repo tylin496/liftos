@@ -82,21 +82,3 @@
 .app-error-retry:active {
   transform: scale(var(--tap-scale));
 }
-
-/* Dev-only badge marking that the app is running on in-memory mock data. */
-.mock-badge {
-  position: fixed;
-  top: var(--safe-top);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9999;
-  margin-top: var(--space-1);
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--gold);
-  color: #fff;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  pointer-events: none;
-}

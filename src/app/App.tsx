@@ -27,24 +27,11 @@ const DEV_SESSION: Session = {
 
 const IS_MOCK = import.meta.env.VITE_DEV_BYPASS_AUTH === "true";
 
-// Dev-only marker so it's unmistakable when the app is running against the
-// in-memory mock instead of real Supabase — prevents debugging "bugs" that
-// only exist (or don't) in mock data.
-function MockBadge() {
-  if (!IS_MOCK || !import.meta.env.DEV) return null;
-  return <div className="mock-badge">MOCK DATA</div>;
-}
-
 export function App() {
   const { session, loading, error } = useAuth();
 
   if (IS_MOCK) {
-    return (
-      <>
-        <Shell session={DEV_SESSION} />
-        <MockBadge />
-      </>
-    );
+    return <Shell session={DEV_SESSION} />;
   }
 
   if (!isSupabaseConfigured) {

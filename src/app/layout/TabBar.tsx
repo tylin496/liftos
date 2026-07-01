@@ -48,8 +48,6 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
   },
 ];
 
-const TAB_IDS = TABS.map((t) => t.id);
-
 export function TabBar({
   active,
   onChange,
@@ -57,11 +55,8 @@ export function TabBar({
   active: TabId;
   onChange: (id: TabId) => void;
 }) {
-  const activeIdx = TAB_IDS.indexOf(active);
-
   return (
-    <nav className="tabbar" role="tablist" style={{ "--tab-idx": activeIdx } as React.CSSProperties}>
-      <span className="tabbar-indicator" aria-hidden="true" />
+    <nav className="tabbar" role="tablist">
       {TABS.map((t) => (
         <button
           key={t.id}

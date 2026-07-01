@@ -23,6 +23,70 @@
   margin: 0;
 }
 
+.page-topbar-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.copy-phase-header-btn {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--motion-fast) var(--press-ease), background var(--motion-fast) var(--press-ease);
+}
+
+.copy-phase-header-btn:active {
+  transform: scale(var(--tap-scale));
+}
+
+.copy-phase-header-btn .copy-icon,
+.copy-phase-header-btn .check-icon {
+  grid-area: 1 / 1;
+  width: 13px;
+  height: 13px;
+  transition: opacity var(--motion-fast) var(--press-ease), transform var(--motion-fast) var(--press-ease);
+}
+
+.copy-phase-header-btn .check-icon {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.copy-phase-header-btn.copied .copy-icon {
+  opacity: 0;
+  transform: scale(0.5) rotate(-10deg);
+}
+
+.copy-phase-header-btn.copied .check-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.copy-phase-header-btn.copied {
+  color: var(--accent);
+}
+
+button.copy-all-data-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.copy-all-data-btn .copy-icon,
+.copy-all-data-btn .check-icon {
+  width: 16px;
+  height: 16px;
+}
+
 .page-topbar-avatar {
   flex-shrink: 0;
   width: 38px;

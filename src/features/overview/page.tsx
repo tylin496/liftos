@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchOverview, type OverviewData } from "./api";
 import { RECOVERY_STATUS_COLOR, type RecoverySnapshot } from "@features/health/math";
-import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
 import { PageTopBar } from "@shared/components/PageTopBar";
-import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
+import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
 import "@shared/components/nutriGrid.css";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
@@ -416,7 +415,6 @@ export function OverviewPage() {
       .catch((e) => setError(String(e?.message ?? e)));
   }, [activity, refreshKey]);
 
-  useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
 
   if (error) {
     return (
@@ -428,7 +426,11 @@ export function OverviewPage() {
 
   return (
     <div className="page">
-      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} />
+      <PageTopBar
+        eyebrow={fmtTopbarDate()}
+        title={greeting(user)}
+        onCopy={() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS)}
+      />
 
       <HeroCard data={data} onSaved={() => setRefreshKey((k) => k + 1)} />
 

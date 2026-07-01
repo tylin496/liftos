@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { ErrorState } from "@shared/components/ErrorState";
-import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import {
   ensureSeeded,
@@ -29,6 +27,7 @@ import { parse, score, formatRepsDisplay } from "./parser";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { PageTopBar } from "@shared/components/PageTopBar";
+import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import "./training.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -718,14 +717,17 @@ function TrainingPageInner() {
     setStretches((prev) => ({ ...prev, [split]: items }));
   }
 
-  useCopyButton(() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS));
 
   return (
     <div
       className="page tr-page"
       ref={contentRef}
     >
-      <PageTopBar eyebrow="TRAINING" title={SPLITS.find((s) => s.id === split)?.name ?? split} />
+      <PageTopBar
+        eyebrow="TRAINING"
+        title={SPLITS.find((s) => s.id === split)?.name ?? split}
+        onCopy={() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS)}
+      />
 
       {/* ── Segment control ── */}
       <div className="tr-top-row">

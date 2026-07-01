@@ -265,13 +265,11 @@ export function TodayView({
   date,
   onDateChange,
   onSaved,
-  hideNav,
 }: {
   config: NutritionConfig;
   date: string;
   onDateChange: (date: string) => void;
   onSaved?: () => void;
-  hideNav?: boolean;
 }) {
   const toast = useToast();
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -519,7 +517,7 @@ export function TodayView({
   // it says something the per-row notes don't. "On Plan"/"Surplus"/"Low"/
   // "Tracking" just restate calNote — so the only pill left is the reward the
   // notes can't carry: Double Hit.
-  const dayStatus = hasEntry && doubleHit ? { label: "Double Hit", tone: "gold" } : null;
+  const showDoubleHit = hasEntry && doubleHit;
 
   const isEditing = editField !== null;
 
@@ -540,42 +538,6 @@ export function TodayView({
 
       {celebration.node}
 
-      {/* Date navigation */}
-      {!hideNav && <nav className="nutri-datenav" aria-label="Diet day navigation">
-        <button
-          className="nutri-navbtn"
-          type="button"
-          aria-label="Previous day"
-          disabled={shiftDate(date, -1) < MIN_DATE}
-          onClick={() => {
-            const prev = shiftDate(date, -1);
-            if (prev >= MIN_DATE) { haptic("select"); navigate(prev); }
-          }}
-        >‹</button>
-        <button
-          className="nutri-date"
-          type="button"
-          onClick={() => { haptic("tap"); setCalendarOpen(true); }}
-        >
-          <span
-            key={date}
-            className={navDir === "forward" ? "date-slide-forward" : navDir === "backward" ? "date-slide-backward" : ""}
-          >
-            {labelFor(date)}
-          </span>
-        </button>
-        <button
-          className="nutri-navbtn"
-          type="button"
-          aria-label="Next day"
-          disabled={isToday}
-          onClick={() => {
-            if (!isToday) { haptic("select"); navigate(shiftDate(date, 1)); }
-          }}
-        >›</button>
-      </nav>}
-
-
       {/* Daily card */}
       <section
         key={date}
@@ -585,19 +547,18 @@ export function TodayView({
           isEditing ? "is-editing" : "",
           !hasEntry ? "is-empty" : "",
           doubleHit ? "double-hit" : "",
-          hideNav ? "is-compact" : "",
           savedPulse ? "saved-pulse" : "",
           navDir === "forward" ? "day-nav-forward" : navDir === "backward" ? "day-nav-backward" : "",
         ].filter(Boolean).join(" ")}
       >
         <div className="daily-card-top">
-          <h2 className="daily-card-heading">{isToday ? "Today" : labelFor(date)}</h2>
+          {!isToday && <h2 className="daily-card-heading">{labelFor(date)}</h2>}
           <div className="daily-card-top-right">
             {!hasEntry && !isEditing && (
               <Badge tone="neutral">No entry</Badge>
             )}
-            {dayStatus && !isEditing && (
-              <Badge tone="gold">{dayStatus.label}</Badge>
+            {showDoubleHit && !isEditing && (
+              <Badge tone="gold">Double Hit</Badge>
             )}
           </div>
         </div>

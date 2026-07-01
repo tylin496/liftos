@@ -4,9 +4,7 @@ import { OverviewPage } from "@features/overview/page";
 import { TrainingPage } from "@features/training/page";
 import { NutritionPage } from "@features/nutrition/page";
 import { HealthPage } from "@features/health/page";
-import { Header } from "./Header";
 import { TabBar, type TabId } from "./TabBar";
-import { HeaderActionProvider } from "./HeaderActionContext";
 import { SettingsSheetProvider, useSettingsSheet } from "./SettingsSheetContext";
 import { SettingsSheet } from "./SettingsSheet";
 import { SessionUserProvider } from "./SessionContext";
@@ -44,13 +42,6 @@ export function Shell({ session }: { session: Session }) {
   const [tabVersions, setTabVersions] = useState<Record<TabId, number>>(
     { overview: 0, training: 0, nutrition: 0, health: 0 },
   );
-  const [headerHidden, setHeaderHidden] = useState(false);
-  // True once the page scrolls off the top — drives the header's glass material
-  const [scrolled, setScrolled] = useState(false);
-  const lastScrollY = useRef(0);
-  // Running sum of scroll movement in the current direction; gates header hide
-  const hideAccum = useRef(0);
-
   // Horizontal tab transition. `to` is the neighbour sliding in; `dir` is +1
   // when moving to a higher-index tab (new page enters from the right), −1 for
   // the reverse. `dx` tracks the live finger offset (0 while a tap-triggered
@@ -84,8 +75,6 @@ export function Shell({ session }: { session: Session }) {
     }
     localStorage.setItem("active-tab", next);
     setTab(next);
-    setHeaderHidden(false);
-    setScrolled(false);
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
@@ -179,38 +168,13 @@ export function Shell({ session }: { session: Session }) {
     };
   }, [tab]);
 
-  useEffect(() => {
-    function onScroll() {
-      const y = window.scrollY;
-      const delta = y - lastScrollY.current;
-      setScrolled(y > 4);
-      // Accumulate scroll in the current direction; reset when it flips.
-      // Hiding needs sustained downward scroll (slow to hide), while a small
-      // upward nudge brings the header straight back (quick to reveal).
-      if (Math.sign(delta) !== Math.sign(hideAccum.current)) hideAccum.current = 0;
-      hideAccum.current += delta;
-      if (y < 140) {
-        setHeaderHidden(false);
-      } else if (hideAccum.current > 90) {
-        setHeaderHidden(true);
-      } else if (hideAccum.current < -36) {
-        setHeaderHidden(false);
-      }
-      lastScrollY.current = y;
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   return (
     <ToastProvider>
     <SessionUserProvider user={session.user}>
     <NutritionConfigProvider>
     <SettingsSheetProvider>
-    <HeaderActionProvider>
       <NavContext.Provider value={switchTab}>
-        <div className={`shell${headerHidden ? " shell--header-hidden" : ""}${scrolled ? " shell--scrolled" : ""}`}>
-          <Header />
+        <div className="shell">
           <main ref={contentRef} className={`shell-content${slide ? " is-sliding" : ""}`}>
             {TAB_ORDER.map((tabId) => {
               if (!visited.has(tabId)) return null;
@@ -249,7 +213,6 @@ export function Shell({ session }: { session: Session }) {
         </div>
         <GlobalSettingsSheet />
       </NavContext.Provider>
-    </HeaderActionProvider>
     </SettingsSheetProvider>
     </NutritionConfigProvider>
     </SessionUserProvider>

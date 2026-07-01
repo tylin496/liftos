@@ -40,10 +40,7 @@ body {
 @media (prefers-color-scheme: dark) {
   html,
   body {
-    background:
-      radial-gradient(circle at 50% -180px, rgba(10, 132, 255, 0.24), transparent 360px),
-      linear-gradient(180deg, #101012 0, #000000 320px);
-    background-color: #000000;
+    background: var(--bg);
   }
 }
 

@@ -11,13 +11,12 @@ import {
   type ChartPoint,
   type RecoverySnapshot,
 } from "./math";
-import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { ErrorState } from "@shared/components/ErrorState";
-import { buildAllDataJson, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { TrendIcon } from "@shared/components/TrendIcon";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { PageTopBar } from "@shared/components/PageTopBar";
+import { buildAllDataJson, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import "./health.css";
 
@@ -323,7 +322,6 @@ export function HealthPage() {
     fetchHealthData(FIXED_DAYS).then(setData).catch(() => {});
   }, [activity]);
 
-  useCopyButton(() => buildAllDataJson(FIXED_DAYS, EXPORT_NUTRITION_DAYS));
 
   const tdee = data?.tdee;
   const tdeePrev = data?.tdeePrev;
@@ -376,7 +374,11 @@ export function HealthPage() {
 
   return (
     <div className="page health">
-      <PageTopBar eyebrow="HEALTH" title="Trends" />
+      <PageTopBar
+        eyebrow="HEALTH"
+        title="Trends"
+        onCopy={() => buildAllDataJson(FIXED_DAYS, EXPORT_NUTRITION_DAYS)}
+      />
 
       {recovery && <RecoveryCard snap={recovery} />}
 
