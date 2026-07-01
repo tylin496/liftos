@@ -231,7 +231,7 @@ export function Shell({ session }: { session: Session }) {
       <PageHeaderContext.Provider value={setHeader}>
         <div className="shell">
           <div className="shell-header">
-            <PageTopBar eyebrow={header.eyebrow} title={header.title} onCopy={header.onCopy} />
+            <PageTopBar eyebrow={header.eyebrow} title={header.title} onCopy={header.onCopy} note={header.note} />
           </div>
           <main ref={contentRef} className={`shell-content${slide ? " is-sliding" : ""}`}>
             {TAB_ORDER.map((tabId) => {

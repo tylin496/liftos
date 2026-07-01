@@ -1,9 +1,11 @@
-import { createContext, useContext, useLayoutEffect } from "react";
+import { createContext, useContext, useLayoutEffect, type ReactNode } from "react";
 
 export interface PageHeader {
   eyebrow: string;
   title: string;
   onCopy?: () => string | Promise<string>;
+  /** Optional inline note rendered beside the title (e.g. Health's "Synced …"). */
+  note?: ReactNode;
 }
 
 // Shell renders one persistent PageTopBar; pages push their header content up
@@ -27,5 +29,5 @@ export function usePageHeader(header: PageHeader) {
     if (!active) return;
     setHeader(header);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, header.eyebrow, header.title, header.onCopy]);
+  }, [active, header.eyebrow, header.title, header.onCopy, header.note]);
 }

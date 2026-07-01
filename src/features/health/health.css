@@ -199,7 +199,6 @@
 .health-sync-note {
   font-size: var(--text-sm);
   color: var(--ink-4);
-  margin: 0 0 var(--space-2);
 }
 
 .health-sync-note.is-stale {

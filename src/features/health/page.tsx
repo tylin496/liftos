@@ -167,6 +167,7 @@ function TrendCard({
   points,
   color,
   loading = false,
+  note,
 }: {
   label: string;
   avgLabel: string;
@@ -177,6 +178,9 @@ function TrendCard({
   points: ChartPoint[];
   color: string;
   loading?: boolean;
+  /** Data-quality caveat for this card only — e.g. samples ignored as
+      implausible. Rendered under the range line, not shimmer'd. */
+  note?: string;
 }) {
   return (
     <section className={`page-card health-trend${loading ? " loading-card" : ""}`}>
@@ -200,6 +204,7 @@ function TrendCard({
         <Sparkline points={points} color={color} />
       </div>
       <div className="health-trend-range">{FIXED_DAYS}-day trend</div>
+      {!loading && note && <p className="health-trend-note">{note}</p>}
     </section>
   );
 }
@@ -212,13 +217,23 @@ function TrendCard({
 const MIN_PLAUSIBLE_BODY_FAT_PCT = 3;
 const MAX_PLAUSIBLE_BODY_FAT_PCT = 60;
 
+function isImplausibleBodyFat(pct: number): boolean {
+  return pct < MIN_PLAUSIBLE_BODY_FAT_PCT || pct > MAX_PLAUSIBLE_BODY_FAT_PCT;
+}
+
+// Ignores the sample entirely (treats that day as "no body-fat reading") —
+// never clamps to the boundary, which would fabricate a plausible-looking
+// but wrong value.
 function sanitizeMetrics(metrics: BodyMetric[]): BodyMetric[] {
   return metrics.map((m) =>
-    m.body_fat_pct != null &&
-    (m.body_fat_pct < MIN_PLAUSIBLE_BODY_FAT_PCT || m.body_fat_pct > MAX_PLAUSIBLE_BODY_FAT_PCT)
+    m.body_fat_pct != null && isImplausibleBodyFat(m.body_fat_pct)
       ? { ...m, body_fat_pct: null }
       : m,
   );
+}
+
+function countSkippedBodyFat(metrics: BodyMetric[]): number {
+  return metrics.filter((m) => m.body_fat_pct != null && isImplausibleBodyFat(m.body_fat_pct)).length;
 }
 
 // A metric that's quietly N days stale reads as confidently current unless
@@ -265,6 +280,10 @@ export function HealthPage() {
     () => syncLabel(metrics.at(-1)?.metric_date ?? null),
     [metrics],
   );
+  const skippedBodyFatCount = useMemo(
+    () => (data ? countSkippedBodyFat(data.metrics) : 0),
+    [data],
+  );
 
   const tdee = data?.tdee;
   const tdeePrev = data?.tdeePrev;
@@ -307,7 +326,17 @@ export function HealthPage() {
     return { thisWeek, change, bucketed, readingCount: pts.length };
   }, [data, metrics]);
 
-  usePageHeader({ eyebrow: "HEALTH", title: "Trends", onCopy: copyHealthData });
+  const syncNote = useMemo(
+    () =>
+      lastSynced && (
+        <span className={`health-sync-note${lastSynced.stale ? " is-stale" : ""}`}>
+          {lastSynced.text}
+        </span>
+      ),
+    [lastSynced],
+  );
+
+  usePageHeader({ eyebrow: "HEALTH", title: "Trends", onCopy: copyHealthData, note: syncNote });
 
   if (error && !data) {
     return (
@@ -319,12 +348,6 @@ export function HealthPage() {
 
   return (
     <div className="page health">
-      {lastSynced && (
-        <p className={`health-sync-note${lastSynced.stale ? " is-stale" : ""}`}>
-          {lastSynced.text}
-        </p>
-      )}
-
       {recovery && <RecoveryCard snap={recovery} />}
 
       {/* Trend card skeleton — same TrendCard component, placeholder values,
@@ -381,6 +404,11 @@ export function HealthPage() {
                 unit={spec.unit}
               />
             ) : null
+          }
+          note={
+            spec.key === "body_fat_pct" && skippedBodyFatCount > 0
+              ? `Skipped ${skippedBodyFatCount} invalid body fat sample${skippedBodyFatCount === 1 ? "" : "s"}`
+              : undefined
           }
         />
       ))}

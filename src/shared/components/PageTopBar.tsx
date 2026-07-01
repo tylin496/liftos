@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useSessionUser } from "@app/layout/SessionContext";
 import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
@@ -8,10 +9,12 @@ export function PageTopBar({
   eyebrow,
   title,
   onCopy,
+  note,
 }: {
   eyebrow: string;
   title: string;
   onCopy?: () => string | Promise<string>;
+  note?: ReactNode;
 }) {
   const user = useSessionUser();
   const { openSettings } = useSettingsSheet();
@@ -27,9 +30,12 @@ export function PageTopBar({
         <p className={`page-topbar-eyebrow${eyebrowFade.fading ? " is-fading" : ""}`}>
           {eyebrowFade.displayed}
         </p>
-        <h1 className={`page-topbar-title${titleFade.fading ? " is-fading" : ""}`}>
-          {titleFade.displayed}
-        </h1>
+        <div className="page-topbar-title-row">
+          <h1 className={`page-topbar-title${titleFade.fading ? " is-fading" : ""}`}>
+            {titleFade.displayed}
+          </h1>
+          {note}
+        </div>
       </div>
       <div className="page-topbar-actions">
         {onCopy && (

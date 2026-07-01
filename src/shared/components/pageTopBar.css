@@ -17,6 +17,12 @@
   transition: opacity var(--motion-fast) var(--press-ease);
 }
 
+.page-topbar-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
 .page-topbar-title {
   font-size: var(--role-page-title-size);
   font-weight: var(--role-page-title-weight);
