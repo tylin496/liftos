@@ -1,208 +1,13 @@
 /* ─── Overview page ──────────────────────────────────────────────────────── */
 
-/* Spring easing: cubic-bezier(0.34, 1.56, 0.64, 1)
-   Overshoots ~8–12% before settling — gives bars a satisfying snap. */
-
 /* ─── Hero card ──────────────────────────────────────────────────────────── */
+/* Layout is the shared .nutri-grid (shared/components/nutriGrid.css); editing
+   state is the shared <MacroEditFields>. */
 
 .ov-hero {
   display: flex;
   flex-direction: column;
   gap: 0;
-}
-
-.ov-hero-eyebrow {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  margin: 0 0 var(--space-4);
-}
-
-.ov-hero-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-}
-
-.ov-hero-row:last-child {
-  margin-bottom: 0;
-}
-
-/* Row label — disambiguates the two near-identical number rows */
-.ov-hero-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.ov-hero-values {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-
-/* ─── Energy balance (deficit / surplus) ─────────────────────────────────── */
-
-.ov-hero-balance {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
-}
-
-.ov-hero-balance-num {
-  font-family: var(--font-mono);
-  font-size: var(--text-xl);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.ov-hero-balance-num.good { color: var(--good); }
-.ov-hero-balance-num.bad  { color: var(--bad); }
-
-/* Primary number — the dominant piece of information in the hero card */
-.ov-hero-num {
-  font-family: var(--font-mono);
-  font-size: var(--text-4xl);
-  font-weight: 700;
-  line-height: 1;
-  color: var(--ink);
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.ov-hero-denom {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Tappable number — same look as .ov-hero-num, but signals it's editable */
-.ov-hero-num--edit {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-/* Inline editor — mirrors the hero number so tapping feels in-place */
-.ov-hero-input {
-  font-family: var(--font-mono);
-  font-size: var(--text-4xl);
-  font-weight: 700;
-  line-height: 1;
-  color: var(--ink);
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  width: 4ch;
-  padding: 0;
-  border: none;
-  border-bottom: 2px solid var(--accent);
-  background: none;
-  outline: none;
-}
-
-/* Strip number-spinner chrome */
-.ov-hero-input::-webkit-outer-spin-button,
-.ov-hero-input::-webkit-inner-spin-button {
-  appearance: none;
-  margin: 0;
-}
-
-.ov-hero-save {
-  margin-top: var(--space-4);
-  width: 100%;
-  padding: var(--space-3);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--on-accent, #fff);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.ov-hero-save:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-/* ─── Progress bars ──────────────────────────────────────────────────────── */
-
-.ov-bar-track {
-  height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--bg-soft);
-  overflow: hidden;
-}
-
-/* Start at 0, no transition until .anim is applied after first frame */
-.ov-bar-fill {
-  height: 100%;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--blue) 58%, var(--bg-soft)),
-    color-mix(in srgb, #5ac8fa 58%, var(--bg-soft))
-  );
-  width: 0%;
-  transition: none;
-}
-
-.ov-bar-fill.anim {
-  /* Deliberate slow data-reveal — paced to the 0.8s glow-flash delay below. */
-  transition: width 0.55s var(--move-ease);
-}
-
-.ov-bar-fill.protein {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, #63e195 58%, var(--bg-soft)),
-    color-mix(in srgb, #34c759 58%, var(--bg-soft))
-  );
-}
-
-/* Glow flash at 100% — fires after the bar finishes filling (~0.75s) */
-.ov-bar-fill.complete {
-  animation: bar-flash-accent 0.65s ease 0.8s both;
-}
-
-.ov-bar-fill.calorie.complete {
-  animation-name: bar-flash-blue;
-}
-
-.ov-bar-fill.protein.complete {
-  animation-name: bar-flash-good;
-}
-
-@keyframes bar-flash-blue {
-  0%   { box-shadow: none; }
-  45%  { box-shadow: 0 0 14px 4px rgba(0, 122, 255, 0.28); }
-  100% { box-shadow: none; }
-}
-
-@keyframes bar-flash-good {
-  0%   { box-shadow: none; }
-  45%  { box-shadow: 0 0 14px 4px rgba(29, 145, 73, 0.28); }
-  100% { box-shadow: none; }
-}
-
-@keyframes bar-flash-accent {
-  0%   { box-shadow: none; }
-  45%  { box-shadow: 0 0 14px 4px var(--accent-glow); }
-  100% { box-shadow: none; }
 }
 
 .ov-no-entry {
@@ -212,42 +17,51 @@
   padding: var(--space-2) 0;
 }
 
-/* ─── 2-col stat grid ────────────────────────────────────────────────────── */
+/* ─── Weight · TDEE dual-column card ─────────────────────────────────────── */
 
-.ov-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
-
-.ov-stat {
-  background: var(--bg-card);
-  border-radius: var(--radius);
-  padding: var(--space-4);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--rule);
+.ov-dual {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  backdrop-filter: var(--card-blur);
-  -webkit-backdrop-filter: var(--card-blur);
-  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
-  cursor: pointer;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
   text-align: left;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
 }
 
 @media (hover: hover) {
-  .ov-stat:hover {
+  .ov-dual:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
 }
 
-.ov-stat:active {
+.ov-dual:active {
   transform: scale(var(--tap-scale));
   box-shadow: var(--shadow-sm);
   transition-duration: var(--motion-fast);
+}
+
+.ov-dual-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ov-dual-divider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--rule);
+}
+
+.ov-dual-chevron {
+  flex-shrink: 0;
+  font-size: var(--text-xl);
+  color: var(--ink-4);
+  line-height: 1;
 }
 
 .ov-stat-label {
@@ -258,39 +72,10 @@
   color: var(--ink-3);
 }
 
-.ov-stat-val {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  color: var(--ink);
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.ov-stat-val.accent { color: var(--accent); }
-.ov-stat-val.good   { color: var(--good); }
-.ov-stat-val.gold   { color: var(--gold); }
-.ov-stat-val.bad    { color: var(--bad); }
-
 .ov-stat-val.empty {
   color: var(--ink-4);
   font-size: var(--text-lg);
 }
-
-.ov-stat-sub {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-  margin-top: var(--space-1);
-}
-
-/* Delta + caption on one baseline under the stat value (Weight / TDEE). */
-.ov-stat-sub-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  margin-top: var(--space-1);
-}
-
 
 /* ─── Recovery Card ──────────────────────────────────────────────────────── */
 
@@ -333,10 +118,8 @@
 }
 
 .ov-rec-status {
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: 700;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
 }
 
 .ov-rec-metrics {
@@ -465,16 +248,47 @@
   border-top: 1px solid var(--rule);
 }
 
-.ov-th-attention {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--bad);
-}
-
 .ov-th-all-good {
   font-size: var(--text-base);
   font-weight: 500;
   color: var(--good);
+}
+
+/* "{N} more on track" toggle — sits below Attention, always visible */
+.ov-th-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--rule);
+  width: 100%;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--motion-base);
+}
+
+@media (hover: hover) {
+  .ov-th-toggle:hover {
+    color: var(--ink);
+  }
+}
+
+.ov-th-toggle-chevron {
+  font-size: var(--text-2xs);
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.ov-th-toggle-chevron.is-open {
+  transform: rotate(180deg);
 }
 
 /* Expanded content */
@@ -606,8 +420,4 @@
   }
 }
 
-/* ─── Weight stat sub-line colour ────────────────────────────────────────── */
-
-.ov-stat-sub.good { color: var(--good); }
-.ov-stat-sub.bad  { color: var(--bad); }
 
