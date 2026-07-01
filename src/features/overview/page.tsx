@@ -307,7 +307,7 @@ function TrainingHealthCard({
 /* ── Recovery Card ─────────────────────────────────────────────────────── */
 
 // Compact mirror of the Health tab's Recovery card: status word + the three
-// signals against their 30-day baseline + the shared one-line insight. No
+// signals against their recovery baseline + the shared one-line insight. No
 // chart, gauge, or score — Overview answers "how am I today?" at a glance;
 // trends live in the Health tab.
 function RecoveryMetric({
@@ -335,7 +335,7 @@ function RecoveryMetric({
         {value != null ? fmt(value) : "—"}
       </MetricValue>
       <span className="ov-rec-metric-delta-slot">
-        <MetricDelta value={delta} higherBetter={higherBetter} decimals={decimals} unit="vs 30d" />
+        <MetricDelta value={delta} higherBetter={higherBetter} decimals={decimals} />
       </span>
     </div>
   );

@@ -150,10 +150,10 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
     : score === 1 ? "Fair"
     : "Needs Recovery";
 
-  // Insight: a short, plain-language read of where the user's 7-day averages sit
-  // against their 30-day baseline. When a marker is off we name it; when
-  // everything's holding we surface the strongest one. Descriptive, not
-  // prescriptive — the read reflects the state, it never tells the user what to do.
+  // Insight: a short, plain-language read of where the user's 7-day averages sit.
+  // When a marker is off we name it; when everything's holding we surface the
+  // strongest one. Descriptive, not prescriptive — the read reflects the state,
+  // it never tells the user what to do.
   const sleepLow = sleepHours != null && sleepBaseline != null && sleepHours < sleepBaseline * 0.95;
   const hrvLow   = hrv != null && hrvBaseline != null && hrv < hrvBaseline * 0.95;
   const rhrHigh  = rhr != null && rhrBaseline != null && rhr > rhrBaseline * 1.05;
@@ -180,12 +180,12 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
 
   let insight: string | null;
   if (!hasAny) insight = null;
-  else if (downCount >= 2) insight = `Several markers are running under your 30-day baseline — ${read}.`;
-  else if (sleepLow) insight = `Sleep 7-day average is running below your 30-day baseline — ${read}.`;
-  else if (hrvLow) insight = `HRV 7-day average is running below your 30-day baseline — ${read}.`;
-  else if (rhrHigh) insight = `Resting HR 7-day average is running above your 30-day baseline — ${read}.`;
-  else if (above.length) insight = `${above[0].label} 7-day average is running ${above[0].dir} your 30-day baseline — ${read}.`;
-  else insight = `You're holding steady at your 30-day baseline — ${read}.`;
+  else if (downCount >= 2) insight = `Several 7-day averages are running low — ${read}.`;
+  else if (sleepLow) insight = `Sleep 7-day average is running low — ${read}.`;
+  else if (hrvLow) insight = `HRV 7-day average is running low — ${read}.`;
+  else if (rhrHigh) insight = `Resting HR 7-day average is running high — ${read}.`;
+  else if (above.length) insight = `${above[0].label} 7-day average is running ${above[0].dir} — ${read}.`;
+  else insight = `Your 7-day averages are holding steady — ${read}.`;
 
   const dates = [sleepPts.at(-1)?.date, hrvPts.at(-1)?.date, rhrPts.at(-1)?.date]
     .filter((d): d is string => d != null);

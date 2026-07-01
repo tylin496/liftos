@@ -70,6 +70,17 @@ export function Shell({ session }: { session: Session }) {
   const slideRef = useRef(slide);
   slideRef.current = slide;
   const settleTimer = useRef<number | null>(null);
+  const pendingScrollTopRef = useRef(false);
+
+  useEffect(() => {
+    if (!pendingScrollTopRef.current) return;
+    pendingScrollTopRef.current = false;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "instant" });
+      });
+    });
+  }, [tab]);
 
   // Finalize a settle animation deterministically after it plays. We use a
   // timer rather than transitionend because descendant transform transitions
@@ -92,10 +103,8 @@ export function Shell({ session }: { session: Session }) {
       setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
     }
     localStorage.setItem("active-tab", next);
+    pendingScrollTopRef.current = true;
     setTab(next);
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: "instant" });
-    });
   }
 
   // Programmatic (tab-bar tap) navigation — plays the same slide animation as a

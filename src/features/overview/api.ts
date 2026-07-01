@@ -113,7 +113,7 @@ export async function fetchOverview(): Promise<OverviewData> {
   const weightLatest = metrics.filter((m) => m.weight_kg != null).at(-1)?.weight_kg ?? null;
 
   // Recovery: reuse the Health tab's calculation verbatim (single source of
-  // truth). The 60-day metrics window covers its 30-day baseline. Null status
+  // truth). The 60-day metrics window covers the recovery baseline. Null status
   // means no recovery data → the card renders its empty state.
   const recoverySnap = computeRecovery(metrics as BodyMetric[]);
   const recovery = recoverySnap.status ? recoverySnap : null;

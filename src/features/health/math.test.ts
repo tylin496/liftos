@@ -173,14 +173,14 @@ describe("computeRecovery", () => {
     const snap = computeRecovery(recoveryMetrics({}));
     expect(snap.score).toBe(3);
     expect(snap.status).toBe("Ready");
-    expect(snap.insight).toBe("You're holding steady at your 30-day baseline — recovery looks solid.");
+    expect(snap.insight).toBe("Your 7-day averages are holding steady — recovery looks solid.");
   });
 
   it("sleep only off -> Good, names sleep", () => {
     const snap = computeRecovery(setLastDays(recoveryMetrics({}), 7, { sleep_seconds: 21600 })); // 6h < 6.65h
     expect(snap.score).toBe(2);
     expect(snap.status).toBe("Good");
-    expect(snap.insight).toBe("Sleep 7-day average is running below your 30-day baseline — recovery's holding up.");
+    expect(snap.insight).toBe("Sleep 7-day average is running low — recovery's holding up.");
   });
 
   it("excludes obvious incomplete sleep records from the sleep baseline", () => {
@@ -218,7 +218,7 @@ describe("computeRecovery", () => {
     expect(snap.score).toBe(2);
     expect(snap.status).toBe("Good");
     expect(snap.hrv).toBeCloseTo(55, 10);
-    expect(snap.insight).toBe("HRV 7-day average is running below your 30-day baseline — recovery's holding up.");
+    expect(snap.insight).toBe("HRV 7-day average is running low — recovery's holding up.");
   });
 
   it("RHR only off -> Good, names resting heart rate", () => {
@@ -226,14 +226,14 @@ describe("computeRecovery", () => {
     expect(snap.score).toBe(2);
     expect(snap.status).toBe("Good");
     expect(snap.rhr).toBeCloseTo(60, 10);
-    expect(snap.insight).toBe("Resting HR 7-day average is running above your 30-day baseline — recovery's holding up.");
+    expect(snap.insight).toBe("Resting HR 7-day average is running high — recovery's holding up.");
   });
 
   it("two signals off -> Fair, aggregate insight (no single metric named)", () => {
     const snap = computeRecovery(setLastDays(recoveryMetrics({}), 7, { sleep_seconds: 21600, hrv_sdnn_ms: 55 }));
     expect(snap.score).toBe(1);
     expect(snap.status).toBe("Fair");
-    expect(snap.insight).toBe("Several markers are running under your 30-day baseline — recovery's a little down.");
+    expect(snap.insight).toBe("Several 7-day averages are running low — recovery's a little down.");
   });
 
   it("all three off -> Needs Recovery, aggregate insight", () => {
@@ -242,7 +242,7 @@ describe("computeRecovery", () => {
     );
     expect(snap.score).toBe(0);
     expect(snap.status).toBe("Needs Recovery");
-    expect(snap.insight).toBe("Several markers are running under your 30-day baseline — recovery's running low.");
+    expect(snap.insight).toBe("Several 7-day averages are running low — recovery's running low.");
   });
 });
 
