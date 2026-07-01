@@ -14,7 +14,7 @@
 /* ── Trend cards (Weight / Body Fat / Lean Mass) ─────────────────────── */
 .health-trend-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
 }
@@ -43,15 +43,6 @@
   overflow: visible;
 }
 
-.health-sparkline-skel {
-  flex-shrink: 0;
-  width: 92px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--ink-4) 8%, transparent);
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite;
-}
-
 .health-trend-range {
   font-size: var(--text-2xs);
   color: var(--ink-4);
@@ -62,9 +53,8 @@
 
 /* ── Skeleton loading state ───────────────────────────────────────────────── */
 .health-trend.loading-card .health-card-eyebrow,
-.health-trend.loading-card .health-metric-val,
-.health-trend.loading-card .health-unit,
-.health-tdee.loading-card .health-skel-num {
+.health-trend.loading-card .metric-val,
+.health-tdee.loading-card .metric-val {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   background: linear-gradient(
@@ -78,7 +68,13 @@
   animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
 }
 
-.health-trend.loading-card .health-metric-val {
+.health-trend.loading-card .health-sparkline {
+  background: color-mix(in srgb, var(--ink-4) 8%, transparent);
+  border-radius: var(--radius-sm);
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite;
+}
+
+.health-trend.loading-card .metric-val {
   font-size: var(--metric-md);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -186,6 +182,10 @@
 .health-tdee-component-trend {
   display: inline-flex;
   align-items: center;
+}
+
+.health-tdee-component-trend--empty {
+  visibility: hidden;
 }
 
 .health-tdee-component-window {

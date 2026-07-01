@@ -226,17 +226,81 @@ export function HistoryView({
     return (
       <>
         <section className="page-card loading-card">
-          <p className="page-eyebrow">THIS WEEK</p>
-          <div className="nutri-skel-week-bars">
-            {["M","T","W","T","F","S","S"].map((d, i) => (
-              <div key={i} className="nutri-skel-week-col">
-                <div className="nutri-skel-bar-vert" style={{ height: `${30 + Math.abs((i - 3) * 8)}%` }} />
-                <span className="nutri-skel-day">{d}</span>
+          <div className="section-head hist-week-head">
+            <div className="hist-week-toprow">
+              <p className="page-eyebrow" style={{ margin: 0 }}>THIS WEEK</p>
+              <span className="hist-status hist-status-stable">Stable</span>
+            </div>
+            <div className="hist-week-nav">
+              <button type="button" className="hist-week-chevron" disabled aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <span className="hist-week-range">Jan 1 – Jan 7</span>
+              <button type="button" className="hist-week-chevron" disabled aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="nutri-kpi-row">
+            <div className="nutri-kpi">
+              <MetricValue size="md" unit="kcal avg">0000</MetricValue>
+            </div>
+            <div className="nutri-kpi">
+              <MetricValue size="md" unit="g avg">000</MetricValue>
+            </div>
+          </div>
+
+          <div className="nutri-trend">
+            {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+              <div key={i} className="nutri-trend-col">
+                <div className="ntb-values" />
+                <div className="nutri-trend-bars">
+                  <div className="ntb-pair">
+                    <div className="ntb-bar ntb-bar-kcal" style={{ height: "35%", opacity: 0.3 }} />
+                    <div className="ntb-bar ntb-bar-prot" style={{ height: "35%", opacity: 0.3 }} />
+                  </div>
+                </div>
+                <span className="nutri-trend-day">{d}</span>
               </div>
             ))}
           </div>
+
+          <div className="nutri-trend-legend">
+            <span className="nutri-trend-legend-item">
+              <span className="nutri-trend-legend-dot" style={{ background: "var(--good)" }} />
+              Calories
+            </span>
+            <span className="nutri-trend-legend-item">
+              <span className="nutri-trend-legend-dot" style={{ background: "var(--blue)" }} />
+              Protein
+            </span>
+          </div>
         </section>
-        <section className="page-card loading-card" style={{ height: 120 }} />
+
+        <section className="page-card nutri-month-card loading-card">
+          <p className="page-eyebrow" style={{ margin: 0 }}>Last 30 Days</p>
+
+          <div className="nutri-month-kpis">
+            <MetricValue size="sm" unit="% adherence">00</MetricValue>
+            <MetricValue size="sm" unit="% double hit">00</MetricValue>
+            <MetricValue size="sm" unit="day streak">0</MetricValue>
+          </div>
+
+          <div className="nutri-dist-track" aria-hidden="true">
+            <span style={{ width: "35%", opacity: 0.3, background: "var(--ink-4)" }} />
+          </div>
+          <div className="nutri-dist-legend">
+            <span className="nutri-dist-item">
+              <span className="nutri-dist-dot" style={{ background: "var(--ink-4)" }} />
+              On Plan 00%
+            </span>
+          </div>
+        </section>
       </>
     );
   }
@@ -248,11 +312,11 @@ export function HistoryView({
         <div className="section-head hist-week-head">
           <div className="hist-week-toprow">
             <p className="page-eyebrow" style={{ margin: 0 }}>THIS WEEK</p>
-            {week.consistency && (
-              <span className={`hist-status hist-status-${week.consistency.toLowerCase()}`}>
-                {week.consistency}
-              </span>
-            )}
+            <span
+              className={`hist-status${week.consistency ? ` hist-status-${week.consistency.toLowerCase()}` : " hist-status--empty"}`}
+            >
+              {week.consistency ?? "Stable"}
+            </span>
           </div>
           <div className="hist-week-nav">
             <button

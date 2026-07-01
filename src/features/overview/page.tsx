@@ -159,12 +159,10 @@ function WeightCard({
           <span className="ov-weight-key">Trend</span>
           <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
         </div>
-        {status && (
-          <div className="ov-weight-row">
-            <span className="ov-weight-key">Status</span>
-            <span className={`ov-weight-val${tone ? ` is-${tone}` : ""}`}>{status}</span>
-          </div>
-        )}
+        <div className="ov-weight-row">
+          <span className="ov-weight-key">Status</span>
+          <span className={`ov-weight-val${tone ? ` is-${tone}` : ""}`}>{status ?? "—"}</span>
+        </div>
       </div>
     </button>
   );
@@ -249,12 +247,10 @@ function TrainingHealthCard({
           <span className="ov-th-chevron" aria-hidden>›</span>
         </div>
 
-        {retentionPct !== null && (
-          <div className="ov-th-ret-hero">
-            <MetricValue size="md">{retCount}%</MetricValue>
-            <MetricCaption>of tracked lifts on track</MetricCaption>
-          </div>
-        )}
+        <div className="ov-th-ret-hero">
+          <MetricValue size="md">{retentionPct !== null ? `${retCount}%` : "—"}</MetricValue>
+          <MetricCaption>of tracked lifts on track</MetricCaption>
+        </div>
 
       </button>
 

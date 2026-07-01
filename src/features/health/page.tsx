@@ -85,13 +85,16 @@ function AnimatedMetric({ value, decimals }: { value: number; decimals: number }
    headline carries the magnitude); resting usually reads flat since its
    30-day window barely shifts, while active is what actually moves. */
 function ComponentTrend({ cur, prev }: { cur: number | null; prev: number | null | undefined }) {
-  if (cur == null || prev == null) return null;
-  const diff = cur - prev;
+  const known = cur != null && prev != null;
+  const diff = known ? cur - prev : 0;
   const up = diff > 20, down = diff < -20;
   const dir = up ? "up" : down ? "down" : "flat";
   const color = up ? "var(--good)" : down ? "var(--bad)" : "var(--ink-4)";
   return (
-    <span className="health-tdee-component-trend" style={{ color }}>
+    <span
+      className={`health-tdee-component-trend${known ? "" : " health-tdee-component-trend--empty"}`}
+      style={{ color }}
+    >
       <TrendIcon dir={dir} size={12} />
     </span>
   );
@@ -162,6 +165,7 @@ function TrendCard({
   delta,
   points,
   color,
+  loading = false,
 }: {
   label: string;
   avgLabel: string;
@@ -171,14 +175,17 @@ function TrendCard({
   delta: ReactNode;
   points: ChartPoint[];
   color: string;
+  loading?: boolean;
 }) {
   return (
-    <section className="page-card health-trend">
+    <section className={`page-card health-trend${loading ? " loading-card" : ""}`}>
       <div className="health-trend-head">
         <div className="health-trend-info">
           <span className="health-card-eyebrow">{label}</span>
           <div className="health-trend-stat">
-            {value != null ? (
+            {loading ? (
+              <MetricValue size="md" unit={unit}>00.0</MetricValue>
+            ) : value != null ? (
               <MetricValue size="md" unit={unit} style={{ color }}>
                 <AnimatedMetric value={value} decimals={decimals} />
               </MetricValue>
@@ -187,7 +194,7 @@ function TrendCard({
             )}
             {delta}
           </div>
-          <MetricCaption>{avgLabel}</MetricCaption>
+          <MetricCaption>{loading ? "Loading" : avgLabel}</MetricCaption>
         </div>
         <Sparkline points={points} color={color} />
       </div>
@@ -269,22 +276,35 @@ export function HealthPage() {
     <div className="page health">
       {recovery && <RecoveryCard snap={recovery} />}
 
-      {/* Trend card skeleton while loading */}
-      {!data && [0, 1, 2].map((i) => (
-        <section className="page-card health-trend loading-card" key={i}>
-          <div className="health-trend-head">
-            <div className="health-trend-info">
-              <span className="health-card-eyebrow">Weight</span>
-              <div className="health-trend-stat">
-                <span className="health-metric-val">00.0</span>
-                <span className="health-unit">kg</span>
-              </div>
-              <MetricCaption>Loading</MetricCaption>
-            </div>
-            <div className="health-sparkline-skel" />
-          </div>
-        </section>
+      {/* Trend card skeleton — same TrendCard component, placeholder values,
+          so height matches the loaded Weight / Body Fat / Lean Mass cards. */}
+      {!data && METRICS.map((spec) => (
+        <TrendCard
+          key={spec.key}
+          loading
+          label={spec.label}
+          avgLabel={spec.avgLabel}
+          value={0}
+          unit={spec.unit}
+          decimals={spec.decimals}
+          color={spec.color}
+          points={[]}
+          delta={null}
+        />
       ))}
+      {!data && (
+        <TrendCard
+          loading
+          label="Lean Mass"
+          avgLabel="14-day average · derived"
+          value={0}
+          unit="kg"
+          decimals={1}
+          color="var(--health-leanmass)"
+          points={[]}
+          delta={null}
+        />
+      )}
 
       {/* Trend cards — Weight, Body Fat */}
       {cards.map(({ spec, bucketed, thisWeek, change, readingCount }) => (
@@ -338,10 +358,23 @@ export function HealthPage() {
       <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
         <span className="health-card-eyebrow">TDEE</span>
         {!data ? (
-          <div className="health-tdee-num">
-            <span className="health-skel-num">0000</span>
-            <span className="health-unit"> kcal/day</span>
-          </div>
+          <>
+            <div className="health-tdee-num">
+              <MetricValue size="md" unit="kcal">0000</MetricValue>
+            </div>
+            <div className="health-tdee-components">
+              <div className="health-tdee-component">
+                <span className="health-tdee-component-label">Resting</span>
+                <MetricValue size="sm" unit="kcal">0000</MetricValue>
+                <span className="health-tdee-component-window">30-day average</span>
+              </div>
+              <div className="health-tdee-component">
+                <span className="health-tdee-component-label">Active</span>
+                <MetricValue size="sm" unit="kcal">000</MetricValue>
+                <span className="health-tdee-component-window">14-day average</span>
+              </div>
+            </div>
+          </>
         ) : tdee?.tdee != null ? (
           <>
             <div className="health-tdee-num">

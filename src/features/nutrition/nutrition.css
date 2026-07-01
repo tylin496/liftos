@@ -160,6 +160,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Skeleton loading state ────────────────────────────────────────────── */
+.ni-card.loading-card .ni-rec-headline,
+.ni-card.loading-card .ni-prog-current,
+.ni-card.loading-card .ni-rec-reason,
+.ni-card.loading-card .ni-cell-value {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
+    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
+  ) !important;
+  background-size: 300% 100% !important;
+  border-radius: 0.3em !important;
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+}
+
 /* ── History ─────────────────────────────────────────────────────────── */
 .hist-status {
   font-size: var(--role-card-headline-size);
@@ -176,6 +194,9 @@
 }
 .hist-status-variable {
   color: var(--bad);
+}
+.hist-status--empty {
+  visibility: hidden;
 }
 
 /* ── Adherence distribution — single proportional bar + text legend ──── */
@@ -743,7 +764,27 @@
   min-width: 0;
 }
 
-/* ── Skeleton loading state ──────────────────────────────────────────────── */
+/* ── Skeleton loading state — This Week / Last 30 Days ────────────────── */
+.loading-card .hist-status,
+.loading-card .hist-week-range,
+.loading-card .nutri-kpi .metric-val,
+.nutri-month-card.loading-card .metric-val {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
+    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
+  ) !important;
+  background-size: 300% 100% !important;
+  border-radius: 0.3em !important;
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+}
+
+.loading-card .hist-week-chevron {
+  visibility: hidden;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    CALORIE-TRACKER UX PORT — stat rows, inline form, delete confirm,
@@ -1072,51 +1113,3 @@
 
 .daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--reveal-ease) both; }
 .daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--reveal-ease) both; }
-
-/* ── Nutrition loading skeletons ─────────────────────────────────────── */
-/* Week bars skeleton */
-.nutri-skel-week-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-  height: 80px;
-  margin-top: var(--space-3);
-}
-
-.nutri-skel-week-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  height: 100%;
-  justify-content: flex-end;
-}
-
-.nutri-skel-bar-vert {
-  width: 100%;
-  border-radius: 4px 4px 2px 2px;
-  background: var(--bg-soft);
-  min-height: 8px;
-}
-
-.nutri-skel-day {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--ink-4);
-}
-
-/* Apply shimmer to skeleton text in loading-card */
-.loading-card .nutri-skel-day {
-  color: transparent !important;
-  -webkit-text-fill-color: transparent !important;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
-    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
-    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
-  ) !important;
-  background-size: 300% 100% !important;
-  border-radius: 0.3em !important;
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
-}
