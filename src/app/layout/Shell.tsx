@@ -93,7 +93,9 @@ export function Shell({ session }: { session: Session }) {
     }
     localStorage.setItem("active-tab", next);
     setTab(next);
-    window.scrollTo({ top: 0, behavior: "instant" });
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    });
   }
 
   // Programmatic (tab-bar tap) navigation — plays the same slide animation as a
@@ -104,7 +106,6 @@ export function Shell({ session }: { session: Session }) {
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
     setVisited((prev) => new Set([...prev, next]));
-    window.scrollTo({ top: 0, behavior: "instant" });
     // Place the incoming panel off-screen with no transition, then flip to the
     // target on a timer so the browser paints the start frame first. setTimeout
     // (not rAF) so the animation still completes if the tab is backgrounded.
@@ -155,7 +156,6 @@ export function Shell({ session }: { session: Session }) {
           const dir: 1 | -1 = dx < 0 ? 1 : -1;
           const to = TAB_ORDER[wrapIndex(idx + dir)];
           dragTo.current = to;
-          window.scrollTo({ top: 0, behavior: "instant" });
         } else if (Math.abs(dy) > 10) {
           axisLocked.current = "v";
         }

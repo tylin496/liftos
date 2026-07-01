@@ -6,6 +6,7 @@ import { parse, score } from "@features/training/parser";
 import { computeStats, computeTrend, epley1RM, buildStagnationView } from "@features/training/logic";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
+import { computeRecovery } from "@features/health/math";
 
 export const EXPORT_HEALTH_DAYS = 60;
 export const EXPORT_NUTRITION_DAYS = 60;
@@ -32,6 +33,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   // ── Health ──────────────────────────────────────────────────────────────────
   const metrics = health?.metrics ?? [];
   const tdeeEst = health?.tdee ?? estimateTdee([], []);
+  const recovery = computeRecovery(metrics);
 
   type MetricKey =
     | "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal"
@@ -336,6 +338,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       tdee: tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null,
       tdeeRestingDays: tdeeEst.restingDays,
       tdeeActiveDays: tdeeEst.activeDays,
+      recovery,
       latest: {
         weight:           (healthSummary.weight as any)?.latest ?? null,
         bodyFat:          (healthSummary.bodyFat as any)?.latest ?? null,

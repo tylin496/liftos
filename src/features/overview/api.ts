@@ -1,15 +1,10 @@
 import { supabase } from "@shared/lib/supabase";
 import { computeRecovery, type RecoverySnapshot } from "@features/health/math";
-import type { BodyMetric } from "@features/health/api";
+import { fetchHealthData, type BodyMetric } from "@features/health/api";
 import { parse, score } from "@features/training/parser";
 import { epley1RM } from "@features/training/logic";
-import { localDateStrDaysAgo } from "@shared/lib/date";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { computeGoal, type Goal } from "./goal";
-
-function sinceDate(days: number): string {
-  return localDateStrDaysAgo(days);
-}
 
 export type StrengthStatus = "improving" | "stable" | "watch";
 
@@ -82,12 +77,8 @@ function compoundPct(slugLogs: Array<{ log_date: string | null; raw: string | nu
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
-  const [metricsRes, logsRes, pullFirstRes, rowFirstRes, nutritionState, configRes] = await Promise.all([
-    supabase
-      .from("health_metrics")
-      .select("metric_date, weight_kg, body_fat_pct, active_energy_kcal, resting_energy_kcal, sleep_seconds, hrv_sdnn_ms, resting_heart_rate")
-      .gte("metric_date", sinceDate(60))
-      .order("metric_date", { ascending: true }),
+  const [health, logsRes, pullFirstRes, rowFirstRes, nutritionState, configRes] = await Promise.all([
+    fetchHealthData(60),
     supabase
       .from("training_logs")
       .select("exercise_slug, raw, log_date")
@@ -118,7 +109,7 @@ export async function fetchOverview(): Promise<OverviewData> {
   // Weight — latest reading. The trend/status the Weight card shows comes from
   // the shared nutrition evaluation (single weight-trend source), not a 7-day
   // point-to-point delta.
-  const metrics = metricsRes.data ?? [];
+  const metrics = health.metrics;
   const weightLatest = metrics.filter((m) => m.weight_kg != null).at(-1)?.weight_kg ?? null;
 
   // Recovery: reuse the Health tab's calculation verbatim (single source of

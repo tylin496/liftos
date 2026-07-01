@@ -133,7 +133,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
             label="Target range"
             value={hasRange ? `−${e.targetRange.min.toFixed(2)} – −${e.targetRange.max.toFixed(2)} kg/wk` : "—"}
           />
-          <EvidenceCell label="Estimated intake" value={`≈${d.estimatedIntake.toLocaleString()} kcal/day`} />
+          <EvidenceCell label="Estimated actual intake" value={`≈${d.estimatedIntake.toLocaleString()} kcal/day`} />
           <EvidenceCell label="Confidence" value={CONFIDENCE_LABEL[e.confidence] ?? e.confidence} />
         </div>
       </div>

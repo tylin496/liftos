@@ -204,8 +204,6 @@ function ExerciseRow({ exercise }: { exercise: import("./api").StrengthExercise 
   );
 }
 
-const ON_TRACK_PREVIEW = 5;
-
 function TrainingHealthCard({
   strength,
   compoundProgress,
@@ -216,7 +214,6 @@ function TrainingHealthCard({
   onNav: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [showAllOnTrack, setShowAllOnTrack] = useState(false);
   const { ref, inView } = useInView<HTMLDivElement>();
   const hasData = strength.total > 0;
   const retentionPct = compoundProgress ? Math.round(compoundProgress.overall * 100) : null;
@@ -229,10 +226,6 @@ function TrainingHealthCard({
     .filter((e) => e.status === "watch")
     .sort((a, b) => a.trend - b.trend);
   const onTrackExercises = strength.exercises.filter((e) => e.status !== "watch");
-  const onTrackVisible = showAllOnTrack
-    ? onTrackExercises
-    : onTrackExercises.slice(0, ON_TRACK_PREVIEW);
-  const onTrackHidden = onTrackExercises.length - onTrackVisible.length;
 
   if (!hasData) {
     return (
@@ -300,18 +293,9 @@ function TrainingHealthCard({
           {onTrackExercises.length > 0 && (
             <div className="ov-th-section">
               <div className="ov-th-sect-head">On track · {onTrackExercises.length}</div>
-              {onTrackVisible.map((ex) => (
+              {onTrackExercises.map((ex) => (
                 <ExerciseRow key={ex.slug} exercise={ex} />
               ))}
-              {(onTrackHidden > 0 || showAllOnTrack) && (
-                <button
-                  type="button"
-                  className="ov-th-show-more"
-                  onClick={() => setShowAllOnTrack((v) => !v)}
-                >
-                  {showAllOnTrack ? "Show less" : `Show ${onTrackHidden} more`}
-                </button>
-              )}
             </div>
           )}
         </div>
