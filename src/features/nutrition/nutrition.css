@@ -1274,6 +1274,10 @@
 .daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--reveal-ease) both; }
 .daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--reveal-ease) both; }
 
+/* Week strip reuses the same slide when swiping between weeks. */
+.week-nav-forward  { animation: slide-from-right var(--motion-slow) var(--reveal-ease) both; }
+.week-nav-backward { animation: slide-from-left  var(--motion-slow) var(--reveal-ease) both; }
+
 
 /* ── Nutrition loading skeletons ─────────────────────────────────────── */
 /* Week bars skeleton */

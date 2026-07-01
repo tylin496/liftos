@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorState } from "@shared/components/ErrorState";
 import { MetricValue } from "@shared/components/Metric";
 import { getEntries, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
@@ -13,6 +13,15 @@ import {
 } from "./logic";
 
 const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
+
+// Earliest loggable day — mirrors today.tsx.
+const MIN_DATE = "2026-02-09";
+
+function shiftDate(date: string, days: number): string {
+  const d = new Date(date + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return toDateStr(d);
+}
 
 function fmtShortDay(dateStr: string): string {
   return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", {
@@ -50,8 +59,79 @@ export function HistoryView({
 }) {
   const [entries, setEntries] = useState<NutritionEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Slide direction for the week-change animation, mirroring the Today card.
+  const [weekNavDir, setWeekNavDir] = useState<"forward" | "backward" | null>(null);
+  const weekRef = useRef<HTMLElement>(null);
 
   const defaultTargets = useMemo(() => targetsFromConfig(config), [config]);
+
+  const todayStrNow = toDateStr(new Date());
+
+  // Change week: jump ±7 days (same weekday), clamped to [MIN_DATE, today].
+  function navigateWeek(dir: "forward" | "backward") {
+    const delta = dir === "forward" ? 7 : -7;
+    let next = shiftDate(date, delta);
+    if (dir === "forward" && next > todayStrNow) next = todayStrNow;
+    if (dir === "backward" && next < MIN_DATE) return;
+    if (next === date) return;
+    haptic("select");
+    setWeekNavDir(dir);
+    onDateChange(next);
+  }
+
+  // Clear the slide class once the animation finishes so it can replay.
+  useEffect(() => {
+    if (!weekNavDir) return;
+    const t = setTimeout(() => setWeekNavDir(null), 360);
+    return () => clearTimeout(t);
+  }, [weekNavDir, date]);
+
+  // Horizontal swipe on the week strip changes the week. Stop the gesture from
+  // bubbling to Shell's tab-swipe handler.
+  useEffect(() => {
+    const el = weekRef.current;
+    if (!el) return;
+    let startX = 0, startY = 0, tracking = false, cancelled = false;
+    const THRESHOLD = 56;
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      tracking = false;
+      cancelled = false;
+    }
+    function onTouchMove(e: TouchEvent) {
+      if (e.touches.length !== 1 || cancelled) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (!tracking) {
+        if (Math.abs(dx) > Math.abs(dy) * 1.25 && Math.abs(dx) > 8) tracking = true;
+        else if (Math.abs(dy) > 8) { cancelled = true; return; }
+        else return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    function onTouchEnd(e: TouchEvent) {
+      if (!tracking) return;
+      tracking = false;
+      e.stopPropagation();
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+      navigateWeek(dx < 0 ? "forward" : "backward");
+    }
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [date, todayStrNow]);
 
   useEffect(() => {
     const today = new Date();
@@ -139,7 +219,13 @@ export function HistoryView({
   return (
     <>
       {/* ── This Week ── */}
-      <section className="page-card">
+      <section
+        ref={weekRef}
+        className={`page-card${
+          weekNavDir === "forward" ? " week-nav-forward"
+          : weekNavDir === "backward" ? " week-nav-backward" : ""
+        }`}
+      >
         <div className="section-head">
           <p className="page-eyebrow" style={{ margin: 0 }}>
             {isCurrentWeek
