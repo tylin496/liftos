@@ -48,6 +48,14 @@ export interface OverviewData {
   /** Primary Goal payload, finished by the upstream Provider (`goal.ts`).
    *  Null when there's no target or not enough body-composition data. */
   goal: Goal | null;
+  /** Target body fat from config (null = goal not configured). */
+  targetBodyFat: number | null;
+  /** Anchored cut-start date, or null when no baseline has been set yet — the
+   *  card shows its one-time initializer in that state. */
+  cutStartDate: string | null;
+  /** Raw body metrics (180-day window) — the initializer computes the baseline
+   *  at a chosen date from these. */
+  metrics: BodyMetric[];
 }
 
 // Pull is resolved dynamically (first exercise in Pull split by sort_order).
@@ -78,7 +86,10 @@ function compoundPct(slugLogs: Array<{ log_date: string | null; raw: string | nu
 
 export async function fetchOverview(): Promise<OverviewData> {
   const [health, logsRes, pullFirstRes, rowFirstRes, nutritionState, configRes] = await Promise.all([
-    fetchHealthData(60),
+    // 180 days so a cut baseline can be anchored to any date within ~6 months.
+    // Recovery's 7/30-day windows anchor to the latest reading, so the wider
+    // window doesn't shift its baseline.
+    fetchHealthData(180),
     supabase
       .from("training_logs")
       .select("exercise_slug, raw, log_date")
@@ -102,8 +113,13 @@ export async function fetchOverview(): Promise<OverviewData> {
       .maybeSingle(),
     // Shared nutrition state — a plain read; recompute happens on data change.
     getNutritionState(),
-    // Target body fat — the Goal Provider's only config input.
-    supabase.from("nutrition_config").select("target_body_fat_pct").maybeSingle(),
+    // Goal Provider config: the target plus the fixed cut baseline. Both the
+    // start date and the starting body fat are set once (migration / config) and
+    // only ever read here — there is no in-app UI to change them.
+    supabase
+      .from("nutrition_config")
+      .select("target_body_fat_pct, cut_start_date, cut_start_body_fat_pct")
+      .maybeSingle(),
   ]);
 
   // Weight — latest reading. The trend/status the Weight card shows comes from
@@ -212,7 +228,12 @@ export async function fetchOverview(): Promise<OverviewData> {
 
   // Primary Goal — computed entirely upstream in the Provider. The card only
   // renders the finished payload; swapping goal types never touches this call.
-  const goal = computeGoal(metrics as BodyMetric[], configRes.data?.target_body_fat_pct ?? null);
+  // Progress is anchored to the fixed cut baseline when one exists.
+  const goal = computeGoal(
+    metrics as BodyMetric[],
+    configRes.data?.target_body_fat_pct ?? null,
+    configRes.data?.cut_start_body_fat_pct ?? null,
+  );
 
   return {
     weightLatest,
@@ -221,5 +242,9 @@ export async function fetchOverview(): Promise<OverviewData> {
     compoundProgress,
     nutritionState,
     goal,
+    targetBodyFat: configRes.data?.target_body_fat_pct ?? null,
+    cutStartDate: configRes.data?.cut_start_date ?? null,
+    metrics: metrics as BodyMetric[],
   };
 }
+

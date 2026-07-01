@@ -41,23 +41,13 @@ export interface Goal {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-/** Average of the readings inside the first `days` of the series — the implicit
- *  fat-loss starting point (no goal-start is persisted yet). Mirrors the smoothing
- *  of rollingAvg but anchored to the oldest data instead of the newest. */
-function leadingAvg(pts: { date: string; value: number }[], days: number): number | null {
-  if (!pts.length) return null;
-  const first = new Date(pts[0].date + "T12:00:00");
-  const end = new Date(first);
-  end.setDate(end.getDate() + days - 1);
-  const endStr = end.toISOString().slice(0, 10);
-  const window = pts.filter((p) => p.date <= endStr);
-  if (!window.length) return null;
-  return window.reduce((s, p) => s + p.value, 0) / window.length;
-}
-
 /** Build the fat-loss Goal payload, or null when there isn't enough body-
  *  composition data (no target, or no weight+bodyfat readings) to evaluate. */
-export function computeGoal(metrics: BodyMetric[], targetBodyFat: number | null): Goal | null {
+export function computeGoal(
+  metrics: BodyMetric[],
+  targetBodyFat: number | null,
+  cutStartBodyFat: number | null = null,
+): Goal | null {
   if (targetBodyFat == null) return null;
 
   const bfPts = metrics
@@ -83,8 +73,11 @@ export function computeGoal(metrics: BodyMetric[], targetBodyFat: number | null)
   const remainingWeight = currentWeight - goalWeight;
 
   // Progress = fraction of the body-fat gap closed since the starting point.
-  // Both endpoints are smoothed; already-at-or-below-target reads as 100%.
-  const startBodyFat = leadingAvg(bfPts, 14) ?? bodyFat14dAvg;
+  // The start line is the fixed cut baseline from config — a value set once and
+  // never drifting. If it hasn't been filled in yet, fall back to the current
+  // 14-day average, which reads as 0% progress. Already-at-or-below-target
+  // reads as 100%.
+  const startBodyFat = cutStartBodyFat ?? bodyFat14dAvg;
   const span = startBodyFat - targetBodyFat;
   const progressPct = span > 0 ? clamp(((startBodyFat - bodyFat14dAvg) / span) * 100, 0, 100) : 100;
 

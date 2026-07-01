@@ -115,6 +115,8 @@ export type Database = {
       }
       nutrition_config: {
         Row: {
+          cut_start_body_fat_pct: number | null
+          cut_start_date: string | null
           height_cm: number | null
           phase_deficits: Json
           protein_target: number
@@ -126,6 +128,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cut_start_body_fat_pct?: number | null
+          cut_start_date?: string | null
           height_cm?: number | null
           phase_deficits?: Json
           protein_target?: number
@@ -137,6 +141,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cut_start_body_fat_pct?: number | null
+          cut_start_date?: string | null
           height_cm?: number | null
           phase_deficits?: Json
           protein_target?: number
@@ -197,6 +203,7 @@ export type Database = {
           confidence: string
           created_at: string
           cut_mode: string | null
+          days_on_target: number | null
           estimated_intake: number | null
           estimated_tdee: number | null
           evaluated_at: string
@@ -219,6 +226,7 @@ export type Database = {
           confidence: string
           created_at?: string
           cut_mode?: string | null
+          days_on_target?: number | null
           estimated_intake?: number | null
           estimated_tdee?: number | null
           evaluated_at: string
@@ -241,6 +249,7 @@ export type Database = {
           confidence?: string
           created_at?: string
           cut_mode?: string | null
+          days_on_target?: number | null
           estimated_intake?: number | null
           estimated_tdee?: number | null
           evaluated_at?: string
