@@ -121,7 +121,6 @@ export function ExerciseCard({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
   const [savedRowId, setSavedRowId] = useState<string | null>(null);
-  const [imgLightbox, setImgLightbox] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
 
   const [metaTarget, setMetaTarget] = useState(exercise.target ?? "");
@@ -150,7 +149,6 @@ export function ExerciseCard({
 
   // Keep menu / lightbox mounted through their exit animation.
   const menuT = useExitTransition(menuOpen, 120);
-  const lightboxT = useExitTransition(imgLightbox);
 
   // logs come newest-first from Supabase; reverse for stats (asc)
   // Exclude optimistically-deleted entries from display
@@ -522,17 +520,9 @@ export function ExerciseCard({
           />
           <StagnationDetail view={stagView} open={retOpen} />
         </div>
-        <div className="ex-ident-wrap" onClick={() => setImgLightbox(true)} role="button" aria-label="View image">
+        <div className="ex-ident-wrap">
           <SmartImage src={imgSrc} alt="" className="ex-ident" />
         </div>
-        {lightboxT.mounted && (
-          <div
-            className={`img-lightbox${lightboxT.closing ? " is-closing" : ""}`}
-            onClick={() => setImgLightbox(false)}
-          >
-            <img src={imgSrc} alt="" className="img-lightbox-img" />
-          </div>
-        )}
       </div>
 
       {/* ── History ── */}
@@ -626,13 +616,13 @@ export function ExerciseCard({
                   <span className="hist-change">
                     {isPR ? (
                       <span
-                        className="hist-pill hist-pill-pr"
+                        className="hist-status hist-status-pr"
                         aria-label="Personal record"
                       >
                         PR
                       </span>
                     ) : delta ? (
-                      <span className="hist-pill hist-pill-gain">{delta.text}</span>
+                      <span className="hist-status hist-status-gain">{delta.text}</span>
                     ) : null}
                   </span>
 

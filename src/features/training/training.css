@@ -300,16 +300,6 @@
   width: 100%;
   height: auto;
   display: block;
-  transition: transform var(--motion-slow) var(--reveal-ease);
-}
-
-.ex-ident-wrap:hover .ex-ident {
-  transform: scale(1.05);
-}
-
-.ex-ident-wrap:active .ex-ident {
-  transform: scale(0.96);
-  transition-duration: var(--motion-fast);
 }
 
 /* ── Image lightbox ──────────────────────────────────────────────────────────*/
@@ -470,7 +460,7 @@
 .hist-row {
   display: grid;
   grid-template-columns: 40px 1fr auto 28px;
-  align-items: start;
+  align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) 0;
   border-bottom: 1px solid transparent;
@@ -566,6 +556,7 @@
 .hist-expr {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
   min-width: 0;
 }
@@ -586,20 +577,19 @@
   justify-content: flex-end;
 }
 
-.hist-pill {
-  font-family: var(--font-mono);
-  font-size: var(--metric-delta);
-  font-weight: 600;
+.hist-status {
+  font-size: var(--role-card-headline-size);
+  font-weight: var(--role-card-headline-weight);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   white-space: nowrap;
 }
 
-.hist-pill-pr {
+.hist-status-pr {
   color: var(--gold);
 }
 
-.hist-pill-gain {
+.hist-status-gain {
   color: color-mix(in srgb, var(--good) 78%, var(--ink-2));
 }
 

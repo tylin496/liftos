@@ -13,7 +13,7 @@ export function Badge({
   children: ReactNode;
 }) {
   return (
-    <span className={["badge", `badge--${tone}`, className ?? ""].filter(Boolean).join(" ")}>
+    <span className={["status-text", `status-text--${tone}`, className ?? ""].filter(Boolean).join(" ")}>
       {children}
     </span>
   );

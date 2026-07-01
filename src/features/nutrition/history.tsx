@@ -249,7 +249,7 @@ export function HistoryView({
           <div className="hist-week-toprow">
             <p className="page-eyebrow" style={{ margin: 0 }}>THIS WEEK</p>
             {week.consistency && (
-              <span className={`hist-badge badge-${week.consistency.toLowerCase()}`}>
+              <span className={`hist-status hist-status-${week.consistency.toLowerCase()}`}>
                 {week.consistency}
               </span>
             )}

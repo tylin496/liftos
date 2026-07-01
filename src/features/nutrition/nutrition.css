@@ -161,22 +161,20 @@
 }
 
 /* ── History ─────────────────────────────────────────────────────────── */
-.hist-badge {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-pill);
+.hist-status {
+  font-size: var(--role-card-headline-size);
+  font-weight: var(--role-card-headline-weight);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
-.badge-stable {
-  background: color-mix(in srgb, var(--good) 18%, transparent);
+.hist-status-stable {
   color: var(--good);
 }
-.badge-moderate {
-  background: color-mix(in srgb, var(--gold) 18%, transparent);
+.hist-status-moderate {
   color: var(--gold);
 }
-.badge-variable {
-  background: color-mix(in srgb, var(--bad) 18%, transparent);
+.hist-status-variable {
   color: var(--bad);
 }
 
