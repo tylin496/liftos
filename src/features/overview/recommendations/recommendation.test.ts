@@ -25,38 +25,43 @@ function ctx(status: EvalStatus, confidence: Confidence, calorieTarget = 2145): 
 }
 
 describe("nutritionProvider — event type + specific action", () => {
-  it("flags an adjustment (event type) with the cut as the action at high confidence", () => {
+  it("surfaces an imperative decision with the reason (no number) at high confidence", () => {
     const rec = nutritionProvider(ctx("below_target", "high"))!;
-    expect(rec.title).toBe("Nutrition adjustment recommended");
-    expect(rec.subtitle).toMatch(/reduce target to 2,045 kcal/i);
+    expect(rec.title).toBe("Review calorie target.");
+    expect(rec.subtitle).toBe("Weight loss has slowed.");
+    expect(rec.subtitle).not.toMatch(/kcal/i); // number lives on the Nutrition card
     expect(rec.priority).toBe(72);
   });
 
-  it("stays on-track and holds at medium confidence", () => {
+  it("reads as no-action-needed with a reason at medium confidence", () => {
     const rec = nutritionProvider(ctx("below_target", "medium"))!;
-    expect(rec.title).toBe("Nutrition on track");
-    expect(rec.subtitle).toMatch(/^hold 2,145 kcal/i);
+    expect(rec.title).toBe("No action needed.");
+    expect(rec.subtitle).toMatch(/trend isn't confirmed/i);
+    expect(rec.subtitle).not.toMatch(/kcal/i);
     expect(rec.priority).toBe(55);
   });
 
-  it("flags an adjustment with the raise as the action when losing too fast", () => {
+  it("surfaces an imperative decision with the reason when losing too fast", () => {
     const rec = nutritionProvider(ctx("above_target", "high"))!;
-    expect(rec.title).toBe("Nutrition adjustment recommended");
-    expect(rec.subtitle).toMatch(/increase target to 2,295 kcal/i);
+    expect(rec.title).toBe("Review calorie target.");
+    expect(rec.subtitle).toBe("You're losing faster than planned.");
+    expect(rec.subtitle).not.toMatch(/kcal/i);
     expect(rec.priority).toBe(70);
   });
 
-  it("is on track when on target", () => {
+  it("reads as no-action-needed when on target", () => {
     const rec = nutritionProvider(ctx("on_target", "high"))!;
-    expect(rec.title).toBe("Nutrition on track");
-    expect(rec.subtitle).toMatch(/maintain 2,145 kcal/i);
+    expect(rec.title).toBe("No action needed.");
+    expect(rec.subtitle).toBe("Weight loss remains on plan.");
+    expect(rec.subtitle).not.toMatch(/kcal/i);
     expect(rec.priority).toBe(30);
   });
 
-  it("never proposes a change at low confidence", () => {
+  it("reads as no-action-needed at low confidence", () => {
     const rec = nutritionProvider(ctx("below_target", "low"))!;
-    expect(rec.title).toBe("Nutrition on track");
+    expect(rec.title).toBe("No action needed.");
     expect(rec.subtitle).toMatch(/gathering data/i);
+    expect(rec.subtitle).not.toMatch(/kcal/i);
     expect(rec.priority).toBe(40);
   });
 

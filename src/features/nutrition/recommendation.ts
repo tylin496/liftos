@@ -1,7 +1,7 @@
 // Nutrition decision — turns an Evaluation into the action to take.
 //
 // One pure function drives every surface that shows the recommendation:
-//   - the Overview System card (eventType + actionLine),
+//   - the Overview System card (eventType = decision, actionLine = reason),
 //   - the Nutrition Insight card (actionHeadline + currentTarget + reason),
 //   - the cross-provider Recommendation (built in overview/recommendations).
 // Keeping it here (nutrition owns its business logic) means those surfaces can
@@ -14,9 +14,12 @@ export type NutritionAction = "maintain" | "reduce" | "increase";
 
 export interface NutritionDecision {
   action: NutritionAction;
-  /** System card line 1 — the event *type*, consistent across providers. */
+  /** System card line 1 — the *decision*: "No action needed." when nothing is
+   *  required, an imperative ("Review calorie target.") when it is. A command
+   *  center answers "do I need to do something?", not "is my strategy working?" */
   eventType: string;
-  /** System card line 2 — the specific action. */
+  /** System card line 2 — the *reason* for that decision. Carries no number;
+   *  the calorie target lives on the Nutrition card, never duplicated here. */
   actionLine: string;
   /** Insight card headline. */
   actionHeadline: string;
@@ -30,7 +33,6 @@ export interface NutritionDecision {
 
 const CUT_STEP = 100;
 const RAISE_STEP = 150;
-const kcal = (n: number) => `${n.toLocaleString()} kcal`;
 
 function maintain(
   target: number,
@@ -40,7 +42,7 @@ function maintain(
 ): NutritionDecision {
   return {
     action: "maintain",
-    eventType: "Nutrition on track",
+    eventType: "No action needed.",
     actionLine,
     actionHeadline: "Maintain current target",
     reason,
@@ -62,7 +64,7 @@ export function nutritionDecision(
       target,
       "Not enough confident data yet — keep the current target while the trend settles.",
       40,
-      `Maintain ${kcal(target)} — still gathering data.`,
+      "Still gathering data on your trend.",
     );
   }
 
@@ -71,7 +73,7 @@ export function nutritionDecision(
       target,
       "Weight loss is tracking within the planned range.",
       30,
-      `Maintain ${kcal(target)} — loss is on plan.`,
+      "Weight loss remains on plan.",
     );
   }
 
@@ -86,7 +88,9 @@ export function nutritionDecision(
         ? "Weight loss appears slower than planned, but confidence is not yet high enough to justify changing your calorie target."
         : "Weight loss appears faster than planned, but confidence is not yet high enough to justify changing your calorie target.",
       55,
-      `Hold ${kcal(target)} — trend still forming.`,
+      tooSlow
+        ? "Loss looks slow, but the trend isn't confirmed yet."
+        : "Loss looks fast, but the trend isn't confirmed yet.",
     );
   }
 
@@ -95,8 +99,8 @@ export function nutritionDecision(
     const proposed = Math.max(0, target - CUT_STEP);
     return {
       action: "reduce",
-      eventType: "Nutrition adjustment recommended",
-      actionLine: `Reduce target to ${kcal(proposed)}.`,
+      eventType: "Review calorie target.",
+      actionLine: "Weight loss has slowed.",
       actionHeadline: "Reduce calorie target",
       reason: "Weight loss has been slower than planned — a small cut should restart it.",
       currentTarget: target,
@@ -107,8 +111,8 @@ export function nutritionDecision(
   const proposed = target + RAISE_STEP;
   return {
     action: "increase",
-    eventType: "Nutrition adjustment recommended",
-    actionLine: `Increase target to ${kcal(proposed)}.`,
+    eventType: "Review calorie target.",
+    actionLine: "You're losing faster than planned.",
     actionHeadline: "Increase calorie target",
     reason: "You're losing faster than planned — ease the deficit to protect muscle.",
     currentTarget: target,

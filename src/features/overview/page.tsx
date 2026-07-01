@@ -49,9 +49,12 @@ function fmtTrend(kgPerWeek: number): string {
 
 // The single highest-priority recommendation across every provider. Overview
 // performs no analysis here — it just displays what the registry decided and
-// links to the owning feature. Line 1 is the event *type* (consistent across
-// providers); line 2 is the specific action. Nutrition is the only provider
-// today; adding more never touches this card.
+// links to the owning feature. This is a command center: it answers "do I need
+// to do something?", not "is my strategy working?". Line 1 is the *decision*
+// ("No action needed." / "Review calorie target."); line 2 is the *reason*, and
+// deliberately carries no number — the calorie target lives on the Nutrition
+// card, never duplicated here. Nutrition is the only provider today; adding
+// more never touches this card.
 const REC_TAB: Record<Recommendation["source"], TabId> = {
   nutrition: "nutrition",
   training: "training",
