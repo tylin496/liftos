@@ -51,12 +51,30 @@
   left: 0;
   right: 0;
   z-index: 20;
-  height: calc(var(--tabbar-h) + var(--safe-bottom));
+  min-height: calc(var(--tabbar-h) + var(--safe-bottom));
+  /* Big top padding so the frosted surface starts well above the icon row,
+     not just behind the icon+label. calc keeps it token-based (32 + 8 = 40px). */
+  padding-top: calc(var(--space-8) + var(--space-2));
   padding-bottom: var(--safe-bottom);
   display: flex;
-  /* Fade-to-transparent scrim, not a glass card — scrolling content shows
-     through the top of the bar. No blur, no border, no shadow. */
-  background: linear-gradient(to top, var(--bg) 60%, transparent);
+}
+
+/* Frosted-glass surface on a pseudo-element so the tint + blur sit behind the
+   tab items (icons/labels stay fully crisp). ONE translucent fill + ONE mask
+   fade — no background gradient, no border — so the fill and the blur dissolve
+   together on the same curve and there's no hard edge. The 82%-opaque tint
+   keeps the area behind the icons solid enough to read; the mask fades the
+   whole surface out toward the top. */
+.tabbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-mask-image: linear-gradient(to top, #000 45%, transparent);
+  mask-image: linear-gradient(to top, #000 45%, transparent);
 }
 
 .tabbar-item {
@@ -125,11 +143,11 @@
 }
 
 .page-eyebrow {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--ink-4);
+  color: var(--role-eyebrow-color);
   margin: 0 0 var(--space-2);
 }
 
@@ -142,11 +160,11 @@
 }
 
 .section-head h2 {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--ink-3);
+  font-size: var(--role-section-title-size);
+  font-weight: var(--role-section-title-weight);
+  color: var(--role-section-title-color);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--role-section-title-spacing);
   margin: 0;
 }
 

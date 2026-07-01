@@ -198,10 +198,10 @@
 }
 
 .ex-name {
-  font-size: var(--text-lg);
-  font-weight: 700;
+  font-size: var(--role-card-title-size);
+  font-weight: var(--role-card-title-weight);
   letter-spacing: -0.01em;
-  color: var(--ink);
+  color: var(--role-card-title-color);
   cursor: pointer;
   line-height: 1.2;
   margin: 0;
@@ -684,8 +684,9 @@
 }
 
 .expr-kg-hint {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
   margin-left: var(--space-2);
 }
 
@@ -918,9 +919,9 @@
 }
 
 .log-reps-label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
+  font-size: var(--role-field-label-size);
+  font-weight: var(--role-field-label-weight);
+  color: var(--role-field-label-color);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -1024,10 +1025,10 @@
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   background: var(--bg-soft);
-  color: var(--ink-2);
+  color: var(--role-action-color);
   font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
+  font-size: var(--role-action-size);
+  font-weight: var(--role-action-weight);
   cursor: pointer;
   transition: background var(--motion-fast);
 }
@@ -1222,10 +1223,10 @@
   border: 1px dashed var(--rule-strong);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--ink-3);
+  color: var(--role-action-color);
   font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
+  font-size: var(--role-action-size);
+  font-weight: var(--role-action-weight);
   cursor: pointer;
   transition: background var(--motion-fast);
 }
@@ -1251,9 +1252,9 @@
 }
 
 .add-ex-title {
-  font-size: var(--text-base);
-  font-weight: 700;
-  color: var(--ink);
+  font-size: var(--role-card-title-size);
+  font-weight: var(--role-card-title-weight);
+  color: var(--role-card-title-color);
 }
 
 .add-ex-close {
@@ -1417,10 +1418,10 @@
   border-radius: var(--radius-pill);
   border: 1px solid var(--rule);
   background: var(--bg-soft);
-  color: var(--ink-2);
+  color: var(--role-action-color);
   font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
+  font-size: var(--role-action-size);
+  font-weight: var(--role-action-weight);
   cursor: pointer;
   transition: background var(--motion-fast);
 }
@@ -1766,8 +1767,9 @@
 /* Always-visible hint line */
 .stagnation-hint {
   flex-basis: 100%;
-  font-size: var(--text-2xs);
-  color: var(--ink-3);
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
   letter-spacing: 0.01em;
   margin-top: 2px;
 }

@@ -36,6 +36,10 @@ export function Shell({ session }: { session: Session }) {
   const [tab, setTab] = useState<TabId>(
     () => (localStorage.getItem("active-tab") as TabId) ?? "overview",
   );
+  // Which tab the bar highlights. Decoupled from `tab` (which only commits once
+  // the slide animation finishes) so the orange highlight flips the instant the
+  // user taps/swipes past threshold, not ~340ms later.
+  const [highlight, setHighlight] = useState<TabId>(tab);
   // Pages that have been visited at least once — we keep them mounted
   const [visited, setVisited] = useState<Set<TabId>>(new Set([tab]));
   // Incremented each time the user navigates TO a tab — pages re-fetch on change
@@ -68,6 +72,7 @@ export function Shell({ session }: { session: Session }) {
   }
 
   function commitTab(next: TabId) {
+    setHighlight(next);
     if (next !== tab) {
       navigator.vibrate?.(12);
       setVisited((prev) => new Set([...prev, next]));
@@ -83,6 +88,7 @@ export function Shell({ session }: { session: Session }) {
   function switchTab(next: TabId) {
     if (next === tab) return;
     if (slideRef.current) { commitTab(next); return; }
+    setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
     setVisited((prev) => new Set([...prev, next]));
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -152,6 +158,7 @@ export function Shell({ session }: { session: Session }) {
         }
         return;
       }
+      setHighlight(to);
       const dir: 1 | -1 = dx < 0 ? 1 : -1;
       const width = window.innerWidth || 1;
       setSlide({ to, dir, dx: -dir * width, settling: true });
@@ -209,7 +216,7 @@ export function Shell({ session }: { session: Session }) {
               );
             })}
           </main>
-          <TabBar active={tab} onChange={switchTab} />
+          <TabBar active={highlight} onChange={switchTab} />
         </div>
         <GlobalSettingsSheet />
       </NavContext.Provider>

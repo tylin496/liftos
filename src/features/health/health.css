@@ -4,11 +4,11 @@
 
 /* ── Shared card-title eyebrow — "RECOVERY" / "WEIGHT" / "TDEE" ─────── */
 .health-card-eyebrow {
-  font-size: var(--text-2xs);
-  font-weight: 700;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-4);
+  letter-spacing: var(--role-eyebrow-spacing);
+  color: var(--role-eyebrow-color);
 }
 
 /* ── Trend cards (Weight / Body Fat / Lean Mass) ─────────────────────── */
@@ -139,8 +139,8 @@
 }
 
 .health-recovery-status {
-  font-size: var(--text-base);
-  font-weight: 700;
+  font-size: var(--role-card-headline-size);
+  font-weight: var(--role-card-headline-weight);
 }
 
 .health-recovery-rows {
@@ -174,9 +174,10 @@
 }
 
 .health-recovery-footer {
-  font-size: var(--text-sm);
+  font-size: var(--role-secondary-size);
+  font-weight: var(--role-secondary-weight);
   line-height: 1.55;
-  color: var(--ink-3);
+  color: var(--role-secondary-color);
   margin: var(--space-4) 0 0;
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);

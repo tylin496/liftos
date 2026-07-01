@@ -171,15 +171,19 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
+  font-size: var(--role-field-label-size);
+  font-weight: var(--role-field-label-weight);
+  color: var(--role-field-label-color);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .nutri-field input {
   font-family: var(--font-ui);
   font-size: var(--text-2xl);
   font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
   font-variant-numeric: tabular-nums;
   padding: var(--space-3);
   border: 1px solid var(--rule);
@@ -195,9 +199,9 @@
 
 .nutri-training-age-hint {
   margin: calc(var(--space-1) * -1) 0 0;
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-  font-weight: 500;
+  font-size: var(--role-caption-size);
+  color: var(--role-caption-color);
+  font-weight: var(--role-caption-weight);
 }
 
 .nutri-save {
@@ -456,16 +460,16 @@
 }
 
 .nutri-trend-day {
-  font-size: var(--text-2xs);
-  font-weight: 700;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink-4);
+  letter-spacing: var(--role-eyebrow-spacing);
+  color: var(--role-eyebrow-color);
   text-align: center;
   line-height: 1.2;
 }
 
-.nutri-trend-day.is-today { color: var(--accent); }
+.nutri-trend-day.is-today { color: var(--ink); }
 
 /* ── KPI row — sits above the chart, directly under the week header ───── */
 .nutri-kpi-row {
@@ -604,13 +608,20 @@
   margin-bottom: var(--space-4);
 }
 
+/* Reserve a constant header-row height so the card doesn't grow/shrink as the
+   date heading (dated days) or a badge ("No entry" / "Double Hit") comes and
+   goes. Overview's compact card keeps its own tighter rhythm. */
+.daily-card:not(.is-compact) .daily-card-top {
+  min-height: var(--space-6);
+}
+
 .daily-card-heading {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   margin: 0;
-  color: var(--ink-4);
+  color: var(--role-eyebrow-color);
   line-height: 1;
   background: none;
   border: none;
@@ -623,10 +634,15 @@
   transform: scale(var(--tap-scale));
 }
 
+/* Reserve the badge's height so the card doesn't shrink a few px when no
+   badge is shown (e.g. "No entry" cleared, or a day without a Double Hit). */
 .daily-card-top-right {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* Matches .badge's own box (line-height 1.5 × font-size + 2px×2 padding) so
+     the row doesn't shrink when no badge is rendered. */
+  min-height: calc(var(--text-2xs) * 1.5 + 4px);
 }
 
 /* ── Copy button ─────────────────────────────────────────────────────── */
@@ -826,11 +842,13 @@
   text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
-/* No entry (past unlogged, or future): solid grey placeholder bar. */
+/* No entry (past unlogged, or future): solid grey placeholder bar.
+   Same 3px corner as the real .ntb-bar so entered/un-entered share one
+   shape family — state is signalled by colour (grey), not by silhouette. */
 .ntb-pair--missing .ntb-bar--missing {
   height: 44px !important;
   max-width: 18px;
-  border-radius: var(--radius-pill);
+  border-radius: 3px;
   background: var(--rule-strong);
   box-shadow: none;
 }

@@ -17,11 +17,11 @@
 .sf-input-card:last-of-type { border-bottom: none; }
 
 .sf-label {
-  font-size: var(--text-sm);
-  font-weight: 700;
+  font-size: var(--role-field-label-size);
+  font-weight: var(--role-field-label-weight);
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--ink-3);
+  color: var(--role-field-label-color);
 }
 
 .sf-row {

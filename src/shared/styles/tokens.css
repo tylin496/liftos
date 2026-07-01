@@ -73,6 +73,59 @@
   --metric-delta: var(--text-sm);   /* 13 — change value */
   --metric-caption: var(--text-sm); /* 13 — "vs 14 days" context line */
 
+  /* ── Text roles ───────────────────────────────────────────────────────
+     Single source of truth for TEXT hierarchy — the sibling of --metric-*
+     for numbers. Every text element points at a role trio (size/weight/
+     color, + transform/spacing where noted). NEVER hardcode font-size/
+     weight/color per element again — that drift is what these kill.
+     eyebrow = card identity badge (TODAY·NUTRITION, RECOVERY); it never
+     mixes with section-title = in-card row-group divider (Attention·2). */
+  --role-page-title-size: var(--text-2xl);    /* 24 — page hero title */
+  --role-page-title-weight: 700;
+  --role-page-title-color: var(--ink);
+
+  --role-card-title-size: var(--text-lg);      /* 17 — exercise name, modal/sheet titles */
+  --role-card-title-weight: 700;
+  --role-card-title-color: var(--ink);
+
+  --role-card-headline-size: var(--text-base); /* 15 — status sentences (may take semantic color) */
+  --role-card-headline-weight: 700;
+  --role-card-headline-color: var(--ink);
+
+  --role-eyebrow-size: var(--text-2xs);        /* 11 — card identity badge */
+  --role-eyebrow-weight: 700;
+  --role-eyebrow-color: var(--ink-4);
+  --role-eyebrow-spacing: 0.06em;
+
+  --role-section-title-size: var(--text-sm);   /* 13 — in-card row-group divider */
+  --role-section-title-weight: 700;
+  --role-section-title-color: var(--ink-3);
+  --role-section-title-spacing: 0.04em;
+
+  --role-body-size: var(--text-base);          /* 15 — body copy */
+  --role-body-weight: 400;
+  --role-body-color: var(--ink);
+
+  --role-body-strong-size: var(--text-base);   /* 15 — emphasised body */
+  --role-body-strong-weight: 600;
+  --role-body-strong-color: var(--ink);
+
+  --role-secondary-size: var(--text-sm);       /* 13 — secondary text */
+  --role-secondary-weight: 400;
+  --role-secondary-color: var(--ink-3);
+
+  --role-caption-size: var(--text-2xs);        /* 11 — hints, footnotes */
+  --role-caption-weight: 500;
+  --role-caption-color: var(--ink-4);
+
+  --role-field-label-size: var(--text-sm);     /* 13 — form field label (UPPER) */
+  --role-field-label-weight: 600;
+  --role-field-label-color: var(--ink-3);
+
+  --role-action-size: var(--text-sm);          /* 13 — neutral button/link */
+  --role-action-weight: 600;
+  --role-action-color: var(--ink-2);
+
   /* ── Spacing scale ────────────────────────────────────────────────── */
   --space-1: 4px;
   --space-2: 8px;
