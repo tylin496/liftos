@@ -69,6 +69,10 @@ const REC_TAB: Record<Recommendation["source"], TabId> = {
 
 function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) => void }) {
   const { ref, inView } = useInView<HTMLButtonElement>();
+  // Command center: only surface the card when there's something to act on.
+  // "No action needed" means nothing to do, so the whole banner (and its
+  // divider) disappears rather than sitting there confirming nothing's wrong.
+  if (rec.title === "No action needed") return null;
   return (
     <button type="button" ref={ref} data-inview={inView} className="ov-system-banner" onClick={() => onNav(REC_TAB[rec.source])}>
       <span className="ov-system-dot" />
