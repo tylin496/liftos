@@ -23,6 +23,15 @@ const DIST_STATES: { key: CalorieState; label: string; color: string }[] = [
   { key: "surplus", label: "Surplus", color: "var(--bad)" },
 ];
 
+// Legend groups the two neutral misses (under + over) into one "Under/Over"
+// chip — they share the same grey, so separate chips read as redundant.
+const DIST_LEGEND: { keys: CalorieState[]; label: string; color: string }[] = [
+  { keys: ["on-plan"], label: "On plan", color: "var(--blue)" },
+  { keys: ["under", "over"], label: "Under/Over", color: "var(--ink-4)" },
+  { keys: ["extreme"], label: "Extreme", color: "var(--gold)" },
+  { keys: ["surplus"], label: "Surplus", color: "var(--bad)" },
+];
+
 // Earliest loggable day — mirrors today.tsx.
 const MIN_DATE = "2026-02-09";
 
@@ -508,10 +517,11 @@ export function HistoryView({
           })}
         </div>
         <div className="nutri-dist-legend">
-          {DIST_STATES.map(({ key, label, color }) => {
-            const pct = Math.round(((month.distribution[key] || 0) / (month.logged || 1)) * 100);
+          {DIST_LEGEND.map(({ keys, label, color }) => {
+            const count = keys.reduce((sum, k) => sum + (month.distribution[k] || 0), 0);
+            const pct = Math.round((count / (month.logged || 1)) * 100);
             return (
-              <span className="nutri-dist-item" key={key}>
+              <span className="nutri-dist-item" key={label}>
                 <span className="nutri-dist-dot" style={{ background: color }} />
                 {label} {pct}%
               </span>
