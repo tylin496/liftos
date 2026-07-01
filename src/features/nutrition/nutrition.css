@@ -378,43 +378,6 @@
 }
 
 /* ── Form ────────────────────────────────────────────────────────────── */
-.nutri-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--role-field-label-size);
-  font-weight: var(--role-field-label-weight);
-  color: var(--role-field-label-color);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.nutri-field input {
-  font-family: var(--font-ui);
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  text-transform: none;
-  letter-spacing: normal;
-  font-variant-numeric: tabular-nums;
-  padding: var(--space-3);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  background: var(--bg-input);
-  color: var(--ink);
-}
-
-.nutri-field input:focus {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.nutri-training-age-hint {
-  margin: calc(var(--space-1) * -1) 0 0;
-  font-size: var(--role-caption-size);
-  color: var(--role-caption-color);
-  font-weight: var(--role-caption-weight);
-}
-
 .nutri-save {
   margin-top: var(--space-1);
   padding: var(--space-4);
@@ -862,6 +825,10 @@
   visibility: hidden;
 }
 
+.nutri-month-card.loading-card .nutri-dist-legend {
+  visibility: hidden;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    CALORIE-TRACKER UX PORT — stat rows, inline form, delete confirm,
    celebration confetti, dual bars, phase rows, copy buttons
@@ -1131,39 +1098,6 @@
   color: var(--ink-3);
 }
 
-/* ── Programs: 4-phase cut rows ──────────────────────────────────────── */
-.prog-auto-phase {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  border-radius: var(--radius-sm);
-}
-
-.prog-auto-label {
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-4);
-  flex-shrink: 0;
-}
-
-.prog-auto-val {
-  font-weight: 700;
-  font-size: var(--text-sm);
-  color: var(--accent);
-  flex: 1;
-}
-
-.prog-auto-deficit {
-  font-size: var(--text-2xs);
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-
-
 /* ── Date label slide ────────────────────────────────────────────────── */
 @keyframes date-in-forward {
   from { opacity: 0; transform: translateX(40%); }
@@ -1189,3 +1123,21 @@
 
 .daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--reveal-ease) both; }
 .daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--reveal-ease) both; }
+
+/* ── Cold-load page skeleton — before config resolves ────────────────────
+   Real card structure + placeholder values, scoped by .loading-card, so the
+   page never sits blank under the header while nutrition_config loads. */
+.nutri-page-skeleton .metric-val,
+.nutri-page-skeleton .metric-caption {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
+    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
+  ) !important;
+  background-size: 300% 100% !important;
+  border-radius: 0.3em !important;
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+}

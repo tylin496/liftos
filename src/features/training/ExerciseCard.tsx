@@ -85,6 +85,7 @@ export interface ExerciseCardProps {
   logs: TrainingLog[]; // newest-first (as returned by fetchLogsBySlug)
   timeFilter: TimeFilter;
   onLogged: () => void;
+  onLogAdded: (log: TrainingLog) => void;
   onUpdate: (patch: Partial<Exercise>) => void;
   onMoveUp?: () => Promise<void>;
   onMoveDown?: () => Promise<void>;
@@ -97,6 +98,7 @@ export function ExerciseCard({
   logs,
   timeFilter,
   onLogged,
+  onLogAdded,
   onUpdate,
   onMoveUp,
   onMoveDown,
@@ -126,10 +128,11 @@ export function ExerciseCard({
   const [metaTarget, setMetaTarget] = useState(exercise.target ?? "");
   const [metaNote, setMetaNote] = useState(exercise.note ?? "");
 
+  const [submitting, setSubmitting] = useState(false);
+
   const menuRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const addingLogRef = useRef(false);
 
   useEffect(() => {
     setMetaTarget(exercise.target ?? "");
@@ -187,12 +190,12 @@ export function ExerciseCard({
       return;
     updateExercise(exercise.slug, { target: t || null, note: n || null })
       .then((ex) => onUpdate(ex))
-      .catch(() => {});
+      .catch((err) => toast(String((err as Error)?.message ?? err), "error"));
   }
 
   async function handleAdd(raw: string, date: string, note: string) {
-    if (addingLogRef.current) return;
-    addingLogRef.current = true;
+    if (submitting) return;
+    setSubmitting(true);
     const oldBestE1RM = stats.best?.e1rm ?? -1;
     try {
       const newLog = await addLog({
@@ -220,12 +223,14 @@ export function ExerciseCard({
         haptic("tap");
         toast("Set logged", "success");
       }
-      onLogged();
+      // Insert the row Supabase already returned instead of a full-table
+      // refetch — the log-a-set loop stays fast on a flaky connection.
+      onLogAdded(newLog);
     } catch (err) {
       haptic("error");
       toast(String((err as Error)?.message ?? err), "error");
     } finally {
-      addingLogRef.current = false;
+      setSubmitting(false);
     }
   }
 
@@ -453,7 +458,7 @@ export function ExerciseCard({
                 const name = e.target.value.trim() || exercise.name;
                 updateExercise(exercise.slug, { name })
                   .then((ex) => onUpdate(ex))
-                  .catch(() => {});
+                  .catch((err) => toast(String((err as Error)?.message ?? err), "error"));
                 setRenaming(false);
               }}
               onKeyDown={(e) => {
@@ -692,6 +697,7 @@ export function ExerciseCard({
             lastLog={effectiveLogs[0] ?? null}
             onAdd={handleAdd}
             onCancel={() => setAdding(false)}
+            submitting={submitting}
           />
         ) : (
           <AddEntryForm
@@ -699,6 +705,7 @@ export function ExerciseCard({
             lastRaw={effectiveLogs.find((l) => l.kind !== "assisted")?.raw ?? ""}
             onAdd={handleAdd}
             onCancel={() => setAdding(false)}
+            submitting={submitting}
           />
         )
       ) : editId == null ? (

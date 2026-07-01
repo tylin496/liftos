@@ -94,3 +94,12 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Persistent save-failure message — stays until the next attempt, unlike the
+   5s toast, so a missed toast doesn't leave the user believing a failed save
+   went through. */
+.sf-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--bad);
+}

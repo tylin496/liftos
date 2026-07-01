@@ -287,6 +287,7 @@ export function TodayView({
   const [entryExists, setEntryExists] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [savedPulse, setSavedPulse] = useState(false);
   const celebration = useCelebration();
@@ -443,12 +444,14 @@ export function TodayView({
 
   function openEdit(field: "calories" | "protein") {
     haptic("tap");
+    setSaveError(null);
     setEditField(field);
   }
 
   async function doSave(calN: number, protN: number) {
     if (saving) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await saveEntry(date, { calories: calN, protein: protN }, config);
       setSavedPulse(true);
@@ -465,7 +468,11 @@ export function TodayView({
       celebration.celebrate(variant);
     } catch (e) {
       haptic("error");
-      toast(String((e as Error)?.message ?? e), "error");
+      const msg = String((e as Error)?.message ?? e);
+      toast(msg, "error");
+      // Persists in the still-open form (unlike the 5s toast) so a missed
+      // toast can't leave the user believing the entry saved.
+      setSaveError(msg);
     } finally {
       setSaving(false);
     }
@@ -577,10 +584,11 @@ export function TodayView({
             activeField={editField ?? "calories"}
             onActiveFieldChange={setEditField}
             onSave={doSave}
-            onCancel={() => { haptic("tap"); setEditField(null); }}
+            onCancel={() => { haptic("tap"); setEditField(null); setSaveError(null); }}
             onDelete={hasEntry ? () => { haptic("warning"); handleDelete(); } : undefined}
             saving={saving}
             hasEntry={hasEntry}
+            error={saveError}
           />
         ) : (
           /* ── Stat grid — same layout/copy as Overview's Hero card ── */

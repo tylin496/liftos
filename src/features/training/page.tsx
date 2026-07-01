@@ -574,6 +574,16 @@ function TrainingPageInner() {
       .catch((e) => setError(String((e as Error)?.message ?? e)));
   }, []);
 
+  // Optimistic insert for a freshly-added set — avoids a full-table refetch
+  // on the app's most frequent action. Edits/deletes still go through
+  // reloadLogs since they touch existing rows.
+  const onLogAdded = useCallback((log: TrainingLog) => {
+    setLogs((prev) => ({
+      ...prev,
+      [log.exercise_slug]: [log, ...(prev[log.exercise_slug] ?? [])],
+    }));
+  }, []);
+
   useEffect(() => {
     let active = true;
     ensureSeeded()
@@ -797,6 +807,7 @@ function TrainingPageInner() {
             logs={logs[ex.slug] ?? []}
             timeFilter={timeFilter}
             onLogged={reloadLogs}
+            onLogAdded={onLogAdded}
             onUpdate={(patch) =>
               setExercises((prev) =>
                 (prev ?? []).map((e) =>

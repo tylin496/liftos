@@ -98,7 +98,8 @@
   background: none;
   border: none;
   box-shadow: none;
-  padding: 2px;
+  padding: 2px 2px var(--space-5);
+  margin-top: var(--space-2);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -242,6 +243,49 @@
   font-size: var(--text-2xs);
   color: var(--ink-4);
   margin-top: var(--space-4);
+}
+
+/* ─── 100% completion state ──────────────────────────────────────────────── */
+.goal.is-complete .goal-label { color: var(--good); }
+.goal.is-complete .goal-pct { color: var(--good); }
+.goal.is-complete .goal-bar-fill {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--good) 78%, #000), var(--good));
+}
+
+.goal.is-celebrating .goal-pct {
+  animation: goal-pct-pop var(--motion-celebrate) var(--reveal-ease);
+}
+.goal.is-celebrating .goal-bar {
+  position: relative;
+  overflow: hidden;
+  animation: goal-bar-glow var(--motion-celebrate) ease;
+}
+.goal.is-celebrating .goal-bar-fill { position: relative; }
+.goal.is-celebrating .goal-bar-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.55) 50%, transparent 80%);
+  animation: goal-sheen var(--motion-sheen) var(--reveal-ease);
+}
+
+@keyframes goal-pct-pop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.14); }
+  60% { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+@keyframes goal-bar-glow {
+  0% { box-shadow: 0 0 0 0 transparent; }
+  35% { box-shadow: 0 0 16px 2px rgba(76, 212, 118, 0.28); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes goal-sheen {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .goal.is-celebrating * { animation: none !important; }
 }
 
 /* ─── Cut baseline initializer (one-time) ────────────────────────────────── */
@@ -626,5 +670,35 @@
   .ov-th-show-more:hover {
     color: var(--ink);
   }
+}
+
+/* ── Cold-load skeleton ───────────────────────────────────────────────────
+   Real card structure with placeholder values, scoped by .loading-card.
+   Same shimmer treatment (skel-fade + --motion-shimmer) as Health/Nutrition/
+   Training so loading feels consistent across tabs. */
+.loading-card .metric-val,
+.loading-card .metric-caption,
+.loading-card .ov-weight-val,
+.loading-card .ov-th-all-good,
+.loading-card .ov-rec-status {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
+    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
+  ) !important;
+  background-size: 300% 100% !important;
+  border-radius: 0.3em !important;
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+}
+
+/* unit spans live inside an already-shimmered .metric-val — text-transparent
+   only, no second gradient block layered on top */
+.loading-card .metric-val .metric-unit {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: transparent !important;
 }
 

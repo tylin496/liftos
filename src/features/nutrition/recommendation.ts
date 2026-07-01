@@ -14,8 +14,8 @@ export type NutritionAction = "maintain" | "reduce" | "increase";
 
 export interface NutritionDecision {
   action: NutritionAction;
-  /** System card line 1 — the *decision*: "No action needed." when nothing is
-   *  required, an imperative ("Review calorie target.") when it is. A command
+  /** System card line 1 — the *decision*: "No action needed" when nothing is
+   *  required, an imperative ("Review calorie target") when it is. A command
    *  center answers "do I need to do something?", not "is my strategy working?" */
   eventType: string;
   /** System card line 2 — the *reason* for that decision. Carries no number;
@@ -42,7 +42,7 @@ function maintain(
 ): NutritionDecision {
   return {
     action: "maintain",
-    eventType: "No action needed.",
+    eventType: "No action needed",
     actionLine,
     actionHeadline: "Maintain current target",
     reason,
@@ -62,7 +62,7 @@ export function nutritionDecision(
   // different causes land here, so the wording splits them: a Maintenance/Cruise
   // phase has no evaluation band at all (nothing to judge — signalled by an empty
   // target range), vs. a real cut that simply lacks enough clean data yet. Same
-  // action ("No action needed."), different reason.
+  // action ("No action needed"), different reason.
   if (evaluation.confidence === "low") {
     const noActiveTarget = evaluation.targetRange.min === evaluation.targetRange.max;
     if (noActiveTarget) {
@@ -112,7 +112,7 @@ export function nutritionDecision(
     const proposed = Math.max(0, target - CUT_STEP);
     return {
       action: "reduce",
-      eventType: "Review calorie target.",
+      eventType: "Review calorie target",
       actionLine: "Weight loss has slowed.",
       actionHeadline: "Reduce calorie target",
       reason: "Weight loss has been slower than planned — a small cut should restart it.",
@@ -124,7 +124,7 @@ export function nutritionDecision(
   const proposed = target + RAISE_STEP;
   return {
     action: "increase",
-    eventType: "Review calorie target.",
+    eventType: "Review calorie target",
     actionLine: "You're losing faster than planned.",
     actionHeadline: "Increase calorie target",
     reason: "You're losing faster than planned — ease the deficit to protect muscle.",
@@ -139,7 +139,7 @@ export function nutritionDecision(
  *  System card: it only asserts a definitive Below/Above pace once the engine is
  *  confident enough to act on it. Below that it reads as not-yet-conclusive
  *  ("Forming"), and an untracked phase reads as "Not tracked" — never a hard
- *  pace verdict the command center is meanwhile calling "No action needed." */
+ *  pace verdict the command center is meanwhile calling "No action needed" */
 export function paceLabel(evaluation: NutritionEvaluation): string {
   const noActiveTarget = evaluation.targetRange.min === evaluation.targetRange.max;
   if (noActiveTarget) return "Not tracked";

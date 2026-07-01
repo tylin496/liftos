@@ -86,6 +86,10 @@ function compoundPct(slugLogs: Array<{ log_date: string | null; raw: string | nu
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
+  const { data: userData, error: userErr } = await supabase.auth.getUser();
+  if (userErr || !userData.user) throw userErr ?? new Error("Not signed in");
+  const userId = userData.user.id;
+
   const [health, logsRes, pullFirstRes, rowFirstRes, nutritionState, configRes] = await Promise.all([
     // 180 days of body metrics. Recovery's 7/30-day windows anchor to the latest
     // reading, so the wider window doesn't shift its baseline.
@@ -119,14 +123,24 @@ export async function fetchOverview(): Promise<OverviewData> {
     supabase
       .from("nutrition_config")
       .select("target_body_fat_pct, cut_start_date, cut_start_body_fat_pct")
+      .eq("user_id", userId)
       .maybeSingle(),
   ]);
+
+  // Supabase resolves failed queries as { data: null, error } instead of
+  // rejecting — check explicitly so a transient failure surfaces the real
+  // ErrorState instead of silently reading back as "no data".
+  if (logsRes.error) throw logsRes.error;
+  if (pullFirstRes.error) throw pullFirstRes.error;
+  if (rowFirstRes.error) throw rowFirstRes.error;
+  if (configRes.error) throw configRes.error;
 
   // Weight — latest reading. The trend/status the Weight card shows comes from
   // the shared nutrition evaluation (single weight-trend source), not a 7-day
   // point-to-point delta.
   const metrics = health.metrics;
-  const weightLatest = metrics.filter((m) => m.weight_kg != null).at(-1)?.weight_kg ?? null;
+  const weightLatestRaw = metrics.filter((m) => m.weight_kg != null).at(-1)?.weight_kg ?? null;
+  const weightLatest = weightLatestRaw != null ? Math.round(weightLatestRaw * 10) / 10 : null;
 
   // Recovery: reuse the Health tab's calculation verbatim (single source of
   // truth). The 60-day metrics window covers the recovery baseline. Null status

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { fetchHealthData, type HealthData } from "./api";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { fetchHealthData, type HealthData, type BodyMetric } from "./api";
 import {
   series,
   bucketSeries,
@@ -18,6 +18,7 @@ import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metr
 import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
+import { localDateStr } from "@shared/lib/date";
 import "./health.css";
 
 interface MetricSpec {
@@ -203,23 +204,67 @@ function TrendCard({
   );
 }
 
+// Known Shortcut ingestion quirk: body-fat has occasionally arrived as a raw
+// fraction (0.22 instead of 22) or otherwise out of range. A single bad day
+// would otherwise poison the rolling average and, worse, corrupt the derived
+// Lean Mass (weight × (1 − bodyFat/100)). Filtered here at the read boundary,
+// not inside bucketSeries (which stays a pure averaging function).
+const MIN_PLAUSIBLE_BODY_FAT_PCT = 3;
+const MAX_PLAUSIBLE_BODY_FAT_PCT = 60;
+
+function sanitizeMetrics(metrics: BodyMetric[]): BodyMetric[] {
+  return metrics.map((m) =>
+    m.body_fat_pct != null &&
+    (m.body_fat_pct < MIN_PLAUSIBLE_BODY_FAT_PCT || m.body_fat_pct > MAX_PLAUSIBLE_BODY_FAT_PCT)
+      ? { ...m, body_fat_pct: null }
+      : m,
+  );
+}
+
+// A metric that's quietly N days stale reads as confidently current unless
+// something says otherwise — every card anchors on the latest reading, so a
+// sync gap silently shifts what "this period" means.
+const STALE_AFTER_DAYS = 2;
+
+function syncLabel(latestDate: string | null): { text: string; stale: boolean } | null {
+  if (!latestDate) return null;
+  const daysAgo = Math.round((Date.parse(localDateStr()) - Date.parse(latestDate)) / 86400000);
+  const text =
+    daysAgo <= 0 ? "Synced today"
+    : daysAgo === 1 ? "Synced yesterday"
+    : `Synced ${daysAgo} days ago`;
+  return { text, stale: daysAgo > STALE_AFTER_DAYS };
+}
+
 export function HealthPage() {
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const activity = useTabActivity();
 
-  useEffect(() => {
-    setData(null);
-    fetchHealthData(FIXED_DAYS)
-      .then(setData)
+  const load = useCallback(() => {
+    return fetchHealthData(FIXED_DAYS)
+      .then((d) => {
+        setData(d);
+        setError(null);
+      })
       .catch((e) => setError(String(e?.message ?? e)));
   }, []);
+
+  useEffect(() => {
+    setData(null);
+    void load();
+  }, [load]);
 
   useEffect(() => {
     if (activity === 0) return;
     fetchHealthData(FIXED_DAYS).then(setData).catch(() => {});
   }, [activity]);
 
+  const metrics = useMemo(() => (data ? sanitizeMetrics(data.metrics) : []), [data]);
+  const lastSynced = useMemo(
+    () => syncLabel(metrics.at(-1)?.metric_date ?? null),
+    [metrics],
+  );
 
   const tdee = data?.tdee;
   const tdeePrev = data?.tdeePrev;
@@ -227,28 +272,28 @@ export function HealthPage() {
   const cards = useMemo(() => {
     if (!data) return [];
     return METRICS.map((spec) => {
-      const s = series(data.metrics, spec.key);
+      const s = series(metrics, spec.key);
       const thisWeek = rollingAvg(s, spec.bucket, 0);
       const prevWeek = rollingAvg(s, spec.bucket, spec.bucket);
       const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
       const bucketed = bucketSeries(s, { spanDays: 180, bucketDays: spec.bucket });
       return { spec, bucketed, thisWeek, change, readingCount: s.length };
     });
-  }, [data]);
+  }, [data, metrics]);
 
   const recovery = useMemo(() => {
     if (!data) return null;
-    return computeRecovery(data.metrics);
-  }, [data]);
+    return computeRecovery(metrics);
+  }, [data, metrics]);
 
   const weightPace = useMemo(() => {
     if (!data) return null;
-    return regressionSlope(series(data.metrics, "weight_kg"), 28);
-  }, [data]);
+    return regressionSlope(series(metrics, "weight_kg"), 28);
+  }, [data, metrics]);
 
   const lbmCard = useMemo(() => {
     if (!data) return null;
-    const pts = data.metrics
+    const pts = metrics
       .filter((m) => m.weight_kg != null && m.body_fat_pct != null)
       .map((m) => ({
         date: m.metric_date,
@@ -260,20 +305,26 @@ export function HealthPage() {
     const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
     const bucketed = bucketSeries(pts, { spanDays: 180, bucketDays: 14 });
     return { thisWeek, change, bucketed, readingCount: pts.length };
-  }, [data]);
+  }, [data, metrics]);
 
   usePageHeader({ eyebrow: "HEALTH", title: "Trends", onCopy: copyHealthData });
 
-  if (error) {
+  if (error && !data) {
     return (
       <div className="page">
-        <ErrorState message={error} />
+        <ErrorState message={error} onRetry={() => { setError(null); void load(); }} />
       </div>
     );
   }
 
   return (
     <div className="page health">
+      {lastSynced && (
+        <p className={`health-sync-note${lastSynced.stale ? " is-stale" : ""}`}>
+          {lastSynced.text}
+        </p>
+      )}
+
       {recovery && <RecoveryCard snap={recovery} />}
 
       {/* Trend card skeleton — same TrendCard component, placeholder values,

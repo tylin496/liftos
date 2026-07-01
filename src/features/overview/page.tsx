@@ -41,7 +41,7 @@ function greeting(user: ReturnType<typeof useSessionUser>): string {
     (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??
     user?.email?.split("@")[0] ??
     "there";
-  return `Good ${time}, ${name}`;
+  return time === "night" ? `Still up, ${name}` : `Good ${time}, ${name}`;
 }
 
 /** Signed weekly weight change, kg/week (e.g. "−0.46 kg/week"). */
@@ -56,7 +56,7 @@ function fmtTrend(kgPerWeek: number): string {
 // performs no analysis here — it just displays what the registry decided and
 // links to the owning feature. This is a command center: it answers "do I need
 // to do something?", not "is my strategy working?". Line 1 is the *decision*
-// ("No action needed." / "Review calorie target."); line 2 is the *reason*, and
+// ("No action needed" / "Review calorie target"); line 2 is the *reason*, and
 // deliberately carries no number — the calorie target lives on the Nutrition
 // card, never duplicated here. Nutrition is the only provider today; adding
 // more never touches this card.
@@ -93,16 +93,36 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
 function CutProgressCard({ goal, onNav }: { goal: Goal; onNav: () => void }) {
   const e = goal.evaluation;
   const pct = Math.round(e.progressPct);
+  const isComplete = pct >= 100;
   // Fill the % and the bar from 0 once the card scrolls into view (before that,
   // hold both at 0 so the reveal is visible when reached). useCountUp and the
   // bar's width transition both honor prefers-reduced-motion → snap to final.
   const { ref, inView } = useInView<HTMLButtonElement>();
   const pctCount = useCountUp(inView ? pct : 0, 700);
   const barPct = inView ? pct : 0;
+
+  // Celebrate reaching 100% exactly once per cut (identified by its goal
+  // weight — a new baseline produces a new goal weight, so a fresh cut can
+  // celebrate again). Subsequent mounts (tab switches) render the completed
+  // state statically, without replaying the animation.
+  const celebrateKey = `liftos_cut_celebrated_${e.goalWeight.toFixed(1)}`;
+  const [justCelebrated] = useState(() => {
+    if (!isComplete) return false;
+    if (localStorage.getItem(celebrateKey)) return false;
+    localStorage.setItem(celebrateKey, "1");
+    return true;
+  });
+
   return (
-    <button type="button" ref={ref} data-inview={inView} className="page-card goal" onClick={onNav}>
+    <button
+      type="button"
+      ref={ref}
+      data-inview={inView}
+      className={`page-card goal${isComplete ? " is-complete" : ""}${justCelebrated ? " is-celebrating" : ""}`}
+      onClick={onNav}
+    >
       <div className="goal-head">
-        <span className="goal-label">Cut Progress</span>
+        <span className="goal-label">{isComplete ? "Goal reached" : "Cut Progress"}</span>
         <span className="goal-pct">{pctCount}%</span>
       </div>
       <div className="goal-bar">
@@ -206,14 +226,29 @@ function WeightCard({
   const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
   const { ref, inView } = useInView<HTMLButtonElement>();
+
+  if (weightLatest == null) {
+    return (
+      <button type="button" ref={ref} data-inview={inView} className="page-card ov-weight ov-weight--empty" onClick={onNav}>
+        <div className="ov-weight-head">
+          <span className="ov-weight-label">Weight</span>
+          <span className="ov-weight-chevron" aria-hidden>›</span>
+        </div>
+        <p className="ov-no-entry" style={{ textAlign: "left" }}>
+          No weight data yet — sync from Apple Health.
+        </p>
+      </button>
+    );
+  }
+
   return (
     <button type="button" ref={ref} data-inview={inView} className="page-card ov-weight" onClick={onNav}>
       <div className="ov-weight-head">
         <span className="ov-weight-label">Weight</span>
         <span className="ov-weight-chevron" aria-hidden>›</span>
       </div>
-      <MetricValue size="md" unit={weightLatest != null ? "kg" : undefined}>
-        {weightLatest != null ? weightLatest : "—"}
+      <MetricValue size="md" unit="kg">
+        {weightLatest}
       </MetricValue>
       <div className="ov-weight-rows">
         <div className="ov-weight-row">
@@ -459,16 +494,68 @@ export function OverviewPage() {
 
   usePageHeader({ eyebrow: fmtTopbarDate(), title: greeting(user), onCopy: copyAllData });
 
-  if (error) {
+  if (error && !data) {
     return (
       <div className="page">
-        <ErrorState message={error} />
+        <ErrorState message={error} onRetry={() => { setError(null); void load(); }} />
       </div>
     );
   }
 
   return (
     <div className="page">
+      {/* Cold-load skeleton — real card structure with placeholder values so
+          the page never shows a blank gap under the header while data loads. */}
+      {!data && (
+        <>
+          <div className="page-card ov-weight loading-card">
+            <div className="ov-weight-head">
+              <span className="ov-weight-label">Weight</span>
+              <span className="ov-weight-chevron" aria-hidden>›</span>
+            </div>
+            <MetricValue size="md" unit="kg">00.0</MetricValue>
+            <div className="ov-weight-rows">
+              <div className="ov-weight-row">
+                <span className="ov-weight-key">Trend</span>
+                <span className="ov-weight-val">−0.00 kg/wk</span>
+              </div>
+              <div className="ov-weight-row">
+                <span className="ov-weight-key">Status</span>
+                <span className="ov-weight-val">On pace</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="page-card ov-training-health loading-card">
+            <div className="ov-th-summary">
+              <div className="ov-th-top">
+                <span className="ov-th-label">Training Health</span>
+                <span className="ov-th-chevron" aria-hidden>›</span>
+              </div>
+              <div className="ov-th-ret-hero">
+                <MetricValue size="md">00%</MetricValue>
+                <MetricCaption>of tracked lifts on track</MetricCaption>
+              </div>
+            </div>
+            <div className="ov-th-status">
+              <span className="ov-th-all-good">All exercises on track</span>
+            </div>
+          </div>
+
+          <div className="page-card ov-recovery loading-card">
+            <div className="ov-rec-head">
+              <span className="ov-rec-title">Recovery</span>
+              <span className="ov-rec-status">Ready</span>
+            </div>
+            <div className="ov-rec-metrics">
+              <RecoveryMetric label="Sleep" value={0} unit="h" decimals={1} delta={null} higherBetter />
+              <RecoveryMetric label="HRV" value={0} unit="ms" decimals={0} delta={null} higherBetter />
+              <RecoveryMetric label="RHR" value={0} unit="bpm" decimals={0} delta={null} higherBetter={false} />
+            </div>
+          </div>
+        </>
+      )}
+
       {data?.nutritionState?.recommendation && (
         <SystemCard rec={data.nutritionState.recommendation} onNav={(tab) => nav(tab)} />
       )}

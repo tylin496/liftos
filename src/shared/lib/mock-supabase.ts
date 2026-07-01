@@ -164,10 +164,11 @@ const NUTRITION_CONFIG = {
   height_cm: 178,
   training_age_months: 36,
   target_body_fat_pct: 12,
-  // Cut baseline starts unset — the one-time initializer sets it on first entry.
-  cut_start_date: null,
-  cut_start_body_fat_pct: null,
-  cut_start_weight: null,
+  // Cut baseline — pre-seeded so local dev doesn't re-show the initializer on
+  // every reload (mockDb resets from this seed on each page load).
+  cut_start_date: "2026-02-11",
+  cut_start_body_fat_pct: 21.3,
+  cut_start_weight: 98.4,
   updated_at: "2026-06-01T00:00:00Z",
 };
 

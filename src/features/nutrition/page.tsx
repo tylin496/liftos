@@ -7,7 +7,9 @@ import { NutritionInsightCard } from "./NutritionInsightCard";
 import { recomputeAndPersist } from "./evaluationApi";
 import { defaultLogDate } from "./logic";
 import { buildNutritionJson } from "@shared/lib/copyAllData";
+import { MetricCaption } from "@shared/components/Metric";
 import "./nutrition.css";
+import "@shared/components/nutriGrid.css";
 
 const copyNutritionData = () => buildNutritionJson();
 
@@ -31,6 +33,50 @@ export function NutritionPage() {
 
   return (
     <div className="page">
+      {/* Cold-load skeleton — real card structure with placeholder values so
+          the page never sits blank under the header while config loads. */}
+      {!config && (
+        <div className="nutri-page-skeleton">
+          <section className="page-card daily-card loading-card">
+            <div className="daily-card-top">
+              <span className="daily-card-heading">TODAY · NUTRITION</span>
+            </div>
+            <div className="nutri-grid">
+              <div className="nutri-col">
+                <span className="nutri-label">Calories</span>
+                <span className="metric-val metric-val--lg">0,000</span>
+                <MetricCaption>of 0,000 kcal</MetricCaption>
+              </div>
+              <div className="nutri-col">
+                <span className="nutri-label">Protein</span>
+                <span className="metric-val metric-val--lg">000</span>
+                <MetricCaption>of 000g</MetricCaption>
+              </div>
+            </div>
+          </section>
+
+          <section className="page-card loading-card">
+            <p className="page-eyebrow" style={{ margin: 0 }}>THIS WEEK</p>
+            <div className="nutri-kpi-row">
+              <div className="nutri-kpi">
+                <span className="metric-val">0,000</span>
+                <MetricCaption>kcal avg</MetricCaption>
+              </div>
+              <div className="nutri-kpi">
+                <span className="metric-val">000</span>
+                <MetricCaption>g avg</MetricCaption>
+              </div>
+            </div>
+          </section>
+
+          <section className="page-card nutri-month-card loading-card">
+            <p className="page-eyebrow" style={{ margin: 0 }}>LAST 30 DAYS</p>
+            <span className="metric-val">00%</span>
+            <MetricCaption>adherence</MetricCaption>
+          </section>
+        </div>
+      )}
+
       {config && (
         <>
           <TodayView
@@ -48,9 +94,12 @@ export function NutritionPage() {
             entryVersion={entryVersion}
             onOpenCalendar={() => setCalendarOpen(true)}
           />
-          <NutritionInsightCard refreshKey={entryVersion} />
         </>
       )}
+
+      {/* Self-contained — fetches its own state independently of config, so
+          it doesn't need to wait behind the gate above. */}
+      <NutritionInsightCard refreshKey={entryVersion} />
     </div>
   );
 }

@@ -9,6 +9,36 @@ import { phaseFromDeficit, trainingMonthsFromStart } from "@features/nutrition/l
 import logoUrl from "@shared/assets/logo.png";
 import { version as APP_VERSION } from "../../../package.json";
 
+type RowKey = "protein" | "intake" | "height" | "start" | "bf";
+
+function fmtDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function Stepper({
+  value,
+  step,
+  onChange,
+}: {
+  value: number;
+  step: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="settings-stepper">
+      <button type="button" onClick={() => onChange(value - step)} aria-label="Decrease">
+        −
+      </button>
+      <span className="num">{value}</span>
+      <button type="button" onClick={() => onChange(value + step)} aria-label="Increase">
+        +
+      </button>
+    </div>
+  );
+}
+
 function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => void }) {
   const { config, setConfig } = useNutritionConfig();
   const toast = useToast();
@@ -20,6 +50,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   const [targetBf, setTargetBf] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingRow, setEditingRow] = useState<RowKey | null>(null);
 
   useEffect(() => {
     if (!config) return;
@@ -38,6 +69,10 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   const liveDeficit = Math.max(0, Math.round((config?.tdee ?? 0) - intake));
   const livePhaseName = phaseFromDeficit(liveDeficit);
 
+  function editRow(row: RowKey) {
+    setEditingRow((cur) => (cur === row ? null : row));
+  }
+
   async function handleSave() {
     if (!config) return;
     setSaving(true);
@@ -52,6 +87,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
         target_body_fat_pct: numOrNull(targetBf),
       });
       setConfig(updated);
+      setEditingRow(null);
       toast("Settings saved", "success");
       onClose();
     } catch (e) {
@@ -82,42 +118,151 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
 
         <div className="settings-sheet-body">
           <p className="settings-section-label">Nutrition</p>
+          <div className="settings-group">
+            <div className={`settings-row${editingRow === "protein" ? " is-editing" : ""}`}>
+              <span className="settings-row-label">Protein target</span>
+              {editingRow === "protein" ? (
+                <Stepper value={Number(protein) || 0} step={5} onChange={(v) => setProtein(String(Math.max(0, v)))} />
+              ) : (
+                <button
+                  type="button"
+                  className="settings-row-val-btn"
+                  onClick={() => editRow("protein")}
+                >
+                  <span className="settings-row-val">
+                    {protein}
+                    <span className="u">g</span>
+                    <span className="chev">›</span>
+                  </span>
+                </button>
+              )}
+            </div>
+            <div className={`settings-row${editingRow === "intake" ? " is-editing" : ""}`}>
+              <span className="settings-row-label">Intake goal</span>
+              {editingRow === "intake" ? (
+                <Stepper
+                  value={Number(currentIntake) || 0}
+                  step={50}
+                  onChange={(v) => setCurrentIntake(String(Math.max(0, v)))}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="settings-row-val-btn"
+                  onClick={() => editRow("intake")}
+                >
+                  <span className="settings-row-val">
+                    {Number(currentIntake).toLocaleString()}
+                    <span className="u">kcal</span>
+                    <span className="chev">›</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
 
-          <label className="nutri-field">
-            <span>Protein target (g)</span>
-            <input type="number" inputMode="numeric" value={protein} onChange={(e) => setProtein(e.target.value)} />
-          </label>
-
-          <label className="nutri-field">
-            <span>Intake goal (kcal/day)</span>
-            <input type="number" inputMode="numeric" value={currentIntake} onChange={(e) => setCurrentIntake(e.target.value)} />
-          </label>
-
-          <div className="prog-auto-phase">
-            <span className="prog-auto-label">Phase</span>
-            <span className="prog-auto-val">{livePhaseName}</span>
-            <span className="prog-auto-deficit">−{liveDeficit.toLocaleString()} kcal deficit</span>
+          <div className="settings-phase">
+            <span className="settings-phase-l">
+              <span className="k">Phase</span>
+              <span className="v">{livePhaseName}</span>
+            </span>
+            <span className="settings-phase-def">−{liveDeficit.toLocaleString()} kcal deficit</span>
           </div>
 
           <p className="settings-section-label settings-section-label--spaced">Profile</p>
-
-          <label className="nutri-field">
-            <span>Height (cm)</span>
-            <input type="number" inputMode="decimal" placeholder="—" value={height} onChange={(e) => setHeight(e.target.value)} />
-          </label>
-
-          <label className="nutri-field">
-            <span>Training start date</span>
-            <input type="date" value={trainingStartDate} onChange={(e) => setTrainingStartDate(e.target.value)} />
-          </label>
-          {liveTrainingMonths !== null && (
-            <p className="nutri-training-age-hint">= {liveTrainingMonths} months of training</p>
-          )}
-
-          <label className="nutri-field">
-            <span>Target body fat (%)</span>
-            <input type="number" inputMode="decimal" placeholder="—" value={targetBf} onChange={(e) => setTargetBf(e.target.value)} />
-          </label>
+          <div className="settings-group">
+            <div className={`settings-row${editingRow === "height" ? " is-editing" : ""}`}>
+              <span className="settings-row-label">Height</span>
+              {editingRow === "height" ? (
+                <input
+                  className="settings-row-input"
+                  type="number"
+                  inputMode="decimal"
+                  autoFocus
+                  placeholder="—"
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value)}
+                  onBlur={() => setEditingRow(null)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="settings-row-val-btn"
+                  onClick={() => editRow("height")}
+                >
+                  <span className={`settings-row-val${height ? "" : " placeholder"}`}>
+                    {height ? (
+                      <>
+                        {height}
+                        <span className="u">cm</span>
+                      </>
+                    ) : (
+                      "Set"
+                    )}
+                    <span className="chev">›</span>
+                  </span>
+                </button>
+              )}
+            </div>
+            <div className={`settings-row${editingRow === "start" ? " is-editing" : ""}`}>
+              <span className="settings-row-label">Training start</span>
+              {editingRow === "start" ? (
+                <input
+                  className="settings-row-input"
+                  type="date"
+                  autoFocus
+                  value={trainingStartDate}
+                  onChange={(e) => setTrainingStartDate(e.target.value)}
+                  onBlur={() => setEditingRow(null)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="settings-row-val-btn"
+                  onClick={() => editRow("start")}
+                >
+                  <span className={`settings-row-val${trainingStartDate ? "" : " placeholder"}`}>
+                    {trainingStartDate ? fmtDate(trainingStartDate) : "Set"}
+                    <span className="chev">›</span>
+                  </span>
+                </button>
+              )}
+            </div>
+            <div className={`settings-row${editingRow === "bf" ? " is-editing" : ""}`}>
+              <span className="settings-row-label">Target body fat</span>
+              {editingRow === "bf" ? (
+                <input
+                  className="settings-row-input"
+                  type="number"
+                  inputMode="decimal"
+                  autoFocus
+                  placeholder="—"
+                  value={targetBf}
+                  onChange={(e) => setTargetBf(e.target.value)}
+                  onBlur={() => setEditingRow(null)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="settings-row-val-btn"
+                  onClick={() => editRow("bf")}
+                >
+                  <span className={`settings-row-val${targetBf ? "" : " placeholder"}`}>
+                    {targetBf ? (
+                      <>
+                        {targetBf}
+                        <span className="u">%</span>
+                      </>
+                    ) : (
+                      "Set"
+                    )}
+                    <span className="chev">›</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+          {liveTrainingMonths !== null && <p className="settings-hint">= {liveTrainingMonths} months of training</p>}
 
           <button className="nutri-save" onClick={handleSave} disabled={saving}>
             {saving ? "Saving…" : "Save changes"}

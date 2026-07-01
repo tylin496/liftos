@@ -141,7 +141,12 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
           {loading ? "Loading" : decision ? decision.actionHeadline : "Not enough data yet"}
         </p>
 
-        {!loading && decision && decision.proposedTarget == null ? (
+        {loading ? (
+          <div className="ni-prog">
+            <span className="ni-prog-current">0,000 kcal</span>
+            <span className="ni-prog-hold">Hold</span>
+          </div>
+        ) : decision && decision.proposedTarget == null ? (
           <div className="ni-hero">
             <span className="ni-hero-val">
               {decision.currentTarget.toLocaleString()}
@@ -149,26 +154,18 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
             </span>
             <span className="ni-verdict">Hold</span>
           </div>
-        ) : (
+        ) : decision && decision.proposedTarget != null ? (
           <div className="ni-prog">
-            <span className="ni-prog-current">
-              {loading || !decision ? "0,000 kcal" : `${decision.currentTarget.toLocaleString()} kcal`}
+            <span className="ni-prog-current">{decision.currentTarget.toLocaleString()} kcal</span>
+            <span className="ni-prog-arrow">→</span>
+            <span
+              className={`ni-prog-new${freshTarget ? " is-fresh" : ""}`}
+              onAnimationEnd={() => setFreshTarget(false)}
+            >
+              {decision.proposedTarget.toLocaleString()} kcal
             </span>
-            {!loading && decision?.proposedTarget != null ? (
-              <>
-                <span className="ni-prog-arrow">→</span>
-                <span
-                  className={`ni-prog-new${freshTarget ? " is-fresh" : ""}`}
-                  onAnimationEnd={() => setFreshTarget(false)}
-                >
-                  {decision.proposedTarget.toLocaleString()} kcal
-                </span>
-              </>
-            ) : (
-              <span className="ni-prog-hold">Hold</span>
-            )}
           </div>
-        )}
+        ) : null}
 
         <p className="ni-rec-reason">
           {loading

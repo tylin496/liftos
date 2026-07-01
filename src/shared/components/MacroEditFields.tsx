@@ -21,6 +21,7 @@ export function MacroEditFields({
   onDelete,
   saving,
   hasEntry,
+  error,
 }: {
   calories: string;
   protein: string;
@@ -33,6 +34,9 @@ export function MacroEditFields({
   onDelete?: () => void;
   saving?: boolean;
   hasEntry: boolean;
+  /** Persists until the next save attempt — a 5s toast alone is easy to miss
+      and would otherwise leave the user believing the entry saved. */
+  error?: string | null;
 }) {
   const calInputRef = useRef<HTMLInputElement>(null);
   const protInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +115,7 @@ export function MacroEditFields({
         >
           {saving ? "Saving…" : hasEntry ? "Update entry" : "Save entry"}
         </button>
+        {error && <p className="sf-error">{error}</p>}
         <div className="sf-secondary">
           {onDelete && (
             <button className="sf-delete-link" type="button" onClick={onDelete}>

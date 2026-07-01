@@ -192,3 +192,16 @@
   font-size: var(--text-sm);
   color: var(--ink-3);
 }
+
+/* ── Sync staleness note ──────────────────────────────────────────────────
+   Every card anchors on the latest reading — a stale sync silently shifts
+   what "this period" means, so it needs to be visible, not just implied. */
+.health-sync-note {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+  margin: 0 0 var(--space-2);
+}
+
+.health-sync-note.is-stale {
+  color: var(--gold);
+}

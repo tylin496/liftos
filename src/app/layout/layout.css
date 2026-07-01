@@ -148,7 +148,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 /* Staggered card entry when a tab mounts */
@@ -267,7 +267,10 @@
   display: flex;
   flex-direction: column;
   border-radius: var(--radius) var(--radius) 0 0;
-  background: var(--bg-card);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  backdrop-filter: blur(30px) saturate(1.6);
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  border-top: 1px solid var(--rule-strong);
   box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.2);
   animation: sheet-in var(--motion-base) var(--move-ease) both;
 }
@@ -344,6 +347,168 @@
 }
 
 .settings-section-label--spaced { margin-top: var(--space-4); }
+
+.settings-group {
+  background: var(--bg-card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  min-height: 52px;
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid var(--rule);
+}
+
+.settings-row-label {
+  font-size: var(--text-base);
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.settings-row-val-btn {
+  display: flex;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.settings-row-val {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-row-val .u {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.settings-row-val .chev {
+  color: var(--ink-4);
+  font-size: var(--text-base);
+}
+
+.settings-row-val.placeholder {
+  color: var(--ink-4);
+  font-family: var(--font-ui);
+  font-weight: 500;
+}
+
+.settings-row.is-editing {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.settings-row-input {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--bg-input);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  text-align: right;
+  width: 130px;
+}
+
+.settings-row-input:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.settings-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-soft);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+}
+
+.settings-stepper button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-stepper .num {
+  min-width: 52px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.settings-phase {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: 10px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.settings-phase-l {
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.settings-phase-l .k {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-right: var(--space-2);
+}
+
+.settings-phase-l .v {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.settings-phase-def {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.settings-hint {
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+  margin: var(--space-2) 0 0 var(--space-1);
+}
 
 .settings-sign-out {
   margin-top: var(--space-2);

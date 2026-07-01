@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@shared/lib/supabase";
-import { parse, normalize } from "./parser";
+import { parse, normalize, score } from "./parser";
 import type { TrainingLog } from "./api";
 import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import {
@@ -118,11 +118,13 @@ export function AddEntryForm({
   lastRaw,
   onAdd,
   onCancel,
+  submitting = false,
 }: {
   setCount: number;
   lastRaw: string;
   onAdd: (raw: string, date: string, note: string) => void;
   onCancel: () => void;
+  submitting?: boolean;
 }) {
   const n = Math.max(MIN_SET_COUNT, setCount);
   const lastParsed = lastRaw ? parse(lastRaw) : null;
@@ -143,6 +145,7 @@ export function AddEntryForm({
       ? normalize(`${effectiveWeightExpr}${suffix} *${reps}`)
       : "";
   const preview = raw ? parse(raw) : null;
+  const isValid = preview != null && score(preview) > 0;
   const { weightRef, adjustWeight, appendToken } = useWeightAdjuster(
     weightExpr,
     setWeightExpr,
@@ -151,7 +154,7 @@ export function AddEntryForm({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!preview) return;
+    if (!isValid || submitting) return;
     onAdd(raw, date, note.trim());
     setWeightExpr("");
     setRepValues(emptyRepValues(n));
@@ -256,7 +259,7 @@ export function AddEntryForm({
 
       {weightExpr || reps ? (
         <div className="log-preview-bar">
-          {preview ? (
+          {isValid ? (
             <ExprDisplay raw={raw} detail />
           ) : (
             <span className="expr-bad">
@@ -264,7 +267,9 @@ export function AddEntryForm({
                 ? "enter weight"
                 : !reps
                   ? "enter reps"
-                  : "cannot parse"}
+                  : preview
+                    ? "enter a weight above 0"
+                    : "cannot parse"}
             </span>
           )}
         </div>
@@ -278,8 +283,8 @@ export function AddEntryForm({
         aria-label="Note"
       />
 
-      <button type="submit" className="btn-log-primary" disabled={!preview}>
-        Log set
+      <button type="submit" className="btn-log-primary" disabled={!isValid || submitting}>
+        {submitting ? "Saving…" : "Log set"}
       </button>
     </form>
   );
@@ -294,11 +299,13 @@ export function AddAssistedForm({
   lastLog,
   onAdd,
   onCancel,
+  submitting = false,
 }: {
   setCount: number;
   lastLog: TrainingLog | null;
   onAdd: (raw: string, date: string, note: string) => void;
   onCancel: () => void;
+  submitting?: boolean;
 }) {
   const n = Math.max(MIN_SET_COUNT, setCount);
   const lastParsed = lastLog?.raw ? parse(lastLog.raw) : null;
@@ -337,7 +344,7 @@ export function AddAssistedForm({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isValid || effectiveLoad === null) return;
+    if (!isValid || effectiveLoad === null || submitting) return;
     localStorage.setItem(LAST_BW_KEY, String(parsedBw));
     const raw = normalize(`${parsedBw}-(${parsedAssist}) *${reps}`);
     onAdd(raw, date, note.trim());
@@ -447,8 +454,8 @@ export function AddAssistedForm({
         aria-label="Note"
       />
 
-      <button type="submit" className="btn-log-primary" disabled={!isValid}>
-        Log set
+      <button type="submit" className="btn-log-primary" disabled={!isValid || submitting}>
+        {submitting ? "Saving…" : "Log set"}
       </button>
     </form>
   );
@@ -492,6 +499,7 @@ export function InlineEditEntry({
       ? normalize(`${weightExpr.trim()}${suffix} *${reps}`)
       : "";
   const preview = raw ? parse(raw) : null;
+  const isValid = preview != null && score(preview) > 0;
   const { weightRef, adjustWeight, appendToken } = useWeightAdjuster(
     weightExpr,
     setWeightExpr,
@@ -500,7 +508,7 @@ export function InlineEditEntry({
 
   function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!preview) return;
+    if (!isValid) return;
     onSave(raw, log.log_date ?? "", note.trim());
   }
 
@@ -579,10 +587,10 @@ export function InlineEditEntry({
 
       {weightExpr || reps ? (
         <div className="log-preview-bar">
-          {preview ? (
+          {isValid ? (
             <ExprDisplay raw={raw} detail />
           ) : (
-            <span className="expr-bad">cannot parse</span>
+            <span className="expr-bad">{preview ? "enter a weight above 0" : "cannot parse"}</span>
           )}
         </div>
       ) : null}
@@ -596,7 +604,7 @@ export function InlineEditEntry({
       />
 
       <div className="log-edit-actions">
-        <button type="submit" className="btn-log-primary" disabled={!preview}>
+        <button type="submit" className="btn-log-primary" disabled={!isValid}>
           Save changes
         </button>
         <button type="button" className="btn-log-secondary" onClick={onCancel}>
