@@ -235,7 +235,7 @@
 .goal-sub {
   font-size: var(--text-2xs);
   color: var(--ink-4);
-  margin-top: 5px;
+  margin-top: var(--space-4);
 }
 
 .goal-basis {
@@ -556,6 +556,5 @@
     color: var(--ink);
   }
 }
-
 
 
