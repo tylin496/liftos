@@ -84,6 +84,144 @@
   font-size: var(--text-lg);
 }
 
+/* ─── System Card (top-priority recommendation) ──────────────────────────── */
+
+.ov-system {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
+}
+
+@media (hover: hover) {
+  .ov-system:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.ov-system:active {
+  transform: scale(var(--tap-scale));
+  box-shadow: var(--shadow-sm);
+  transition-duration: var(--motion-fast);
+}
+
+.ov-system-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ov-system-label {
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
+  text-transform: uppercase;
+  color: var(--role-eyebrow-color);
+}
+
+.ov-system-chevron {
+  font-size: var(--text-xl);
+  color: var(--ink-4);
+  line-height: 1;
+}
+
+.ov-system-title {
+  margin: var(--space-1) 0 0;
+  font-size: var(--role-card-headline-size);
+  font-weight: var(--role-card-headline-weight);
+  color: var(--ink);
+}
+
+.ov-system-sub {
+  margin: 0;
+  font-size: var(--role-secondary-size);
+  font-weight: var(--role-secondary-weight);
+  line-height: 1.5;
+  color: var(--role-secondary-color);
+}
+
+/* ─── Nutrition Summary (goal + status snapshot) ─────────────────────────── */
+
+.ov-nutri-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
+}
+
+@media (hover: hover) {
+  .ov-nutri-summary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.ov-nutri-summary:active {
+  transform: scale(var(--tap-scale));
+  box-shadow: var(--shadow-sm);
+  transition-duration: var(--motion-fast);
+}
+
+.ov-ns-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ov-ns-label {
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
+  text-transform: uppercase;
+  color: var(--role-eyebrow-color);
+}
+
+.ov-ns-chevron {
+  font-size: var(--text-xl);
+  color: var(--ink-4);
+  line-height: 1;
+}
+
+.ov-ns-cols {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.ov-ns-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ov-ns-divider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--rule);
+}
+
+.ov-ns-key {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.ov-ns-status {
+  font-size: var(--role-card-headline-size);
+  font-weight: var(--role-card-headline-weight);
+  color: var(--ink);
+}
+
 /* ─── Recovery Card ──────────────────────────────────────────────────────── */
 
 .ov-recovery {

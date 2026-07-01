@@ -191,6 +191,75 @@ export type Database = {
         }
         Relationships: []
       }
+      nutrition_evaluations: {
+        Row: {
+          calorie_target: number | null
+          confidence: string
+          created_at: string
+          cut_mode: string | null
+          estimated_intake: number | null
+          estimated_tdee: number | null
+          evaluated_at: string
+          intake_difference: number | null
+          observed_rate: number
+          rec_priority: number | null
+          rec_source: string | null
+          rec_subtitle: string | null
+          rec_title: string | null
+          status: string
+          target_max: number
+          target_min: number
+          updated_at: string
+          user_id: string
+          weight_data_points: number | null
+          window_days: number | null
+        }
+        Insert: {
+          calorie_target?: number | null
+          confidence: string
+          created_at?: string
+          cut_mode?: string | null
+          estimated_intake?: number | null
+          estimated_tdee?: number | null
+          evaluated_at: string
+          intake_difference?: number | null
+          observed_rate: number
+          rec_priority?: number | null
+          rec_source?: string | null
+          rec_subtitle?: string | null
+          rec_title?: string | null
+          status: string
+          target_max: number
+          target_min: number
+          updated_at?: string
+          user_id: string
+          weight_data_points?: number | null
+          window_days?: number | null
+        }
+        Update: {
+          calorie_target?: number | null
+          confidence?: string
+          created_at?: string
+          cut_mode?: string | null
+          estimated_intake?: number | null
+          estimated_tdee?: number | null
+          evaluated_at?: string
+          intake_difference?: number | null
+          observed_rate?: number
+          rec_priority?: number | null
+          rec_source?: string | null
+          rec_subtitle?: string | null
+          rec_title?: string | null
+          status?: string
+          target_max?: number
+          target_min?: number
+          updated_at?: string
+          user_id?: string
+          weight_data_points?: number | null
+          window_days?: number | null
+        }
+        Relationships: []
+      }
       training_logs: {
         Row: {
           assistance: number | null

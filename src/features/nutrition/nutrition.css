@@ -44,6 +44,79 @@
   gap: var(--space-3);
 }
 
+/* ── Nutrition Insight (v2 evaluation card) ──────────────────────────── */
+/* Read-only detail view of the shared evaluation: a label→value list plus a
+   recommendation footer. Analysis rhythm, matching the Health analysis cards. */
+.ni-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ni-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.ni-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--rule);
+}
+
+.ni-row:first-child {
+  border-top: none;
+}
+
+.ni-row-label {
+  font-size: var(--role-card-title-size);
+  font-weight: var(--role-card-title-weight);
+  color: var(--role-card-title-color);
+}
+
+.ni-row-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ni-rec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.ni-rec-label {
+  font-size: var(--role-section-title-size);
+  font-weight: var(--role-section-title-weight);
+  letter-spacing: var(--role-section-title-spacing);
+  text-transform: uppercase;
+  color: var(--role-section-title-color);
+}
+
+.ni-rec-title {
+  margin: 0;
+  font-size: var(--role-card-headline-size);
+  font-weight: var(--role-card-headline-weight);
+  color: var(--ink);
+}
+
+.ni-rec-sub {
+  margin: 0;
+  font-size: var(--role-secondary-size);
+  font-weight: var(--role-secondary-weight);
+  line-height: 1.5;
+  color: var(--role-secondary-color);
+}
+
 /* ── History ─────────────────────────────────────────────────────────── */
 .hist-badge {
   font-size: var(--text-2xs);
@@ -455,8 +528,16 @@
 
 /* Shared bar-grow animation — consumed by .ntb-pair (dual-bar trend below). */
 @keyframes bar-rise {
-  from { transform: scaleY(0); opacity: 0; }
-  to   { transform: scaleY(1); opacity: 1; }
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+/* Brief pre-collapse before a week change swaps in new bars — height (scale)
+   only, no fade, so the transition reads as one continuous motion. */
+.ntb-pair.is-collapsing {
+  animation: none;
+  transform: scaleY(0.85);
+  transition: transform var(--motion-fast) var(--move-ease);
 }
 
 .nutri-trend-day {
@@ -503,10 +584,17 @@
 }
 
 .hist-week-range {
+  display: inline-block;
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink-2);
   line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hist-week-range:active {
+  transform: scale(var(--tap-scale));
 }
 
 .hist-week-chevron {
@@ -623,15 +711,6 @@
   margin: 0;
   color: var(--role-eyebrow-color);
   line-height: 1;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.daily-card-heading:active {
-  transform: scale(var(--tap-scale));
 }
 
 /* Reserve the badge's height so the card doesn't shrink a few px when no
@@ -924,10 +1003,27 @@
 .daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--reveal-ease) both; }
 .daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--reveal-ease) both; }
 
-/* Week strip reuses the same slide when swiping between weeks. */
-.week-nav-forward  { animation: slide-from-right var(--motion-slow) var(--reveal-ease) both; }
-.week-nav-backward { animation: slide-from-left  var(--motion-slow) var(--reveal-ease) both; }
+/* ── Week range odometer ───────────────────────────────────────────────
+   Only the date-range label rolls vertically like a mechanical counter —
+   the surrounding chevrons/KPI row/card stay put (no whole-card slide). */
+.hist-week-range {
+  overflow: hidden;
+}
 
+.hist-week-range-roll {
+  display: inline-block;
+}
+
+@keyframes week-roll-up {
+  from { transform: translateY(65%); }
+  to   { transform: translateY(0); }
+}
+@keyframes week-roll-down {
+  from { transform: translateY(-65%); }
+  to   { transform: translateY(0); }
+}
+.hist-week-range-roll.roll-forward  { animation: week-roll-up   var(--motion-slow) var(--reveal-ease) both; }
+.hist-week-range-roll.roll-backward { animation: week-roll-down var(--motion-slow) var(--reveal-ease) both; }
 
 /* ── Nutrition loading skeletons ─────────────────────────────────────── */
 /* Week bars skeleton */

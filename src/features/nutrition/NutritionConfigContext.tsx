@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { getConfig, saveConfig, type NutritionConfig } from "./api";
+import { recomputeAndPersist } from "./evaluationApi";
 import { fetchHealthData } from "@features/health/api";
 
 interface NutritionConfigCtx {
@@ -28,6 +29,10 @@ export function NutritionConfigProvider({ children }: { children: ReactNode }) {
         } else {
           setConfig(cfg);
         }
+        // App open pulls fresh Health data (incl. weight synced out-of-band),
+        // so recompute the shared evaluation here — closes the gap where a pure
+        // weight sync wouldn't otherwise trigger a recompute. Fire-and-forget.
+        void recomputeAndPersist().catch(() => {});
       })
       .catch(() => {});
   }

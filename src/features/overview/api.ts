@@ -8,6 +8,7 @@ import { epley1RM } from "@features/training/logic";
 import { localDateStrDaysAgo } from "@shared/lib/date";
 import { defaultLogDate, DEFAULTS } from "@features/nutrition/logic";
 import { targetsFromConfig } from "@features/nutrition/api";
+import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
 
 type NutritionEntry = Database["public"]["Tables"]["nutrition_entries"]["Row"];
 
@@ -61,6 +62,9 @@ export interface OverviewData {
   recovery: RecoverySnapshot | null;
   strength: StrengthSummary;
   compoundProgress: CompoundProgress | null;
+  /** Shared nutrition evaluation + recommendation (single source of truth).
+   *  Read straight from the persisted row — Overview never recomputes it. */
+  nutritionState: NutritionStateFull | null;
 }
 
 // Pull is resolved dynamically (first exercise in Pull split by sort_order).
@@ -93,7 +97,7 @@ export async function fetchOverview(): Promise<OverviewData> {
   const today = defaultLogDate();
   const weekAgo = sinceDate(7);
 
-  const [entryRes, configRes, metricsRes, logsRes, pullFirstRes, rowFirstRes] = await Promise.all([
+  const [entryRes, configRes, metricsRes, logsRes, pullFirstRes, rowFirstRes, nutritionState] = await Promise.all([
     supabase
       .from("nutrition_entries")
       .select("*")
@@ -129,6 +133,8 @@ export async function fetchOverview(): Promise<OverviewData> {
       .order("sort_order", { ascending: true })
       .limit(1)
       .maybeSingle(),
+    // Shared nutrition state — a plain read; recompute happens on data change.
+    getNutritionState(),
   ]);
 
   // Nutrition — reuse Nutrition's own target derivation so Overview's Hero
@@ -281,5 +287,6 @@ export async function fetchOverview(): Promise<OverviewData> {
     recovery,
     strength,
     compoundProgress,
+    nutritionState,
   };
 }

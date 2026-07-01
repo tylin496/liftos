@@ -4,7 +4,7 @@ import { RECOVERY_STATUS_COLOR, type RecoverySnapshot } from "@features/health/m
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
-import { PageTopBar } from "@shared/components/PageTopBar";
+import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
 import "@shared/components/nutriGrid.css";
@@ -13,6 +13,8 @@ import { useNav } from "@app/layout/NavContext";
 import { useSessionUser } from "@app/layout/SessionContext";
 import { useToast } from "@shared/components/Toast";
 import { saveEntry, deleteEntry, getConfig, type NutritionConfig } from "@features/nutrition/api";
+import { recomputeAndPersist, type NutritionStateFull } from "@features/nutrition/evaluationApi";
+import type { Recommendation } from "@features/overview/recommendations";
 import {
   defaultLogDate,
   getCalorieResult,
@@ -21,7 +23,10 @@ import {
   calorieNote,
   proteinNote,
 } from "@features/nutrition/logic";
+import type { TabId } from "@app/layout/TabBar";
 import "./overview.css";
+
+const copyAllData = () => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS);
 
 const MONTH_ABBR = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -409,6 +414,67 @@ function RecoveryCard({ snap, onNav }: { snap: RecoverySnapshot | null; onNav: (
   );
 }
 
+/* ── System Card ───────────────────────────────────────────────────────── */
+
+// The single highest-priority recommendation across every provider. Overview
+// performs no analysis here — it just displays what the registry decided and
+// links to the owning feature. Nutrition is the only provider today; adding
+// more never touches this card.
+const REC_TAB: Record<Recommendation["source"], TabId> = {
+  nutrition: "nutrition",
+  training: "training",
+  weight: "health",
+  recovery: "health",
+};
+
+function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) => void }) {
+  return (
+    <button type="button" className="page-card ov-system" onClick={() => onNav(REC_TAB[rec.source])}>
+      <div className="ov-system-head">
+        <span className="ov-system-label">System</span>
+        <span className="ov-system-chevron" aria-hidden>›</span>
+      </div>
+      <p className="ov-system-title">{rec.title}</p>
+      <p className="ov-system-sub">{rec.subtitle}</p>
+    </button>
+  );
+}
+
+/* ── Nutrition Summary ─────────────────────────────────────────────────── */
+
+// Brief nutrition snapshot: the current goal + a one-word status. This is the
+// *state* (not the action — the System card carries the action), so the two
+// never read as duplicates even while Nutrition is the only recommender.
+function nutritionStatusLabel(state: NutritionStateFull): string {
+  const { evaluation } = state;
+  if (evaluation.confidence === "low") return "Calibrating";
+  if (evaluation.status === "on_target") return "On track";
+  return evaluation.status === "below_target" ? "Below pace" : "Above pace";
+}
+
+function NutritionSummary({ state, onNav }: { state: NutritionStateFull; onNav: () => void }) {
+  const goal = state.diagnostics.calorieTarget;
+  return (
+    <button type="button" className="page-card ov-nutri-summary" onClick={onNav}>
+      <div className="ov-ns-head">
+        <span className="ov-ns-label">Nutrition</span>
+        <span className="ov-ns-chevron" aria-hidden>›</span>
+      </div>
+      <div className="ov-ns-cols">
+        <div className="ov-ns-col">
+          <span className="ov-ns-key">Current Goal</span>
+          <MetricValue size="md" unit="kcal">{goal.toLocaleString()}</MetricValue>
+        </div>
+        <div className="ov-ns-divider" />
+        <div className="ov-ns-col">
+          <span className="ov-ns-key">Status</span>
+          <span className="ov-ns-status">{nutritionStatusLabel(state)}</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 /* ── Overview Page ─────────────────────────────────────────────────────── */
 
 export function OverviewPage() {
@@ -426,6 +492,7 @@ export function OverviewPage() {
       .catch((e) => setError(String(e?.message ?? e)));
   }, [activity, refreshKey]);
 
+  usePageHeader({ eyebrow: fmtTopbarDate(), title: greeting(user), onCopy: copyAllData });
 
   if (error) {
     return (
@@ -435,15 +502,27 @@ export function OverviewPage() {
     );
   }
 
+  // Refresh Overview immediately after a save, then recompute the shared
+  // evaluation and refresh again so the System card / Nutrition Summary pick up
+  // the fresh state. Fire-and-forget — never blocks the save.
+  function handleSaved() {
+    setRefreshKey((k) => k + 1);
+    void recomputeAndPersist()
+      .then(() => setRefreshKey((k) => k + 1))
+      .catch(() => {});
+  }
+
   return (
     <div className="page">
-      <PageTopBar
-        eyebrow={fmtTopbarDate()}
-        title={greeting(user)}
-        onCopy={() => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS)}
-      />
+      {data?.nutritionState?.recommendation && (
+        <SystemCard rec={data.nutritionState.recommendation} onNav={(tab) => nav(tab)} />
+      )}
 
-      <HeroCard data={data} onSaved={() => setRefreshKey((k) => k + 1)} />
+      <HeroCard data={data} onSaved={handleSaved} />
+
+      {data?.nutritionState && (
+        <NutritionSummary state={data.nutritionState} onNav={() => nav("nutrition")} />
+      )}
 
       {data && <RecoveryCard snap={data.recovery} onNav={() => nav("health")} />}
 
@@ -483,8 +562,6 @@ export function OverviewPage() {
             <span className="ov-stat-val empty">{data ? "—" : "0"}</span>
           )}
         </div>
-
-        <span className="ov-dual-chevron" aria-hidden>›</span>
       </button>
 
       {data && (

@@ -234,6 +234,36 @@ function buildBodyMetrics() {
 
 const BODY_METRICS = buildBodyMetrics();
 
+// ── Nutrition evaluation (v2) ────────────────────────────────────────────────
+// One persisted state row. Matches the seed above: Moderate Cut (target 2145),
+// weight trending 99.0→96.8 over 180d ≈ −0.086 kg/wk → losing far slower than
+// the 0.40–0.70 kg/wk band → below_target, high confidence (30d on target,
+// dense daily weigh-ins, low scatter). The recompute path overwrites this on
+// the first entry save; it's seeded so both cards render populated on load.
+
+const NUTRITION_EVALUATION = {
+  user_id: DEV_USER_ID,
+  status: "below_target",
+  observed_rate: -0.086,
+  target_min: 0.4,
+  target_max: 0.7,
+  confidence: "high",
+  evaluated_at: daysAgo(0) + "T06:00:00Z",
+  estimated_tdee: 2740,
+  estimated_intake: 2645,
+  intake_difference: 500,
+  calorie_target: 2145,
+  cut_mode: "Moderate Cut",
+  window_days: 21,
+  weight_data_points: 21,
+  rec_source: "nutrition",
+  rec_priority: 72,
+  rec_title: "Reduce target to 2,045 kcal",
+  rec_subtitle: "Loss has been slower than planned — a small cut should restart it.",
+  created_at: daysAgo(0) + "T06:00:00Z",
+  updated_at: daysAgo(0) + "T06:00:00Z",
+};
+
 // ── In-memory store (mutable so write ops work during the session) ─────────────
 
 const mockDb = {
@@ -241,6 +271,7 @@ const mockDb = {
   training_logs: [...TRAINING_LOGS] as unknown as Record<string, unknown>[],
   nutrition_config: [{ ...NUTRITION_CONFIG }] as Record<string, unknown>[],
   nutrition_entries: [...NUTRITION_ENTRIES] as Record<string, unknown>[],
+  nutrition_evaluations: [{ ...NUTRITION_EVALUATION }] as Record<string, unknown>[],
   health_metrics: [...BODY_METRICS] as Record<string, unknown>[],
 };
 
