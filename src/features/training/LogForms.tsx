@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@shared/lib/supabase";
 import { parse, normalize, score } from "./parser";
 import type { TrainingLog } from "./api";
-import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
+import { fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import {
   MIN_SET_COUNT,
   LAST_BW_KEY,
@@ -76,7 +76,7 @@ function RepsSetInput({
           value={values[i] ?? ""}
           onChange={(e) => setAt(i, e.target.value)}
           onKeyDown={(e) => onKeyDown(i, e)}
-          placeholder={placeholderFor(i) || String(i + 1)}
+          placeholder={placeholderFor(i) || "6"}
           aria-label={`Set ${i + 1} reps`}
           autoComplete="off"
           inputMode="numeric"
@@ -149,7 +149,7 @@ export function AddEntryForm({
       : "";
   const preview = raw ? parse(raw) : null;
   const isValid = preview != null && score(preview) > 0;
-  const { weightRef, adjustWeight, appendToken } = useWeightAdjuster(
+  const { weightRef, adjustWeight } = useWeightAdjuster(
     weightExpr,
     setWeightExpr,
     preview?.weight,
@@ -239,13 +239,6 @@ export function AddEntryForm({
             </button>
           </div>
         </div>
-        <div className="chip-row log-chips">
-          {["+0.625", "+1.25", "+2.1", "+2.5", "×2"].map((tok) => (
-            <button key={tok} type="button" className="chip" onClick={() => appendToken(tok)}>
-              {tok}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="log-reps-zone">
@@ -259,24 +252,6 @@ export function AddEntryForm({
           hero
         />
       </div>
-
-      {weightExpr || reps ? (
-        <div className="log-preview-bar">
-          {isValid ? (
-            <ExprDisplay raw={raw} detail />
-          ) : (
-            <span className="expr-bad">
-              {!effectiveWeightExpr
-                ? "enter weight"
-                : !reps
-                  ? "enter reps"
-                  : preview
-                    ? "enter a weight above 0"
-                    : "cannot parse"}
-            </span>
-          )}
-        </div>
-      ) : null}
 
       <input
         className="log-note"
@@ -503,7 +478,7 @@ export function InlineEditEntry({
       : "";
   const preview = raw ? parse(raw) : null;
   const isValid = preview != null && score(preview) > 0;
-  const { weightRef, adjustWeight, appendToken } = useWeightAdjuster(
+  const { weightRef, adjustWeight } = useWeightAdjuster(
     weightExpr,
     setWeightExpr,
     preview?.weight,
@@ -568,13 +543,6 @@ export function InlineEditEntry({
             </button>
           </div>
         </div>
-        <div className="chip-row log-chips">
-          {["+0.625", "+1.25", "+2.1", "+2.5", "×2"].map((tok) => (
-            <button key={tok} type="button" className="chip" onClick={() => appendToken(tok)}>
-              {tok}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="log-reps-zone">
@@ -587,16 +555,6 @@ export function InlineEditEntry({
           hero
         />
       </div>
-
-      {weightExpr || reps ? (
-        <div className="log-preview-bar">
-          {isValid ? (
-            <ExprDisplay raw={raw} detail />
-          ) : (
-            <span className="expr-bad">{preview ? "enter a weight above 0" : "cannot parse"}</span>
-          )}
-        </div>
-      ) : null}
 
       <input
         className="log-note"
