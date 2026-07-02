@@ -2039,7 +2039,7 @@
 }
 
 .field-input {
-  padding: 8px var(--space-2);
+  padding: var(--space-2);
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   background: var(--bg-input);
