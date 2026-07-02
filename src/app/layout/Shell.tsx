@@ -85,14 +85,23 @@ export function Shell({ session }: { session: Session }) {
     return () => { clearTimeout(leaveT); clearTimeout(doneT); };
   }, [splash]);
   const settleTimer = useRef<number | null>(null);
-  const pendingScrollTopRef = useRef(false);
+  // Each tab remembers its own scroll offset so switching away and back lands
+  // where you left off (native tab-bar behaviour). Captured *before* a slide
+  // starts — is-sliding collapses the document height and would clamp scrollY —
+  // and restored once the slide settles. `pendingScrollRestoreRef` gates the
+  // single restore per navigation.
+  const scrollPositions = useRef<Record<TabId, number>>({
+    overview: 0, training: 0, nutrition: 0, health: 0,
+  });
+  const pendingScrollRestoreRef = useRef(false);
 
   useEffect(() => {
-    if (!pendingScrollTopRef.current) return;
-    pendingScrollTopRef.current = false;
+    if (!pendingScrollRestoreRef.current) return;
+    pendingScrollRestoreRef.current = false;
+    const y = scrollPositions.current[tab] ?? 0;
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, behavior: "instant" });
+        window.scrollTo({ top: y, behavior: "instant" });
       });
     });
   }, [tab]);
@@ -118,15 +127,23 @@ export function Shell({ session }: { session: Session }) {
       setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
     }
     localStorage.setItem("active-tab", next);
-    pendingScrollTopRef.current = true;
+    pendingScrollRestoreRef.current = true;
     setTab(next);
   }
 
   // Programmatic (tab-bar tap) navigation — plays the same slide animation as a
   // swipe by kicking off from dx:0 and letting the CSS transition run.
   function switchTab(next: TabId) {
-    if (next === tab) return;
+    if (next === tab) {
+      // Re-tapping the already-active tab scrolls it back to top (and forgets
+      // its saved offset) — the native tab-bar complement to per-tab memory.
+      scrollPositions.current[tab] = 0;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     if (slideRef.current) { commitTab(next); return; }
+    // Snapshot the leaving tab's scroll before is-sliding collapses the height.
+    scrollPositions.current[tab] = window.scrollY;
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
     setVisited((prev) => new Set([...prev, next]));
@@ -163,6 +180,9 @@ export function Shell({ session }: { session: Session }) {
 
     function onTouchStart(e: TouchEvent) {
       if (slideRef.current?.settling) return; // ignore during a settle animation
+      // Snapshot the current tab's scroll before a possible swipe: once the
+      // slide starts, is-sliding collapses the height and clamps scrollY.
+      if (!slideRef.current) scrollPositions.current[tab] = window.scrollY;
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;
       axisLocked.current = null;
