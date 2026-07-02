@@ -62,17 +62,23 @@ function Sparkline({ points, color, minSpan = 0 }: { points: ChartPoint[]; color
   const halfSpan = Math.max(dataSpan, minSpan) / 2;
   const min = center - halfSpan;
   const span = halfSpan * 2 || 1;
-  const pts = points
-    .map((p, i) => {
-      const x = (i / (points.length - 1)) * width;
-      const y = height - ((p.value - min) / span) * height;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
+  // Inset the plot by the endpoint dot's radius so the "you are here" marker
+  // sits fully inside the viewBox instead of poking past the right edge.
+  const dot = 3;
+  const coords = points.map((p, i) => {
+    const x = dot + (i / (points.length - 1)) * (width - dot * 2);
+    const y = height - dot - ((p.value - min) / span) * (height - dot * 2);
+    return { x, y };
+  });
+  const pts = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+  const last = coords[coords.length - 1];
 
+  // Apple-style: the line itself recedes to grey; only the latest point carries
+  // the metric colour, anchoring the eye to where the trend stands right now.
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={dot} fill={color} />
     </svg>
   );
 }
