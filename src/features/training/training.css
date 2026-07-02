@@ -364,7 +364,7 @@
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--pr);
   opacity: 0.85;
   align-self: center;
 }
@@ -464,7 +464,7 @@
 }
 
 .hist-row.is-pr {
-  border-left: 3px solid var(--gold);
+  border-left: 3px solid var(--pr);
   padding-left: var(--space-2);
   margin-left: calc(-1 * var(--space-2));
 }
@@ -476,14 +476,14 @@
 }
 
 .hist-row.is-editing {
-  background: var(--bg-soft);
+  background: var(--accent-glow);
   animation: row-edit-in var(--motion-base) var(--reveal-ease);
   margin: 0 calc(-1 * var(--space-5));
   padding: var(--space-2) var(--space-5);
 }
 
 .hist-row.is-pr.is-editing {
-  border-left: 3px solid var(--gold);
+  border-left: 3px solid var(--pr);
   padding-left: var(--space-5);
   margin-left: calc(-1 * var(--space-5));
 }
@@ -584,8 +584,8 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--pr);
+  background: color-mix(in srgb, var(--pr) 18%, transparent);
   padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   position: relative;
@@ -616,13 +616,13 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: background var(--motion-fast), color var(--motion-fast), opacity var(--motion-fast);
-  opacity: 0;
+  opacity: 0.38;
   padding: 0;
 }
 
 .hist-edit-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
@@ -635,14 +635,11 @@
   inset: -9px;
 }
 
-/* Always visible on touch devices */
-@media (hover: none) {
-  .hist-actions button { opacity: 0.6; }
-}
-
+/* Edit affordance is always visible (mobile has no hover); hover just adds emphasis */
 .hist-actions button:hover {
   background: var(--bg-soft);
   color: var(--ink);
+  opacity: 1;
 }
 
 .hist-assisted-wrap {
@@ -1425,7 +1422,7 @@
 
 .archived-pr.mono {
   font-size: var(--text-sm);
-  color: var(--gold);
+  color: var(--pr);
 }
 
 .archived-entries.mono {
@@ -1672,7 +1669,7 @@
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--pr);
   opacity: 1;
 }
 

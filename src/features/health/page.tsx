@@ -51,7 +51,7 @@ const copyHealthData = () => buildHealthJson();
 // slice. Fixed at 8 beads — the range is however many days that spans
 // (Weight → 56d/8wk, Body Fat/Lean Mass → 112d/16wk), which is the trend
 // horizon a cut actually plays out over. 6 was too short to read a plateau.
-const SPARK_POINTS = 8;
+const SPARK_POINTS = 6;
 
 /* Small static trend indicator on each Trend card's header — a glance-only
    shape (range = its own bucket × SPARK_POINTS), not a scrubbable chart

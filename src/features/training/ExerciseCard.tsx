@@ -27,7 +27,7 @@ import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
 import { haptic } from "@shared/lib/haptics";
 import { EditExerciseForm } from "./EditExerciseForm";
-import { EditIcon } from "./EditIcon";
+import { EditIcon, PenLineIcon } from "./EditIcon";
 
 export { useToast };
 
@@ -626,7 +626,7 @@ export function ExerciseCard({
                         }}
                         className="hist-edit-btn"
                       >
-                        <EditIcon />
+                        <PenLineIcon />
                       </button>
                     </div>
                   </div>

@@ -112,7 +112,7 @@ button.copy-all-data-btn {
   cursor: pointer;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--accent), var(--bg-soft));
+  background: var(--accent);
   transition: transform var(--motion-fast) var(--press-ease);
   -webkit-tap-highlight-color: transparent;
 }
