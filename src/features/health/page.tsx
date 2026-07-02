@@ -43,6 +43,12 @@ const METRICS: MetricSpec[] = [
 const FIXED_DAYS = 180;
 const copyHealthData = () => buildHealthJson();
 
+// Sparkline bucketing is deliberately decoupled from each card's averaging
+// window: the big number wants a tight window (7/14-day), but a 180-day shape
+// reads best sparse. ~15-day buckets give ~12 points across all cards — enough
+// to show the trend, not so many the line turns to noise.
+const SPARK_BUCKET_DAYS = 15;
+
 /* Small static trend indicator on each Trend card's header — a glance-only
    180-day shape, not a scrubbable chart (that's a deliberate design call,
    not a fidelity cut: the card's own big number + delta already carry the
@@ -309,7 +315,7 @@ export function HealthPage() {
       const thisWeek = rollingAvg(s, spec.bucket, 0);
       const prevWeek = rollingAvg(s, spec.bucket, spec.bucket);
       const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
-      const bucketed = bucketSeries(s, { spanDays: 180, bucketDays: spec.bucket });
+      const bucketed = bucketSeries(s, { spanDays: 180, bucketDays: SPARK_BUCKET_DAYS });
       return { spec, bucketed, thisWeek, change, readingCount: s.length };
     });
   }, [data, metrics]);
@@ -331,7 +337,7 @@ export function HealthPage() {
     const thisWeek = rollingAvg(pts, 14, 0);
     const prevWeek = rollingAvg(pts, 14, 14);
     const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
-    const bucketed = bucketSeries(pts, { spanDays: 180, bucketDays: 14 });
+    const bucketed = bucketSeries(pts, { spanDays: 180, bucketDays: SPARK_BUCKET_DAYS });
     return { thisWeek, change, bucketed, readingCount: pts.length };
   }, [data, metrics]);
 
