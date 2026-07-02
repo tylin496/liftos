@@ -61,18 +61,24 @@ export function MetricDelta({
   decimals?: number;
   /** Unit suffix on the delta itself, e.g. "kg/wk" (not the value's unit). */
   unit?: string;
-  /** |value| ≤ threshold → change is within noise → not rendered (not greyed). */
+  /** Optional wider noise band: |value| ≤ threshold → treated as flat. Beyond
+      this, anything that rounds to zero at `decimals` is already flat. */
   threshold?: number;
   className?: string;
 }) {
-  if (value == null) return null;
-  // Not judgeable, or within noise → don't render. A grey delta is banned.
-  if (direction == null || Math.abs(value) <= threshold) return null;
+  if (value == null || direction == null) return null;
+  // "Flat" is never a delta. A change that rounds to zero at display precision
+  // (or lands inside an explicit wider noise band) isn't a move → render
+  // NOTHING: no signed zero, no grey chip. Flatness that actually *means*
+  // something (e.g. a cut stalling) is a verdict — it belongs to pace/status.
+  const abs = Math.abs(value);
+  const rounded = Number(abs.toFixed(decimals));
+  if (rounded === 0 || abs <= threshold) return null;
 
   const good = direction === "up-good" ? value > 0 : value < 0;
   const toneCls = good ? "metric-delta--good" : "metric-delta--bad";
   const sign = value > 0 ? "+" : "−";
-  const abs = Math.abs(value).toLocaleString(undefined, {
+  const absStr = rounded.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -80,7 +86,7 @@ export function MetricDelta({
   return (
     <span className={["metric-delta", toneCls, className ?? ""].filter(Boolean).join(" ")}>
       {sign}
-      {abs}
+      {absStr}
       {unit ? ` ${unit}` : ""}
     </span>
   );
