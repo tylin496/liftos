@@ -54,3 +54,12 @@
   font-weight: 500;
   color: var(--ink-4);
 }
+
+/* Monospace utility — the single home for the `.mono` class used across
+   Training (weights, reps, dates, expressions, notation). Elements set their
+   own size/weight/colour; this guarantees the JetBrains-Mono family so every
+   `.mono` element — including standalone `<span className="mono">` — is
+   monospace without each rule re-declaring the family. */
+.mono {
+  font-family: var(--font-mono);
+}

@@ -396,7 +396,6 @@
 .pr-meta.mono {
   font-size: var(--text-base);
   font-weight: 600;
-  font-family: var(--font-mono);
   color: var(--ink-3);
 }
 
@@ -519,7 +518,6 @@
 .hist-date-day.mono {
   font-size: var(--text-base);
   font-weight: 700;
-  font-family: var(--font-mono);
   color: var(--ink-2);
 }
 
@@ -836,7 +834,6 @@
   text-align: center;
   font-size: var(--text-display);
   font-weight: 700;
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: transparent;
@@ -941,7 +938,6 @@
   flex: 1;
   min-width: 0;
   text-align: center;
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-xl);
   font-weight: 600;
@@ -1072,7 +1068,6 @@
 .log-bw-input.mono {
   flex: 1;
   text-align: center;
-  font-family: var(--font-mono);
   font-size: var(--text-base);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -1360,7 +1355,6 @@
 }
 
 .archived-count.mono {
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--ink-4);
   background: var(--bg-soft);
@@ -1406,13 +1400,11 @@
 }
 
 .archived-pr.mono {
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--gold);
 }
 
 .archived-entries.mono {
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--ink-4);
 }
