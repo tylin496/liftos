@@ -51,6 +51,14 @@
   border-top: 1px solid var(--rule);
 }
 
+/* Data-quality caveat (e.g. implausible samples ignored). Sits under the
+   range line, muted — it's an integrity note, not a headline. */
+.health-trend-note {
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+  margin: var(--space-1) 0 0;
+}
+
 /* ── Skeleton loading state ───────────────────────────────────────────────── */
 .health-trend.loading-card .health-card-eyebrow,
 .health-trend.loading-card .metric-val,

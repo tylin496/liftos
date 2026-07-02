@@ -148,6 +148,13 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
       .order("entry_date", { ascending: true }),
   ]);
 
+  // Abort on a failed read rather than recomputing from silently-empty data —
+  // that would persist a wrong evaluation over the last good one. Callers are
+  // fire-and-forget, so throwing here simply skips this recompute.
+  if (metricsRes.error) throw metricsRes.error;
+  if (configRes.error) throw configRes.error;
+  if (entriesRes.error) throw entriesRes.error;
+
   const metrics = (metricsRes.data ?? []) as BodyMetric[];
   const config = (configRes.data as NutritionConfig | null) ?? null;
   const entries = entriesRes.data ?? [];

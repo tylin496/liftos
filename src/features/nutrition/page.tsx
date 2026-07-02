@@ -8,13 +8,14 @@ import { recomputeAndPersist } from "./evaluationApi";
 import { defaultLogDate } from "./logic";
 import { buildNutritionJson } from "@shared/lib/copyAllData";
 import { MetricCaption } from "@shared/components/Metric";
+import { ErrorState } from "@shared/components/ErrorState";
 import "./nutrition.css";
 import "@shared/components/nutriGrid.css";
 
 const copyNutritionData = () => buildNutritionJson();
 
 export function NutritionPage() {
-  const { config } = useNutritionConfig();
+  const { config, error, reload } = useNutritionConfig();
   const [date, setDate] = useState(defaultLogDate());
   const [entryVersion, setEntryVersion] = useState(0);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -29,6 +30,14 @@ export function NutritionPage() {
     void recomputeAndPersist()
       .then(() => setEntryVersion((v) => v + 1))
       .catch(() => {});
+  }
+
+  if (error && !config) {
+    return (
+      <div className="page">
+        <ErrorState message={error} onRetry={reload} />
+      </div>
+    );
   }
 
   return (

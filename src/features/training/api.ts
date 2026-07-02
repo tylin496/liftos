@@ -136,14 +136,17 @@ export async function addExercise(
   note?: string,
   assistedMode?: boolean,
 ): Promise<Exercise> {
-  // Find current max sort_order for this split
-  const { data: existing } = await supabase
+  // Find current max sort_order for this split. A failed read here would
+  // silently place the new exercise at sort_order 0 (colliding at the top),
+  // so surface the error instead of guessing an order.
+  const { data: existing, error: maxErr } = await supabase
     .from("exercises")
     .select("sort_order")
     .eq("split", split)
     .eq("user_id", userId)
     .order("sort_order", { ascending: false })
     .limit(1);
+  if (maxErr) throw maxErr;
   const maxOrder = existing?.[0]?.sort_order ?? -1;
 
   const slugBase = name
