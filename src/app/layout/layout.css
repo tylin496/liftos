@@ -81,25 +81,25 @@
   z-index: 20;
   min-height: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-3));
   /* Big top padding so the frosted surface starts well above the icon row and
-     the fade has a long runway (no abrupt edge). Token-based (32 + 24 = 56px). */
+     the dissolve has a long runway (no abrupt edge). Token-based (32 + 24). */
   padding-top: calc(var(--space-8) + var(--space-6));
   padding-bottom: calc(var(--safe-bottom) + var(--space-3));
   display: flex;
 }
 
-/* Frosted-glass surface on a pseudo-element so the tint + blur sit behind the
-   tab items (icons/labels stay fully crisp). A translucent --bg tint carries
-   most of the legibility so the blur can stay light; the mask fades the whole
-   surface (tint + blur together) out toward the top so the bar still dissolves
-   into the content with no hard edge. */
+/* Frosted-glass surface on a pseudo-element (icons/labels stay crisp). A
+   translucent --bg tint + blur, with NO border — the mask fades the whole
+   surface out toward the top so the bar dissolves into the content with no
+   hard edge (the core look). saturate stays modest so the vibrancy reads like
+   real glass, not an over-tinted filter. */
 .tabbar::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
   background: color-mix(in srgb, var(--bg) 66%, transparent);
-  backdrop-filter: blur(16px) saturate(1.8);
-  -webkit-backdrop-filter: blur(16px) saturate(1.8);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
   -webkit-mask-image: linear-gradient(to top, #000 30%, rgba(0,0,0,.85) 55%, rgba(0,0,0,.4) 78%, transparent);
   mask-image: linear-gradient(to top, #000 30%, rgba(0,0,0,.85) 55%, rgba(0,0,0,.4) 78%, transparent);
 }
@@ -113,22 +113,20 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  /* Two-tier inactive hierarchy: the icon carries one step more presence
-     (--ink-3) so it reads as a tappable glyph, while the label (below) sits a
-     step quieter (--ink-4). Active flips both to the accent. */
+  /* Inactive: icon + label share one secondary ink (unified, iOS-style);
+     active flips the whole item to the accent. */
   color: var(--ink-3);
-  /* Inactive = "not fully lit": fade the sheen gradient's lower stops so the
-     glass bleeds up into the glyph. Active resets these to 1 (flat, solid). */
-  --tab-sheen-mid: 0.9;
-  --tab-sheen-base: 0.5;
-  transition: color var(--motion-fast) var(--press-ease);
+  transition: color var(--motion-fast) var(--press-ease),
+    opacity var(--motion-fast) var(--press-ease);
+}
+
+/* Touch-down dim — iOS-style press feedback. */
+.tabbar-item:active {
+  opacity: 0.5;
 }
 
 .tabbar-item.is-active {
   color: var(--accent);
-  /* Selected tab reads as fully lit: solid accent, no fade. */
-  --tab-sheen-mid: 1;
-  --tab-sheen-base: 1;
 }
 
 .tabbar-icon svg {
@@ -139,14 +137,8 @@
 
 .tabbar-label {
   font-size: var(--text-2xs);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--ink-4);
-  transition: color var(--motion-fast) var(--press-ease);
-}
-
-.tabbar-item.is-active .tabbar-label {
-  color: var(--accent);
+  font-weight: 500;
+  color: inherit;
 }
 
 /* ── Generic page placeholder (P0) ──────────────────────────────────── */
