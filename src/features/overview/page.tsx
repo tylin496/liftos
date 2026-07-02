@@ -459,14 +459,14 @@ function RecoveryMetric({
   unit,
   decimals,
   delta,
-  higherBetter,
+  direction,
 }: {
   label: string;
   value: number | null;
   unit: string;
   decimals: number;
   delta: number | null;
-  higherBetter: boolean;
+  direction: "up-good" | "down-good";
 }) {
   const fmt = (v: number) =>
     v.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -479,7 +479,7 @@ function RecoveryMetric({
           {value != null ? fmt(value) : "—"}
         </MetricValue>
         <span className="ov-rec-metric-delta-slot">
-          <MetricDelta value={delta} direction={higherBetter ? "up-good" : "down-good"} decimals={decimals} />
+          <MetricDelta value={delta} direction={direction} decimals={decimals} />
         </span>
       </span>
     </div>
@@ -518,9 +518,9 @@ function RecoveryCard({ snap, onNav }: { snap: RecoverySnapshot | null; onNav: (
         </span>
       </div>
       <div className="ov-rec-metrics">
-        <RecoveryMetric label="Sleep" value={snap.sleepHours} unit="h"   decimals={1} delta={sleepDelta} higherBetter />
-        <RecoveryMetric label="HRV"   value={snap.hrv}        unit="ms"  decimals={0} delta={hrvDelta}   higherBetter />
-        <RecoveryMetric label="RHR"   value={snap.rhr}        unit="bpm" decimals={0} delta={rhrDelta}   higherBetter={false} />
+        <RecoveryMetric label="Sleep" value={snap.sleepHours} unit="h"   decimals={1} delta={sleepDelta} direction="up-good" />
+        <RecoveryMetric label="HRV"   value={snap.hrv}        unit="ms"  decimals={0} delta={hrvDelta}   direction="up-good" />
+        <RecoveryMetric label="RHR"   value={snap.rhr}        unit="bpm" decimals={0} delta={rhrDelta}   direction="down-good" />
       </div>
       {snap.insight && <p className="ov-rec-insight">{snap.insight}</p>}
     </button>
@@ -601,9 +601,9 @@ export function OverviewPage() {
               <span className="ov-rec-status">Ready</span>
             </div>
             <div className="ov-rec-metrics">
-              <RecoveryMetric label="Sleep" value={0} unit="h" decimals={1} delta={null} higherBetter />
-              <RecoveryMetric label="HRV" value={0} unit="ms" decimals={0} delta={null} higherBetter />
-              <RecoveryMetric label="RHR" value={0} unit="bpm" decimals={0} delta={null} higherBetter={false} />
+              <RecoveryMetric label="Sleep" value={0} unit="h" decimals={1} delta={null} direction="up-good" />
+              <RecoveryMetric label="HRV" value={0} unit="ms" decimals={0} delta={null} direction="up-good" />
+              <RecoveryMetric label="RHR" value={0} unit="bpm" decimals={0} delta={null} direction="down-good" />
             </div>
           </div>
         </>

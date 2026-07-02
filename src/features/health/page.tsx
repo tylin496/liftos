@@ -97,13 +97,13 @@ function RecoveryRow({
   value,
   unit,
   delta,
-  higherBetter,
+  direction,
 }: {
   label: string;
   value: number | null;
   unit: string;
   delta: number | null;
-  higherBetter: boolean;
+  direction: "up-good" | "down-good";
 }) {
   const decimals = unit === "h" ? 1 : 0;
 
@@ -114,7 +114,7 @@ function RecoveryRow({
         <MetricValue size="md" unit={value != null ? unit : undefined}>
           {value != null ? fmt(value, decimals) : "—"}
         </MetricValue>
-        <MetricDelta value={delta} direction={higherBetter ? "up-good" : "down-good"} decimals={decimals} />
+        <MetricDelta value={delta} direction={direction} decimals={decimals} />
       </div>
     </div>
   );
@@ -139,9 +139,9 @@ function RecoveryCard({ snap }: { snap: RecoverySnapshot }) {
         <span className="health-recovery-status" style={{ color }}>{snap.status}</span>
       </div>
       <div className="health-recovery-rows">
-        <RecoveryRow label="Sleep" value={snap.sleepHours} unit="h"   delta={sleepDelta} higherBetter />
-        <RecoveryRow label="HRV"   value={snap.hrv}        unit="ms"  delta={hrvDelta}   higherBetter />
-        <RecoveryRow label="RHR"   value={snap.rhr}        unit="bpm" delta={rhrDelta}   higherBetter={false} />
+        <RecoveryRow label="Sleep" value={snap.sleepHours} unit="h"   delta={sleepDelta} direction="up-good" />
+        <RecoveryRow label="HRV"   value={snap.hrv}        unit="ms"  delta={hrvDelta}   direction="up-good" />
+        <RecoveryRow label="RHR"   value={snap.rhr}        unit="bpm" delta={rhrDelta}   direction="down-good" />
       </div>
       {snap.insight && <p className="health-recovery-footer">{snap.insight}</p>}
     </section>
