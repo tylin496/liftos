@@ -267,12 +267,28 @@
   display: flex;
   flex-direction: column;
   border-radius: var(--radius) var(--radius) 0 0;
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
-  backdrop-filter: blur(30px) saturate(1.6);
-  -webkit-backdrop-filter: blur(30px) saturate(1.6);
   border-top: 1px solid var(--rule-strong);
   box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.2);
   animation: sheet-in var(--motion-base) var(--move-ease) both;
+  will-change: transform;
+}
+
+/* The frosted background lives on a separate, non-scrolling pseudo-layer
+   rather than directly on .settings-sheet. WebKit has a compositing bug where
+   an element that is simultaneously (a) transform-animated, (b) backdrop-filter
+   blurred, and (c) an ancestor of an overflow-y:auto scroller can freeze its
+   paint mid-animation, leaving later rows in .settings-sheet-body blank on
+   real iOS Safari (does not repro in Chromium). Isolating the blur onto its
+   own layer behind the content avoids that. */
+.settings-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  backdrop-filter: blur(30px) saturate(1.6);
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
 }
 
 @keyframes sheet-in {
@@ -353,6 +369,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  /* iOS Safari sometimes fails to repaint a scrollable child correctly after
+     the parent's transform animation (sheet-in) finishes when the parent also
+     has backdrop-filter, leaving rows clipped/missing until a manual scroll.
+     Forcing this into its own compositing layer avoids the stale paint. */
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
 }
 
 .settings-section-label {
@@ -371,6 +393,12 @@
   border: 1px solid var(--rule);
   border-radius: var(--radius-card);
   overflow: hidden;
+  /* .settings-sheet-body is a flex column with overflow-y:auto. An item with
+     non-visible overflow gets an automatic flex-shrink minimum of 0 (spec),
+     so when content is tall the flexbox shrinks this card below its own
+     content instead of letting the ancestor scroll — clipping/hiding rows.
+     flex-shrink: 0 keeps it at its content size and lets the body scroll. */
+  flex-shrink: 0;
 }
 
 .settings-row {

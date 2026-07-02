@@ -50,13 +50,13 @@ function fmtTrend(kgPerWeek: number): string {
   return `${sign}${Math.abs(kgPerWeek).toFixed(2)} kg/week`;
 }
 
-/** Cut start date as "25 May (38 d)" — the day the current cut began, plus how
- *  many days ago that was. Mirrors Cut Progress's baseline, so Weight can
- *  answer "how long have I been at this rate?" without duplicating the goal. */
-function fmtSince(isoDate: string): string {
+/** Days since the current cut began, as "(141 d)" — appended after the pace
+ *  status word so Weight can answer "how long have I been at this rate?"
+ *  without a separate row. Mirrors Cut Progress's baseline. */
+function fmtDaysSince(isoDate: string): string {
   const start = new Date(isoDate + "T12:00:00");
   const days = Math.round((Date.now() - start.getTime()) / 86400000);
-  return `${start.getDate()} ${MONTH_ABBR[start.getMonth()]} (${days} d)`;
+  return `(${days} d)`;
 }
 
 /* ── System Card ───────────────────────────────────────────────────────── */
@@ -283,14 +283,11 @@ function WeightCard({
         </div>
         <div className="ov-weight-row">
           <span className="ov-weight-key">Status</span>
-          <span className={`ov-weight-val${tone ? ` is-${tone}` : ""}`}>{status ?? "—"}</span>
+          <span className={`ov-weight-val${tone ? ` is-${tone}` : ""}`}>
+            {status ?? "—"}
+            {cutStartDate && ` ${fmtDaysSince(cutStartDate)}`}
+          </span>
         </div>
-        {cutStartDate && (
-          <div className="ov-weight-row">
-            <span className="ov-weight-key">Since</span>
-            <span className="ov-weight-val">{fmtSince(cutStartDate)}</span>
-          </div>
-        )}
       </div>
     </button>
   );
