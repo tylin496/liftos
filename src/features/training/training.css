@@ -1257,7 +1257,10 @@
 }
 
 /* ── Page ─────────────────────────────────────────────────────────────────────*/
-.tr-page {
+/* Compound with .page: equal specificity vs bare `.page { gap: var(--space-5) }`
+   in layout.css means whichever loads later wins the cascade — silently
+   dropping this override. Compounding beats it deterministically. */
+.page.tr-page {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
