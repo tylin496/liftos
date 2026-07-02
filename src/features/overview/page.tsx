@@ -50,6 +50,11 @@ function fmtTrend(kgPerWeek: number): string {
   return `${sign}${Math.abs(kgPerWeek).toFixed(2)} kg/week`;
 }
 
+function daysSince(isoDate: string): number {
+  const start = new Date(isoDate + "T12:00:00");
+  return Math.round((Date.now() - start.getTime()) / 86400000);
+}
+
 /** Days since the current cut began, as "(141 d)" — appended after a *conclusive*
  *  pace word (On/Below/Above pace) so Weight answers "how long have I held this
  *  rate?" without a separate row. Mirrors Cut Progress's baseline. An
@@ -57,9 +62,7 @@ function fmtTrend(kgPerWeek: number): string {
  *  clock reads as a contradiction, since the cut and the fresh-target clock are
  *  unrelated. */
 function fmtDaysSince(isoDate: string): string {
-  const start = new Date(isoDate + "T12:00:00");
-  const days = Math.round((Date.now() - start.getTime()) / 86400000);
-  return `(${days} d)`;
+  return `(${daysSince(isoDate)} d)`;
 }
 
 /** Days the current calorie target has been active, as "(3 d)" — appended after
@@ -115,10 +118,19 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
 // provider); the card holds no business logic. Deliberately does NOT show
 // current weight or trend: that's the Weight card's job ("where am I today,
 // and am I progressing at the planned rate?"). Responsibilities stay distinct.
-function CutProgressCard({ goal, onNav }: { goal: Goal; onNav: () => void }) {
+function CutProgressCard({
+  goal,
+  cutStartDate,
+  onNav,
+}: {
+  goal: Goal;
+  cutStartDate: string | null;
+  onNav: () => void;
+}) {
   const e = goal.evaluation;
   const pct = Math.round(e.progressPct);
   const isComplete = pct >= 100;
+  const cutDay = cutStartDate ? daysSince(cutStartDate) : null;
   // Fill the % and the bar from 0 once the card scrolls into view (before that,
   // hold both at 0 so the reveal is visible when reached). useCountUp and the
   // bar's width transition both honor prefers-reduced-motion → snap to final.
@@ -147,7 +159,15 @@ function CutProgressCard({ goal, onNav }: { goal: Goal; onNav: () => void }) {
       onClick={onNav}
     >
       <div className="goal-head">
-        <span className="goal-label">{isComplete ? "Goal reached" : "Cut Progress"}</span>
+        <span className="goal-label">
+          {isComplete ? "Goal reached" : "Cut Progress"}
+          {!isComplete && cutDay != null && (
+            <span className="goal-day">
+              {" "}
+              · Day <b>{cutDay}</b>
+            </span>
+          )}
+        </span>
         <span className="goal-pct">{pctCount}%</span>
       </div>
       <div className="goal-bar">
@@ -243,6 +263,7 @@ function WeightCard({
   state,
   cutStartDate,
   onNav,
+  onNavActivity,
 }: {
   weightLatest: number | null;
   activeEnergy: number | null;
@@ -251,6 +272,7 @@ function WeightCard({
   state: NutritionStateFull | null;
   cutStartDate: string | null;
   onNav: () => void;
+  onNavActivity: () => void;
 }) {
   // observedRate is a real 0-fallback when no trend could be fit (<5 readings in
   // the window). Present that as "—" rather than a fabricated "±0.00 kg/week".
@@ -266,7 +288,7 @@ function WeightCard({
   const noActiveTarget =
     state == null || state.evaluation.targetRange.min === state.evaluation.targetRange.max;
   const daysOnTarget = state?.diagnostics.daysOnTarget ?? 0;
-  const { ref, inView } = useInView<HTMLButtonElement>();
+  const { ref, inView } = useInView<HTMLDivElement>();
 
   // 7-day average vs the prior 7 days — same signal the Health weight card
   // shows; down = good on a cut. Threshold-suppressed when within noise.
@@ -277,7 +299,20 @@ function WeightCard({
 
   if (weightLatest == null) {
     return (
-      <button type="button" ref={ref} data-inview={inView} className="page-card ov-weight ov-weight--empty" onClick={onNav}>
+      <div
+        role="button"
+        tabIndex={0}
+        ref={ref}
+        data-inview={inView}
+        className="page-card ov-weight ov-weight--empty"
+        onClick={onNav}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onNav();
+          }
+        }}
+      >
         <div className="ov-weight-head">
           <span className="ov-weight-label">Weight</span>
           <span className="ov-weight-chevron" aria-hidden>›</span>
@@ -285,12 +320,31 @@ function WeightCard({
         <p className="ov-no-entry" style={{ textAlign: "left" }}>
           No weight data yet — sync from Apple Health.
         </p>
-      </button>
+      </div>
     );
   }
 
+  // The card overall opens Health (where am I today, at what rate) — except
+  // the Activity row, which is the Nutrition side's number (Active Energy
+  // feeds the calorie budget) and jumps there instead. So the outer element
+  // can't be a native <button> (nested buttons are invalid HTML); it's a
+  // div with the same role/keyboard behavior, and the Activity row is the
+  // one real nested <button> that stops its click from also firing onNav.
   return (
-    <button type="button" ref={ref} data-inview={inView} className="page-card ov-weight" onClick={onNav}>
+    <div
+      role="button"
+      tabIndex={0}
+      ref={ref}
+      data-inview={inView}
+      className="page-card ov-weight"
+      onClick={onNav}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onNav();
+        }
+      }}
+    >
       <div className="ov-weight-head">
         <span className="ov-weight-label">Weight</span>
         <span className="ov-weight-chevron" aria-hidden>›</span>
@@ -301,7 +355,14 @@ function WeightCard({
         </MetricValue>
         <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
       </div>
-      <div className="ov-weight-rows">
+      <button
+        type="button"
+        className="ov-weight-rows ov-weight-rows--nav"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNavActivity();
+        }}
+      >
         <div className="ov-weight-row">
           <span className="ov-weight-key">Trend</span>
           <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
@@ -325,7 +386,7 @@ function WeightCard({
           </div>
         )}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -649,7 +710,13 @@ export function OverviewPage() {
       {data && data.targetBodyFat != null && data.cutStartDate == null ? (
         <CutBaselineCard metrics={data.metrics} onSaved={() => void load()} />
       ) : (
-        data?.goal && <CutProgressCard goal={data.goal} onNav={() => nav("health")} />
+        data?.goal && (
+          <CutProgressCard
+            goal={data.goal}
+            cutStartDate={data.cutStartDate}
+            onNav={() => nav("health")}
+          />
+        )
       )}
 
       {data && (
@@ -661,6 +728,7 @@ export function OverviewPage() {
           state={data.nutritionState}
           cutStartDate={data.cutStartDate}
           onNav={() => nav("health")}
+          onNavActivity={() => nav("nutrition")}
         />
       )}
 
