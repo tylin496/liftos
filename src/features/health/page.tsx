@@ -73,15 +73,11 @@ function Sparkline({ points, color, minSpan = 0 }: { points: ChartPoint[]; color
   const pts = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const last = coords[coords.length - 1];
 
-  // Apple-style: the line itself recedes to grey; each reading is a hollow grey
-  // dot punched out of the line, and only the latest point is filled with the
-  // metric colour — anchoring the eye to where the trend stands right now.
+  // Apple-style: the line itself recedes to grey; only the latest point carries
+  // the metric colour, anchoring the eye to where the trend stands right now.
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
       <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {coords.slice(0, -1).map((c, i) => (
-        <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r="1.75" fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="1" />
-      ))}
       <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={dot} fill={color} />
     </svg>
   );
