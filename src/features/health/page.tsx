@@ -43,16 +43,16 @@ const METRICS: MetricSpec[] = [
 const FIXED_DAYS = 180;
 const copyHealthData = () => buildHealthJson();
 
-// Sparkline bucketing is deliberately decoupled from each card's averaging
-// window: the big number wants a tight window (7/14-day), but a 180-day shape
-// reads best sparse. ~15-day buckets give ~12 points across all cards — enough
-// to show the trend, not so many the line turns to noise.
-const SPARK_BUCKET_DAYS = 30;
+// Sparkline range follows the card's own averaging window: each bead IS that
+// window's average (7-day bucket for Weight, 14-day for Body Fat/Lean Mass),
+// so a bead's position means something instead of landing on an arbitrary
+// slice. Fixed at 6 beads — the range is however many days that spans.
+const SPARK_POINTS = 6;
 
 /* Small static trend indicator on each Trend card's header — a glance-only
-   180-day shape, not a scrubbable chart (that's a deliberate design call,
-   not a fidelity cut: the card's own big number + delta already carry the
-   "what changed" story). */
+   shape (range = its own bucket × SPARK_POINTS), not a scrubbable chart
+   (that's a deliberate design call, not a fidelity cut: the card's own big
+   number + delta already carry the "what changed" story). */
 function Sparkline({ points, color, minSpan = 0 }: { points: ChartPoint[]; color: string; minSpan?: number }) {
   const width = 92, height = 40;
   if (points.length < 2) return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline" />;
@@ -82,7 +82,7 @@ function Sparkline({ points, color, minSpan = 0 }: { points: ChartPoint[]; color
   // Apple-style: the line recedes to grey; each ~15-day reading is a hollow grey
   // bead threaded on it (fill masks the line to read as open). The latest point
   // is also hollow but ringed in the metric colour and a touch bigger/bolder —
-  // the "you are here" anchor. SPARK_BUCKET_DAYS keeps the beads from crowding.
+  // the "you are here" anchor. SPARK_POINTS keeps the beads from crowding.
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
       <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -177,6 +177,7 @@ function TrendCard({
   loading = false,
   note,
   minSpan = 0,
+  rangeDays,
 }: {
   label: string;
   avgLabel: string;
@@ -192,6 +193,8 @@ function TrendCard({
   note?: string;
   /** Sparkline y-domain floor, in this metric's own unit. */
   minSpan?: number;
+  /** Sparkline span in days — bucketDays × SPARK_POINTS, not a fixed 180. */
+  rangeDays: number;
 }) {
   return (
     <section className={`page-card health-trend${loading ? " loading-card" : ""}`}>
@@ -215,7 +218,7 @@ function TrendCard({
       </div>
       <div className="health-trend-foot">
         <MetricCaption>{loading ? "Loading" : avgLabel}</MetricCaption>
-        <div className="health-trend-range">{FIXED_DAYS}-day trend</div>
+        <div className="health-trend-range">{rangeDays}-day trend</div>
       </div>
       {!loading && note && <p className="health-trend-note">{note}</p>}
     </section>
@@ -320,7 +323,7 @@ export function HealthPage() {
       const thisWeek = rollingAvg(s, spec.bucket, 0);
       const prevWeek = rollingAvg(s, spec.bucket, spec.bucket);
       const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
-      const bucketed = bucketSeries(s, { spanDays: 180, bucketDays: SPARK_BUCKET_DAYS });
+      const bucketed = bucketSeries(s, { spanDays: spec.bucket * SPARK_POINTS, bucketDays: spec.bucket });
       return { spec, bucketed, thisWeek, change, readingCount: s.length };
     });
   }, [data, metrics]);
@@ -342,8 +345,9 @@ export function HealthPage() {
     const thisWeek = rollingAvg(pts, 14, 0);
     const prevWeek = rollingAvg(pts, 14, 14);
     const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
-    const bucketed = bucketSeries(pts, { spanDays: 180, bucketDays: SPARK_BUCKET_DAYS });
-    return { thisWeek, change, bucketed, readingCount: pts.length };
+    const lbmBucket = 14;
+    const bucketed = bucketSeries(pts, { spanDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket });
+    return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS };
   }, [data, metrics]);
 
   const syncNote = useMemo(
@@ -473,6 +477,7 @@ export function HealthPage() {
           color={spec.color}
           points={bucketed}
           minSpan={spec.minSpan}
+          rangeDays={spec.bucket * SPARK_POINTS}
           delta={
             // Both Weight and Body Fat are down-good on a cut — this page is the
             // body-composition trend view, so each carries its own coloured
@@ -502,6 +507,7 @@ export function HealthPage() {
           color="var(--health-leanmass)"
           points={lbmCard.bucketed}
           minSpan={2}
+          rangeDays={lbmCard.rangeDays}
           delta={
             lbmCard.change != null && lbmCard.readingCount >= 2 ? (
               <MetricDelta value={lbmCard.change} direction="up-good" decimals={1} unit="kg" />
