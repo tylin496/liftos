@@ -2099,3 +2099,104 @@
   font-size: var(--text-sm);
   color: var(--ink-4);
 }
+
+/* ── Add Exercise Card ───────────────────────────────────────────────────────*/
+
+.add-exercise-card {
+  animation: card-enter var(--motion-slow) var(--reveal-ease) both;
+}
+
+.add-exercise-card form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.add-exercise-split-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.split-seg {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--bg-soft);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.seg-btn {
+  flex: 1;
+  padding: 6px var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+
+.seg-btn:hover:not(:disabled) {
+  background: var(--bg-card);
+}
+
+.seg-btn.on {
+  background: var(--bg-card);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+}
+
+.seg-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.assisted-mode-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  user-select: none;
+}
+
+.assisted-mode-label input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-strong);
+}
+
+/* ── Add Exercise Ghost Button ───────────────────────────────────────────────*/
+
+.add-exercise-btn {
+  align-self: center;
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px dashed var(--rule-strong);
+  background: transparent;
+  color: var(--ink-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  transition: border-color var(--motion-fast), color var(--motion-fast);
+  margin-top: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.add-exercise-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.add-exercise-btn:active {
+  transform: scale(var(--tap-scale));
+}
