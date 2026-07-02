@@ -96,6 +96,11 @@ button {
   cursor: pointer;
   animation: toast-in var(--motion-base) var(--reveal-ease) both;
   white-space: nowrap;
+  background: var(--bg-card);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
+  border: 1px solid var(--rule);
+  color: var(--ink);
 }
 
 .toast-exit {
@@ -132,20 +137,30 @@ button {
   from { width: 0%; }
 }
 
-.toast-success { background: var(--good); color: var(--on-color); }
-.toast-pr      { background: var(--gold); color: var(--on-color); }
-.toast-info    { background: var(--ink-2); color: var(--bg); }
-.toast-error   { background: var(--bad); color: var(--on-color); }
+.toast-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.toast-success .toast-icon { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.toast-info    .toast-icon { background: var(--bg-soft); color: var(--ink-3); }
+.toast-error   .toast-icon { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
 
 .toast-msg { flex: 1; }
 
 .toast-action {
   position: relative;
-  background: rgba(255, 255, 255, 0.25);
+  background: none;
   border: none;
   border-radius: var(--radius-pill);
   padding: 3px 10px;
-  color: inherit;
+  color: var(--accent);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
   font-weight: 700;
@@ -160,10 +175,6 @@ button {
   content: "";
   position: absolute;
   inset: -9px;
-}
-
-.toast-action:hover {
-  background: rgba(255, 255, 255, 0.38);
 }
 
 /* ── Celebration confetti (shared: nutrition double-hit, training PR) ───────── */

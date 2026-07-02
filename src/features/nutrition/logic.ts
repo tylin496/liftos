@@ -133,7 +133,11 @@ export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficit
 export function proteinNote(hasEntry: boolean, protNum: number, proteinTarget: number): string {
   if (!hasEntry) return "";
   const gap = proteinTarget - protNum;
-  return gap > 0 ? `${gap}g to floor` : "✓ Floor met";
+  // Within the 10% grace counts as met — same threshold that turns the delta
+  // green / earns the double-hit (getProteinResult.celebrated), so the wording
+  // never contradicts the colour.
+  if (gap <= proteinTarget * 0.1) return "✓ Floor met";
+  return `${gap}g to floor`;
 }
 
 // ── Aggregations (weekly trend, monthly adherence) ─────────────────────────

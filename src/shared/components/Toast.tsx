@@ -5,7 +5,9 @@ interface ToastAction {
   onClick: () => void;
 }
 
-export type ToastType = "success" | "pr" | "info" | "error";
+export type ToastType = "success" | "info" | "error";
+
+const ICON: Record<ToastType, string> = { success: "✓", info: "•", error: "!" };
 
 interface ToastItem {
   id: number;
@@ -55,6 +57,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             className={`toast toast-${t.type}${t.exiting ? " toast-exit" : ""}`}
             onClick={() => dismiss(t.id)}
           >
+            <span className="toast-icon" aria-hidden>{ICON[t.type]}</span>
             <span className="toast-msg">{t.msg}</span>
             {t.action && (
               <button
