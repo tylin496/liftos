@@ -233,7 +233,7 @@ function TrendCard({
 // A metric that's quietly N days stale reads as confidently current unless
 // something says otherwise — every card anchors on the latest reading, so a
 // sync gap silently shifts what "this period" means.
-const STALE_AFTER_DAYS = 2;
+const STALE_AFTER_DAYS = 3;
 
 function syncLabel(latestDate: string | null): { text: string; stale: boolean } | null {
   if (!latestDate) return null;
