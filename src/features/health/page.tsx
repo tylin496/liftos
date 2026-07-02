@@ -80,16 +80,16 @@ function Sparkline({ points, color, minSpan = 0 }: { points: ChartPoint[]; color
   const last = coords[coords.length - 1];
 
   // Apple-style: the line recedes to grey; each ~15-day reading is a hollow grey
-  // bead threaded on it (fill masks the line to read as open), and only the
-  // latest point is filled with the metric colour — the "you are here" anchor.
-  // The sparse bucket (SPARK_BUCKET_DAYS) is what keeps the beads from crowding.
+  // bead threaded on it (fill masks the line to read as open). The latest point
+  // is also hollow but ringed in the metric colour and a touch bigger/bolder —
+  // the "you are here" anchor. SPARK_BUCKET_DAYS keeps the beads from crowding.
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
       <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       {coords.slice(0, -1).map((c, i) => (
         <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r="2" fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="1" />
       ))}
-      <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={dot} fill={color} />
+      <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke={color} strokeWidth="2" />
     </svg>
   );
 }
