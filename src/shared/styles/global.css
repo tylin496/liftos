@@ -237,12 +237,12 @@ button {
 }
 
 .save-celebration.is-gold .celeb-card {
-  border-color: color-mix(in srgb, var(--gold) 40%, var(--rule));
+  border-color: color-mix(in srgb, var(--pr) 40%, var(--rule));
 }
 
 .save-celebration.is-gold .celeb-icon,
 .save-celebration.is-gold strong {
-  color: var(--gold);
+  color: var(--pr);
 }
 
 .save-celebration.is-gold .celeb-icon {
@@ -254,7 +254,7 @@ button {
   position: absolute;
   inset: -10px;
   border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--gold) 38%, transparent);
+  border: 2px solid color-mix(in srgb, var(--pr) 38%, transparent);
   animation: gold-ring 900ms ease-out both;
 }
 

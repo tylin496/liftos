@@ -43,6 +43,10 @@
   --bad: #e03535;
   --good: #12a150;
   --gold: #c2740c;
+  /* PR / gold-reward celebration — a yellower "trophy" gold, kept distinct from
+     --gold (amber = attention/warning) so an achievement never reads as a
+     caution. Used by PR badges/labels and the gold save-celebration. */
+  --pr: #b8860b;
   --blue: #5e9cf5;
 
   /* ── Health chart metric colors (iOS-style; read fine on light + dark) ── */
@@ -217,6 +221,7 @@
   --good: #4cd476;
   --bad: #ff6b6b;
   --gold: #ffbf3f;
+  --pr: #ffd45e;   /* PR / gold-reward gold — yellower than --gold amber */
   --blue: #5e9cf5;
   --card-blur: blur(22px);
   --glass-bg: rgba(26, 26, 26, 0.55);
