@@ -350,17 +350,7 @@ export function HealthPage() {
     return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS };
   }, [data, metrics]);
 
-  const syncNote = useMemo(
-    () =>
-      lastSynced && (
-        <span className={`health-sync-note${lastSynced.stale ? " is-stale" : ""}`}>
-          {lastSynced.text}
-        </span>
-      ),
-    [lastSynced],
-  );
-
-  usePageHeader({ eyebrow: "HEALTH", title: "Trends", onCopy: copyHealthData, note: syncNote });
+  usePageHeader({ eyebrow: "HEALTH", title: "Trends", onCopy: copyHealthData });
 
   if (error && !data) {
     return (
