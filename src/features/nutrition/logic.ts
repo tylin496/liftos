@@ -97,7 +97,11 @@ export function getProteinResult(
 
 export function calorieTone(hasEntry: boolean, calResult: CalorieResult): "good" | "bad" | null {
   if (!hasEntry) return null;
-  if (calResult.isSurplus || calResult.state === "extreme") return "bad";
+  // Calories are a budget: over it is bad — surplus (no deficit), "extreme"
+  // (way under-eaten), and "under" (deficit fell short = ate over budget) all
+  // work against the cut. On plan = good. "over" (a bigger deficit than planned
+  // = under budget) is fine → neutral.
+  if (calResult.isSurplus || calResult.state === "extreme" || calResult.state === "under") return "bad";
   if (calResult.state === "on-plan") return "good";
   return null;
 }
@@ -106,8 +110,11 @@ export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficit
   if (!hasEntry) return "";
   if (calResult.isSurplus) return `+${calResult.surplus.toLocaleString()} kcal surplus`;
   if (calResult.state === "under") {
-    const short = deficitTarget - calResult.deficit;
-    return `${short.toLocaleString()} kcal short`;
+    // Deficit fell short = ate over the calorie budget. Frame it as "over
+    // budget" (matches the "of X kcal" line above and the "below budget" note),
+    // not the deficit-framed "short" that read as under-eating.
+    const over = deficitTarget - calResult.deficit;
+    return `${over.toLocaleString()} kcal over budget`;
   }
   if (calResult.state === "on-plan") return "✓ On plan";
   if (calResult.state === "over") {

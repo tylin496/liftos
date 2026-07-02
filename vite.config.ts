@@ -2,8 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 
-// GitHub Pages serves the app under /liftos/ (repo name). Vercel hosts the /api/* functions.
-// Local dev proxies /api to the existing mock dev-server (npm run mock-api → :8765).
+// GitHub Pages serves the app under /liftos/ (repo name).
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "/liftos/" : "/",
   plugins: [react()],
@@ -16,11 +15,5 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     port: process.env.PORT ? parseInt(process.env.PORT) : 5173,
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:8765",
-        changeOrigin: true,
-      },
-    },
   },
 }));

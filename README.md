@@ -29,8 +29,8 @@ Only emails listed in `ALLOWED_GOOGLE_EMAILS` can sign in. Data stays in your si
 ```bash
 cp .env.local.example .env.local
 # fill in NOTION_*, GOOGLE_CLIENT_ID, ALLOWED_GOOGLE_EMAILS, SESSION_SECRET
-node scripts/dev-server.mjs
+npm run dev
 ```
 
-Open `http://127.0.0.1:8765/` and sign in with an allowed Google account.
+Open `http://127.0.0.1:5173/` and sign in with an allowed Google account.
 # liftos

@@ -17,15 +17,6 @@
       "env": {
         "VITE_DEV_BYPASS_AUTH": "true"
       }
-    },
-    {
-      "name": "LiftOS Mock API",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["scripts/dev-server.mjs"],
-      "port": 8765,
-      "env": {
-        "DEV_BYPASS_AUTH": "1"
-      }
     }
   ]
 }
