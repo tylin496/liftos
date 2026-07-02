@@ -39,13 +39,6 @@
   justify-content: space-between;
 }
 
-.ov-weight-stat {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
 .ov-weight-label {
   font-size: var(--role-eyebrow-size);
   font-weight: var(--role-eyebrow-weight);

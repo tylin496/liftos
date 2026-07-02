@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
-import { RECOVERY_STATUS_COLOR, series, rollingAvg, type RecoverySnapshot } from "@features/health/math";
+import { RECOVERY_STATUS_COLOR, type RecoverySnapshot } from "@features/health/math";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { useInView } from "@shared/hooks/useInView";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
@@ -223,13 +223,11 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 // the shared evaluation (single weight-trend source) — no point-to-point delta.
 function WeightCard({
   weightLatest,
-  metrics,
   state,
   cutStartDate,
   onNav,
 }: {
   weightLatest: number | null;
-  metrics: BodyMetric[];
   state: NutritionStateFull | null;
   cutStartDate: string | null;
   onNav: () => void;
@@ -243,12 +241,6 @@ function WeightCard({
   const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
   const { ref, inView } = useInView<HTMLButtonElement>();
-
-  // Same 7-day-vs-previous-7-day comparison as the Health page's Weight card.
-  const weightPts = series(metrics, "weight_kg");
-  const thisWeek = rollingAvg(weightPts, 7, 0);
-  const prevWeek = rollingAvg(weightPts, 7, 7);
-  const weightDelta = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
 
   if (weightLatest == null) {
     return (
@@ -270,12 +262,11 @@ function WeightCard({
         <span className="ov-weight-label">Weight</span>
         <span className="ov-weight-chevron" aria-hidden>›</span>
       </div>
-      <div className="ov-weight-stat">
-        <MetricValue size="lg" unit="kg">
-          {weightLatest}
-        </MetricValue>
-        <MetricDelta value={weightDelta} decimals={1} unit="kg" />
-      </div>
+      {/* Weight total is not judged here — its verdict is the pace read below
+          (borrowed from Nutrition); no coloured point-to-point delta. */}
+      <MetricValue size="lg" unit="kg">
+        {weightLatest}
+      </MetricValue>
       <div className="ov-weight-rows">
         <div className="ov-weight-row">
           <span className="ov-weight-key">Trend</span>
@@ -326,6 +317,11 @@ function ExerciseRow({ exercise }: { exercise: import("./api").StrengthExercise 
     </div>
   );
 }
+
+// Overview is a status snapshot, not the exercise list — even expanded, a
+// section only teases the first few; anyone wanting the full list has
+// Training for that (see onNav on the "+more" row below).
+const EXERCISE_ROW_LIMIT = 5;
 
 function TrainingHealthCard({
   strength,
@@ -388,9 +384,14 @@ function TrainingHealthCard({
       {watchExercises.length > 0 && (
         <div className="ov-th-section">
           <div className="ov-th-sect-head">Attention · {watchExercises.length}</div>
-          {watchExercises.map((ex) => (
+          {watchExercises.slice(0, EXERCISE_ROW_LIMIT).map((ex) => (
             <ExerciseRow key={ex.slug} exercise={ex} />
           ))}
+          {watchExercises.length > EXERCISE_ROW_LIMIT && (
+            <button type="button" className="ov-th-show-more" onClick={onNav}>
+              +{watchExercises.length - EXERCISE_ROW_LIMIT} more in Training
+            </button>
+          )}
         </div>
       )}
       {attention === 0 && (
@@ -418,9 +419,14 @@ function TrainingHealthCard({
           {onTrackExercises.length > 0 && (
             <div className="ov-th-section">
               <div className="ov-th-sect-head">On track · {onTrackExercises.length}</div>
-              {onTrackExercises.map((ex) => (
+              {onTrackExercises.slice(0, EXERCISE_ROW_LIMIT).map((ex) => (
                 <ExerciseRow key={ex.slug} exercise={ex} />
               ))}
+              {onTrackExercises.length > EXERCISE_ROW_LIMIT && (
+                <button type="button" className="ov-th-show-more" onClick={onNav}>
+                  +{onTrackExercises.length - EXERCISE_ROW_LIMIT} more in Training
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -461,7 +467,7 @@ function RecoveryMetric({
           {value != null ? fmt(value) : "—"}
         </MetricValue>
         <span className="ov-rec-metric-delta-slot">
-          <MetricDelta value={delta} higherBetter={higherBetter} decimals={decimals} />
+          <MetricDelta value={delta} direction={higherBetter ? "up-good" : "down-good"} decimals={decimals} />
         </span>
       </span>
     </div>
@@ -604,7 +610,6 @@ export function OverviewPage() {
       {data && (
         <WeightCard
           weightLatest={data.weightLatest}
-          metrics={data.metrics}
           state={data.nutritionState}
           cutStartDate={data.cutStartDate}
           onNav={() => nav("health")}

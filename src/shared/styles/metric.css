@@ -43,9 +43,10 @@
   white-space: nowrap;
 }
 
+/* A delta is only ever good or bad — never neutral. A change with no objective
+   good/bad isn't rendered as a delta at all (see MetricDelta). */
 .metric-delta--good { color: var(--good); }
 .metric-delta--bad { color: var(--bad); }
-.metric-delta--flat { color: var(--ink-4); }
 
 /* Muted context line — "vs 14 days", "/ 7 days". */
 .metric-caption {

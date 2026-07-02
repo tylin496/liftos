@@ -195,15 +195,6 @@
   border-top: 1px solid var(--rule);
 }
 
-.health-tdee-component-trend {
-  display: inline-flex;
-  align-items: center;
-}
-
-.health-tdee-component-trend--empty {
-  visibility: hidden;
-}
-
 .health-tdee-component-window {
   font-size: var(--text-sm);
   color: var(--ink-3);

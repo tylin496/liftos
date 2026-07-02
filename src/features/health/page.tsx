@@ -12,7 +12,6 @@ import {
 } from "./math";
 import { ErrorState } from "@shared/components/ErrorState";
 import { useCountUp } from "@shared/hooks/useCountUp";
-import { TrendIcon } from "@shared/components/TrendIcon";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { buildHealthJson } from "@shared/lib/copyAllData";
@@ -93,25 +92,6 @@ function AnimatedMetric({ value, decimals }: { value: number; decimals: number }
   return <>{fmt(count, decimals)}</>;
 }
 
-/* Subtle per-component direction vs the previous period. Arrow only (the
-   headline carries the magnitude); resting usually reads flat since its
-   30-day window barely shifts, while active is what actually moves. */
-function ComponentTrend({ cur, prev }: { cur: number | null; prev: number | null | undefined }) {
-  const known = cur != null && prev != null;
-  const diff = known ? cur - prev : 0;
-  const up = diff > 20, down = diff < -20;
-  const dir = up ? "up" : down ? "down" : "flat";
-  const color = up ? "var(--good)" : down ? "var(--bad)" : "var(--ink-4)";
-  return (
-    <span
-      className={`health-tdee-component-trend${known ? "" : " health-tdee-component-trend--empty"}`}
-      style={{ color }}
-    >
-      <TrendIcon dir={dir} size={12} />
-    </span>
-  );
-}
-
 function RecoveryRow({
   label,
   value,
@@ -134,7 +114,7 @@ function RecoveryRow({
         <MetricValue size="md" unit={value != null ? unit : undefined}>
           {value != null ? fmt(value, decimals) : "—"}
         </MetricValue>
-        <MetricDelta value={delta} higherBetter={higherBetter} decimals={decimals} />
+        <MetricDelta value={delta} direction={higherBetter ? "up-good" : "down-good"} decimals={decimals} />
       </div>
     </div>
   );
@@ -302,7 +282,6 @@ export function HealthPage() {
   );
 
   const tdee = data?.tdee;
-  const tdeePrev = data?.tdeePrev;
 
   const cards = useMemo(() => {
     if (!data) return [];
@@ -404,14 +383,12 @@ export function HealthPage() {
           points={bucketed}
           minSpan={spec.minSpan}
           delta={
-            change != null && readingCount >= 2 ? (
-              // Body fat (and any future loss-is-good metric): down = green.
-              <MetricDelta
-                value={change}
-                higherBetter={spec.key === "body_fat_pct" ? false : undefined}
-                decimals={spec.decimals}
-                unit={spec.unit}
-              />
+            // Weight has no colored delta — its verdict is delegated to the
+            // pace/observed-rate (Nutrition) and its shape to the sparkline; a
+            // raw week-over-week weight number is noise. Body Fat is a
+            // fixed-direction metric (down = good), so it carries one.
+            spec.key === "body_fat_pct" && change != null && readingCount >= 2 ? (
+              <MetricDelta value={change} direction="down-good" decimals={spec.decimals} unit={spec.unit} />
             ) : null
           }
           note={
@@ -435,7 +412,7 @@ export function HealthPage() {
           minSpan={2}
           delta={
             lbmCard.change != null && lbmCard.readingCount >= 2 ? (
-              <MetricDelta value={lbmCard.change} higherBetter decimals={1} unit="kg" />
+              <MetricDelta value={lbmCard.change} direction="up-good" decimals={1} unit="kg" />
             ) : null
           }
         />
@@ -467,31 +444,22 @@ export function HealthPage() {
         ) : tdee?.tdee != null ? (
           <>
             <div className="health-tdee-num">
+              {/* TDEE is a diagnostic estimate, not an outcome — a rising number
+                  isn't "good", so it carries no coloured delta or trend arrow. */}
               <MetricValue size="md" unit="kcal">
                 <AnimatedTdee value={tdee.tdee} />
               </MetricValue>
-              {tdeePrev?.tdee != null && (
-                // higherBetter — a rising TDEE reads green here by design choice,
-                // matching the Overview TDEE stat; not an objective "good".
-                <MetricDelta value={tdee.tdee - tdeePrev.tdee} higherBetter threshold={40} />
-              )}
             </div>
             <div className="health-tdee-components">
               <div className="health-tdee-component">
-                <span className="health-tdee-component-label">
-                  <ComponentTrend cur={tdee.avgResting} prev={tdeePrev?.avgResting} />
-                  Resting
-                </span>
+                <span className="health-tdee-component-label">Resting</span>
                 <MetricValue size="sm" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
                 <span className="health-tdee-component-window">
                   {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
                 </span>
               </div>
               <div className="health-tdee-component">
-                <span className="health-tdee-component-label">
-                  <ComponentTrend cur={tdee.avgActive} prev={tdeePrev?.avgActive} />
-                  Active
-                </span>
+                <span className="health-tdee-component-label">Active</span>
                 <MetricValue size="sm" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
                 <span className="health-tdee-component-window">
                   {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"}

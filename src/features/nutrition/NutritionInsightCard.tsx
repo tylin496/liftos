@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS, confidenceReason } from "./evaluation";
-import { nutritionDecision } from "./recommendation";
+import { nutritionDecision, paceTone } from "./recommendation";
 import "./nutrition.css";
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
@@ -21,10 +21,13 @@ function fmtRate(kgPerWeek: number): string {
   return `${sign}${Math.abs(kgPerWeek).toFixed(2)} kg/wk`;
 }
 
-const CONFIDENCE_STATUS: Record<string, string> = {
-  high: "status-good",
-  medium: "status-gold",
-  low: "status-bad",
+// Observed rate is a verdict vs the target pace, so it carries colour (in-range
+// green / too-slow gold / gaining red). Confidence describes how sure the
+// estimate is — not good/bad — so it stays neutral.
+const PACE_STATUS: Record<"good" | "warn" | "bad", string> = {
+  good: "status-good",
+  warn: "status-gold",
+  bad: "status-bad",
 };
 
 function EvidenceCell({
@@ -180,7 +183,18 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
       <div className="ni-evidence">
         <span className="page-eyebrow" style={{ margin: 0 }}>Evidence (21d trend)</span>
         <div className="ni-grid">
-          <EvidenceCell label="Observed rate" value={!noData && !loading && hasTrend ? fmtRate(e!.observedRate) : "—"} />
+          <EvidenceCell
+            label="Observed rate"
+            value={!noData && !loading && hasTrend ? fmtRate(e!.observedRate) : "—"}
+            status={
+              !noData && !loading && hasTrend && e
+                ? (() => {
+                    const t = paceTone(e);
+                    return t ? PACE_STATUS[t] : undefined;
+                  })()
+                : undefined
+            }
+          />
           <EvidenceCell
             label="Target pace"
             value={
@@ -196,7 +210,6 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
           <EvidenceCell
             label="Confidence"
             value={!noData && !loading ? (CONFIDENCE_LABEL[e!.confidence] ?? e!.confidence) : "—"}
-            status={!noData && !loading ? CONFIDENCE_STATUS[e!.confidence] : undefined}
             expandable={confReason != null}
             open={confOpen}
             onToggle={() => setConfOpen((v) => !v)}

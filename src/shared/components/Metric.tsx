@@ -38,32 +38,40 @@ export function MetricValue({
   );
 }
 
+/** A signed change, rendered ONLY when the app can judge it good/bad — see the
+   "metric colour system" rule. Pure renderer: it does not decide polarity, the
+   caller passes an already-resolved `direction`.
+
+   Two invariants live here:
+   - arrow ⟺ colour: a signed delta always carries a good/bad colour, never grey.
+   - no colour → no delta: omit `direction` (metric isn't judgeable) or land
+     within `threshold` (change is noise) → render NOTHING, not a grey chip. */
 export function MetricDelta({
   value,
-  higherBetter,
+  direction,
   decimals = 0,
   unit,
   threshold = 0,
   className,
 }: {
   value: number | null | undefined;
-  /** Omit → always neutral (grey), e.g. weight pace. Set → up/down map to good/bad. */
-  higherBetter?: boolean;
+  /** Resolved good direction. Omit → metric has no objective good/bad → not
+      rendered (never a neutral grey delta). */
+  direction?: "up-good" | "down-good";
   decimals?: number;
   /** Unit suffix on the delta itself, e.g. "kg/wk" (not the value's unit). */
   unit?: string;
-  /** |value| ≤ threshold reads as flat (no good/bad colour). */
+  /** |value| ≤ threshold → change is within noise → not rendered (not greyed). */
   threshold?: number;
   className?: string;
 }) {
   if (value == null) return null;
+  // Not judgeable, or within noise → don't render. A grey delta is banned.
+  if (direction == null || Math.abs(value) <= threshold) return null;
 
-  const isFlat = Math.abs(value) <= threshold;
-  const good =
-    isFlat || higherBetter == null ? null : higherBetter ? value > 0 : value < 0;
-  const toneCls =
-    good == null ? "metric-delta--flat" : good ? "metric-delta--good" : "metric-delta--bad";
-  const sign = value > 0 ? "+" : value < 0 ? "−" : "±";
+  const good = direction === "up-good" ? value > 0 : value < 0;
+  const toneCls = good ? "metric-delta--good" : "metric-delta--bad";
+  const sign = value > 0 ? "+" : "−";
   const abs = Math.abs(value).toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
