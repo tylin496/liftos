@@ -631,7 +631,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-3) 0;
+  padding-top: var(--space-3);
 }
 
 .ov-th-section:first-child {
