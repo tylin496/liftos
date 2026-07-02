@@ -28,12 +28,18 @@ const DIST_STATES: { key: CalorieState; label: string; glyph: string; color: str
   { key: "surplus", label: "Surplus", glyph: "▲", color: "var(--bad)" },
 ];
 
-const DIST_LEGEND = DIST_STATES.map(({ key, label, glyph, color }) => ({
-  keys: [key] as CalorieState[],
-  label,
-  glyph,
-  color,
-}));
+// Legend groups the two amber deviations (over-budget + low-intake) into one
+// "Off target" row. They share the amber tier and can't be told apart by colour
+// anyway, so the bar's single amber block and the legend now agree instead of
+// the bar showing one block while the legend split it in two. Which direction
+// you missed (ate too much vs too little) lives in the daily view, not this
+// 30-day summary. All three swatches are dots (colour + text label carry the
+// meaning), matching the "This Week" Calories/Protein legend.
+const DIST_LEGEND: { keys: CalorieState[]; label: string; glyph: string; color: string }[] = [
+  { keys: ["on-plan"], label: "On plan", glyph: "●", color: "var(--good)" },
+  { keys: ["over", "low-intake"], label: "Off target", glyph: "●", color: "var(--gold)" },
+  { keys: ["surplus"], label: "Surplus", glyph: "●", color: "var(--bad)" },
+];
 
 // Earliest loggable day — mirrors today.tsx.
 const MIN_DATE = "2026-02-09";
