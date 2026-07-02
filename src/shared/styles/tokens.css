@@ -112,6 +112,10 @@
   --role-card-headline-weight: 700;
   --role-card-headline-color: var(--ink);
 
+  --role-rec-headline-size: var(--text-2xl);   /* 24 — recommendation card hero headline (the decision) */
+  --role-rec-headline-weight: 700;
+  --role-rec-headline-color: var(--ink);
+
   --role-eyebrow-size: var(--text-2xs);        /* 11 — card identity badge */
   --role-eyebrow-weight: 700;
   --role-eyebrow-color: var(--ink-4);

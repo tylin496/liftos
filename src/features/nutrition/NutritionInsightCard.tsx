@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS, confidenceReason } from "./evaluation";
-import { nutritionDecision, rateTone } from "./recommendation";
+import { nutritionDecision, rateTone, paceTone } from "./recommendation";
 import "./nutrition.css";
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
@@ -157,7 +157,9 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
               {decision.currentTarget.toLocaleString()}
               <span className="metric-unit">kcal</span>
             </span>
-            <span className="ni-verdict">Hold</span>
+            <span className={`ni-verdict${e && paceTone(e) === "good" ? " is-good" : ""}`}>
+              Hold
+            </span>
           </div>
         ) : decision && decision.proposedTarget != null ? (
           <div className="ni-prog">

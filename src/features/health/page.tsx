@@ -48,8 +48,10 @@ const copyHealthData = () => buildHealthJson();
 // Sparkline range follows the card's own averaging window: each bead IS that
 // window's average (7-day bucket for Weight, 14-day for Body Fat/Lean Mass),
 // so a bead's position means something instead of landing on an arbitrary
-// slice. Fixed at 6 beads — the range is however many days that spans.
-const SPARK_POINTS = 6;
+// slice. Fixed at 8 beads — the range is however many days that spans
+// (Weight → 56d/8wk, Body Fat/Lean Mass → 112d/16wk), which is the trend
+// horizon a cut actually plays out over. 6 was too short to read a plateau.
+const SPARK_POINTS = 8;
 
 /* Small static trend indicator on each Trend card's header — a glance-only
    shape (range = its own bucket × SPARK_POINTS), not a scrubbable chart
@@ -283,9 +285,8 @@ export function HealthPage() {
   const tdee = data?.tdee;
   const tdeePrev = data?.tdeePrev;
   // Component-level change vs the previous window (active 14→28d, resting 30→60d).
-  // Active is a judgeable behaviour ("did you move enough") so it carries a
-  // coloured up-good delta; resting is diagnostic (a drop is metabolic
-  // adaptation, not objectively good/bad) so it's shown as neutral text.
+  // Both carry a coloured up-good delta: more Active energy = you moved more, and
+  // a higher Resting rate = less metabolic adaptation — both read as up = good.
   const activeChange =
     tdee?.avgActive != null && tdeePrev?.avgActive != null
       ? tdee.avgActive - tdeePrev.avgActive
@@ -342,10 +343,10 @@ export function HealthPage() {
   return (
     <div className="page health">
       {/* TDEE — the metabolic anchor for the whole tab, so it leads. The total
-          stays uncoloured (a rising estimate isn't an "outcome"), but the two
-          components carry change vs the previous window: Active is coloured
-          up-good (did you move enough — a judgeable behaviour), Resting is
-          neutral text (a drop is metabolic adaptation, not good/bad). */}
+          stays uncoloured (a rising estimate isn't an "outcome"), but both
+          components carry an up-good coloured delta vs the previous window
+          (Active = did you move enough; Resting = higher rate is less metabolic
+          adaptation). */}
       <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
         <div className="health-tdee-head">
           <span className="health-card-eyebrow">TDEE</span>
@@ -383,11 +384,14 @@ export function HealthPage() {
             <div className="health-tdee-components">
               <div className="health-tdee-component">
                 <span className="health-tdee-component-label">Resting</span>
-                <MetricValue size="sm" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
+                <div className="health-tdee-component-stat">
+                  <MetricValue size="sm" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
+                  {restingChange != null && (
+                    <MetricDelta value={restingChange} direction="up-good" decimals={0} />
+                  )}
+                </div>
                 <span className="health-tdee-component-window">
                   {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
-                  {restingChange != null &&
-                    ` · ${restingChange >= 0 ? "+" : "−"}${Math.abs(Math.round(restingChange))} vs prev`}
                 </span>
               </div>
               <div className="health-tdee-component">
@@ -425,6 +429,7 @@ export function HealthPage() {
           color={spec.color}
           points={[]}
           delta={null}
+          rangeDays={spec.bucket * SPARK_POINTS}
         />
       ))}
       {!data && (
@@ -438,6 +443,7 @@ export function HealthPage() {
           color="var(--health-leanmass)"
           points={[]}
           delta={null}
+          rangeDays={14 * SPARK_POINTS}
         />
       )}
 

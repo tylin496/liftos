@@ -513,7 +513,7 @@ function TrainingHealthCard({
       )}
       {attention === 0 && (
         <div className="ov-th-status">
-          <span className="ov-th-all-good">All exercises on track</span>
+          <span className="ov-th-all-good">✓ All exercises on track</span>
         </div>
       )}
 
@@ -696,7 +696,7 @@ export function OverviewPage() {
               </div>
             </div>
             <div className="ov-th-status">
-              <span className="ov-th-all-good">All exercises on track</span>
+              <span className="ov-th-all-good">✓ All exercises on track</span>
             </div>
           </div>
 

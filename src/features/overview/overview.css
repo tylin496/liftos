@@ -573,10 +573,13 @@
   padding-top: var(--space-3);
 }
 
+/* "All exercises on track" is a good-news verdict (0 lifts need attention), so
+   it takes --good green + a ✓ — the same Good convention as Nutrition's
+   "✓ On plan". */
 .ov-th-all-good {
   font-size: var(--text-base);
   font-weight: 500;
-  color: var(--ink-3);
+  color: var(--good);
 }
 
 /* "{N} more on track" toggle — sits below Attention, always visible */
