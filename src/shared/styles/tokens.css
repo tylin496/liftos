@@ -25,11 +25,11 @@
   /* ── Accent ───────────────────────────────────────────────────────── */
   /* Molten Ember — deep, desaturated terracotta-orange. Reads as hot
      metal/clay rather than safety-vest orange; warmth + restraint. */
-  --accent-100: #f6ddd0;
-  --accent: #c14d23;
-  --accent-strong: #9c3a17;   /* deeper ember — gradient start (progress bar) */
+  --accent-100: #ffdbca;
+  --accent: #c23f00;
+  --accent-strong: #962200;   /* deeper ember — gradient start (progress bar) */
   --accent-soft: var(--accent-100);
-  --accent-glow: rgba(193, 77, 35, 0.18);
+  --accent-glow: rgba(194, 63, 0, 0.18);
 
   /* ── Semantic ─────────────────────────────────────────────────────── */
   --bad: #e03535;

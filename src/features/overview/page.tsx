@@ -271,7 +271,7 @@ function WeightCard({
         <span className="ov-weight-chevron" aria-hidden>›</span>
       </div>
       <div className="ov-weight-stat">
-        <MetricValue size="md" unit="kg">
+        <MetricValue size="lg" unit="kg">
           {weightLatest}
         </MetricValue>
         <MetricDelta value={weightDelta} decimals={1} unit="kg" />
@@ -548,7 +548,7 @@ export function OverviewPage() {
               <span className="ov-weight-label">Weight</span>
               <span className="ov-weight-chevron" aria-hidden>›</span>
             </div>
-            <MetricValue size="md" unit="kg">00.0</MetricValue>
+            <MetricValue size="lg" unit="kg">00.0</MetricValue>
             <div className="ov-weight-rows">
               <div className="ov-weight-row">
                 <span className="ov-weight-key">Trend</span>
