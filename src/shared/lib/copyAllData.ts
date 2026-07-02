@@ -94,6 +94,26 @@ function roundRecovery(r: ReturnType<typeof computeRecovery>) {
   };
 }
 
+/** Actual data span so the LLM doesn't have to infer it from the rows.
+ *  `days` is the calendar gap between the first and last dated record. */
+function windowOf(dates: (string | null | undefined)[]): { from: string; to: string; days: number } | null {
+  const valid = dates.filter((d): d is string => !!d).sort();
+  if (!valid.length) return null;
+  const from = valid[0];
+  const to = valid[valid.length - 1];
+  return { from, to, days: Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) };
+}
+
+/** Monday (local) of the week a YYYY-MM-DD date falls in, as YYYY-MM-DD. */
+function weekStartMonday(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /** Per-metric latest / average / change summary over the fetched window. */
 function buildHealthSummary(metrics: BodyMetric[], periodDays: number) {
   const summary: Record<string, unknown> = {};
@@ -375,10 +395,17 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     cutPhase === "Maintenance" ? "Maintenance" :
     cutPhase != null ? "Fat loss" : null;
 
+  const overviewWindow = windowOf([
+    ...metrics.map((m) => m.metric_date),
+    ...sortedEntries.map((e) => e.entry_date),
+    ...Object.values(logsBySlug).flat().map((l) => l.log_date),
+  ]);
+
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
     schema: 2.2,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
+    window: overviewWindow,
     summary: {
       currentWeight,
       weight30d,
@@ -490,6 +517,7 @@ export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> 
     schema: 2.2,
     tab: "health",
     units: unitsFor(HEALTH_UNIT_KEYS),
+    window: windowOf(metrics.map((m) => m.metric_date)),
     windowDays: days,
     tdee: {
       tdee: tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null,
@@ -535,11 +563,25 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
   }));
   const adherence = monthlyStats(dayInputs);
 
+  // Real week-by-week series (Monday-anchored) so an LLM can see the diet
+  // trend — the old single `weekly` aggregate hid it behind one number.
+  const byWeek = new Map<string, typeof dayInputs>();
+  for (const d of dayInputs) {
+    const wk = weekStartMonday(d.date);
+    if (!byWeek.has(wk)) byWeek.set(wk, []);
+    byWeek.get(wk)!.push(d);
+  }
+  const weekly = [...byWeek.keys()].sort().map((wk) => ({
+    weekStart: wk,
+    ...weeklyStats(byWeek.get(wk)!),
+  }));
+
   const payload = {
     source: "LiftOS",
     schema: 2.2,
     tab: "nutrition",
     units: unitsFor(NUTRITION_UNIT_KEYS),
+    window: windowOf(sorted.map((e) => e.entry_date)),
     windowDays: days,
     targets: targets
       ? {
@@ -567,7 +609,7 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
       doubleHitPct: adherence.doubleHitPct,
       distribution: adherence.distribution,
     },
-    weekly: weeklyStats(dayInputs),
+    weekly,
     entries: sorted.map((e) => ({
       date: e.entry_date,
       calories: e.calories,
@@ -642,6 +684,9 @@ export async function buildTrainingJson(): Promise<string> {
     schema: 2.2,
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
+    window: windowOf(
+      Object.values(logsBySlug).flat().map((l) => l.log_date),
+    ),
     schedule: { split: "PPL", cycle: SPLITS.map((s) => s.name) },
     splits,
   };
