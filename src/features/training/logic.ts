@@ -30,12 +30,17 @@ export function filterByTime(logs: TrainingLog[], filter: TimeFilter): TrainingL
 
 // ─── e1RM (Epley) ────────────────────────────────────────────────────────────
 
-export function epley1RM(weightKg: number, repsStr: string): number {
+/** Max reps across drop-set segments, e.g. "10/8/6" -> 10. */
+export function maxReps(repsStr: string): number {
   const segs = String(repsStr || "")
     .split(/[/\-]/)
     .map((n) => parseInt(n, 10))
     .filter((n) => n > 0);
-  const maxR = segs.length ? Math.max(...segs) : 0;
+  return segs.length ? Math.max(...segs) : 0;
+}
+
+export function epley1RM(weightKg: number, repsStr: string): number {
+  const maxR = maxReps(repsStr);
   if (!maxR || !weightKg || weightKg <= 0) return 0;
   return weightKg * (1 + maxR / 30);
 }
@@ -90,10 +95,11 @@ export interface HistDelta {
 }
 
 /**
- * Compare curr vs prev entry by e1RM — the same metric PR/Retention/Trend
- * use, so this badge can never contradict them (a heavier top set done for
- * fewer reps that's actually flat-or-weaker in e1RM won't read as a gain).
- * Only emits positive gains: "▲ 2.7% e1RM".
+ * Compare curr vs prev entry directly by weight (kg) and reps — no e1RM.
+ * Only emits a gain when neither dimension regressed and at least one
+ * improved (heavier weight, or same weight for more reps): "▲ +2.5kg".
+ * Mixed-direction changes (e.g. heavier but fewer reps) stay silent since
+ * there's no single number to compare kg and reps against.
  */
 export function computeHistDelta(
   curr: TrainingLog,
@@ -108,14 +114,20 @@ export function computeHistDelta(
   const pKg = score(pp);
   if (!Number.isFinite(cKg) || !Number.isFinite(pKg)) return null;
 
-  const cE1RM = epley1RM(cKg, cp.reps);
-  const pE1RM = epley1RM(pKg, pp.reps);
-  if (!cE1RM || !pE1RM) return null;
+  const cReps = maxReps(cp.reps);
+  const pReps = maxReps(pp.reps);
+  if (!cReps || !pReps) return null;
 
-  const pct = ((cE1RM - pE1RM) / pE1RM) * 100;
-  if (pct < 0.5) return null; // flat or down in e1RM — stay silent
+  const kgDelta = cKg - pKg;
+  const repsDelta = cReps - pReps;
+  if (kgDelta < 0 || repsDelta < 0) return null; // regressed — stay silent
+  if (kgDelta === 0 && repsDelta === 0) return null; // flat — stay silent
 
-  return { text: `▲ ${pct.toFixed(1)}% e1RM` };
+  const parts: string[] = [];
+  if (kgDelta > 0) parts.push(`+${parseFloat(kgDelta.toFixed(2))}kg`);
+  if (repsDelta > 0) parts.push(`+${repsDelta} reps`);
+
+  return { text: `▲ ${parts.join(" ")}` };
 }
 
 // ─── timelineDate ────────────────────────────────────────────────────────────

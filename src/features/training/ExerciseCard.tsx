@@ -543,7 +543,9 @@ export function ExerciseCard({
             const revealing = justExpanded && vi >= 3;
             const td = timelineDate(log.log_date ?? "");
             const prevLog = visible[vi + 1] ?? null;
-            const delta = isPR || !prevLog ? null : computeHistDelta(log, prevLog);
+            // Only the newest entry gets a vs-last badge — older rows stay quiet.
+            const delta =
+              isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog);
             const isAssisted = log.kind === "assisted";
             const isExpanded = expandedId === log.id;
             const rowE1RM = logE1RM(log);
