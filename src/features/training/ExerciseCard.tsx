@@ -19,6 +19,7 @@ import {
   type TimeFilter,
 } from "./logic";
 import { useToast } from "@shared/components/Toast";
+import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import { defaultSetCount } from "./logFormHelpers";
 import { AddEntryForm, AddAssistedForm, InlineEditEntry, InlineEditAssistedEntry } from "./LogForms";
@@ -27,7 +28,7 @@ import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
 import { haptic } from "@shared/lib/haptics";
 import { EditExerciseForm } from "./EditExerciseForm";
-import { EditIcon, PenLineIcon } from "./EditIcon";
+import { EditIcon, PenLineIcon, ArrowUpIcon, ArrowDownIcon, ArchiveIcon } from "./EditIcon";
 
 export { useToast };
 
@@ -75,6 +76,19 @@ function scrollIntoViewInterruptible(el: Element) {
   window.addEventListener("touchstart", stop, { passive: true, once: true });
   window.addEventListener("keydown", stop, { once: true });
   setTimeout(cleanup, 1000);
+}
+
+/** e1RM for a single log, handling both assisted (bodyweight − assistance) and
+    normal (parsed expression) entries. Shared by the row value and the vs-Last
+    comparison so they can never drift apart. */
+function logE1RM(log: TrainingLog): number | null {
+  if (log.kind === "assisted") {
+    return log.bodyweight != null && log.assistance != null
+      ? epley1RM(log.bodyweight - log.assistance, log.reps ?? "1")
+      : null;
+  }
+  const p = log.raw ? parse(log.raw) : null;
+  return p && Number.isFinite(p.weight) ? epley1RM(score(p), p.reps) : null;
 }
 
 export interface ExerciseCardProps {
@@ -382,7 +396,8 @@ export function ExerciseCard({
                 }
               }}
             >
-              {isMoving ? "Moving…" : "↑ Move up"}
+              <ArrowUpIcon className="menu-icon" />
+              <span>{isMoving ? "Moving…" : "Move up"}</span>
             </button>
             <button
               type="button"
@@ -401,7 +416,8 @@ export function ExerciseCard({
                 }
               }}
             >
-              {isMoving ? "Moving…" : "↓ Move down"}
+              <ArrowDownIcon className="menu-icon" />
+              <span>{isMoving ? "Moving…" : "Move down"}</span>
             </button>
             <div className="card-menu-sep" />
             <button
@@ -412,7 +428,8 @@ export function ExerciseCard({
                 setMenuOpen(false);
               }}
             >
-              ⌫ Archive…
+              <ArchiveIcon className="menu-icon" />
+              <span>Archive…</span>
             </button>
           </div>
         )}
@@ -529,16 +546,16 @@ export function ExerciseCard({
             const delta = isPR || !prevLog ? null : computeHistDelta(log, prevLog);
             const isAssisted = log.kind === "assisted";
             const isExpanded = expandedId === log.id;
-            const rowE1RM = isAssisted
-              ? log.bodyweight != null && log.assistance != null
-                ? epley1RM(log.bodyweight - log.assistance, log.reps ?? "1")
-                : null
-              : (() => {
-                  const p = log.raw ? parse(log.raw) : null;
-                  return p && Number.isFinite(p.weight)
-                    ? epley1RM(score(p), p.reps)
-                    : null;
-                })();
+            const rowE1RM = logE1RM(log);
+            // vs PR: this set's e1RM as a % of the all-time best e1RM.
+            const vsPrPct =
+              rowE1RM != null && best?.e1rm ? (rowE1RM / best.e1rm) * 100 : null;
+            // vs Last: signed e1RM % change from the immediately older entry.
+            const prevE1RM = prevLog ? logE1RM(prevLog) : null;
+            const vsLastPct =
+              rowE1RM != null && prevE1RM
+                ? ((rowE1RM - prevE1RM) / prevE1RM) * 100
+                : null;
 
             return (
               <div key={log.id}>
@@ -633,11 +650,45 @@ export function ExerciseCard({
                 </div>
 
                 {isExpanded && !isEditing && (
-                  <div className="hist-e1rm-detail">
-                    <span className="hist-e1rm-label">Est. 1RM</span>
-                    <span className="hist-e1rm-value mono">
-                      {rowE1RM != null ? `${fmtWeightNum(rowE1RM)} kg` : "—"}
-                    </span>
+                  <div className="hist-perf">
+                    {rowE1RM != null ? (
+                      <>
+                        <div className="hist-perf-row">
+                          <span className="hist-perf-label">e1RM</span>
+                          <MetricValue size="md" unit="kg">
+                            {rowE1RM.toFixed(1)}
+                          </MetricValue>
+                        </div>
+                        {vsPrPct != null && (
+                          <div className="hist-perf-row">
+                            <span className="hist-perf-label">vs PR</span>
+                            <span
+                              className={`hist-perf-pct ${
+                                vsPrPct >= 99.5 ? "is-pr" : "is-good"
+                              }`}
+                            >
+                              {Math.round(vsPrPct)}%
+                            </span>
+                          </div>
+                        )}
+                        {vsLastPct != null && Math.round(vsLastPct) !== 0 && (
+                          <div className="hist-perf-row">
+                            <span className="hist-perf-label">vs Last</span>
+                            <MetricDelta
+                              value={vsLastPct}
+                              direction="up-good"
+                              decimals={0}
+                              unit="%"
+                            />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="hist-perf-row">
+                        <span className="hist-perf-label">e1RM</span>
+                        <span className="hist-perf-pct">—</span>
+                      </div>
+                    )}
                   </div>
                 )}
 

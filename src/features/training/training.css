@@ -439,21 +439,49 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.hist-e1rm-detail {
+@keyframes hist-perf-in {
+  from { opacity: 0; transform: translateY(-4px) scaleY(0.96); }
+  to   { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+
+/* Expanded row = a mini performance summary: e1RM, then how this set stacks
+   against your best (vs PR) and your previous entry (vs Last). */
+.hist-perf {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2) 0;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) 0 var(--space-3);
   margin-bottom: var(--space-2);
   border-bottom: 1px solid var(--rule);
+  transform-origin: top center;
+  animation: hist-perf-in var(--motion-base) var(--reveal-ease) both;
+}
+
+.hist-perf-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  animation: hist-perf-in var(--motion-base) var(--reveal-ease) both;
+}
+
+.hist-perf-row:nth-child(2) { animation-delay: 40ms; }
+.hist-perf-row:nth-child(3) { animation-delay: 80ms; }
+
+.hist-perf-label {
   font-size: var(--text-sm);
   color: var(--ink-3);
 }
 
-.hist-e1rm-value {
-  color: var(--ink-2);
+.hist-perf-pct {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
+
+.hist-perf-pct.is-good { color: var(--good); }
+.hist-perf-pct.is-pr { color: var(--pr); }
 
 .hist-row:hover {
   opacity: 0.75;
@@ -645,6 +673,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* Match the normal row's .hist-expr-row sizing — without this the assisted
+     primary line inherits the larger card base font and reads oversized. */
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
 }
 
 .hist-assist-sub {
