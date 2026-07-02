@@ -22,7 +22,7 @@ const DIST_STATES: { key: CalorieState; label: string; color: string }[] = [
   { key: "on-plan", label: "On plan", color: "var(--good)" },
   { key: "under", label: "Under", color: "var(--ink-4)" },
   { key: "over", label: "Over", color: "var(--ink-4)" },
-  { key: "extreme", label: "Extreme", color: "var(--gold)" },
+  { key: "extreme", label: "Low Intake", color: "var(--gold)" },
   { key: "surplus", label: "Surplus", color: "var(--bad)" },
 ];
 
@@ -31,7 +31,7 @@ const DIST_STATES: { key: CalorieState; label: string; color: string }[] = [
 const DIST_LEGEND: { keys: CalorieState[]; label: string; color: string }[] = [
   { keys: ["on-plan"], label: "On plan", color: "var(--good)" },
   { keys: ["under", "over"], label: "Under/Over", color: "var(--ink-4)" },
-  { keys: ["extreme"], label: "Extreme", color: "var(--gold)" },
+  { keys: ["extreme"], label: "Low Intake", color: "var(--gold)" },
   { keys: ["surplus"], label: "Surplus", color: "var(--bad)" },
 ];
 

@@ -49,16 +49,16 @@ describe("getProteinResult", () => {
     expect(r.celebrated).toBe(true);
   });
 
-  it("celebrates within 10% of target but not perfect", () => {
-    const r = getProteinResult(170, 180); // gap 10 <= 18
-    expect(r.isPerfect).toBe(false);
-    expect(r.celebrated).toBe(true);
+  it("celebrates over the floor too", () => {
+    expect(getProteinResult(185, 180).celebrated).toBe(true);
   });
 
-  it("does not celebrate when well short", () => {
-    const r = getProteinResult(160, 180); // gap 20 > 18
+  it("does not celebrate below the full floor — no grace", () => {
+    // A floor only counts once you hit it: even 1g short is not met.
+    const r = getProteinResult(179, 180);
+    expect(r.isPerfect).toBe(false);
     expect(r.celebrated).toBe(false);
-    expect(r.progress).toBe(89); // round(160/180)
+    expect(getProteinResult(160, 180).celebrated).toBe(false);
   });
 });
 

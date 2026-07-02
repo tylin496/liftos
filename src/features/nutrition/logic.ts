@@ -92,7 +92,9 @@ export function getProteinResult(
   return {
     isPerfect: p === target,
     progress: progressPercent(p, target),
-    celebrated: gap <= target * 0.1,
+    // 100% floor, no grace: it's a floor, so it only counts once you hit it.
+    // Drives the green tone + double-hit + "Floor met" note, all at one line.
+    celebrated: gap === 0,
   };
 }
 
@@ -133,11 +135,9 @@ export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficit
 export function proteinNote(hasEntry: boolean, protNum: number, proteinTarget: number): string {
   if (!hasEntry) return "";
   const gap = proteinTarget - protNum;
-  // Within the 10% grace counts as met — same threshold that turns the delta
-  // green / earns the double-hit (getProteinResult.celebrated), so the wording
-  // never contradicts the colour.
-  if (gap <= proteinTarget * 0.1) return "✓ Floor met";
-  return `${gap}g to floor`;
+  // 100% floor, no grace — matches getProteinResult.celebrated (green +
+  // double-hit also require the full floor), so colour and wording never differ.
+  return gap > 0 ? `${gap}g to floor` : "✓ Floor met";
 }
 
 // ── Aggregations (weekly trend, monthly adherence) ─────────────────────────
