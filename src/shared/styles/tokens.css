@@ -6,12 +6,14 @@
    ======================================================================== */
 
 :root {
-  --focus-ring: 0 0 0 3px rgba(193, 77, 35, 0.22);
+  --focus-ring: 0 0 0 3px rgba(226, 83, 28, 0.22);
 
   /* ── Surface layers ───────────────────────────────────────────────── */
-  --bg: #eef0f4;
+  /* Warm-neutral background — a cool blue-gray (#eef0f4) fought the warm
+     accent and read dingy; #f2f1f3 sits neutral under the ember. */
+  --bg: #f2f1f3;
   --bg-card: rgba(255, 255, 255, 0.88);
-  --bg-soft: #eceef3;
+  --bg-soft: #ecebef;
   --bg-input: rgba(255, 255, 255, 0.88);
 
   /* ── Type colors ──────────────────────────────────────────────────── */
@@ -25,11 +27,16 @@
   /* ── Accent ───────────────────────────────────────────────────────── */
   /* Molten Ember — deep, desaturated terracotta-orange. Reads as hot
      metal/clay rather than safety-vest orange; warmth + restraint. */
-  --accent-100: #ffdbca;
-  --accent: #c23f00;
-  --accent-strong: #962200;   /* deeper ember — gradient start (progress bar) */
+  /* --accent and --accent-strong must stay SPLIT: a single value can't be
+     both a clean bright orange on white AND dark enough for white text on a
+     solid fill. Bright --accent does text/icons/focal-numbers/tints; deeper
+     --accent-strong does every solid white-on-accent fill (buttons, filled
+     pills, the "+" add). Collapsing them is what made light mode read muddy. */
+  --accent-100: #ffdccb;
+  --accent: #e2531c;
+  --accent-strong: #d24818;   /* deeper ember — solid white-on-accent fills */
   --accent-soft: var(--accent-100);
-  --accent-glow: rgba(194, 63, 0, 0.18);
+  --accent-glow: rgba(226, 83, 28, 0.18);
 
   /* ── Semantic ─────────────────────────────────────────────────────── */
   --bad: #e03535;
@@ -153,7 +160,7 @@
      One shared material so the two bars read identically. Kept quite
      transparent — the blur, not the fill, does the separating work.
      Plain rgba (not color-mix) so it can transition from `transparent`. */
-  --glass-bg: rgba(238, 240, 244, 0.58);
+  --glass-bg: rgba(242, 241, 243, 0.58);
   --glass-blur: saturate(180%) blur(22px);
 
   /* Modal scrim: one dim + blur for every full-screen backdrop, so every

@@ -1000,7 +1000,7 @@
   padding: var(--space-3);
   border: none;
   border-radius: var(--radius-sm);
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-color);
   font-family: var(--font-ui);
   font-size: var(--text-base);
@@ -1572,7 +1572,7 @@
 }
 
 .stretch-edit-actions button:first-child {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-color);
 }
 

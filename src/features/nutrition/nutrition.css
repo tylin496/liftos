@@ -383,7 +383,7 @@
   padding: var(--space-4);
   border: none;
   border-radius: var(--radius-sm);
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-color);
   font-size: var(--text-base);
   font-weight: 700;
@@ -570,7 +570,7 @@
 }
 
 .ncal-day.is-selected {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-color);
 }
 
