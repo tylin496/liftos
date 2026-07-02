@@ -1,0 +1,125 @@
+import { useState } from "react";
+import { ImageWell } from "./ImageWell";
+import type { Exercise } from "./api";
+
+export interface EditExerciseFormProps {
+  exercise: Exercise;
+  onSave: (patch: Partial<Exercise>) => Promise<void>;
+  onCancel: () => void;
+  onArchive?: () => Promise<void>;
+  onPhotoUpload?: (file: File) => Promise<string>;
+  onPhotoRemove?: () => void;
+  uploading?: boolean;
+  uploadError?: string;
+  localImageUrl?: string;
+}
+
+export function EditExerciseForm({
+  exercise,
+  onSave,
+  onCancel,
+  onArchive,
+  onPhotoUpload,
+  onPhotoRemove,
+  uploading = false,
+  uploadError,
+  localImageUrl,
+}: EditExerciseFormProps) {
+  const [name, setName] = useState(exercise.name);
+  const [target, setTarget] = useState(exercise.target ?? "");
+  const [note, setNote] = useState(exercise.note ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    setSaving(true);
+    try {
+      await onSave({
+        name: name.trim(),
+        target: target.trim() || null,
+        note: note.trim() || null,
+      });
+      onCancel();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="edit-exercise-form" onSubmit={handleSubmit}>
+      <div className="edit-exercise-topbar">
+        <button
+          type="button"
+          className="edit-exercise-dismiss"
+          onClick={onCancel}
+          aria-label="Dismiss"
+        >
+          ✕
+        </button>
+        <h2 className="edit-exercise-title">Edit exercise</h2>
+      </div>
+
+      <ImageWell
+        src={exercise.image_url ?? undefined}
+        localUrl={localImageUrl}
+        onUpload={onPhotoUpload}
+        onRemove={onPhotoRemove}
+        uploading={uploading}
+        error={uploadError}
+      />
+
+      <div className="edit-exercise-fields">
+        <input
+          type="text"
+          className="field-input name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Exercise name"
+          autoFocus
+          aria-label="Name"
+        />
+
+        <div className="edit-exercise-row">
+          <input
+            type="text"
+            className="field-input target"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            placeholder="target"
+            aria-label="Target / sets"
+          />
+          <input
+            type="text"
+            className="field-input note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="note"
+            aria-label="Note"
+            maxLength={80}
+          />
+        </div>
+      </div>
+
+      <div className="edit-exercise-actions">
+        <button type="submit" className="btn-log-primary" disabled={saving || !name.trim()}>
+          {saving ? "Saving…" : "Save changes"}
+        </button>
+        <button type="button" className="btn-log-secondary" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+
+      {onArchive && (
+        <button
+          type="button"
+          className="edit-exercise-archive-link"
+          onClick={onArchive}
+        >
+          Archive exercise
+        </button>
+      )}
+    </form>
+  );
+}
