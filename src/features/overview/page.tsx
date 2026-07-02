@@ -324,12 +324,13 @@ function WeightCard({
     );
   }
 
-  // The card overall opens Health (where am I today, at what rate) — except
-  // the Activity row, which is the Nutrition side's number (Active Energy
-  // feeds the calorie budget) and jumps there instead. So the outer element
-  // can't be a native <button> (nested buttons are invalid HTML); it's a
-  // div with the same role/keyboard behavior, and the Activity row is the
-  // one real nested <button> that stops its click from also firing onNav.
+  // The top half (label + latest weight) opens Health — "where am I today".
+  // The bottom half (Trend/Status/Activity rows) is the pace read, which is
+  // Nutrition's territory (it's driven by the calorie target), so it jumps
+  // there instead. The outer element can't be a native <button> (nested
+  // buttons are invalid HTML); it's a div with the same role/keyboard
+  // behavior, and the rows block is the one real nested <button> that stops
+  // its click from also firing onNav.
   return (
     <div
       role="button"
@@ -385,7 +386,7 @@ function WeightCard({
             </span>
           </div>
         )}
-      </div>
+      </button>
     </div>
   );
 }
