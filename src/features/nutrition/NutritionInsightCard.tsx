@@ -199,7 +199,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
             label="Target pace"
             value={
               !noData && !loading && hasRange
-                ? `−${e!.targetRange.min.toFixed(2)} ~ −${e!.targetRange.max.toFixed(2)} kg/wk`
+                ? `−${e!.targetRange.min.toFixed(2)}~−${e!.targetRange.max.toFixed(2)} kg/wk`
                 : "—"
             }
           />
