@@ -52,7 +52,11 @@ function fmtTrend(kgPerWeek: number): string {
 
 /** Days since the current cut began, as "(141 d)" — appended after the pace
  *  status word so Weight can answer "how long have I been at this rate?"
- *  without a separate row. Mirrors Cut Progress's baseline. */
+ *  without a separate row. Mirrors Cut Progress's baseline. Only shown next to a
+ *  conclusive verdict (On/Below/Above pace): an inconclusive read ("Forming",
+ *  "Calibrating") has no established rate to have held for that long, so pairing
+ *  it with a day count reads as a contradiction — the cut clock and the fresh-
+ *  target clock are unrelated. */
 function fmtDaysSince(isoDate: string): string {
   const start = new Date(isoDate + "T12:00:00");
   const days = Math.round((Date.now() - start.getTime()) / 86400000);
@@ -292,7 +296,7 @@ function WeightCard({
           <span className="ov-weight-key">Status</span>
           <span className={`ov-weight-val${tone ? ` is-${tone}` : ""}`}>
             {status ?? "—"}
-            {cutStartDate && ` ${fmtDaysSince(cutStartDate)}`}
+            {cutStartDate && tone && ` ${fmtDaysSince(cutStartDate)}`}
           </span>
         </div>
         {activeEnergy != null && (
