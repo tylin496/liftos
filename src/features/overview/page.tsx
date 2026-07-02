@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
-import { RECOVERY_STATUS_COLOR, type RecoverySnapshot } from "@features/health/math";
+import { RECOVERY_STATUS_COLOR, series, rollingAvg, type RecoverySnapshot } from "@features/health/math";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { useInView } from "@shared/hooks/useInView";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
@@ -218,16 +218,20 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 
 /* ── Weight Card ───────────────────────────────────────────────────────── */
 
-// Weight answers one question: am I losing at the right rate? Latest weight +
-// the smoothed weekly trend + a one-word pace read. The trend/status come from
-// the shared evaluation (single weight-trend source) — no point-to-point delta.
+// Weight card carries two layers on purpose: the green down-good delta (this
+// week's drop — the direct "it's moving the right way" signal, same as Health)
+// AND the pace read (Trend rate + Status), which answers the deeper "am I losing
+// at the *right rate*". They can differ — down but slow reads green delta + gold
+// "Below pace" — and that pairing is the point, not a contradiction.
 function WeightCard({
   weightLatest,
+  metrics,
   state,
   cutStartDate,
   onNav,
 }: {
   weightLatest: number | null;
+  metrics: BodyMetric[];
   state: NutritionStateFull | null;
   cutStartDate: string | null;
   onNav: () => void;
@@ -241,6 +245,13 @@ function WeightCard({
   const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
   const { ref, inView } = useInView<HTMLButtonElement>();
+
+  // 7-day average vs the prior 7 days — same signal the Health weight card
+  // shows; down = good on a cut. Threshold-suppressed when within noise.
+  const weightPts = series(metrics, "weight_kg");
+  const thisWeek = rollingAvg(weightPts, 7, 0);
+  const prevWeek = rollingAvg(weightPts, 7, 7);
+  const weightDelta = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
 
   if (weightLatest == null) {
     return (
@@ -262,11 +273,12 @@ function WeightCard({
         <span className="ov-weight-label">Weight</span>
         <span className="ov-weight-chevron" aria-hidden>›</span>
       </div>
-      {/* Weight total is not judged here — its verdict is the pace read below
-          (borrowed from Nutrition); no coloured point-to-point delta. */}
-      <MetricValue size="lg" unit="kg">
-        {weightLatest}
-      </MetricValue>
+      <div className="ov-weight-stat">
+        <MetricValue size="lg" unit="kg">
+          {weightLatest}
+        </MetricValue>
+        <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
+      </div>
       <div className="ov-weight-rows">
         <div className="ov-weight-row">
           <span className="ov-weight-key">Trend</span>
@@ -610,6 +622,7 @@ export function OverviewPage() {
       {data && (
         <WeightCard
           weightLatest={data.weightLatest}
+          metrics={data.metrics}
           state={data.nutritionState}
           cutStartDate={data.cutStartDate}
           onNav={() => nav("health")}
