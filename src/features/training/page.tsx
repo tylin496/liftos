@@ -27,6 +27,7 @@ import { parse, score, formatRepsDisplay } from "./parser";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
+import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
 import "./training.css";
 
@@ -508,47 +509,13 @@ function TrainingPageInner() {
   // must not resurrect them, since the server row hasn't committed the delete yet.
   const pendingDeleteSlugsRef = useRef<Set<string>>(new Set());
 
-  // Horizontal swipe → switch split. Native listeners so we can
-  // stopPropagation past Shell's tab-swipe (this page owns the gesture).
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    let startX = 0, startY = 0;
-    let axis: "h" | "v" | null = null;
-
-    function onTouchStart(e: TouchEvent) {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      axis = null;
-    }
-    function onTouchMove(e: TouchEvent) {
-      const dx = e.touches[0].clientX - startX;
-      const dy = e.touches[0].clientY - startY;
-      if (axis === null) {
-        if (Math.abs(dx) > Math.abs(dy) * 1.25 && Math.abs(dx) > 10) axis = "h";
-        else if (Math.abs(dy) > 10) axis = "v";
-      }
-      if (axis === "h") { e.preventDefault(); e.stopPropagation(); }
-    }
-    function onTouchEnd(e: TouchEvent) {
-      if (axis !== "h") return;
-      e.stopPropagation();
-      const dx = e.changedTouches[0].clientX - startX;
-      if (Math.abs(dx) < 44) return;
-      const idx = splitIds.indexOf(split);
-      if (dx < 0 && idx < splitIds.length - 1) changeSplit(splitIds[idx + 1]);
-      else if (dx > 0 && idx > 0) changeSplit(splitIds[idx - 1]);
-    }
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [split, splitIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Horizontal swipe → switch split. The hook stops the gesture bubbling to
+  // Shell's tab-swipe (this page owns it).
+  useHorizontalSwipe(contentRef, (dir) => {
+    const idx = splitIds.indexOf(split);
+    if (dir === 1 && idx < splitIds.length - 1) changeSplit(splitIds[idx + 1]);
+    else if (dir === -1 && idx > 0) changeSplit(splitIds[idx - 1]);
+  }, { threshold: 44 });
 
   function changeSplit(id: SplitId) {
     prevSplitIdx.current = splitIds.indexOf(split);

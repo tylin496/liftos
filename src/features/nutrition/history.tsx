@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorState } from "@shared/components/ErrorState";
 import { MetricValue } from "@shared/components/Metric";
+import { haptic } from "@shared/lib/haptics";
+import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { getEntries, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
 import {
   getCalorieResult,
@@ -47,10 +49,6 @@ function fmtShortDay(dateStr: string): string {
   });
 }
 
-function haptic(kind: "tap" | "select" = "tap") {
-  if (!navigator.vibrate) return;
-  navigator.vibrate(kind === "select" ? 12 : 8);
-}
 
 function toInput(e: NutritionEntry): DayInput {
   return {
@@ -122,52 +120,11 @@ export function HistoryView({
     }, 130);
   }
 
-  // Horizontal swipe on the week strip changes the week. Stop the gesture from
-  // bubbling to Shell's tab-swipe handler.
-  useEffect(() => {
-    const el = weekRef.current;
-    if (!el) return;
-    let startX = 0, startY = 0, tracking = false, cancelled = false;
-    const THRESHOLD = 56;
-
-    function onTouchStart(e: TouchEvent) {
-      if (e.touches.length !== 1) return;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      tracking = false;
-      cancelled = false;
-    }
-    function onTouchMove(e: TouchEvent) {
-      if (e.touches.length !== 1 || cancelled) return;
-      const dx = e.touches[0].clientX - startX;
-      const dy = e.touches[0].clientY - startY;
-      if (!tracking) {
-        if (Math.abs(dx) > Math.abs(dy) * 1.25 && Math.abs(dx) > 8) tracking = true;
-        else if (Math.abs(dy) > 8) { cancelled = true; return; }
-        else return;
-      }
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    function onTouchEnd(e: TouchEvent) {
-      if (!tracking) return;
-      tracking = false;
-      e.stopPropagation();
-      const dx = e.changedTouches[0].clientX - startX;
-      const dy = e.changedTouches[0].clientY - startY;
-      if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.25) return;
-      navigateWeek(dx < 0 ? "forward" : "backward");
-    }
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [weekAnchor, todayStrNow]);
+  // Horizontal swipe on the week strip changes the week. The hook stops the
+  // gesture bubbling to Shell's tab-swipe handler.
+  useHorizontalSwipe(weekRef, (dir) => {
+    navigateWeek(dir === 1 ? "forward" : "backward");
+  });
 
   useEffect(() => {
     const today = new Date();

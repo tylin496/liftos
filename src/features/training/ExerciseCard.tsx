@@ -25,15 +25,10 @@ import { AddEntryForm, AddAssistedForm, InlineEditEntry, InlineEditAssistedEntry
 import { StagnationBadge, StagnationDetail } from "./StagnationBadge";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
+import { haptic } from "@shared/lib/haptics";
 
 export { useToast };
 
-function haptic(kind: "tap" | "success" | "error" = "tap") {
-  if (!navigator.vibrate) return;
-  if (kind === "success") navigator.vibrate([18, 30, 18]);
-  else if (kind === "error") navigator.vibrate([50, 40, 50]);
-  else navigator.vibrate(8);
-}
 
 function SmartImage({
   src,

@@ -16,25 +16,14 @@ import { useCelebration } from "@shared/components/Celebration";
 import { MetricCaption } from "@shared/components/Metric";
 import { Badge } from "@shared/components/Badge";
 import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
+import { haptic } from "@shared/lib/haptics";
+import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import "@shared/components/nutriGrid.css";
 
 const MIN_DATE = "2026-02-09";
 const INITIAL_HISTORY_MONTHS = 6;
 const HISTORY_CHUNK_MONTHS = 3;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-// ── Haptic ────────────────────────────────────────────────────────────────────
-const HAPTIC: Record<string, number | number[]> = {
-  tap: 8,
-  select: 12,
-  success: [18, 30, 18],
-  warning: [28, 40, 28],
-  error: [50, 40, 50],
-};
-function haptic(kind: keyof typeof HAPTIC = "tap") {
-  if (!navigator.vibrate) return;
-  navigator.vibrate(HAPTIC[kind] as number | number[]);
-}
 
 // ── Count-up animation ────────────────────────────────────────────────────────
 function animateCountUp(el: HTMLElement, target: number, signal: { cancelled: boolean }) {
@@ -372,58 +361,16 @@ export function TodayView({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [date, editField, calendarOpen, isToday, onDateChange]);
 
-  // Swipe gesture for day navigation
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    let startX = 0, startY = 0, tracking = false, cancelled = false;
-    const THRESHOLD = 56;
-
-    function onTouchStart(e: TouchEvent) {
-      if (e.touches.length !== 1) return;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      tracking = false;
-      cancelled = false;
+  // Swipe gesture for day navigation. Disabled while an editor or the calendar
+  // is open. The hook claims the horizontal gesture so Shell's tab-swipe stays out.
+  useHorizontalSwipe(containerRef, (dir) => {
+    if (dir === 1 && !isToday) {
+      haptic("select"); navigate(shiftDate(date, 1));
+    } else if (dir === -1) {
+      const prev = shiftDate(date, -1);
+      if (prev >= MIN_DATE) { haptic("select"); navigate(prev); }
     }
-    function onTouchMove(e: TouchEvent) {
-      if (e.touches.length !== 1 || cancelled) return;
-      if (editField !== null || calendarOpen || false) { cancelled = true; return; }
-      const dx = e.touches[0].clientX - startX;
-      const dy = e.touches[0].clientY - startY;
-      if (!tracking) {
-        if (Math.abs(dx) > Math.abs(dy) * 1.25 && Math.abs(dx) > 8) tracking = true;
-        else if (Math.abs(dy) > 8) { cancelled = true; return; }
-        else return;
-      }
-      // Claim the horizontal gesture so Shell's tab-swipe never fires here.
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    function onTouchEnd(e: TouchEvent) {
-      if (!tracking) { tracking = false; cancelled = false; return; }
-      tracking = false; cancelled = false;
-      e.stopPropagation();
-      const dx = e.changedTouches[0].clientX - startX;
-      const dy = e.changedTouches[0].clientY - startY;
-      if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.25) return;
-      if (dx < 0 && !isToday) {
-        haptic("select"); navigate(shiftDate(date, 1));
-      } else if (dx > 0) {
-        const prev = shiftDate(date, -1);
-        if (prev >= MIN_DATE) { haptic("select"); navigate(prev); }
-      }
-    }
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [date, editField, calendarOpen, isToday, onDateChange]);
+  }, { enabled: editField === null && !calendarOpen });
 
   const targets = useMemo(() => targetsFromConfig(config), [config]);
   const calNum = Number(calories) || 0;

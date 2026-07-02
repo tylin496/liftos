@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Session } from "@shared/lib/auth";
+import { haptic } from "@shared/lib/haptics";
 import { OverviewPage } from "@features/overview/page";
 import { TrainingPage } from "@features/training/page";
 import { NutritionPage } from "@features/nutrition/page";
@@ -117,7 +118,7 @@ export function Shell({ session }: { session: Session }) {
   function commitTab(next: TabId) {
     setHighlight(next);
     if (next !== tab) {
-      navigator.vibrate?.(12);
+      haptic("select");
       setVisited((prev) => new Set([...prev, next]));
       setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
     }
@@ -171,15 +172,21 @@ export function Shell({ session }: { session: Session }) {
     if (!el) return;
 
     function onTouchStart(e: TouchEvent) {
+      // Clear per-gesture state up front, BEFORE the settling guard. A touch
+      // that starts during a settle animation is ignored below — but if we left
+      // axisLocked at its previous "h" value, the next move after the settle
+      // would fire a phantom drag computed against a stale touchStartX (and
+      // could even mis-commit a tab).
+      axisLocked.current = null;
+      dragTo.current = null;
       if (slideRef.current?.settling) return; // ignore during a settle animation
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;
-      axisLocked.current = null;
-      dragTo.current = null;
     }
 
     function onTouchMove(e: TouchEvent) {
       if (slideRef.current?.settling) return;
+      if (e.touches.length !== 1) return; // ignore multi-touch (pinch/zoom)
       const dx = e.touches[0].clientX - touchStartX.current;
       const dy = e.touches[0].clientY - touchStartY.current;
       if (axisLocked.current === null) {
@@ -221,13 +228,28 @@ export function Shell({ session }: { session: Session }) {
       scheduleFinalize();
     }
 
+    // touchcancel (iOS notification pull, edge gesture, incoming call) fires
+    // instead of touchend — without this a mid-drag swipe would strand the panel
+    // at its dragged offset until the next touch. Snap it back.
+    function onTouchCancel() {
+      const wasHorizontal = axisLocked.current === "h";
+      axisLocked.current = null;
+      dragTo.current = null;
+      if (wasHorizontal && slideRef.current) {
+        setSlide((s) => (s ? { ...s, dx: 0, settling: true } : null));
+        scheduleFinalize();
+      }
+    }
+
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchCancel, { passive: true });
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchCancel);
     };
   }, [tab]);
 

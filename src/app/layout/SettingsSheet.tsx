@@ -133,6 +133,19 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
       }, 200);
     }
   }
+  // touchcancel (system gesture / incoming call) skips onDragEnd — without this
+  // the sheet stays frozen mid-drag with transition:none. Snap it back to rest.
+  function onDragCancel() {
+    if (!isDragging.current || !sheetRef.current) return;
+    isDragging.current = false;
+    const el = sheetRef.current;
+    el.style.transition = "transform 200ms ease";
+    el.style.transform = "";
+    setTimeout(() => {
+      el.style.transition = "";
+      el.classList.remove("is-dragging");
+    }, 200);
+  }
 
   useEffect(() => {
     if (!config) return;
@@ -195,12 +208,14 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
           onTouchStart={onDragStart}
           onTouchMove={onDragMove}
           onTouchEnd={onDragEnd}
+          onTouchCancel={onDragCancel}
         />
         <div
           className="settings-sheet-header"
           onTouchStart={onDragStart}
           onTouchMove={onDragMove}
           onTouchEnd={onDragEnd}
+          onTouchCancel={onDragCancel}
         >
           <span className="settings-sheet-title">Settings</span>
           <button className="settings-sheet-close" onClick={onClose} aria-label="Close">
