@@ -12,7 +12,8 @@ import { useEffect, useRef, type RefObject } from "react";
 // dir semantics match Shell: 1 = finger swiped left (advance / next / forward),
 // −1 = finger swiped right (back / previous). Guards (range limits, haptics) are
 // the caller's job — this hook only decides that a committed horizontal swipe
-// happened.
+// happened. A commit is either enough travel (`threshold`) OR a fast enough
+// flick — so a quick short swipe registers the way it does natively.
 
 export interface HorizontalSwipeOptions {
   /** Minimum horizontal travel to commit. Default 56px. */
@@ -37,6 +38,11 @@ export interface HorizontalSwipeOptions {
 const AXIS_LOCK_PX = 10;
 // Horizontal must beat vertical by this ratio to count as a horizontal swipe.
 const AXIS_RATIO = 1.25;
+// A quick flick commits even below `threshold`: past this release speed
+// (px/ms) with at least FLICK_MIN_DX of travel, we treat it as intentional.
+// ~0.5px/ms is a brisk swipe; a slow drag sits well under 0.2.
+const FLICK_VELOCITY = 0.5;
+const FLICK_MIN_DX = 12;
 
 export function useHorizontalSwipe<T extends HTMLElement>(
   ref: RefObject<T | null>,
@@ -57,6 +63,13 @@ export function useHorizontalSwipe<T extends HTMLElement>(
     let startY = 0;
     let axis: "h" | "v" | null = null;
     let cancelled = false;
+    // Velocity sampling for flick detection. prev* trails last* by one move so
+    // the release speed isn't measured against a near-zero time delta (touchend
+    // often fires within a millisecond of the final touchmove).
+    let prevX = 0;
+    let prevT = 0;
+    let lastX = 0;
+    let lastT = 0;
 
     function reset() {
       axis = null;
@@ -72,6 +85,8 @@ export function useHorizontalSwipe<T extends HTMLElement>(
       }
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
+      prevX = lastX = startX;
+      prevT = lastT = e.timeStamp;
       axis = null;
       cancelled = false;
     }
@@ -97,6 +112,10 @@ export function useHorizontalSwipe<T extends HTMLElement>(
       if (axis === "h") {
         e.preventDefault();
         e.stopPropagation();
+        prevX = lastX;
+        prevT = lastT;
+        lastX = e.touches[0].clientX;
+        lastT = e.timeStamp;
         optsRef.current.onDrag?.(dx);
       }
     }
@@ -107,13 +126,19 @@ export function useHorizontalSwipe<T extends HTMLElement>(
         return;
       }
       e.stopPropagation();
-      const dx = e.changedTouches[0].clientX - startX;
+      const endX = e.changedTouches[0].clientX;
+      const dx = endX - startX;
       const dy = e.changedTouches[0].clientY - startY;
       reset();
       const threshold = optsRef.current.threshold ?? 56;
-      const committed =
-        Math.abs(dx) >= threshold && Math.abs(dx) >= Math.abs(dy) * AXIS_RATIO;
-      if (committed) onSwipeRef.current(dx < 0 ? 1 : -1);
+      const horizontalEnough = Math.abs(dx) >= Math.abs(dy) * AXIS_RATIO;
+      const dt = e.timeStamp - prevT;
+      const velocity = dt > 0 ? (endX - prevX) / dt : 0;
+      const farEnough = Math.abs(dx) >= threshold;
+      const flicked = Math.abs(velocity) >= FLICK_VELOCITY && Math.abs(dx) >= FLICK_MIN_DX;
+      if (horizontalEnough && (farEnough || flicked)) {
+        onSwipeRef.current(dx < 0 ? 1 : -1);
+      }
       optsRef.current.onDragEnd?.();
     }
 

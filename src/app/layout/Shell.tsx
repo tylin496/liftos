@@ -171,6 +171,10 @@ export function Shell({ session }: { session: Session }) {
     const el = contentRef.current;
     if (!el) return;
 
+    // Velocity sampling for flick detection (prev trails last by one move so the
+    // release speed isn't measured against a near-zero dt). See useHorizontalSwipe.
+    let prevX = 0, prevT = 0, lastX = 0, lastT = 0;
+
     function onTouchStart(e: TouchEvent) {
       // Clear per-gesture state up front, BEFORE the settling guard. A touch
       // that starts during a settle animation is ignored below — but if we left
@@ -182,6 +186,8 @@ export function Shell({ session }: { session: Session }) {
       if (slideRef.current?.settling) return; // ignore during a settle animation
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;
+      prevX = lastX = e.touches[0].clientX;
+      prevT = lastT = e.timeStamp;
     }
 
     function onTouchMove(e: TouchEvent) {
@@ -202,6 +208,8 @@ export function Shell({ session }: { session: Session }) {
       }
       if (axisLocked.current === "h") {
         e.preventDefault();
+        prevX = lastX; prevT = lastT;
+        lastX = e.touches[0].clientX; lastT = e.timeStamp;
         const to = dragTo.current;
         if (!to) return;
         const dir: 1 | -1 = dx < 0 ? 1 : -1;
@@ -212,8 +220,13 @@ export function Shell({ session }: { session: Session }) {
     function onTouchEnd(e: TouchEvent) {
       if (axisLocked.current !== "h") return;
       const to = dragTo.current;
-      const dx = e.changedTouches[0].clientX - touchStartX.current;
-      if (!to || Math.abs(dx) < 56) {
+      const endX = e.changedTouches[0].clientX;
+      const dx = endX - touchStartX.current;
+      const dt = e.timeStamp - prevT;
+      const velocity = dt > 0 ? (endX - prevX) / dt : 0;
+      // Commit on enough travel OR a quick flick (matches useHorizontalSwipe).
+      const flicked = Math.abs(velocity) >= 0.5 && Math.abs(dx) >= 12;
+      if (!to || (Math.abs(dx) < 56 && !flicked)) {
         // Snap back to the current tab.
         if (slideRef.current) {
           setSlide((s) => (s ? { ...s, dx: 0, settling: true } : null));

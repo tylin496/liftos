@@ -102,9 +102,17 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   // manual slide-out has visually finished.
   const dragStartY = useRef(0);
   const isDragging = useRef(false);
+  // Velocity sampling so a quick flick-down dismisses even below the 90px
+  // distance threshold. prev trails last by one move (see useHorizontalSwipe).
+  const dragPrevY = useRef(0);
+  const dragPrevT = useRef(0);
+  const dragLastY = useRef(0);
+  const dragLastT = useRef(0);
 
   function onDragStart(e: ReactTouchEvent) {
     dragStartY.current = e.touches[0].clientY;
+    dragPrevY.current = dragLastY.current = e.touches[0].clientY;
+    dragPrevT.current = dragLastT.current = e.timeStamp;
     isDragging.current = true;
     if (sheetRef.current) {
       sheetRef.current.style.transition = "none";
@@ -113,16 +121,25 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   }
   function onDragMove(e: ReactTouchEvent) {
     if (!isDragging.current || !sheetRef.current) return;
+    dragPrevY.current = dragLastY.current;
+    dragPrevT.current = dragLastT.current;
+    dragLastY.current = e.touches[0].clientY;
+    dragLastT.current = e.timeStamp;
     const dy = Math.max(0, e.touches[0].clientY - dragStartY.current);
     sheetRef.current.style.transform = `translateY(${dy}px)`;
   }
   function onDragEnd(e: ReactTouchEvent) {
     if (!isDragging.current || !sheetRef.current) return;
     isDragging.current = false;
-    const dy = Math.max(0, e.changedTouches[0].clientY - dragStartY.current);
+    const endY = e.changedTouches[0].clientY;
+    const dy = Math.max(0, endY - dragStartY.current);
+    const dt = e.timeStamp - dragPrevT.current;
+    const vy = dt > 0 ? (endY - dragPrevY.current) / dt : 0;
+    // Dismiss on enough travel OR a quick downward flick.
+    const flickedDown = vy >= 0.5 && dy >= 12;
     const el = sheetRef.current;
     el.style.transition = "transform 200ms ease";
-    if (dy > 90) {
+    if (dy > 90 || flickedDown) {
       el.style.transform = "translateY(100%)";
       setTimeout(() => onCloseRef.current(), 200);
     } else {
