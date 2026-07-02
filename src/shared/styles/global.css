@@ -223,12 +223,6 @@ button {
   color: var(--accent);
 }
 
-.celeb-icon .tsvg {
-  width: 44px;
-  height: 44px;
-  display: block;
-}
-
 .celeb-card strong {
   font-size: var(--text-2xl);
   font-weight: 800;

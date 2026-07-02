@@ -192,7 +192,7 @@
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   /* Evidence values are single-line reads — the Target pace range in particular
-     ("−0.40~−0.70 kg/wk") must never wrap its unit onto a second line. */
+     ("−0.40 – 0.70 kg/wk") must never wrap its unit onto a second line. */
   white-space: nowrap;
 }
 
