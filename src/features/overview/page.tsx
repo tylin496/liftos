@@ -65,10 +65,10 @@ function fmtDaysSince(isoDate: string): string {
 /** Days the current calorie target has been active, as "(3 d)" — appended after
  *  an inconclusive pace word ("Forming"/"Calibrating") to answer *why* it's not
  *  yet a verdict: the target is fresh, so the 21-day weight trend still partly
- *  reflects the prior target. A target that only became active today reads as
- *  "(new)". This is the same tenure the Nutrition confidence reason explains. */
+ *  reflects the prior target. The activation day is day 1, so this never reads
+ *  "0 d". This is the same tenure the Nutrition confidence reason explains. */
 function fmtDaysOnTarget(days: number): string {
-  return days <= 0 ? "(new)" : `(${days} d)`;
+  return `(${Math.max(1, days)} d)`;
 }
 
 /* ── System Card ───────────────────────────────────────────────────────── */
