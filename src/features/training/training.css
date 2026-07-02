@@ -580,6 +580,8 @@
   background: color-mix(in srgb, var(--gold) 18%, transparent);
   padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
+  position: relative;
+  z-index: 10;
 }
 
 .hist-status-gain {
