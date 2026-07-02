@@ -24,15 +24,15 @@ describe("getCalorieResult", () => {
     expect(r.status).toBe("Surplus");
   });
 
-  it("classifies an under-eating-vs-target day", () => {
+  it("classifies an over-budget day (ate too much, deficit fell short)", () => {
     const r = getCalorieResult(2705, 2705, 500);
     expect(r.deficit).toBe(0);
-    expect(r.state).toBe("under");
+    expect(r.state).toBe("over");
     expect(r.progress).toBe(0);
   });
 
-  it("classifies 'over' and 'extreme' deficits", () => {
-    expect(getCalorieResult(2055, 2705, 500).state).toBe("over"); // ratio 1.3
+  it("classifies 'under' (under budget) and 'extreme' deficits", () => {
+    expect(getCalorieResult(2055, 2705, 500).state).toBe("under"); // ratio 1.3, ate under budget
     expect(getCalorieResult(1905, 2705, 500).state).toBe("extreme"); // ratio 1.6
   });
 
