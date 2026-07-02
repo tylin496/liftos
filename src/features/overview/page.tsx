@@ -50,17 +50,25 @@ function fmtTrend(kgPerWeek: number): string {
   return `${sign}${Math.abs(kgPerWeek).toFixed(2)} kg/week`;
 }
 
-/** Days since the current cut began, as "(141 d)" — appended after the pace
- *  status word so Weight can answer "how long have I been at this rate?"
- *  without a separate row. Mirrors Cut Progress's baseline. Only shown next to a
- *  conclusive verdict (On/Below/Above pace): an inconclusive read ("Forming",
- *  "Calibrating") has no established rate to have held for that long, so pairing
- *  it with a day count reads as a contradiction — the cut clock and the fresh-
- *  target clock are unrelated. */
+/** Days since the current cut began, as "(141 d)" — appended after a *conclusive*
+ *  pace word (On/Below/Above pace) so Weight answers "how long have I held this
+ *  rate?" without a separate row. Mirrors Cut Progress's baseline. An
+ *  inconclusive read uses fmtDaysOnTarget instead: pairing "Forming" with the cut
+ *  clock reads as a contradiction, since the cut and the fresh-target clock are
+ *  unrelated. */
 function fmtDaysSince(isoDate: string): string {
   const start = new Date(isoDate + "T12:00:00");
   const days = Math.round((Date.now() - start.getTime()) / 86400000);
   return `(${days} d)`;
+}
+
+/** Days the current calorie target has been active, as "(3 d)" — appended after
+ *  an inconclusive pace word ("Forming"/"Calibrating") to answer *why* it's not
+ *  yet a verdict: the target is fresh, so the 21-day weight trend still partly
+ *  reflects the prior target. A target that only became active today reads as
+ *  "(new)". This is the same tenure the Nutrition confidence reason explains. */
+function fmtDaysOnTarget(days: number): string {
+  return days <= 0 ? "(new)" : `(${days} d)`;
 }
 
 /* ── System Card ───────────────────────────────────────────────────────── */
@@ -252,6 +260,12 @@ function WeightCard({
       : null;
   const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
+  // Which clock the status word gets: a conclusive verdict (tone set) carries the
+  // cut baseline day count; an inconclusive read on a real target ("Forming"/
+  // "Calibrating") carries the target's own tenure, which is *why* it's forming.
+  const noActiveTarget =
+    state == null || state.evaluation.targetRange.min === state.evaluation.targetRange.max;
+  const daysOnTarget = state?.diagnostics.daysOnTarget ?? 0;
   const { ref, inView } = useInView<HTMLButtonElement>();
 
   // 7-day average vs the prior 7 days — same signal the Health weight card
@@ -296,7 +310,9 @@ function WeightCard({
           <span className="ov-weight-key">Status</span>
           <span className={`ov-weight-val${tone ? ` is-${tone}` : ""}`}>
             {status ?? "—"}
-            {cutStartDate && tone && ` ${fmtDaysSince(cutStartDate)}`}
+            {tone
+              ? cutStartDate && ` ${fmtDaysSince(cutStartDate)}`
+              : !noActiveTarget && ` ${fmtDaysOnTarget(daysOnTarget)}`}
           </span>
         </div>
         {activeEnergy != null && (
