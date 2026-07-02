@@ -1,7 +1,9 @@
 # Health sync — iOS Shortcut → LiftOS
 
-The nightly Apple Shortcut POSTs to **`/api/health-sync`** (Vercel function in
-`api/health-sync.js`). Payload shape is fixed by the Shortcut:
+The nightly Apple Shortcut POSTs to
+**`https://gcznowwjbeqihhllllpz.supabase.co/functions/v1/health-sync`**
+(Supabase Edge Function in `supabase/functions/health-sync/index.ts`).
+Payload shape is fixed by the Shortcut:
 
 ```json
 {
@@ -17,7 +19,7 @@ The nightly Apple Shortcut POSTs to **`/api/health-sync`** (Vercel function in
 - Upserts one row per `date` into `health_metrics` (unique key `user_id, metric_date`).
 - Idempotent: re-running the Shortcut for a date overwrites that day.
 
-## Required env (Vercel project settings)
+## Required secrets (`supabase secrets set ...`)
 
 | Var | What |
 |-----|------|
@@ -28,6 +30,23 @@ The nightly Apple Shortcut POSTs to **`/api/health-sync`** (Vercel function in
 
 Find `HEALTH_SYNC_USER_ID`: after signing in with Google, Supabase Dashboard →
 Authentication → Users → your row → User UID.
+
+## Deploying
+
+```bash
+supabase functions deploy health-sync --project-ref gcznowwjbeqihhllllpz --no-verify-jwt
+supabase secrets set HEALTH_SYNC_USER_ID=<your-user-uid> \
+  HEALTH_SYNC_SECRET=<optional-shared-secret> \
+  --project-ref gcznowwjbeqihhllllpz
+```
+
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-injected by the
+platform — don't set them manually (the CLI rejects `SUPABASE_`-prefixed
+secrets anyway).
+
+Edge Functions require Supabase's own JWT by default — `--no-verify-jwt` is
+required here so the Shortcut (which has no Supabase session) isn't blocked
+before the function's own `HEALTH_SYNC_SECRET` check ever runs.
 
 ## Reading
 

@@ -1,6 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
-// /api/health-sync — Apple Health <-> LiftOS bridge for the Apple Shortcuts.
+// /functions/v1/health-sync — Apple Health <-> LiftOS bridge for the Apple Shortcuts.
 //   POST → ingest body metrics (Apple Health → LiftOS health_metrics).
 //   GET  ?date=YYYY-MM-DD → export a day's logged calories + protein
 //          (LiftOS nutrition_entries → Apple Health Dietary Energy/Protein).
@@ -19,7 +19,7 @@ import { createClient } from "@supabase/supabase-js";
 // emits 0 instead of "" when a Health sample is missing, and these are never
 // real readings.
 //
-// Required server env (Vercel project settings):
+// Required secrets (`supabase secrets set ...`):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HEALTH_SYNC_USER_ID
 // Optional: HEALTH_SYNC_SECRET — when set, the request must carry it as
 //   `x-sync-secret: <secret>` header or `?secret=<secret>` query param.
@@ -27,19 +27,19 @@ import { createClient } from "@supabase/supabase-js";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** "" / null / undefined / non-numeric → null. Otherwise the number. */
-function num(value) {
+function num(value: unknown): number | null {
   if (value === "" || value === null || value === undefined) return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
-const intOrNull = (v) => {
+const intOrNull = (v: unknown) => {
   const n = num(v);
   return n === null ? null : Math.round(n);
 };
 
 /** Validate + normalize the Shortcut payload into a health_metrics row. */
-export function buildRecord(body) {
+export function buildRecord(body: any): { record?: Record<string, unknown>; error?: string } {
   if (!body || typeof body !== "object") {
     return { error: "Missing JSON body" };
   }
@@ -50,7 +50,7 @@ export function buildRecord(body) {
 
   // Only include fields that carry a real value — null/blank fields are
   // dropped so they don't overwrite an existing row's value on conflict.
-  const record = { metric_date: date };
+  const record: Record<string, unknown> = { metric_date: date };
   const weight = num(body.weight);
   if (weight !== null && weight > 0) record.weight_kg = weight;
   const bodyFat = num(body.bodyFat);
@@ -73,49 +73,60 @@ export function buildRecord(body) {
   return { record };
 }
 
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-sync-secret");
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, x-sync-secret, Authorization",
+  };
+}
 
-  if (req.method === "OPTIONS") return res.status(204).end();
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...corsHeaders() },
+  });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
   if (req.method !== "POST" && req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return json({ error: "Method not allowed" }, 405);
   }
 
+  const reqUrl = new URL(req.url);
+
   // Optional shared-secret gate (only enforced when configured).
-  const secret = process.env.HEALTH_SYNC_SECRET;
+  const secret = Deno.env.get("HEALTH_SYNC_SECRET");
   if (secret) {
-    const provided = req.headers["x-sync-secret"] || req.query?.secret;
+    const provided = req.headers.get("x-sync-secret") || reqUrl.searchParams.get("secret");
     if (provided !== secret) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return json({ error: "Unauthorized" }, 401);
     }
   }
 
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const userId = process.env.HEALTH_SYNC_USER_ID;
+  const url = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const userId = Deno.env.get("HEALTH_SYNC_USER_ID");
   if (!url || !serviceKey || !userId) {
-    return res.status(500).json({
-      error:
-        "Server not configured: set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HEALTH_SYNC_USER_ID",
-    });
+    return json(
+      {
+        error:
+          "Server not configured: set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HEALTH_SYNC_USER_ID",
+      },
+      500,
+    );
   }
 
-  const supabase = createClient(url, serviceKey, {
-    auth: { persistSession: false },
-  });
+  const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
 
   // GET = nutrition export (LiftOS → Apple Health). Returns one day's logged
   // calories + protein so a Shortcut can write them into Apple Health as
-  // Dietary Energy / Protein. (Folded in here rather than its own file to
-  // stay under Vercel's 12-function Hobby limit.)
+  // Dietary Energy / Protein.
   if (req.method === "GET") {
-    const date = req.query?.date;
+    const date = reqUrl.searchParams.get("date");
     if (typeof date !== "string" || !DATE_RE.test(date)) {
-      return res
-        .status(400)
-        .json({ error: "Invalid or missing 'date' (expected YYYY-MM-DD)" });
+      return json({ error: "Invalid or missing 'date' (expected YYYY-MM-DD)" }, 400);
     }
     const { data, error: dbErr } = await supabase
       .from("nutrition_entries")
@@ -123,14 +134,12 @@ export default async function handler(req, res) {
       .eq("user_id", userId)
       .eq("entry_date", date)
       .maybeSingle();
-    if (dbErr) return res.status(500).json({ error: dbErr.message });
+    if (dbErr) return json({ error: dbErr.message }, 500);
 
     // Already exported once → return nulls so the Shortcut logs nothing.
     // Makes manual re-runs safe (Apple Health's logging is append-only).
     if (data?.dietary_exported_at) {
-      return res
-        .status(200)
-        .json({ ok: true, date, calories: null, protein: null, alreadyExported: true });
+      return json({ ok: true, date, calories: null, protein: null, alreadyExported: true });
     }
 
     // First export of a day that actually has data → hand back the values
@@ -142,7 +151,7 @@ export default async function handler(req, res) {
         .eq("user_id", userId)
         .eq("entry_date", date);
     }
-    return res.status(200).json({
+    return json({
       ok: true,
       date,
       calories: data?.calories ?? null,
@@ -152,29 +161,16 @@ export default async function handler(req, res) {
   }
 
   // POST = body metrics ingest (Apple Health → LiftOS).
-  const body = typeof req.body === "string" ? safeParse(req.body) : req.body;
+  const body = await req.json().catch(() => null);
   const { record, error } = buildRecord(body);
-  if (error) return res.status(400).json({ error });
+  if (error) return json({ error }, 400);
 
   const { data, error: dbErr } = await supabase
     .from("health_metrics")
-    .upsert(
-      { user_id: userId, ...record },
-      { onConflict: "user_id,metric_date" },
-    )
+    .upsert({ user_id: userId, ...record }, { onConflict: "user_id,metric_date" })
     .select("*")
     .single();
 
-  if (dbErr) {
-    return res.status(500).json({ error: dbErr.message });
-  }
-  return res.status(200).json({ ok: true, record: data });
-}
-
-function safeParse(s) {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return null;
-  }
-}
+  if (dbErr) return json({ error: dbErr.message }, 500);
+  return json({ ok: true, record: data });
+});
