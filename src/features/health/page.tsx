@@ -47,7 +47,7 @@ const copyHealthData = () => buildHealthJson();
 // window: the big number wants a tight window (7/14-day), but a 180-day shape
 // reads best sparse. ~15-day buckets give ~12 points across all cards — enough
 // to show the trend, not so many the line turns to noise.
-const SPARK_BUCKET_DAYS = 15;
+const SPARK_BUCKET_DAYS = 30;
 
 /* Small static trend indicator on each Trend card's header — a glance-only
    180-day shape, not a scrubbable chart (that's a deliberate design call,
@@ -87,7 +87,7 @@ function Sparkline({ points, color, minSpan = 0 }: { points: ChartPoint[]; color
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
       <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       {coords.slice(0, -1).map((c, i) => (
-        <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r="2" fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="1" />
+        <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r="2" fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="2" />
       ))}
       <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke={color} strokeWidth="2" />
     </svg>
