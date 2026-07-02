@@ -49,6 +49,51 @@ const COPY_KEY: Record<MetricKey, string> = {
 
 type BodyMetric = import("@features/health/api").BodyMetric;
 
+// Unit legend — emitted at the top of each export so an LLM never has to guess
+// kg vs lb, kcal, ms, bpm, etc. Each export includes only the keys it uses.
+const UNIT: Record<string, string> = {
+  weight: "kg",
+  bodyFat: "%",
+  leanMass: "kg",
+  activeEnergy: "kcal",
+  restingEnergy: "kcal",
+  steps: "count",
+  exerciseMinutes: "min",
+  sleepSeconds: "s",
+  restingHeartRate: "bpm",
+  hrv: "ms",
+  tdee: "kcal",
+  calories: "kcal",
+  protein: "g",
+  height: "cm",
+  e1rm: "kg",
+};
+function unitsFor(keys: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of keys) if (UNIT[k]) out[k] = UNIT[k];
+  return out;
+}
+const HEALTH_UNIT_KEYS = [...Object.values(COPY_KEY), "tdee"];
+const NUTRITION_UNIT_KEYS = ["calories", "protein", "tdee"];
+const TRAINING_UNIT_KEYS = ["weight", "e1rm"];
+const OVERVIEW_UNIT_KEYS = [...HEALTH_UNIT_KEYS, "calories", "protein", "e1rm", "height"];
+
+// computeRecovery returns raw rolling averages (many decimals). Round at the
+// export boundary — the UI keeps the full-precision source for its own
+// formatting, but the JSON shouldn't carry 15-digit float noise.
+function roundRecovery(r: ReturnType<typeof computeRecovery>) {
+  const d1 = (v: number | null) => (v == null ? null : +v.toFixed(1));
+  return {
+    ...r,
+    sleepHours: d1(r.sleepHours),
+    sleepBaseline: d1(r.sleepBaseline),
+    hrv: d1(r.hrv),
+    hrvBaseline: d1(r.hrvBaseline),
+    rhr: r.rhr == null ? null : Math.round(r.rhr),
+    rhrBaseline: d1(r.rhrBaseline),
+  };
+}
+
 /** Per-metric latest / average / change summary over the fetched window. */
 function buildHealthSummary(metrics: BodyMetric[], periodDays: number) {
   const summary: Record<string, unknown> = {};
@@ -71,24 +116,27 @@ function buildHealthSummary(metrics: BodyMetric[], periodDays: number) {
   return summary;
 }
 
-/** One row per date with every metric (null where missing), ascending. */
+/** Columnar timeline: `dates` plus one aligned array per metric (null where a
+ *  metric is missing for a date), ascending. Columnar over array-of-objects
+ *  because it drops ~40% of the tokens (no repeated keys) and an LLM parses it
+ *  just as reliably. */
 function buildHealthTimeline(metrics: BodyMetric[]) {
-  const allDates = [...new Set(metrics.map((m) => m.metric_date))].sort();
-  return allDates.map((date) => {
-    const row = metrics.find((m) => m.metric_date === date);
-    return {
-      date,
-      weight:           row?.weight_kg ?? null,
-      bodyFat:          row?.body_fat_pct ?? null,
-      activeEnergy:     row?.active_energy_kcal ?? null,
-      restingEnergy:    row?.resting_energy_kcal ?? null,
-      steps:            row?.steps ?? null,
-      exerciseMinutes:  row?.exercise_minutes ?? null,
-      sleepSeconds:     row?.sleep_seconds ?? null,
-      restingHeartRate: row?.resting_heart_rate ?? null,
-      hrv:              row?.hrv_sdnn_ms ?? null,
-    };
-  });
+  const dates = [...new Set(metrics.map((m) => m.metric_date))].sort();
+  const byDate = new Map(metrics.map((m) => [m.metric_date, m]));
+  const col = (pick: (m: BodyMetric) => number | null) =>
+    dates.map((d) => pick(byDate.get(d)!) ?? null);
+  return {
+    dates,
+    weight:           col((m) => m.weight_kg),
+    bodyFat:          col((m) => m.body_fat_pct),
+    activeEnergy:     col((m) => m.active_energy_kcal),
+    restingEnergy:    col((m) => m.resting_energy_kcal),
+    steps:            col((m) => m.steps),
+    exerciseMinutes:  col((m) => m.exercise_minutes),
+    sleepSeconds:     col((m) => m.sleep_seconds),
+    restingHeartRate: col((m) => m.resting_heart_rate),
+    hrv:              col((m) => m.hrv_sdnn_ms),
+  };
 }
 
 export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritionDays = EXPORT_NUTRITION_DAYS): Promise<string> {
@@ -109,7 +157,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   // ── Health ──────────────────────────────────────────────────────────────────
   const metrics = health?.metrics ?? [];
   const tdeeEst = health?.tdee ?? estimateTdee([], []);
-  const recovery = computeRecovery(metrics);
+  const recovery = roundRecovery(computeRecovery(metrics));
 
   const healthSummary = buildHealthSummary(metrics, healthDays);
   const healthTimeline = buildHealthTimeline(metrics);
@@ -329,7 +377,8 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 2.1,
+    schema: 2.2,
+    units: unitsFor(OVERVIEW_UNIT_KEYS),
     summary: {
       currentWeight,
       weight30d,
@@ -438,15 +487,16 @@ export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> 
 
   const payload = {
     source: "LiftOS",
-    schema: 2.1,
+    schema: 2.2,
     tab: "health",
+    units: unitsFor(HEALTH_UNIT_KEYS),
     windowDays: days,
     tdee: {
       tdee: tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null,
       restingDays: tdeeEst.restingDays,
       activeDays: tdeeEst.activeDays,
     },
-    recovery: computeRecovery(metrics),
+    recovery: roundRecovery(computeRecovery(metrics)),
     summary: buildHealthSummary(metrics, days),
     timeline: buildHealthTimeline(metrics),
   };
@@ -487,8 +537,9 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
 
   const payload = {
     source: "LiftOS",
-    schema: 2.1,
+    schema: 2.2,
     tab: "nutrition",
+    units: unitsFor(NUTRITION_UNIT_KEYS),
     windowDays: days,
     targets: targets
       ? {
@@ -588,8 +639,9 @@ export async function buildTrainingJson(): Promise<string> {
 
   const payload = {
     source: "LiftOS",
-    schema: 2.1,
+    schema: 2.2,
     tab: "training",
+    units: unitsFor(TRAINING_UNIT_KEYS),
     schedule: { split: "PPL", cycle: SPLITS.map((s) => s.name) },
     splits,
   };
