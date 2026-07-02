@@ -140,6 +140,7 @@ button {
 .toast-msg { flex: 1; }
 
 .toast-action {
+  position: relative;
   background: rgba(255, 255, 255, 0.25);
   border: none;
   border-radius: var(--radius-pill);
@@ -150,6 +151,15 @@ button {
   font-weight: 700;
   cursor: pointer;
   transition: background var(--motion-fast) var(--press-ease);
+}
+
+/* Expand Undo's tap target to ~44px without growing the pill itself — this
+   is the entire safety net for an optimistic delete, so it shouldn't be a
+   near-miss next to the tab bar right below it. */
+.toast-action::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
 }
 
 .toast-action:hover {

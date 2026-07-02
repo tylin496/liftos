@@ -709,24 +709,6 @@
   display: inline-block;
 }
 
-.hist-week-range-inner.slide-forward {
-  animation: week-slide-from-right var(--motion-base) var(--move-ease);
-}
-
-.hist-week-range-inner.slide-backward {
-  animation: week-slide-from-left var(--motion-base) var(--move-ease);
-}
-
-@keyframes week-slide-from-right {
-  from { transform: translateX(12px); }
-  to   { transform: translateX(0); }
-}
-
-@keyframes week-slide-from-left {
-  from { transform: translateX(-12px); }
-  to   { transform: translateX(0); }
-}
-
 .hist-week-nav button.hist-week-chevron {
   display: flex;
   align-items: center;

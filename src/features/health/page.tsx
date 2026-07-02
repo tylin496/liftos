@@ -4,7 +4,6 @@ import {
   series,
   bucketSeries,
   rollingAvg,
-  regressionSlope,
   computeRecovery,
   RECOVERY_STATUS_COLOR,
   type MetricKey,
@@ -30,11 +29,16 @@ interface MetricSpec {
   /** Rolling-bucket size in days; also the Card's "this period" averaging window. */
   bucket: number;
   avgLabel: string;
+  /** Floor for the sparkline's y-domain (in this metric's own unit) — below
+      this span, the domain widens to it instead of shrinking further, so a
+      0.3 kg wobble can't fill the same vertical range as a 5 kg drop. Each
+      card still scales independently; this only stabilizes its own axis. */
+  minSpan: number;
 }
 
 const METRICS: MetricSpec[] = [
-  { key: "weight_kg",    label: "Weight",   unit: "kg", decimals: 1, color: "var(--health-weight)",  bucket: 7,  avgLabel: "7-day average · rate of change" },
-  { key: "body_fat_pct", label: "Body Fat", unit: "%",  decimals: 1, color: "var(--health-bodyfat)", bucket: 14, avgLabel: "14-day average" },
+  { key: "weight_kg",    label: "Weight",   unit: "kg", decimals: 1, color: "var(--health-weight)",  bucket: 7,  avgLabel: "7-day average", minSpan: 3 },
+  { key: "body_fat_pct", label: "Body Fat", unit: "%",  decimals: 1, color: "var(--health-bodyfat)", bucket: 14, avgLabel: "14-day average", minSpan: 3 },
 ];
 
 const FIXED_DAYS = 180;
@@ -44,14 +48,21 @@ const copyHealthData = () => buildHealthJson();
    180-day shape, not a scrubbable chart (that's a deliberate design call,
    not a fidelity cut: the card's own big number + delta already carry the
    "what changed" story). */
-function Sparkline({ points, color }: { points: ChartPoint[]; color: string }) {
+function Sparkline({ points, color, minSpan = 0 }: { points: ChartPoint[]; color: string; minSpan?: number }) {
   const width = 92, height = 40;
   if (points.length < 2) return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline" />;
 
   const vals = points.map((p) => p.value);
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const span = max - min || 1;
+  const dataMin = Math.min(...vals);
+  const dataMax = Math.max(...vals);
+  // Widen the domain to minSpan around the data's own center rather than
+  // shrinking to whatever the actual range is — a flat week and a real move
+  // stay visually distinguishable instead of both filling the chart height.
+  const dataSpan = dataMax - dataMin;
+  const center = (dataMax + dataMin) / 2;
+  const halfSpan = Math.max(dataSpan, minSpan) / 2;
+  const min = center - halfSpan;
+  const span = halfSpan * 2 || 1;
   const pts = points
     .map((p, i) => {
       const x = (i / (points.length - 1)) * width;
@@ -168,6 +179,7 @@ function TrendCard({
   color,
   loading = false,
   note,
+  minSpan = 0,
 }: {
   label: string;
   avgLabel: string;
@@ -181,6 +193,8 @@ function TrendCard({
   /** Data-quality caveat for this card only — e.g. samples ignored as
       implausible. Rendered under the range line, not shimmer'd. */
   note?: string;
+  /** Sparkline y-domain floor, in this metric's own unit. */
+  minSpan?: number;
 }) {
   return (
     <section className={`page-card health-trend${loading ? " loading-card" : ""}`}>
@@ -199,11 +213,13 @@ function TrendCard({
             )}
             {delta}
           </div>
-          <MetricCaption>{loading ? "Loading" : avgLabel}</MetricCaption>
         </div>
-        <Sparkline points={points} color={color} />
+        <Sparkline points={points} color={color} minSpan={minSpan} />
       </div>
-      <div className="health-trend-range">{FIXED_DAYS}-day trend</div>
+      <div className="health-trend-foot">
+        <MetricCaption>{loading ? "Loading" : avgLabel}</MetricCaption>
+        <div className="health-trend-range">{FIXED_DAYS}-day trend</div>
+      </div>
       {!loading && note && <p className="health-trend-note">{note}</p>}
     </section>
   );
@@ -305,11 +321,6 @@ export function HealthPage() {
     return computeRecovery(metrics);
   }, [data, metrics]);
 
-  const weightPace = useMemo(() => {
-    if (!data) return null;
-    return regressionSlope(series(metrics, "weight_kg"), 28);
-  }, [data, metrics]);
-
   const lbmCard = useMemo(() => {
     if (!data) return null;
     const pts = metrics
@@ -391,11 +402,9 @@ export function HealthPage() {
           decimals={spec.decimals}
           color={spec.color}
           points={bucketed}
+          minSpan={spec.minSpan}
           delta={
-            spec.key === "weight_kg" && weightPace != null ? (
-              // Pace is shown neutral (grey) — a rate, not a good/bad verdict.
-              <MetricDelta value={weightPace} decimals={2} unit="kg/wk" />
-            ) : change != null && readingCount >= 2 ? (
+            change != null && readingCount >= 2 ? (
               // Body fat (and any future loss-is-good metric): down = green.
               <MetricDelta
                 value={change}
@@ -423,6 +432,7 @@ export function HealthPage() {
           decimals={1}
           color="var(--health-leanmass)"
           points={lbmCard.bucketed}
+          minSpan={2}
           delta={
             lbmCard.change != null && lbmCard.readingCount >= 2 ? (
               <MetricDelta value={lbmCard.change} higherBetter decimals={1} unit="kg" />

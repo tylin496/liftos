@@ -178,14 +178,14 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
 
       {/* Evidence — supports the decision; description only, no action. */}
       <div className="ni-evidence">
-        <span className="page-eyebrow" style={{ margin: 0 }}>Evidence</span>
+        <span className="page-eyebrow" style={{ margin: 0 }}>Evidence (21d trend)</span>
         <div className="ni-grid">
           <EvidenceCell label="Observed rate" value={!noData && !loading && hasTrend ? fmtRate(e!.observedRate) : "—"} />
           <EvidenceCell
-            label="Target range"
+            label="Target pace"
             value={
               !noData && !loading && hasRange
-                ? `−${e!.targetRange.min.toFixed(2)} – −${e!.targetRange.max.toFixed(2)} kg/wk`
+                ? `−${e!.targetRange.min.toFixed(2)} ~ −${e!.targetRange.max.toFixed(2)} kg/wk`
                 : "—"
             }
           />

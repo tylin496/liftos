@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from "react";
 import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useToast } from "@shared/components/Toast";
@@ -52,6 +52,88 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   const [error, setError] = useState<string | null>(null);
   const [editingRow, setEditingRow] = useState<RowKey | null>(null);
 
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Focus trap + Escape-to-close. aria-modal promises the rest of the page is
+  // inert while this is open — without this, a keyboard/switch-control user
+  // could Tab straight out of the sheet into the page behind the scrim.
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+
+    function focusables(): HTMLElement[] {
+      return Array.from(
+        sheet!.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+    }
+
+    // Move focus in on open so a keyboard user starts inside the sheet.
+    focusables()[0]?.focus();
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const els = focusables();
+      if (!els.length) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // Swipe-down-to-dismiss on the grabber/header — the grabber otherwise
+  // implies a drag affordance it doesn't honor. Direct DOM writes during the
+  // drag (not React state) keep it smooth; onClose fires only once the
+  // manual slide-out has visually finished.
+  const dragStartY = useRef(0);
+  const isDragging = useRef(false);
+
+  function onDragStart(e: ReactTouchEvent) {
+    dragStartY.current = e.touches[0].clientY;
+    isDragging.current = true;
+    if (sheetRef.current) {
+      sheetRef.current.style.transition = "none";
+      sheetRef.current.classList.add("is-dragging");
+    }
+  }
+  function onDragMove(e: ReactTouchEvent) {
+    if (!isDragging.current || !sheetRef.current) return;
+    const dy = Math.max(0, e.touches[0].clientY - dragStartY.current);
+    sheetRef.current.style.transform = `translateY(${dy}px)`;
+  }
+  function onDragEnd(e: ReactTouchEvent) {
+    if (!isDragging.current || !sheetRef.current) return;
+    isDragging.current = false;
+    const dy = Math.max(0, e.changedTouches[0].clientY - dragStartY.current);
+    const el = sheetRef.current;
+    el.style.transition = "transform 200ms ease";
+    if (dy > 90) {
+      el.style.transform = "translateY(100%)";
+      setTimeout(() => onCloseRef.current(), 200);
+    } else {
+      el.style.transform = "";
+      setTimeout(() => {
+        el.style.transition = "";
+        el.classList.remove("is-dragging");
+      }, 200);
+    }
+  }
+
   useEffect(() => {
     if (!config) return;
     const t = targetsFromConfig(config);
@@ -101,13 +183,25 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
     <>
       <div className={`settings-backdrop${closing ? " is-closing" : ""}`} onClick={onClose} />
       <div
+        ref={sheetRef}
         className={`settings-sheet${closing ? " is-closing" : ""}`}
         role="dialog"
         aria-modal
         aria-label="Settings"
       >
-        <div className="settings-sheet-grabber" aria-hidden />
-        <div className="settings-sheet-header">
+        <div
+          className="settings-sheet-grabber"
+          aria-hidden
+          onTouchStart={onDragStart}
+          onTouchMove={onDragMove}
+          onTouchEnd={onDragEnd}
+        />
+        <div
+          className="settings-sheet-header"
+          onTouchStart={onDragStart}
+          onTouchMove={onDragMove}
+          onTouchEnd={onDragEnd}
+        >
           <span className="settings-sheet-title">Settings</span>
           <button className="settings-sheet-close" onClick={onClose} aria-label="Close">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

@@ -96,6 +96,11 @@ export function NutritionPage() {
             calendarOpen={calendarOpen}
             onCalendarOpenChange={setCalendarOpen}
           />
+          {/* Self-contained — fetches its own state independently of config, so
+              it doesn't need to wait behind the gate above. Placed as the
+              second card (right after Today), before the History cards. */}
+          <NutritionInsightCard refreshKey={entryVersion} />
+
           <HistoryView
             config={config}
             date={date}
@@ -105,10 +110,6 @@ export function NutritionPage() {
           />
         </>
       )}
-
-      {/* Self-contained — fetches its own state independently of config, so
-          it doesn't need to wait behind the gate above. */}
-      <NutritionInsightCard refreshKey={entryVersion} />
     </div>
   );
 }

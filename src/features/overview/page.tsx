@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
-import { RECOVERY_STATUS_COLOR, type RecoverySnapshot } from "@features/health/math";
+import { RECOVERY_STATUS_COLOR, series, rollingAvg, type RecoverySnapshot } from "@features/health/math";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { useInView } from "@shared/hooks/useInView";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
@@ -48,6 +48,15 @@ function greeting(user: ReturnType<typeof useSessionUser>): string {
 function fmtTrend(kgPerWeek: number): string {
   const sign = kgPerWeek < 0 ? "−" : kgPerWeek > 0 ? "+" : "±";
   return `${sign}${Math.abs(kgPerWeek).toFixed(2)} kg/week`;
+}
+
+/** Cut start date as "25 May (38 d)" — the day the current cut began, plus how
+ *  many days ago that was. Mirrors Cut Progress's baseline, so Weight can
+ *  answer "how long have I been at this rate?" without duplicating the goal. */
+function fmtSince(isoDate: string): string {
+  const start = new Date(isoDate + "T12:00:00");
+  const days = Math.round((Date.now() - start.getTime()) / 86400000);
+  return `${start.getDate()} ${MONTH_ABBR[start.getMonth()]} (${days} d)`;
 }
 
 /* ── System Card ───────────────────────────────────────────────────────── */
@@ -214,11 +223,15 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 // the shared evaluation (single weight-trend source) — no point-to-point delta.
 function WeightCard({
   weightLatest,
+  metrics,
   state,
+  cutStartDate,
   onNav,
 }: {
   weightLatest: number | null;
+  metrics: BodyMetric[];
   state: NutritionStateFull | null;
+  cutStartDate: string | null;
   onNav: () => void;
 }) {
   // observedRate is a real 0-fallback when no trend could be fit (<5 readings in
@@ -230,6 +243,12 @@ function WeightCard({
   const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
   const { ref, inView } = useInView<HTMLButtonElement>();
+
+  // Same 7-day-vs-previous-7-day comparison as the Health page's Weight card.
+  const weightPts = series(metrics, "weight_kg");
+  const thisWeek = rollingAvg(weightPts, 7, 0);
+  const prevWeek = rollingAvg(weightPts, 7, 7);
+  const weightDelta = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
 
   if (weightLatest == null) {
     return (
@@ -251,9 +270,12 @@ function WeightCard({
         <span className="ov-weight-label">Weight</span>
         <span className="ov-weight-chevron" aria-hidden>›</span>
       </div>
-      <MetricValue size="md" unit="kg">
-        {weightLatest}
-      </MetricValue>
+      <div className="ov-weight-stat">
+        <MetricValue size="md" unit="kg">
+          {weightLatest}
+        </MetricValue>
+        <MetricDelta value={weightDelta} decimals={1} unit="kg" />
+      </div>
       <div className="ov-weight-rows">
         <div className="ov-weight-row">
           <span className="ov-weight-key">Trend</span>
@@ -263,6 +285,12 @@ function WeightCard({
           <span className="ov-weight-key">Status</span>
           <span className={`ov-weight-val${tone ? ` is-${tone}` : ""}`}>{status ?? "—"}</span>
         </div>
+        {cutStartDate && (
+          <div className="ov-weight-row">
+            <span className="ov-weight-key">Since</span>
+            <span className="ov-weight-val">{fmtSince(cutStartDate)}</span>
+          </div>
+        )}
       </div>
     </button>
   );
@@ -323,7 +351,11 @@ function TrainingHealthCard({
   const watchExercises = strength.exercises
     .filter((e) => e.status === "watch")
     .sort((a, b) => a.trend - b.trend);
-  const onTrackExercises = strength.exercises.filter((e) => e.status !== "watch");
+  // On Track is ordered worst-first (lowest % of PR), so the exercises
+  // closest to needing attention read first.
+  const onTrackExercises = strength.exercises
+    .filter((e) => e.status !== "watch")
+    .sort((a, b) => exerciseRetention(a) - exerciseRetention(b));
 
   if (!hasData) {
     return (
@@ -573,7 +605,13 @@ export function OverviewPage() {
       )}
 
       {data && (
-        <WeightCard weightLatest={data.weightLatest} state={data.nutritionState} onNav={() => nav("health")} />
+        <WeightCard
+          weightLatest={data.weightLatest}
+          metrics={data.metrics}
+          state={data.nutritionState}
+          cutStartDate={data.cutStartDate}
+          onNav={() => nav("health")}
+        />
       )}
 
       {data && (

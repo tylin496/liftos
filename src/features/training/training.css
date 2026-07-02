@@ -578,6 +578,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   width: 26px;
   height: 26px;
   border: none;
@@ -588,6 +589,15 @@
   border-radius: var(--radius-sm);
   transition: background var(--motion-fast), color var(--motion-fast), opacity var(--motion-fast);
   opacity: 0;
+}
+
+/* Expand the tap target to 44px without growing the visible glyph or
+   disturbing the grid column width — the pseudo-element overflows the box,
+   it doesn't participate in layout. */
+.hist-actions button::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
 }
 
 /* Always visible on touch devices */

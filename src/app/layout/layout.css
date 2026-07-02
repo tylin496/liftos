@@ -288,6 +288,13 @@
   to { transform: translateY(100%); }
 }
 
+/* Manual swipe-to-dismiss takes over transform via inline styles — the
+   keyframe animation (which has its own high-priority claim on transform)
+   would otherwise fight the drag. */
+.settings-sheet.is-dragging {
+  animation: none !important;
+}
+
 .settings-sheet-grabber {
   width: 36px;
   height: 4px;
@@ -295,6 +302,7 @@
   background: var(--rule-strong);
   margin: var(--space-3) auto var(--space-1);
   flex-shrink: 0;
+  touch-action: none;
 }
 
 .settings-sheet-header {
@@ -303,6 +311,7 @@
   justify-content: space-between;
   padding: var(--space-5) var(--space-5) 0;
   flex-shrink: 0;
+  touch-action: none;
 }
 
 .settings-sheet-title {
@@ -313,6 +322,7 @@
 }
 
 .settings-sheet-close {
+  position: relative;
   border: none;
   background: none;
   padding: 6px;
@@ -324,6 +334,14 @@
   place-items: center;
   transition: color var(--motion-fast) ease;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Expand the tap target to ~44px without moving the visible icon — the
+   padding/margin pair above keeps its position fixed. */
+.settings-sheet-close::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
 }
 
 .settings-sheet-close:active { color: var(--ink); }
