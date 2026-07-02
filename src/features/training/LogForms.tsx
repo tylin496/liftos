@@ -39,12 +39,15 @@ function RepsSetInput({
   const n = Math.max(MIN_SET_COUNT, setCount);
 
   function placeholderFor(i: number) {
-    if (i === 0) return defaultRep ?? "";
+    // First, try to use the value from the previous set
     for (let j = i - 1; j >= 0; j--) {
       const p = (values[j] ?? "").trim();
       if (p) return p;
     }
-    return defaultRep ?? "";
+    // Fall back to defaultRep (from previous log)
+    if (defaultRep) return defaultRep;
+    // No value to suggest
+    return "";
   }
 
   function setAt(i: number, raw: string) {
