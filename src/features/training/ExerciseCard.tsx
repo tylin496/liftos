@@ -26,6 +26,7 @@ import { StagnationBadge, StagnationDetail } from "./StagnationBadge";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
 import { haptic } from "@shared/lib/haptics";
+import { EditExerciseForm } from "./EditExerciseForm";
 
 export { useToast };
 
@@ -103,25 +104,23 @@ export function ExerciseCard({
   const toast = useToast();
   const celebration = useCelebration();
 
-  const [adding, setAdding] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  type EditingMode = "view" | "meta" | "logset" | "edithist";
+
+  const [editingMode, setEditingMode] = useState<EditingMode>("view");
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [justExpanded, setJustExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [renaming, setRenaming] = useState(false);
   const [prFlash, setPrFlash] = useState(false);
   const [newLogId, setNewLogId] = useState<string | null>(null);
   const [retOpen, setRetOpen] = useState(false);
   const [deletedLogIds, setDeletedLogIds] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string>();
+  const [localImageUrl, setLocalImageUrl] = useState<string>();
   const [savedRowId, setSavedRowId] = useState<string | null>(null);
   const [isMoving, setIsMoving] = useState(false);
-
-  const [metaTarget, setMetaTarget] = useState(exercise.target ?? "");
-  const [metaNote, setMetaNote] = useState(exercise.note ?? "");
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -129,10 +128,6 @@ export function ExerciseCard({
   const cardRef = useRef<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    setMetaTarget(exercise.target ?? "");
-    setMetaNote(exercise.note ?? "");
-  }, [exercise.slug, exercise.target, exercise.note]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -175,18 +170,6 @@ export function ExerciseCard({
   const visibleCount = showAll ? filteredDesc.length : Math.min(2, filteredDesc.length);
   const visible = filteredDesc.slice(0, visibleCount);
 
-  function commitMeta() {
-    const t = metaTarget.trim();
-    const n = metaNote.trim();
-    if (
-      t === (exercise.target ?? "").trim() &&
-      n === (exercise.note ?? "").trim()
-    )
-      return;
-    updateExercise(exercise.slug, { target: t || null, note: n || null })
-      .then((ex) => onUpdate(ex))
-      .catch((err) => toast(String((err as Error)?.message ?? err), "error"));
-  }
 
   async function handleAdd(raw: string, date: string, note: string) {
     if (submitting) return;
@@ -199,7 +182,7 @@ export function ExerciseCard({
         date,
         note: note || undefined,
       });
-      setAdding(false);
+      setEditingMode("view");
       setNewLogId(newLog.id);
       setTimeout(() => setNewLogId(null), 1200);
       requestAnimationFrame(() => {
@@ -251,7 +234,7 @@ export function ExerciseCard({
         assistance: parsed.assisted?.assist ?? null,
         bodyweight: parsed.assisted?.bw ?? null,
       });
-      setEditId(null);
+      setEditingLogId(null);
       setSavedRowId(log.id);
       setTimeout(() => setSavedRowId(null), 1200);
       haptic("tap");
@@ -275,7 +258,7 @@ export function ExerciseCard({
     let undone = false;
     const UNDO_MS = 5000;
     setDeletedLogIds((prev) => new Set([...prev, log.id]));
-    setEditId(null);
+    setEditingLogId(null);
     const commit = setTimeout(async () => {
       if (undone) return;
       try {
@@ -332,24 +315,24 @@ export function ExerciseCard({
     exercise.image_url ??
     `${import.meta.env.BASE_URL}images/${exercise.split}/${exercise.slug}.png`;
 
-  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function handleImageUpload(file: File): Promise<string> {
     const blob = URL.createObjectURL(file);
     setLocalImageUrl(blob);
     setUploading(true);
-    setUploadError(null);
+    setUploadError(undefined);
     try {
       const url = await uploadExerciseImage(exercise.slug, file);
       onUpdate({ ...exercise, image_url: url });
       URL.revokeObjectURL(blob);
-      setLocalImageUrl(null);
+      setLocalImageUrl(undefined);
+      return url;
     } catch (err) {
-      setUploadError(String((err as Error)?.message ?? err));
-      setLocalImageUrl(null);
+      const errorMsg = String((err as Error)?.message ?? err);
+      setUploadError(errorMsg);
+      setLocalImageUrl(undefined);
+      throw err;
     } finally {
       setUploading(false);
-      e.target.value = "";
     }
   }
 
@@ -370,6 +353,16 @@ export function ExerciseCard({
         </button>
         {menuT.mounted && (
           <div className={`menu-popup card-menu-popup${menuT.closing ? " is-closing" : ""}`} role="menu">
+            <button
+              type="button"
+              className="menu-item card-menu-item"
+              onClick={() => {
+                setMenuOpen(false);
+                setEditingMode("meta");
+              }}
+            >
+              ✎ Edit exercise
+            </button>
             <button
               type="button"
               className="menu-item card-menu-item"
@@ -408,17 +401,6 @@ export function ExerciseCard({
             >
               {isMoving ? "Moving…" : "↓ Move down"}
             </button>
-            <button
-              type="button"
-              className="menu-item card-menu-item"
-              disabled={uploading}
-              onClick={() => {
-                fileInputRef.current?.click();
-                setMenuOpen(false);
-              }}
-            >
-              {uploading ? "Uploading…" : "Upload photo"}
-            </button>
             <div className="card-menu-sep" />
             <button
               type="button"
@@ -428,7 +410,7 @@ export function ExerciseCard({
                 setMenuOpen(false);
               }}
             >
-              Archive…
+              ⌫ Archive…
             </button>
           </div>
         )}
@@ -437,96 +419,99 @@ export function ExerciseCard({
           type="file"
           accept="image/*"
           style={{ display: "none" }}
-          onChange={handleImageUpload}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            handleImageUpload(file).catch(() => {
+              // Error is already handled and displayed
+            });
+            e.target.value = "";
+          }}
         />
       </div>
 
       {/* ── Title block ── */}
       <div className="ex-title-block">
         <div className="ex-title-row">
-          {renaming ? (
-            <input
-              autoFocus
-              className="rename-input"
-              defaultValue={exercise.name}
-              onBlur={(e) => {
-                const name = e.target.value.trim() || exercise.name;
-                updateExercise(exercise.slug, { name })
-                  .then((ex) => onUpdate(ex))
-                  .catch((err) => toast(String((err as Error)?.message ?? err), "error"));
-                setRenaming(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
-                if (e.key === "Escape") setRenaming(false);
-              }}
-            />
-          ) : (
-            <h3 className="ex-name" onClick={() => setRenaming(true)} title="Click to rename">
-              {exercise.name}
-            </h3>
+          <h3 className="ex-name">{exercise.name}</h3>
+          {exercise.target && (
+            <span className="target-display mono">{exercise.target}</span>
           )}
-          <input
-            className="meta-input target-inline"
-            value={metaTarget}
-            onChange={(e) => setMetaTarget(e.target.value)}
-            onBlur={commitMeta}
-            placeholder="target"
-            aria-label="Target / sets"
-            size={Math.max((metaTarget || "target").length, 4)}
-          />
         </div>
-        <div className="ex-meta-row">
-          <input
-            className="meta-input note"
-            value={metaNote}
-            onChange={(e) => setMetaNote(e.target.value)}
-            onBlur={commitMeta}
-            placeholder="note"
-            aria-label="Note"
-            maxLength={80}
-          />
-        </div>
+        {exercise.note && (
+          <div className="ex-meta-row">
+            <span className="note-display">{exercise.note}</span>
+          </div>
+        )}
       </div>
 
       {/* ── Body: PR + image ── */}
-      <div className="ex-body">
-        <div className="ex-body-content">
-          {uploadError && <div className="upload-error">{uploadError}</div>}
-          <div className={`ex-pr-inline${prFlash ? " pr-just-set" : ""}`}>
-            {bestParsed && Number.isFinite(bestParsed.weight) ? (
-              <div className="pr-top-row">
-                <span className="pr-label">PR</span>
-                <span className="pr-weight">
-                  {bestParsed.assisted
-                    ? `${fmtWeightNum(score(bestParsed))} kg`
-                    : isLbUnit(bestParsed.unit)
-                      ? `${fmtWeightNum(bestParsed.weight)} lb`
-                      : `${fmtWeightNum(bestParsed.weight)} kg`}
-                </span>
-                <span className="pr-meta mono">×{formatRepsDisplay(bestParsed.reps)}</span>
-                {bestParsed.assisted && (
-                  <span className="pr-kg-hint">{bestParsed.assisted.assist} kg assist</span>
-                )}
-              </div>
-            ) : (
-              <span className="pr-empty">no PR yet</span>
-            )}
+      {editingMode !== "meta" && (
+        <div className="ex-body">
+          <div className="ex-body-content">
+            {uploadError && <div className="upload-error">{uploadError}</div>}
+            <div className={`ex-pr-inline${prFlash ? " pr-just-set" : ""}`}>
+              {bestParsed && Number.isFinite(bestParsed.weight) ? (
+                <div className="pr-top-row">
+                  <span className="pr-label">PR</span>
+                  <span className="pr-weight">
+                    {bestParsed.assisted
+                      ? `${fmtWeightNum(score(bestParsed))} kg`
+                      : isLbUnit(bestParsed.unit)
+                        ? `${fmtWeightNum(bestParsed.weight)} lb`
+                        : `${fmtWeightNum(bestParsed.weight)} kg`}
+                  </span>
+                  <span className="pr-meta mono">×{formatRepsDisplay(bestParsed.reps)}</span>
+                  {bestParsed.assisted && (
+                    <span className="pr-kg-hint">{bestParsed.assisted.assist} kg assist</span>
+                  )}
+                </div>
+              ) : (
+                <span className="pr-empty">no PR yet</span>
+              )}
+            </div>
+            <StagnationBadge
+              view={stagView}
+              open={retOpen}
+              onToggle={() => setRetOpen((v) => !v)}
+            />
+            <StagnationDetail view={stagView} open={retOpen} />
           </div>
-          <StagnationBadge
-            view={stagView}
-            open={retOpen}
-            onToggle={() => setRetOpen((v) => !v)}
-          />
-          <StagnationDetail view={stagView} open={retOpen} />
+          <div className="ex-ident-wrap">
+            <SmartImage src={imgSrc} alt="" className="ex-ident" />
+          </div>
         </div>
-        <div className="ex-ident-wrap">
-          <SmartImage src={imgSrc} alt="" className="ex-ident" />
-        </div>
-      </div>
+      )}
+
+      {/* ── Edit Exercise Form ── */}
+      {editingMode === "meta" && (
+        <EditExerciseForm
+          exercise={exercise}
+          onSave={async (patch) => {
+            try {
+              const updated = await updateExercise(exercise.slug, patch);
+              onUpdate(updated);
+              setEditingMode("view");
+              toast("Exercise updated", "success");
+            } catch (err) {
+              toast(String((err as Error)?.message ?? err), "error");
+            }
+          }}
+          onCancel={() => setEditingMode("view")}
+          onArchive={archiveExercise}
+          onPhotoUpload={handleImageUpload}
+          onPhotoRemove={() => {
+            onUpdate({ ...exercise, image_url: null });
+          }}
+          uploading={uploading}
+          uploadError={uploadError}
+          localImageUrl={localImageUrl}
+        />
+      )}
 
       {/* ── History ── */}
-      <div className="ex-history">
+      {editingMode !== "meta" && (
+        <div className="ex-history">
         {filteredDesc.length === 0 ? (
           <div className="empty-row">no entries yet — log your first set ↓</div>
         ) : (
@@ -534,7 +519,7 @@ export function ExerciseCard({
             // prIndex is index in filteredAsc; vi 0 = newest = last in asc
             const ascIdx = filteredAsc.length - 1 - vi;
             const isPR = ascIdx === prIndexInFiltered;
-            const isEditing = editId === log.id;
+            const isEditing = editingLogId === log.id;
             const isNew = newLogId === log.id;
             const revealing = justExpanded && vi >= 3;
             const td = timelineDate(log.log_date ?? "");
@@ -634,8 +619,8 @@ export function ExerciseCard({
                         disabled={deletedLogIds.size > 0}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setAdding(false);
-                          setEditId(isEditing ? null : log.id);
+                          setEditingMode("view");
+                          setEditingLogId(isEditing ? null : log.id);
                         }}
                       >
                         ✎
@@ -662,7 +647,7 @@ export function ExerciseCard({
                         onSave={(raw, date, note) =>
                           handleEdit(log, raw, date, note)
                         }
-                        onCancel={() => setEditId(null)}
+                        onCancel={() => setEditingLogId(null)}
                         onDelete={() => handleDelete(log)}
                       />
                     ) : (
@@ -672,7 +657,7 @@ export function ExerciseCard({
                         onSave={(raw, date, note) =>
                           handleEdit(log, raw, date, note)
                         }
-                        onCancel={() => setEditId(null)}
+                        onCancel={() => setEditingLogId(null)}
                         onDelete={() => handleDelete(log)}
                       />
                     )}
@@ -682,16 +667,17 @@ export function ExerciseCard({
             );
           })
         )}
-      </div>
+        </div>
+      )}
 
       {/* ── Log set form or button ── */}
-      {adding ? (
+      {editingMode === "logset" ? (
         effectiveLogs[0]?.kind === "assisted" ? (
           <AddAssistedForm
             setCount={sc}
             lastLog={effectiveLogs[0] ?? null}
             onAdd={handleAdd}
-            onCancel={() => setAdding(false)}
+            onCancel={() => setEditingMode("view")}
             submitting={submitting}
           />
         ) : (
@@ -699,17 +685,16 @@ export function ExerciseCard({
             setCount={sc}
             lastRaw={effectiveLogs.find((l) => l.kind !== "assisted")?.raw ?? ""}
             onAdd={handleAdd}
-            onCancel={() => setAdding(false)}
+            onCancel={() => setEditingMode("view")}
             submitting={submitting}
           />
         )
-      ) : editId == null ? (
+      ) : editingMode === "view" && editingLogId == null ? (
         <button
           type="button"
           className="hist-add"
           onClick={() => {
-            setEditId(null);
-            setAdding(true);
+            setEditingMode("logset");
           }}
         >
           <span className="hist-add-plus">＋</span>
@@ -718,7 +703,7 @@ export function ExerciseCard({
       ) : null}
 
       {/* ── Show more ── */}
-      {filteredDesc.length > 2 && !adding && (
+      {editingMode !== "meta" && filteredDesc.length > 2 && editingMode !== "logset" && (
         <button
           className="show-more"
           onClick={() => {

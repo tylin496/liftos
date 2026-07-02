@@ -1803,3 +1803,299 @@
   color: var(--bad);
   margin-bottom: 4px;
 }
+
+/* ── ImageWell (photo editor) ─────────────────────────────────────────────────*/
+
+.image-well {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.image-well-container {
+  position: relative;
+  width: 100%;
+  height: 136px;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background-image:
+    repeating-conic-gradient(
+      rgba(60, 60, 67, 0.05) 0deg 90deg,
+      transparent 90deg 180deg
+    );
+  background-size: 16px 16px;
+  background-position: 0 0;
+  border: 1px solid var(--rule);
+}
+
+.image-well-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  max-width: 82%;
+  max-height: 84%;
+  margin: auto;
+}
+
+.image-well-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: var(--space-1);
+  color: var(--ink-4);
+}
+
+.image-well-empty-icon {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.image-well-empty-text {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+}
+
+.image-well-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.image-well-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.btn-image-action,
+.btn-image-remove {
+  padding: 6px var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--motion-fast), color var(--motion-fast);
+  font-family: var(--font-ui);
+}
+
+.btn-image-action {
+  background: var(--bg-soft);
+  color: var(--ink);
+  flex: 1;
+}
+
+.btn-image-action:hover {
+  background: var(--rule);
+}
+
+.btn-image-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-image-remove {
+  background: transparent;
+  color: var(--bad);
+  border: 1px solid var(--bad);
+  flex: 0;
+}
+
+.btn-image-remove:hover {
+  background: color-mix(in srgb, var(--bad) 8%, transparent);
+}
+
+.btn-image-remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.image-well-error {
+  font-size: var(--text-2xs);
+  color: var(--bad);
+  margin-top: -4px;
+}
+
+.image-well-hint {
+  font-size: var(--role-caption-size);
+  color: var(--role-caption-color);
+  line-height: 1.4;
+}
+
+/* ── Edit Exercise Form ──────────────────────────────────────────────────────*/
+
+.edit-exercise-form {
+  border-top: 1px solid var(--rule);
+  padding: var(--space-3) 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  animation: form-in var(--motion-base) var(--reveal-ease);
+}
+
+.edit-exercise-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  position: relative;
+}
+
+.edit-exercise-dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: var(--bg-soft);
+  color: var(--ink-3);
+  font-size: var(--text-lg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--motion-fast), color var(--motion-fast);
+  flex-shrink: 0;
+}
+
+.edit-exercise-dismiss:hover {
+  background: var(--rule);
+  color: var(--ink);
+}
+
+.edit-exercise-title {
+  font-size: var(--role-card-title-size);
+  font-weight: var(--role-card-title-weight);
+  color: var(--role-card-title-color);
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.edit-exercise-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.field-input {
+  padding: 8px var(--space-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  outline: none;
+  box-sizing: border-box;
+  transition: border var(--motion-fast), box-shadow var(--motion-fast);
+}
+
+.field-input:focus {
+  box-shadow: var(--focus-ring);
+  border-color: var(--accent);
+}
+
+.field-input.name {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.edit-exercise-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.field-input.target {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  flex: 0 0 116px;
+}
+
+.field-input.note {
+  flex: 1;
+}
+
+.edit-exercise-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.btn-log-primary,
+.btn-log-secondary {
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+
+.btn-log-primary {
+  background: var(--accent-strong);
+  color: white;
+  flex: 1;
+}
+
+.btn-log-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-log-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-log-secondary {
+  background: var(--bg-soft);
+  color: var(--ink-3);
+  flex: 1;
+}
+
+.btn-log-secondary:hover {
+  background: var(--rule);
+}
+
+.edit-exercise-archive-link {
+  align-self: center;
+  background: none;
+  border: none;
+  color: var(--bad);
+  font-size: var(--text-sm);
+  font-family: var(--font-ui);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--bad) 40%, transparent);
+  text-underline-offset: 3px;
+  transition: color var(--motion-fast);
+  padding: 0;
+  margin-top: var(--space-1);
+}
+
+.edit-exercise-archive-link:hover {
+  color: var(--bad);
+  text-decoration-color: var(--bad);
+}
+
+/* ── Read-only title/target/note display ─────────────────────────────────────*/
+
+.target-display {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.note-display {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+}
