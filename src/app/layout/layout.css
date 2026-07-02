@@ -87,12 +87,11 @@
   display: flex;
 }
 
-/* Frosted-glass surface on a pseudo-element so the tint + blur sit behind the
-   tab items (icons/labels stay fully crisp). ONE translucent fill + ONE mask
-   fade — no background gradient, no border — so the fill and the blur dissolve
-   together on the same curve and there's no hard edge. The 82%-opaque tint
-   keeps the area behind the icons solid enough to read; the mask fades the
-   whole surface out toward the top. */
+/* Frosted-glass surface on a pseudo-element so the blur sits behind the tab
+   items (icons/labels stay fully crisp). Intentionally NO tint fill and no
+   border — legibility rests on the blur alone, and the mask fades the whole
+   surface out toward the top so the bar dissolves into the content with no
+   hard edge (this is a deliberate look, not an oversight). */
 .tabbar::before {
   content: "";
   position: absolute;

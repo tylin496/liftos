@@ -16,11 +16,9 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
     label: "Training",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="2.5" y="9.5" width="3" height="5" rx="1" fill="currentColor" />
-        <rect x="18.5" y="9.5" width="3" height="5" rx="1" fill="currentColor" />
-        <rect x="5.5" y="7.5" width="2.5" height="9" rx="1" fill="currentColor" />
-        <rect x="16" y="7.5" width="2.5" height="9" rx="1" fill="currentColor" />
-        <rect x="8" y="11" width="8" height="2" rx="1" fill="currentColor" />
+        <path d="M4 9.5v5M20 9.5v5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <path d="M7 7.5v9M17 7.5v9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <path d="M4 12h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -29,10 +27,10 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
     label: "Nutrition",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M7 3v6M10 3v6M13 3v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        <path d="M7 9c0 2.1 1.3 3 3 3s3-.9 3-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        <path d="M10 12v9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        <path d="M17 3c1.8.3 2.6 2.4 2.6 5s-1 5.3-2.6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7 3v6M10 3v6M13 3v6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <path d="M7 9c0 2.1 1.3 3 3 3s3-.9 3-3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <path d="M10 12v9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <path d="M17 3c1.8.3 2.6 2.4 2.6 5s-1 5.3-2.6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M17 14v7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       </svg>
     ),
