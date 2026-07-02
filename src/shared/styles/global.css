@@ -27,21 +27,17 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-@media (prefers-color-scheme: light) {
-  html,
-  body {
-    background:
-      radial-gradient(circle at 50% -180px, rgba(0, 122, 255, 0.12), transparent 360px),
-      linear-gradient(180deg, #ffffff 0, #eef0f4 320px),
-      #eef0f4;
-  }
+html[data-theme="light"],
+html[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 50% -180px, rgba(0, 122, 255, 0.12), transparent 360px),
+    linear-gradient(180deg, #ffffff 0, #eef0f4 320px),
+    #eef0f4;
 }
 
-@media (prefers-color-scheme: dark) {
-  html,
-  body {
-    background: var(--bg);
-  }
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background: var(--bg);
 }
 
 button {
@@ -225,6 +221,12 @@ button {
   line-height: 1;
   margin-bottom: 4px;
   color: var(--accent);
+}
+
+.celeb-icon .tsvg {
+  width: 44px;
+  height: 44px;
+  display: block;
 }
 
 .celeb-card strong {
