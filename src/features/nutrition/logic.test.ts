@@ -31,9 +31,9 @@ describe("getCalorieResult", () => {
     expect(r.progress).toBe(0);
   });
 
-  it("classifies 'under' (under budget) and 'extreme' deficits", () => {
-    expect(getCalorieResult(2055, 2705, 500).state).toBe("under"); // ratio 1.3, ate under budget
-    expect(getCalorieResult(1905, 2705, 500).state).toBe("extreme"); // ratio 1.6
+  it("classifies any under-budget deficit as low-intake (no separate extreme)", () => {
+    expect(getCalorieResult(2055, 2705, 500).state).toBe("low-intake"); // ratio 1.3
+    expect(getCalorieResult(1905, 2705, 500).state).toBe("low-intake"); // ratio 1.6
   });
 
   it("treats a zero deficit target as on-plan (maintenance)", () => {

@@ -14,24 +14,20 @@ import {
 
 const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
 
-// Fixed display order — always all 5 states, on-plan first (matches design spec).
-// On plan is the good outcome — green, matching the Today card's "✓ On plan".
-// Under/Over are genuinely neutral misses (grey); gold/red pop for the tail
-// that needs attention.
+// Four states, same colour language as the daily card (severity gradient):
+// on-plan green, over-budget-but-still-cutting grey, low-intake gold, surplus
+// red. One colour per category so the bar and the Today card never disagree.
 const DIST_STATES: { key: CalorieState; label: string; color: string }[] = [
   { key: "on-plan", label: "On plan", color: "var(--good)" },
-  { key: "under", label: "Under", color: "var(--ink-4)" },
-  { key: "over", label: "Over", color: "var(--ink-4)" },
-  { key: "extreme", label: "Low Intake", color: "var(--gold)" },
+  { key: "over", label: "Over budget", color: "var(--ink-4)" },
+  { key: "low-intake", label: "Low intake", color: "var(--gold)" },
   { key: "surplus", label: "Surplus", color: "var(--bad)" },
 ];
 
-// Legend groups the two neutral misses (under + over) into one "Under/Over"
-// chip — they share the same grey, so separate chips read as redundant.
 const DIST_LEGEND: { keys: CalorieState[]; label: string; color: string }[] = [
   { keys: ["on-plan"], label: "On plan", color: "var(--good)" },
-  { keys: ["under", "over"], label: "Under/Over", color: "var(--ink-4)" },
-  { keys: ["extreme"], label: "Low Intake", color: "var(--gold)" },
+  { keys: ["over"], label: "Over budget", color: "var(--ink-4)" },
+  { keys: ["low-intake"], label: "Low intake", color: "var(--gold)" },
   { keys: ["surplus"], label: "Surplus", color: "var(--bad)" },
 ];
 

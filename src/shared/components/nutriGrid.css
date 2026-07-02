@@ -34,6 +34,7 @@
 }
 
 .nutri-delta.good { color: var(--good); }
+.nutri-delta.warn { color: var(--gold); }
 .nutri-delta.bad { color: var(--bad); }
 .nutri-delta.neutral { color: var(--ink-3); }
 

@@ -14,13 +14,16 @@ export function phaseFromDeficit(deficit: number): string {
   return "Aggressive Cut";
 }
 
-// Named by intake vs the calorie budget (not by the deficit), highest→lowest:
-//   surplus  — ate above maintenance (no deficit at all)
-//   over     — ate over budget (deficit fell short of target)
-//   on-plan  — hit the target deficit band
-//   under    — ate under budget (a bigger deficit than planned)
-//   extreme  — ate far under budget (deficit way past target)
-export type CalorieState = "surplus" | "over" | "on-plan" | "under" | "extreme";
+// Four states, named by intake vs the calorie budget. Colour is a severity
+// gradient: as long as there's still a deficit it's at most a mild reminder;
+// only a surplus (no deficit at all) is a red warning.
+//   surplus    — ate above maintenance (no deficit)          → 🔴 bad
+//   over       — ate over budget but still in a deficit       → ⚪️ neutral
+//   on-plan    — hit the target deficit band                  → 🟢 good
+//   low-intake — ate under budget (a bigger deficit than plan) → 🟠 warn
+// (The old thin "under" band and "extreme" collapse into low-intake; a very
+//  low day just gets a different note, not its own state.)
+export type CalorieState = "surplus" | "over" | "on-plan" | "low-intake";
 
 export interface CalorieResult {
   deficit: number;
@@ -58,10 +61,9 @@ export function getCalorieResult(
     state = "on-plan";
   } else {
     const ratio = deficit / target;
-    if (ratio < 0.75) state = "over";        // small deficit = ate over budget
+    if (ratio < 0.75) state = "over";           // small deficit = ate over budget
     else if (ratio <= 1.25) state = "on-plan";
-    else if (ratio <= 1.35) state = "under"; // bigger deficit = ate under budget
-    else state = "extreme";                  // deficit way past target
+    else state = "low-intake";                  // bigger deficit = ate under budget
   }
 
   return {
@@ -103,12 +105,19 @@ export function getProteinResult(
 // meaningful once an entry exists; callers gate on `hasEntry` themselves and
 // skip rendering when these return "" / null. ──────────────────────────────
 
-export function calorieTone(hasEntry: boolean, calResult: CalorieResult): "good" | "bad" | null {
+export function calorieTone(
+  hasEntry: boolean,
+  calResult: CalorieResult,
+): "good" | "warn" | "bad" | null {
   if (!hasEntry) return null;
-  // Only landing on plan is good. Every deviation works against the cut —
-  // eating over budget, eating too little (a bigger deficit than planned is not
-  // "the less the better"), the extreme tail, and a surplus alike.
-  return calResult.state === "on-plan" ? "good" : "bad";
+  // Severity gradient: still-in-deficit is at most a mild reminder; only a
+  // surplus (no deficit) is a hard warning.
+  switch (calResult.state) {
+    case "on-plan": return "good";      // 🟢
+    case "over": return null;           // ⚪️ over budget but still cutting — neutral
+    case "low-intake": return "warn";   // 🟠 ate too little — recovery reminder
+    case "surplus": return "bad";       // 🔴 no deficit today
+  }
 }
 
 export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficitTarget: number): string {
@@ -121,11 +130,15 @@ export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficit
     return `${over.toLocaleString()} kcal over budget`;
   }
   if (calResult.state === "on-plan") return "✓ On plan";
-  if (calResult.state === "under") {
+  if (calResult.state === "low-intake") {
+    // A very low day (deficit past ~1.35× target) reads as a recovery caveat
+    // rather than a number; a moderate one just shows how far below budget.
+    if (deficitTarget > 0 && calResult.deficit > deficitTarget * 1.35) {
+      return "Well under budget";
+    }
     const below = calResult.deficit - deficitTarget;
     return `${below.toLocaleString()} kcal below budget`;
   }
-  if (calResult.state === "extreme") return "Well under budget";
   return "";
 }
 
@@ -199,10 +212,9 @@ export function monthlyStats(days: DayInput[]): MonthlyStats {
   const logged = days.filter((d) => d.calories != null);
   const distribution: Record<CalorieState, number> = {
     surplus: 0,
-    under: 0,
-    "on-plan": 0,
     over: 0,
-    extreme: 0,
+    "on-plan": 0,
+    "low-intake": 0,
   };
   let onPlan = 0;
   let doubleHit = 0;
