@@ -465,7 +465,10 @@
 
 .hist-row.is-pr {
   border-left: 3px solid var(--pr);
-  padding-left: var(--space-2);
+  /* Subtract the 3px border from the padding so border + padding == space-2,
+     cancelling the negative margin exactly — otherwise the border shifts the
+     whole row's content 3px right and it misaligns with non-PR rows. */
+  padding-left: calc(var(--space-2) - 3px);
   margin-left: calc(-1 * var(--space-2));
 }
 
@@ -515,14 +518,10 @@
   line-height: 1.1;
 }
 
-/* MON label floats above the day number so only the day is in normal flow —
-   that makes the big day number the row's vertical anchor, keeping it centred
-   with the single-line .expr-result instead of sitting below it. */
+/* MON sits in normal flow above the day number so the whole MON+day block is
+   vertically centred as a unit by the row's align-items:center — otherwise the
+   pair reads top-heavy. */
 .hist-date-mon {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
   font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--ink-4);
