@@ -14,6 +14,10 @@ import { createClient } from "@supabase/supabase-js";
 // fields are OMITTED from the upsert (not written as null), so running the
 // Shortcut multiple times a day never overwrites a previously-synced value
 // with a blank. Only fields that arrive with a real number are updated.
+// weight/bodyFat/restingHeartRate/hrvSdnn additionally require a plausible
+// positive value, and sleepSeconds must exceed 1 hour — Shortcuts sometimes
+// emits 0 instead of "" when a Health sample is missing, and these are never
+// real readings.
 //
 // Required server env (Vercel project settings):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HEALTH_SYNC_USER_ID
@@ -48,9 +52,9 @@ export function buildRecord(body) {
   // dropped so they don't overwrite an existing row's value on conflict.
   const record = { metric_date: date };
   const weight = num(body.weight);
-  if (weight !== null) record.weight_kg = weight;
+  if (weight !== null && weight > 0) record.weight_kg = weight;
   const bodyFat = num(body.bodyFat);
-  if (bodyFat !== null) record.body_fat_pct = bodyFat;
+  if (bodyFat !== null && bodyFat > 0 && bodyFat < 100) record.body_fat_pct = bodyFat;
   const active = intOrNull(body.activeEnergy);
   if (active !== null) record.active_energy_kcal = active;
   const resting = intOrNull(body.restingEnergy);
@@ -60,11 +64,11 @@ export function buildRecord(body) {
   const exerciseMinutes = intOrNull(body.exerciseMinutes);
   if (exerciseMinutes !== null) record.exercise_minutes = exerciseMinutes;
   const sleepSeconds = intOrNull(body.sleepSeconds);
-  if (sleepSeconds !== null) record.sleep_seconds = sleepSeconds;
+  if (sleepSeconds !== null && sleepSeconds > 3600) record.sleep_seconds = sleepSeconds;
   const restingHR = intOrNull(body.restingHeartRate);
-  if (restingHR !== null) record.resting_heart_rate = restingHR;
+  if (restingHR !== null && restingHR > 0) record.resting_heart_rate = restingHR;
   const hrv = num(body.hrvSdnn);
-  if (hrv !== null) record.hrv_sdnn_ms = hrv;
+  if (hrv !== null && hrv > 0) record.hrv_sdnn_ms = hrv;
 
   return { record };
 }
