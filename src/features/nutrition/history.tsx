@@ -80,6 +80,9 @@ export function HistoryView({
   // before weekAnchor actually flips to the new week.
   const [collapsing, setCollapsing] = useState(false);
   const weekRef = useRef<HTMLElement>(null);
+  // The bars strip follows the finger during a horizontal drag (written
+  // directly to the DOM to avoid a re-render per touchmove).
+  const trendRef = useRef<HTMLDivElement>(null);
   // The week strip browses independently of the page's selected `date`, so the
   // ‹ › chevrons don't drag the Today card (and the whole page) along with them.
   const [weekAnchor, setWeekAnchor] = useState(date);
@@ -120,11 +123,30 @@ export function HistoryView({
     }, 130);
   }
 
-  // Horizontal swipe on the week strip changes the week. The hook stops the
-  // gesture bubbling to Shell's tab-swipe handler.
-  useHorizontalSwipe(weekRef, (dir) => {
-    navigateWeek(dir === 1 ? "forward" : "backward");
-  });
+  // Horizontal swipe on the week strip changes the week. The bars follow the
+  // finger (damped) while dragging; the hook also stops the gesture bubbling to
+  // Shell's tab-swipe handler.
+  useHorizontalSwipe(
+    weekRef,
+    (dir) => navigateWeek(dir === 1 ? "forward" : "backward"),
+    {
+      onDrag: (dx) => {
+        const el = trendRef.current;
+        if (!el) return;
+        // Rubber-band harder when there's no week to reveal in that direction.
+        const atEdge = (dx < 0 && isCurrentWeek) || (dx > 0 && !canGoBack);
+        const damped = Math.max(-64, Math.min(64, dx * (atEdge ? 0.18 : 0.4)));
+        el.style.transition = "none";
+        el.style.transform = `translateX(${damped}px)`;
+      },
+      onDragEnd: () => {
+        const el = trendRef.current;
+        if (!el) return;
+        el.style.transition = "transform 190ms cubic-bezier(0.22, 1, 0.36, 1)";
+        el.style.transform = "";
+      },
+    },
+  );
 
   useEffect(() => {
     const today = new Date();
@@ -261,7 +283,7 @@ export function HistoryView({
         </div>
 
         {/* Dual-bar 7-day trend */}
-        <div className="nutri-trend">
+        <div className="nutri-trend" ref={trendRef}>
           {trend7.map((d, i) => {
             const dayDate = new Date(d.date + "T12:00:00");
             const dayLabel = WEEKDAY_NARROW[dayDate.getDay()];

@@ -19,6 +19,17 @@ export interface HorizontalSwipeOptions {
   threshold?: number;
   /** When false, in-flight and new gestures are ignored (e.g. an editor is open). */
   enabled?: boolean;
+  /**
+   * Live finger offset (raw px, sign follows the finger) while the gesture is
+   * locked horizontal. Opt in to a follow-the-finger drag; apply your own
+   * damping/clamping. Fires only after the axis locks to "h".
+   */
+  onDrag?: (dx: number) => void;
+  /**
+   * Gesture ended (committed, snapped back, or cancelled). Reset any transform
+   * applied in onDrag here. Fires once per horizontal gesture, after onSwipe.
+   */
+  onDragEnd?: () => void;
 }
 
 // Travel before we lock onto an axis. Once locked horizontal we claim the
@@ -86,6 +97,7 @@ export function useHorizontalSwipe<T extends HTMLElement>(
       if (axis === "h") {
         e.preventDefault();
         e.stopPropagation();
+        optsRef.current.onDrag?.(dx);
       }
     }
 
@@ -99,14 +111,18 @@ export function useHorizontalSwipe<T extends HTMLElement>(
       const dy = e.changedTouches[0].clientY - startY;
       reset();
       const threshold = optsRef.current.threshold ?? 56;
-      if (Math.abs(dx) < threshold || Math.abs(dx) < Math.abs(dy) * AXIS_RATIO) return;
-      onSwipeRef.current(dx < 0 ? 1 : -1);
+      const committed =
+        Math.abs(dx) >= threshold && Math.abs(dx) >= Math.abs(dy) * AXIS_RATIO;
+      if (committed) onSwipeRef.current(dx < 0 ? 1 : -1);
+      optsRef.current.onDragEnd?.();
     }
 
     // touchcancel (iOS notification pull, edge gesture, incoming call) fires
     // instead of touchend — reset so we don't strand a half-tracked gesture.
     function onTouchCancel() {
+      const wasHorizontal = axis === "h";
       reset();
+      if (wasHorizontal) optsRef.current.onDragEnd?.();
     }
 
     el.addEventListener("touchstart", onTouchStart, { passive: true });
