@@ -176,7 +176,6 @@ function TrendCard({
   decimals,
   delta,
   points,
-  color,
   loading = false,
   note,
   minSpan = 0,
@@ -189,7 +188,6 @@ function TrendCard({
   decimals: number;
   delta: ReactNode;
   points: ChartPoint[];
-  color: string;
   loading?: boolean;
   /** Data-quality caveat for this card only — e.g. samples ignored as
       implausible. Rendered under the range line, not shimmer'd. */
@@ -217,7 +215,7 @@ function TrendCard({
             {delta}
           </div>
         </div>
-        <Sparkline points={points} color={color} minSpan={minSpan} />
+        <Sparkline points={points} minSpan={minSpan} />
       </div>
       <div className="health-trend-foot">
         <MetricCaption>{loading ? "Loading" : avgLabel}</MetricCaption>
@@ -425,7 +423,6 @@ export function HealthPage() {
           value={0}
           unit={spec.unit}
           decimals={spec.decimals}
-          color={spec.color}
           points={[]}
           delta={null}
           rangeDays={spec.bucket * SPARK_POINTS}
@@ -439,7 +436,6 @@ export function HealthPage() {
           value={0}
           unit="kg"
           decimals={1}
-          color="var(--health-leanmass)"
           points={[]}
           delta={null}
           rangeDays={14 * SPARK_POINTS}
@@ -455,7 +451,6 @@ export function HealthPage() {
           value={thisWeek}
           unit={spec.unit}
           decimals={spec.decimals}
-          color={spec.color}
           points={bucketed}
           minSpan={spec.minSpan}
           rangeDays={spec.bucket * SPARK_POINTS}
@@ -485,7 +480,6 @@ export function HealthPage() {
           value={lbmCard.thisWeek}
           unit="kg"
           decimals={1}
-          color="var(--health-leanmass)"
           points={lbmCard.bucketed}
           minSpan={2}
           rangeDays={lbmCard.rangeDays}
