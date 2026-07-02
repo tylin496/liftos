@@ -560,8 +560,23 @@
   white-space: nowrap;
 }
 
-.hist-status-pr {
+/* The one deliberate exception to the app-wide no-pill rule: a PR is the
+   single highest-signal event in the history list, so it alone keeps a
+   filled pill — everything else here is plain colored text. Extra class
+   in the selector beats `.ex-history .hist-status` specificity so the
+   smaller pill font-size/letter-spacing actually win. */
+.ex-history .hist-status.hist-status-pr {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
 }
 
 .hist-status-gain {
