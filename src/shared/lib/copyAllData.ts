@@ -432,21 +432,13 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       cycle: SPLITS.map((s) => s.name),
     },
     health: {
-      tdee: tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null,
+      // TDEE value lives once in summary.tdee (the executive number); these two
+      // only say how many days fed that estimate. And there's no separate
+      // `latest` block — each metric's latest already lives in `summary` (its
+      // `.latest` field), so grouping them again just duplicated nine values.
       tdeeRestingDays: tdeeEst.restingDays,
       tdeeActiveDays: tdeeEst.activeDays,
       recovery,
-      latest: {
-        weight:           (healthSummary.weight as any)?.latest ?? null,
-        bodyFat:          (healthSummary.bodyFat as any)?.latest ?? null,
-        activeEnergy:     (healthSummary.activeEnergy as any)?.latest ?? null,
-        restingEnergy:    (healthSummary.restingEnergy as any)?.latest ?? null,
-        steps:            (healthSummary.steps as any)?.latest ?? null,
-        exerciseMinutes:  (healthSummary.exerciseMinutes as any)?.latest ?? null,
-        sleepSeconds:     (healthSummary.sleepSeconds as any)?.latest ?? null,
-        restingHeartRate: (healthSummary.restingHeartRate as any)?.latest ?? null,
-        hrv:              (healthSummary.hrv as any)?.latest ?? null,
-      },
       summary: healthSummary,
       timeline: healthTimeline,
     },
