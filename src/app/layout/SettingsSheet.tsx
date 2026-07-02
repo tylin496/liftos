@@ -6,10 +6,58 @@ import { signOut } from "@shared/lib/auth";
 import { useNutritionConfig } from "@features/nutrition/NutritionConfigContext";
 import { saveConfig, targetsFromConfig, phaseDefsFromConfig } from "@features/nutrition/api";
 import { phaseFromDeficit, trainingMonthsFromStart } from "@features/nutrition/logic";
+import { useTheme, type ThemePreference } from "@shared/lib/theme";
 import logoUrl from "@shared/assets/logo.png";
 import { version as APP_VERSION } from "../../../package.json";
 
 type RowKey = "protein" | "intake" | "height" | "start" | "bf";
+
+const APPEARANCE_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+];
+
+function AppearanceToggle() {
+  const { theme, setTheme } = useTheme();
+  return (
+    <div className="settings-appearance-seg" role="group" aria-label="Appearance">
+      {APPEARANCE_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          className={`settings-appearance-btn${theme === opt.value ? " is-active" : ""}`}
+          aria-label={opt.label}
+          aria-pressed={theme === opt.value}
+          onClick={() => setTheme(opt.value)}
+        >
+          {opt.value === "light" && (
+            <svg viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
+              <path
+                d="M8 1.4v1.7M8 12.9v1.7M14.6 8h-1.7M3.1 8H1.4M12.6 3.4l-1.2 1.2M4.6 11.4l-1.2 1.2M12.6 12.6l-1.2-1.2M4.6 4.6L3.4 3.4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          )}
+          {opt.value === "dark" && (
+            <svg viewBox="0 0 16 16" fill="none">
+              <path d="M13.7 9.9A5.7 5.7 0 116.1 2.3a4.4 4.4 0 007.6 7.6z" fill="currentColor" />
+            </svg>
+          )}
+          {opt.value === "system" && (
+            <svg viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M8 2a6 6 0 010 12z" fill="currentColor" />
+            </svg>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function fmtDate(iso: string): string {
   const d = new Date(iso + "T00:00:00");
@@ -235,11 +283,14 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
           onTouchCancel={onDragCancel}
         >
           <span className="settings-sheet-title">Settings</span>
-          <button className="settings-sheet-close" onClick={onClose} aria-label="Close">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-            </svg>
-          </button>
+          <div className="settings-sheet-header-actions">
+            <AppearanceToggle />
+            <button className="settings-sheet-close" onClick={onClose} aria-label="Close">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="settings-sheet-body">

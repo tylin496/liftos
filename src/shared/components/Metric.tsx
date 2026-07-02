@@ -77,7 +77,9 @@ export function MetricDelta({
 
   const good = direction === "up-good" ? value > 0 : value < 0;
   const toneCls = good ? "metric-delta--good" : "metric-delta--bad";
-  const sign = value > 0 ? "+" : "−";
+  // Arrow direction is driven by the value's sign, independent of tone colour
+  // — a declining "good" metric (e.g. body fat) shows a green down arrow.
+  const arrow = value > 0 ? "▲" : "▼";
   const absStr = rounded.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -85,7 +87,8 @@ export function MetricDelta({
 
   return (
     <span className={["metric-delta", toneCls, className ?? ""].filter(Boolean).join(" ")}>
-      {sign}
+      {arrow}
+      {" "}
       {absStr}
       {unit ? ` ${unit}` : ""}
     </span>

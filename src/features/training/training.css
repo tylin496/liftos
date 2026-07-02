@@ -385,14 +385,12 @@
   -webkit-text-fill-color: transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-  .pr-weight {
-    color: #fafbfc;
-    background: linear-gradient(168deg, #ffffff 0%, #dfe3e7 52%, #c3c8ce 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
+:root[data-theme="dark"] .pr-weight {
+  color: #fafbfc;
+  background: linear-gradient(168deg, #ffffff 0%, #dfe3e7 52%, #c3c8ce 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .pr-meta.mono {
@@ -1697,9 +1695,7 @@
 .stagnation-review .stagnation-label    { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
 .stagnation-rebuilding .stagnation-label { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); }
 
-@media (prefers-color-scheme: dark) {
-  .stagnation-watch .stagnation-label     { background: color-mix(in srgb, var(--gold) 18%, transparent); border: none; color: var(--gold); }
-}
+:root[data-theme="dark"] .stagnation-watch .stagnation-label { background: color-mix(in srgb, var(--gold) 18%, transparent); border: none; color: var(--gold); }
 
 .stagnation-trend {
   display: inline-flex;
