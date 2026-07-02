@@ -469,8 +469,15 @@
 
 .hist-row.is-editing {
   background: var(--bg-soft);
-  border-radius: var(--radius-sm);
   animation: row-edit-in var(--motion-base) var(--reveal-ease);
+  margin: 0 calc(-1 * var(--space-5));
+  padding: var(--space-2) var(--space-5);
+}
+
+.hist-row.is-pr.is-editing {
+  border-left: 3px solid var(--gold);
+  padding-left: var(--space-5);
+  margin-left: calc(-1 * var(--space-5));
 }
 
 .hist-row.is-editing .hist-actions button {
