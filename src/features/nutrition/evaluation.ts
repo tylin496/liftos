@@ -37,6 +37,9 @@ export interface NutritionDiagnostics {
   cutMode: string;
   windowDays: number;
   weightDataPoints: number;
+  /** Largest interior gap (days) between readings in the window — caps the data
+   *  half of the confidence score, so it's exposed here for debugging. */
+  longestGap: number;
   /** Trailing consecutive days logged at the current target (0 = just changed). */
   daysOnTarget: number;
 }
@@ -72,6 +75,24 @@ const STATUS_EPS = 0.02;
  *  carries weight from the prior target, so a capped confidence is worth
  *  explaining. Mirrors the "strong" edge of the daysOnTarget confidence bucket. */
 export const FRESH_TARGET_DAYS = 14;
+
+/** Canonical weekly weight rate (kg/week) — the exact number the UI's "Trend"
+ *  shows: a least-squares slope over the same trailing 21-day window `evaluate`
+ *  uses for `observedRate`. Any surface that reports a weekly rate (Overview
+ *  card, AI export) must call this so they can never disagree. Returns null
+ *  (not a fabricated 0) when the window has too few readings to fit a trend. */
+export function weeklyWeightRate(weightSeries: { date: string; value: number }[]): {
+  ratePerWeekKg: number | null;
+  windowDays: number;
+  dataPoints: number;
+} {
+  const slope = regressionSlope(weightSeries, WINDOW_DAYS);
+  return {
+    ratePerWeekKg: slope == null ? null : +slope.toFixed(3),
+    windowDays: WINDOW_DAYS,
+    dataPoints: windowPoints(weightSeries, WINDOW_DAYS).length,
+  };
+}
 
 /** Points falling inside the trailing `days` window (mirrors regressionSlope). */
 function windowPoints(pts: { date: string; value: number }[], days: number) {
@@ -110,13 +131,47 @@ function bucket3(value: number, strong: number, medium: number): 0 | 1 | 2 {
   return 0;
 }
 
-/** Confidence combines three signals (each 0–2): how long the user has held
- *  the current target, how much weight data backs the trend, and how clean the
- *  trend is. Sum 0–6 → low / medium / high. */
-function computeConfidence(daysOnTarget: number, weightDataPoints: number, scatter: number): Confidence {
+/** Largest interior gap (in days) between consecutive readings in the window.
+ *  With at most one reading per day, point count already implies a minimum span
+ *  (N points ⇒ ≥ N−1 days), so density alone can't tell a trend fitted across a
+ *  hole from an honestly dense one. A big gap turns the regression into a long
+ *  lever arm — two clusters joined by a void — that's over-sensitive to the
+ *  points at each end. Returns 0 for <2 points (moot: <5 points fits no trend at
+ *  all → the evaluation is already forced to low confidence). */
+function longestGap(pts: { date: string; value: number }[], days: number): number {
+  const win = windowPoints(pts, days);
+  if (win.length < 2) return 0;
+  const MS = 86400000;
+  let max = 0;
+  for (let i = 1; i < win.length; i++) {
+    const prev = new Date(win[i - 1].date + "T12:00:00").getTime();
+    const cur = new Date(win[i].date + "T12:00:00").getTime();
+    const gap = Math.round((cur - prev) / MS);
+    if (gap > max) max = gap;
+  }
+  return max;
+}
+
+/** Confidence combines three signals (each 0–2): how long the user has held the
+ *  current target, how much *well-distributed* weight data backs the trend, and
+ *  how clean the trend is. Sum 0–6 → low / medium / high. */
+function computeConfidence(
+  daysOnTarget: number,
+  weightDataPoints: number,
+  gapDays: number,
+  scatter: number,
+): Confidence {
+  // Data signal answers "enough data AND spread across the window?": the point
+  // count, capped by the largest hole. A dense window straddling a two-week gap
+  // is a two-cluster lever-arm fit, not that many honest days — so a ≤3-day gap
+  // passes, a week-plus hole drops the whole signal to 0. Because logging is
+  // one-per-day, count already implies span, so a hole (not clustering) is the
+  // only distribution failure left to catch — and only min() catches it.
+  const gapBucket = gapDays <= 3 ? 2 : gapDays <= 6 ? 1 : 0;
+  const dataScore = Math.min(bucket3(weightDataPoints, 14, 8), gapBucket);
   const score =
     bucket3(daysOnTarget, 14, 7) +
-    bucket3(weightDataPoints, 14, 8) +
+    dataScore +
     // Lower scatter is better, so invert: <0.4 kg → 2, <0.8 kg → 1, else 0.
     (scatter < 0.4 ? 2 : scatter < 0.8 ? 1 : 0);
   return score >= 5 ? "high" : score >= 3 ? "medium" : "low";
@@ -130,6 +185,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
   const slope = regressionSlope(weightSeries, WINDOW_DAYS); // kg/week or null
   const observedRate = slope ?? 0;
   const weightDataPoints = windowPoints(weightSeries, WINDOW_DAYS).length;
+  const gapDays = longestGap(weightSeries, WINDOW_DAYS);
 
   // Diagnostics: what intake the weight trend implies, vs the target. The energy
   // balance from the trend (observedRate kg/wk × 7700 kcal/kg ÷ 7 days) added to
@@ -143,6 +199,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
     cutMode,
     windowDays: WINDOW_DAYS,
     weightDataPoints,
+    longestGap: gapDays,
     daysOnTarget,
   };
 
@@ -172,6 +229,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
   const confidence = computeConfidence(
     daysOnTarget,
     weightDataPoints,
+    gapDays,
     trendScatter(weightSeries, WINDOW_DAYS, slope),
   );
 

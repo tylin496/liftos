@@ -17,6 +17,15 @@ function weightSeries(kgPerWeek: number, days = 21, start = 90, endDate = "2026-
   return pts;
 }
 
+// The same linear trend as weightSeries, but keeping only the readings on the
+// given day-offsets from the window start (0 = oldest, days-1 = endDate). Lets
+// us vary the *distribution* of readings (holes vs even spread) while holding
+// the count and the fit fixed.
+function sampledSeries(kgPerWeek: number, keepOffsets: number[], days = 21) {
+  const full = weightSeries(kgPerWeek, days);
+  return keepOffsets.map((i) => full[i]);
+}
+
 function input(over: Partial<EvaluateInput> & { weightSeries: EvaluateInput["weightSeries"] }): EvaluateInput {
   return {
     cutMode: "Moderate Cut",
@@ -71,6 +80,25 @@ describe("evaluate — confidence", () => {
     const { evaluation } = evaluate(input({ weightSeries: weightSeries(-0.55, 4) }));
     expect(evaluation.confidence).toBe("low");
     expect(evaluation.status).toBe("on_target");
+  });
+
+  // Distribution matters, not just count: two 8-point series with the identical
+  // clean trend and time on target — one evenly spread, one split by a 14-day
+  // hole — must not score the same. The hole is a lever-arm fit, so it caps.
+  it("caps confidence when readings straddle a large interior gap", () => {
+    const holed = evaluate(
+      input({ weightSeries: sampledSeries(-0.55, [0, 1, 2, 3, 17, 18, 19, 20]) }),
+    );
+    expect(holed.diagnostics.longestGap).toBe(14);
+    expect(holed.evaluation.confidence).toBe("medium"); // was high before the gap cap
+  });
+
+  it("keeps confidence high when the same count is evenly spread", () => {
+    const spread = evaluate(
+      input({ weightSeries: sampledSeries(-0.55, [0, 3, 6, 9, 12, 15, 18, 20]) }),
+    );
+    expect(spread.diagnostics.longestGap).toBe(3);
+    expect(spread.evaluation.confidence).toBe("high");
   });
 });
 
