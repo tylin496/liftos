@@ -378,7 +378,14 @@ export function HealthPage() {
           up-good (did you move enough — a judgeable behaviour), Resting is
           neutral text (a drop is metabolic adaptation, not good/bad). */}
       <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
-        <span className="health-card-eyebrow">TDEE</span>
+        <div className="health-tdee-head">
+          <span className="health-card-eyebrow">TDEE</span>
+          {lastSynced && (
+            <span className={`health-sync-note${lastSynced.stale ? " is-stale" : ""}`}>
+              {lastSynced.text}
+            </span>
+          )}
+        </div>
         {!data ? (
           <>
             <div className="health-tdee-num">

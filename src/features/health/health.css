@@ -11,6 +11,13 @@
   color: var(--role-eyebrow-color);
 }
 
+.health-tdee-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
 /* ── Trend cards (Weight / Body Fat / Lean Mass) ─────────────────────── */
 .health-trend-head {
   display: flex;
