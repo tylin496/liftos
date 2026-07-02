@@ -3,6 +3,7 @@ import { useAuth } from "@shared/lib/useAuth";
 import { isSupabaseConfigured } from "@shared/lib/supabase";
 import { AuthGate } from "./AuthGate";
 import { Shell } from "./layout/Shell";
+import { Splash } from "./layout/Splash";
 
 const DEV_SESSION: Session = {
   access_token: "dev",
@@ -69,7 +70,7 @@ export function App() {
   }
 
   if (loading) {
-    return <div className="boot-splash">LiftOS</div>;
+    return <Splash variant="static" />;
   }
 
   if (!session) {

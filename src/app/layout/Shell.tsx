@@ -316,7 +316,7 @@ export function Shell({ session }: { session: Session }) {
           <TabBar active={highlight} onChange={switchTab} />
         </div>
         <GlobalSettingsSheet />
-        {splash && <Splash leaving={splashLeaving} />}
+        {splash && <Splash variant="overlay" leaving={splashLeaving} />}
       </PageHeaderContext.Provider>
       </NavContext.Provider>
     </SettingsSheetProvider>

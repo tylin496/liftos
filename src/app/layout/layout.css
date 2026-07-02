@@ -1,13 +1,3 @@
-.boot-splash {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  font-family: var(--font-ui);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--ink-3);
-}
-
 .shell {
   min-height: 100dvh;
   display: flex;
@@ -623,17 +613,22 @@
   transform: scale(var(--tap-scale));
 }
 
-/* Cold-start splash — brand moment shown once, fades into Overview */
+/* Brand splash — shared by auth-loading (static) and cold-start (overlay) */
 .splash {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--space-5);
   background: var(--bg);
+}
+.splash--overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+.splash--static {
+  min-height: 100dvh;
 }
 .splash.is-leaving { animation: fade-out var(--motion-slow) ease forwards; }
 .splash::after {
@@ -686,6 +681,20 @@
 @keyframes word-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
+}
+
+/* Breathing glow on the held frame — signals progress without a spinner */
+@media (prefers-reduced-motion: no-preference) {
+  .splash::after { animation: splash-glow 2400ms ease-in-out infinite; }
+  .splash--static .splash-mark { animation: splash-float 3200ms ease-in-out infinite; }
+}
+@keyframes splash-glow {
+  0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.94); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+}
+@keyframes splash-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 
 /* Settings — low-key brand footer */
