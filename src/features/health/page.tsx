@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { fetchHealthData, type HealthData, type BodyMetric } from "./api";
+import { fetchHealthData, type HealthData } from "./api";
 import {
   series,
   bucketSeries,
   rollingAvg,
   computeRecovery,
+  sanitizeMetrics,
+  countSkippedBodyFat,
   RECOVERY_STATUS_COLOR,
   type MetricKey,
   type ChartPoint,
@@ -225,32 +227,9 @@ function TrendCard({
   );
 }
 
-// Known Shortcut ingestion quirk: body-fat has occasionally arrived as a raw
-// fraction (0.22 instead of 22) or otherwise out of range. A single bad day
-// would otherwise poison the rolling average and, worse, corrupt the derived
-// Lean Mass (weight × (1 − bodyFat/100)). Filtered here at the read boundary,
-// not inside bucketSeries (which stays a pure averaging function).
-const MIN_PLAUSIBLE_BODY_FAT_PCT = 3;
-const MAX_PLAUSIBLE_BODY_FAT_PCT = 60;
-
-function isImplausibleBodyFat(pct: number): boolean {
-  return pct < MIN_PLAUSIBLE_BODY_FAT_PCT || pct > MAX_PLAUSIBLE_BODY_FAT_PCT;
-}
-
-// Ignores the sample entirely (treats that day as "no body-fat reading") —
-// never clamps to the boundary, which would fabricate a plausible-looking
-// but wrong value.
-function sanitizeMetrics(metrics: BodyMetric[]): BodyMetric[] {
-  return metrics.map((m) =>
-    m.body_fat_pct != null && isImplausibleBodyFat(m.body_fat_pct)
-      ? { ...m, body_fat_pct: null }
-      : m,
-  );
-}
-
-function countSkippedBodyFat(metrics: BodyMetric[]): number {
-  return metrics.filter((m) => m.body_fat_pct != null && isImplausibleBodyFat(m.body_fat_pct)).length;
-}
+// Body-fat plausibility filtering (isImplausibleBodyFat / sanitizeMetrics /
+// countSkippedBodyFat) now lives in ./math so the AI export applies the exact
+// same filter — a sample that never reaches a chart must never reach the export.
 
 // A metric that's quietly N days stale reads as confidently current unless
 // something says otherwise — every card anchors on the latest reading, so a

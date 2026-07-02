@@ -11,6 +11,37 @@ export type MetricKey =
   | "resting_heart_rate"
   | "hrv_sdnn_ms";
 
+// Known Shortcut ingestion quirk: body-fat has occasionally arrived as a raw
+// fraction (0.22 instead of 22) or otherwise out of range. A single bad day
+// poisons the rolling average and corrupts derived Lean Mass. Filtered at the
+// read boundary — NOT inside bucketSeries (which stays a pure averaging fn).
+// Shared here so every consumer (Health page, AI export) treats the same
+// samples as invalid; a value that never reaches a chart must never reach the
+// export summary either.
+const MIN_PLAUSIBLE_BODY_FAT_PCT = 3;
+const MAX_PLAUSIBLE_BODY_FAT_PCT = 60;
+
+export function isImplausibleBodyFat(pct: number): boolean {
+  return pct < MIN_PLAUSIBLE_BODY_FAT_PCT || pct > MAX_PLAUSIBLE_BODY_FAT_PCT;
+}
+
+/** Nulls out implausible body-fat samples (treats that day as "no reading").
+ *  Never clamps to the boundary — that would fabricate a plausible-looking
+ *  but wrong value. Weight and all other metrics pass through untouched. */
+export function sanitizeMetrics(metrics: BodyMetric[]): BodyMetric[] {
+  return metrics.map((m) =>
+    m.body_fat_pct != null && isImplausibleBodyFat(m.body_fat_pct)
+      ? { ...m, body_fat_pct: null }
+      : m,
+  );
+}
+
+export function countSkippedBodyFat(metrics: BodyMetric[]): number {
+  return metrics.filter(
+    (m) => m.body_fat_pct != null && isImplausibleBodyFat(m.body_fat_pct),
+  ).length;
+}
+
 export interface ChartPoint {
   date: string;       // representative (middle) date — used for x positioning
   dateStart: string;  // first day covered by this bucket

@@ -2,12 +2,13 @@ import { fetchHealthData } from "@features/health/api";
 import { getConfig, getEntries, targetsFromConfig } from "@features/nutrition/api";
 import { monthlyStats, weeklyStats, trainingMonthsFromStart } from "@features/nutrition/logic";
 import { getNutritionState } from "@features/nutrition/evaluationApi";
+import { weeklyWeightRate } from "@features/nutrition/evaluation";
 import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
 import { computeStats, computeTrend, epley1RM, buildStagnationView } from "@features/training/logic";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
-import { computeRecovery } from "@features/health/math";
+import { computeRecovery, sanitizeMetrics } from "@features/health/math";
 
 export const EXPORT_HEALTH_DAYS = 60;
 export const EXPORT_NUTRITION_DAYS = 60;
@@ -131,6 +132,11 @@ function buildHealthSummary(metrics: BodyMetric[], periodDays: number) {
       avg: +avg.toFixed(spec.decimals),
       periodDays,
       dataPoints: pts.length,
+      // How much of the window actually has readings. A high `latest`/`avg` on
+      // low coverage (e.g. body fat measured 6 of 60 days, or an active-energy
+      // reading from a still-incomplete today) is weak — surfacing the density
+      // lets a reader weight it instead of trusting a sparse number as solid.
+      coveragePct: Math.round((pts.length / periodDays) * 100),
     };
   }
   return summary;
@@ -162,7 +168,10 @@ function buildHealthTimeline(metrics: BodyMetric[]) {
 export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritionDays = EXPORT_NUTRITION_DAYS): Promise<string> {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const nutritionStart = new Date(now.getTime() - nutritionDays * 86_400_000)
+  // −(nutritionDays − 1): getEntries is inclusive of both ends, so subtracting
+  // the full nutritionDays would span nutritionDays+1 calendar days and make
+  // `days`/`sampleDays` read one higher than the stated `periodDays`.
+  const nutritionStart = new Date(now.getTime() - (nutritionDays - 1) * 86_400_000)
     .toISOString()
     .slice(0, 10);
 
@@ -175,7 +184,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   ]);
 
   // ── Health ──────────────────────────────────────────────────────────────────
-  const metrics = health?.metrics ?? [];
+  // Sanitize first: implausible body-fat samples become null, exactly as the
+  // Health tab does — so summary/timeline/trend never carry a value the UI hides.
+  const metrics = sanitizeMetrics(health?.metrics ?? []);
   const tdeeEst = health?.tdee ?? estimateTdee([], []);
   const recovery = roundRecovery(computeRecovery(metrics));
 
@@ -251,24 +262,14 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   }
 
   // ── Insights (pre-computed signals, independent of the export slice) ──────────
-  // Weight rate-of-change in kg/week over the full available window (first→last
-  // point), NOT the 30d slice used by summary.weight30d. windowDays makes that
-  // window explicit so the two weight numbers can't be conflated.
-  const weightTrend = (() => {
-    const dataPoints = weightPts.length;
-    if (dataPoints < 2) return { ratePerWeekKg: null, windowDays: null, dataPoints };
-    const first = weightPts[0];
-    const last = weightPts.at(-1)!;
-    const windowDays = Math.round(
-      (new Date(last.date).getTime() - new Date(first.date).getTime()) / 86_400_000,
-    );
-    if (windowDays < 1) return { ratePerWeekKg: null, windowDays, dataPoints };
-    return {
-      ratePerWeekKg: +(((last.v - first.v) / windowDays) * 7).toFixed(3),
-      windowDays,
-      dataPoints,
-    };
-  })();
+  // Weight rate-of-change in kg/week. Uses the SAME helper (weeklyWeightRate →
+  // regressionSlope over the trailing 21 days) that produces the UI's "Trend"
+  // number, so the export and the app can never report different rates. See
+  // summary.weight30d for the separate 30d average level — that's a different
+  // question (where am I now) and carries its own windowDays.
+  const weightTrend = weeklyWeightRate(
+    weightPts.map((p) => ({ date: p.date, value: p.v })),
+  );
 
   // Nutrition adherence / streak / double-hit over the export window.
   const nutritionAdherence = monthlyStats(
@@ -403,9 +404,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 2.2,
+    schema: 2.3,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
-    window: overviewWindow,
+    dataSpan: overviewWindow, // total span of ALL data (see windowOf); distinct from per-section windowDays
     summary: {
       currentWeight,
       weight30d,
@@ -501,15 +502,15 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 /** Health tab: full metric timeline, per-metric summary, recovery + baselines, TDEE. */
 export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> {
   const health = await fetchHealthData(days).catch(() => null);
-  const metrics = health?.metrics ?? [];
+  const metrics = sanitizeMetrics(health?.metrics ?? []);
   const tdeeEst = health?.tdee ?? estimateTdee([], []);
 
   const payload = {
     source: "LiftOS",
-    schema: 2.2,
+    schema: 2.3,
     tab: "health",
     units: unitsFor(HEALTH_UNIT_KEYS),
-    window: windowOf(metrics.map((m) => m.metric_date)),
+    dataSpan: windowOf(metrics.map((m) => m.metric_date)),
     windowDays: days,
     tdee: {
       tdee: tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null,
@@ -527,7 +528,8 @@ export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> 
 export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<string> {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const start = new Date(now.getTime() - days * 86_400_000).toISOString().slice(0, 10);
+  // −(days − 1): getEntries is inclusive both ends (see buildAllDataJson).
+  const start = new Date(now.getTime() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
 
   const [config, entries, state] = await Promise.all([
     getConfig().catch(() => null),
@@ -570,10 +572,10 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
 
   const payload = {
     source: "LiftOS",
-    schema: 2.2,
+    schema: 2.3,
     tab: "nutrition",
     units: unitsFor(NUTRITION_UNIT_KEYS),
-    window: windowOf(sorted.map((e) => e.entry_date)),
+    dataSpan: windowOf(sorted.map((e) => e.entry_date)),
     windowDays: days,
     targets: targets
       ? {
@@ -673,10 +675,10 @@ export async function buildTrainingJson(): Promise<string> {
 
   const payload = {
     source: "LiftOS",
-    schema: 2.2,
+    schema: 2.3,
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
-    window: windowOf(
+    dataSpan: windowOf(
       Object.values(logsBySlug).flat().map((l) => l.log_date),
     ),
     schedule: { split: "PPL", cycle: SPLITS.map((s) => s.name) },
