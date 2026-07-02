@@ -90,9 +90,10 @@ export interface HistDelta {
 }
 
 /**
- * Compare curr vs prev entry. Only emit positive gains:
- * - weight gain: "+2.5 kg"
- * - rep gain (same weight, ≥2 more total reps): "+N reps"
+ * Compare curr vs prev entry by e1RM — the same metric PR/Retention/Trend
+ * use, so this badge can never contradict them (a heavier top set done for
+ * fewer reps that's actually flat-or-weaker in e1RM won't read as a gain).
+ * Only emits positive gains: "▲ 2.7% e1RM".
  */
 export function computeHistDelta(
   curr: TrainingLog,
@@ -107,21 +108,14 @@ export function computeHistDelta(
   const pKg = score(pp);
   if (!Number.isFinite(cKg) || !Number.isFinite(pKg)) return null;
 
-  const dw = parseFloat((cKg - pKg).toFixed(2));
-  if (dw > 0) return { text: `▲ ${parseFloat(Math.abs(dw).toFixed(2))} kg` };
-  if (dw !== 0) return null; // weight dropped — stay silent
+  const cE1RM = epley1RM(cKg, cp.reps);
+  const pE1RM = epley1RM(pKg, pp.reps);
+  if (!cE1RM || !pE1RM) return null;
 
-  // Rep fallback: compare total reps regardless of set-count (a set added or
-  // removed at the same weight should still surface as a gain/no-op, not hide).
-  const cSegs = String(cp.reps || "").split(/[/\-]/);
-  const pSegs = String(pp.reps || "").split(/[/\-]/);
+  const pct = ((cE1RM - pE1RM) / pE1RM) * 100;
+  if (pct < 0.5) return null; // flat or down in e1RM — stay silent
 
-  const cTotal = cSegs.reduce((a, s) => a + (parseInt(s, 10) || 0), 0);
-  const pTotal = pSegs.reduce((a, s) => a + (parseInt(s, 10) || 0), 0);
-  const dr = cTotal - pTotal;
-  if (dr < 2) return null;
-
-  return { text: `▲ ${dr} reps` };
+  return { text: `▲ ${pct.toFixed(1)}% e1RM` };
 }
 
 // ─── timelineDate ────────────────────────────────────────────────────────────

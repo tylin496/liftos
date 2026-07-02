@@ -16,22 +16,24 @@ import {
 
 const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
 
-// Four states, same colour language as the daily card (severity gradient):
-// on-plan green, over-budget-but-still-cutting grey, low-intake gold, surplus
-// red. One colour per category so the bar and the Today card never disagree.
-const DIST_STATES: { key: CalorieState; label: string; color: string }[] = [
-  { key: "on-plan", label: "On plan", color: "var(--good)" },
-  { key: "over", label: "Over budget", color: "var(--ink-4)" },
-  { key: "low-intake", label: "Low intake", color: "var(--gold)" },
-  { key: "surplus", label: "Surplus", color: "var(--bad)" },
+// Four states on the app's single four-level verdict scale (matches the Today
+// card's calorieTone). On-plan green; BOTH deviations (over / low-intake) amber
+// — direction is carried by the glyph (▲ ate too much · ▼ ate too little), not
+// by the colour; only surplus (no deficit at all) is red. A colourblind-safe
+// glyph accompanies every swatch so the meaning survives without colour.
+const DIST_STATES: { key: CalorieState; label: string; glyph: string; color: string }[] = [
+  { key: "on-plan", label: "On plan", glyph: "●", color: "var(--good)" },
+  { key: "over", label: "Over budget", glyph: "▲", color: "var(--gold)" },
+  { key: "low-intake", label: "Low intake", glyph: "▼", color: "var(--gold)" },
+  { key: "surplus", label: "Surplus", glyph: "▲", color: "var(--bad)" },
 ];
 
-const DIST_LEGEND: { keys: CalorieState[]; label: string; color: string }[] = [
-  { keys: ["on-plan"], label: "On plan", color: "var(--good)" },
-  { keys: ["over"], label: "Over budget", color: "var(--ink-4)" },
-  { keys: ["low-intake"], label: "Low intake", color: "var(--gold)" },
-  { keys: ["surplus"], label: "Surplus", color: "var(--bad)" },
-];
+const DIST_LEGEND = DIST_STATES.map(({ key, label, glyph, color }) => ({
+  keys: [key] as CalorieState[],
+  label,
+  glyph,
+  color,
+}));
 
 // Earliest loggable day — mirrors today.tsx.
 const MIN_DATE = "2026-02-09";
@@ -419,12 +421,12 @@ export function HistoryView({
           )}
         </div>
         <div className="nutri-dist-legend">
-          {DIST_LEGEND.map(({ keys, label, color }) => {
+          {DIST_LEGEND.map(({ keys, label, glyph, color }) => {
             const count = keys.reduce((sum, k) => sum + (month.distribution[k] || 0), 0);
             const pct = Math.round((count / (month.logged || 1)) * 100);
             return (
               <span className="nutri-dist-item" key={label}>
-                <span className="nutri-dist-dot" style={{ background: color }} />
+                <span className="nutri-dist-glyph" style={{ color }} aria-hidden="true">{glyph}</span>
                 {label} {pct}%
               </span>
             );

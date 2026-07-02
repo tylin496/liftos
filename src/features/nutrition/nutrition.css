@@ -117,8 +117,8 @@
   letter-spacing: var(--role-eyebrow-spacing);
 }
 
-/* Hold state — no current→new change, so the target itself is the one hero
-   focal point instead of the (absent) new-target accent. */
+/* Hold state — no current→new change, so there's no new-target accent to show;
+   the target reads as a plain value, same as ni-prog-current. */
 .ni-hero {
   display: flex;
   align-items: center;
@@ -130,7 +130,7 @@
   font-family: var(--font-mono);
   font-size: var(--metric-lg);
   font-weight: 700;
-  color: var(--accent);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -302,10 +302,12 @@
   gap: 6px;
 }
 
-.nutri-dist-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+/* Direction glyph doubles as the colour swatch — shape + colour so the four
+   verdict levels stay legible for colourblind readers (● on-plan · ▲/▼ deviate
+   · ▲ surplus). Size nudged up one notch from the label so the glyph reads. */
+.nutri-dist-glyph {
+  font-size: var(--text-xs);
+  line-height: 1;
   flex-shrink: 0;
 }
 

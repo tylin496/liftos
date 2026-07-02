@@ -6,6 +6,7 @@ import {
   getCalorieResult,
   getProteinResult,
   calorieTone,
+  proteinTone,
   calorieNote,
   proteinNote,
   toDateStr,
@@ -469,6 +470,7 @@ export function TodayView({
   const calNote = calorieNote(hasEntry, calResult, targets.deficitTarget);
   const protNote = proteinNote(hasEntry, protNum, targets.proteinTarget);
   const calToneVal = calorieTone(hasEntry, calResult);
+  const protToneVal = proteinTone(hasEntry, protResult);
 
   // Day status badge (Today card, top-right). A pill only earns its place when
   // it says something the per-row notes don't. "On plan"/"Surplus"/"Low"/
@@ -562,7 +564,7 @@ export function TodayView({
                 <span className="metric-val metric-val--lg stat-number--empty">—</span>
               )}
               {targets.proteinTarget > 0 && <MetricCaption>of {targets.proteinTarget}g</MetricCaption>}
-              <span className={`nutri-delta ${protResult.celebrated ? "good" : "neutral"}`}>{protNote || "\u00A0"}</span>
+              <span className={`nutri-delta ${protToneVal ?? "neutral"}`}>{protNote || "\u00A0"}</span>
             </button>
           </div>
         )}

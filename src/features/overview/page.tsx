@@ -14,7 +14,7 @@ import { useNav } from "@app/layout/NavContext";
 import { useSessionUser } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
-import { paceLabel, paceTone } from "@features/nutrition/recommendation";
+import { paceLabel, paceTone, rateTone, cutEtaLabel } from "@features/nutrition/recommendation";
 import type { Recommendation } from "@features/overview/recommendations";
 import type { Goal } from "./goal";
 import type { TabId } from "@app/layout/TabBar";
@@ -121,14 +121,19 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
 function CutProgressCard({
   goal,
   cutStartDate,
+  state,
   onNav,
 }: {
   goal: Goal;
   cutStartDate: string | null;
+  state: NutritionStateFull | null;
   onNav: () => void;
 }) {
   const e = goal.evaluation;
   const pct = Math.round(e.progressPct);
+  const eta = state
+    ? cutEtaLabel(state.evaluation, state.diagnostics.weightDataPoints, e.remainingWeight)
+    : null;
   const isComplete = pct >= 100;
   const cutDay = cutStartDate ? daysSince(cutStartDate) : null;
   // Fill the % and the bar from 0 once the card scrolls into view (before that,
@@ -183,6 +188,7 @@ function CutProgressCard({
         <div className="goal-row">
           <div className="goal-col-label">Remaining</div>
           <MetricValue size="md" unit="kg">{e.remainingWeight.toFixed(1)}</MetricValue>
+          {eta && <div className="goal-sub">{eta}</div>}
         </div>
       </div>
     </button>
@@ -281,6 +287,7 @@ function WeightCard({
       : null;
   const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
+  const rate = trend != null && state ? rateTone(state.evaluation) : null;
   // Which clock the status word gets: a conclusive verdict (tone set) carries the
   // cut baseline day count; an inconclusive read on a real target ("Forming"/
   // "Calibrating") carries the target's own tenure, which is *why* it's forming.
@@ -364,8 +371,10 @@ function WeightCard({
         }}
       >
         <div className="ov-weight-row">
-          <span className="ov-weight-key">Trend</span>
-          <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
+          <span className="ov-weight-key">Rate</span>
+          <span className={`ov-weight-val${rate ? ` is-${rate}` : ""}`}>
+            {trend != null ? fmtTrend(trend) : "—"}
+          </span>
         </div>
         <div className="ov-weight-row">
           <span className="ov-weight-key">Status</span>
@@ -401,8 +410,8 @@ function exerciseRetention(ex: import("./api").StrengthExercise): number {
 }
 
 function fmtStalled(weeks: number): string {
-  if (weeks < 1) return "STALLED";
-  return `STALLED ${weeks} ${weeks === 1 ? "WK" : "WKS"}`;
+  if (weeks < 1) return "PR THIS WK";
+  return `PR ${weeks} ${weeks === 1 ? "WK" : "WKS"} AGO`;
 }
 
 function ExerciseRow({ exercise }: { exercise: import("./api").StrengthExercise }) {
@@ -480,7 +489,9 @@ function TrainingHealthCard({
 
         <div className="ov-th-ret-hero">
           <MetricValue size="md">{retentionPct !== null ? `${retCount}%` : "—"}</MetricValue>
-          <MetricCaption>of tracked lifts on track</MetricCaption>
+          <span className="ov-th-ret-count">
+            {onTrackExercises.length} / {strength.total} lifts on track
+          </span>
         </div>
 
       </button>
@@ -489,7 +500,7 @@ function TrainingHealthCard({
           urgent signal; On Track is the reassurance detail, kept collapsed. */}
       {watchExercises.length > 0 && (
         <div className="ov-th-section">
-          <div className="ov-th-sect-head">Attention · {watchExercises.length}</div>
+          <div className="ov-th-sect-head">Attention</div>
           {watchExercises.slice(0, EXERCISE_ROW_LIMIT).map((ex) => (
             <ExerciseRow key={ex.slug} exercise={ex} />
           ))}
@@ -714,6 +725,7 @@ export function OverviewPage() {
           <CutProgressCard
             goal={data.goal}
             cutStartDate={data.cutStartDate}
+            state={data.nutritionState}
             onNav={() => nav("health")}
           />
         )

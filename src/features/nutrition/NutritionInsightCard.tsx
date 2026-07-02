@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS, confidenceReason } from "./evaluation";
-import { nutritionDecision, paceTone } from "./recommendation";
+import { nutritionDecision, rateTone } from "./recommendation";
 import "./nutrition.css";
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
@@ -21,10 +21,12 @@ function fmtRate(kgPerWeek: number): string {
   return `${sign}${Math.abs(kgPerWeek).toFixed(2)} kg/wk`;
 }
 
-// Observed rate is a verdict vs the target pace, so it carries colour (in-range
-// green / too-slow gold / gaining red). Confidence describes how sure the
-// estimate is — not good/bad — so it stays neutral.
-const PACE_STATUS: Record<"good" | "warn" | "bad", string> = {
+// Observed rate carries colour based on distance from the target band (in-band
+// green / near an edge gold / materially off red) — both too slow and too fast
+// score worse the further they drift, so this isn't a simple low=bad/high=good
+// read. Confidence describes how sure the estimate is — not good/bad — so it
+// stays neutral.
+const RATE_STATUS: Record<"good" | "warn" | "bad", string> = {
   good: "status-good",
   warn: "status-gold",
   bad: "status-bad",
@@ -189,8 +191,8 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
             status={
               !noData && !loading && hasTrend && e
                 ? (() => {
-                    const t = paceTone(e);
-                    return t ? PACE_STATUS[t] : undefined;
+                    const t = rateTone(e);
+                    return t ? RATE_STATUS[t] : undefined;
                   })()
                 : undefined
             }

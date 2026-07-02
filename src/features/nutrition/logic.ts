@@ -14,13 +14,14 @@ export function phaseFromDeficit(deficit: number): string {
   return "Aggressive Cut";
 }
 
-// Four states, named by intake vs the calorie budget. Colour is a severity
-// gradient: as long as there's still a deficit it's at most a mild reminder;
-// only a surplus (no deficit at all) is a red warning.
-//   surplus    — ate above maintenance (no deficit)          → 🔴 bad
-//   over       — ate over budget but still in a deficit       → ⚪️ neutral
-//   on-plan    — hit the target deficit band                  → 🟢 good
-//   low-intake — ate under budget (a bigger deficit than plan) → 🟠 warn
+// Four states, named by intake vs the calorie budget. Colour follows the app's
+// single four-level verdict scale (see [[feedback-text-color-rule]]): on-target
+// green; ANY deviation amber (direction told by the glyph, not the colour); only
+// a surplus (no deficit at all — actively working against the cut) is red.
+//   surplus    — ate above maintenance (no deficit)           → 🔴 bad   ▲
+//   over       — ate over budget but still in a deficit        → 🟠 warn  ▲
+//   on-plan    — hit the target deficit band                   → 🟢 good  ●
+//   low-intake — ate under budget (a bigger deficit than plan) → 🟠 warn  ▼
 // (The old thin "under" band and "extreme" collapse into low-intake; a very
 //  low day just gets a different note, not its own state.)
 export type CalorieState = "surplus" | "over" | "on-plan" | "low-intake";
@@ -110,14 +111,27 @@ export function calorieTone(
   calResult: CalorieResult,
 ): "good" | "warn" | "bad" | null {
   if (!hasEntry) return null;
-  // Severity gradient: still-in-deficit is at most a mild reminder; only a
-  // surplus (no deficit) is a hard warning.
+  // Four-level verdict scale: on-target green, any deviation amber, surplus red.
   switch (calResult.state) {
-    case "on-plan": return "good";      // 🟢
-    case "over": return null;           // ⚪️ over budget but still cutting — neutral
-    case "low-intake": return "warn";   // 🟠 ate too little — recovery reminder
-    case "surplus": return "bad";       // 🔴 no deficit today
+    case "on-plan": return "good";      // 🟢 ●
+    case "over": return "warn";         // 🟠 ▲ over budget — a deviation, not neutral
+    case "low-intake": return "warn";   // 🟠 ▼ ate too little — recovery reminder
+    case "surplus": return "bad";       // 🔴 ▲ no deficit today
   }
+}
+
+// Protein is a one-sided floor: the only outcome that matters is whether the
+// (completed) day cleared it. Met → green; short → amber (a deviation, same
+// tier as an under-eating day — not red, which is reserved for actively
+// working against the cut). There is no intraday "not done yet" state: a day
+// is logged once, whole, so a shortfall is a settled result, never a pending
+// task. Rendered nowhere when there's no entry.
+export function proteinTone(
+  hasEntry: boolean,
+  protResult: ProteinResult,
+): "good" | "warn" | null {
+  if (!hasEntry) return null;
+  return protResult.celebrated ? "good" : "warn"; // 🟢 ● floor met / 🟠 ▼ short
 }
 
 export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficitTarget: number): string {

@@ -9,6 +9,7 @@
 // only at HIGH confidence, so a smooth 21-day trend keeps the decision put.
 
 import type { NutritionEvaluation, NutritionDiagnostics } from "./evaluation";
+import { MIN_TREND_POINTS } from "./evaluation";
 
 export type NutritionAction = "maintain" | "reduce" | "increase";
 
@@ -166,4 +167,59 @@ export function paceTone(evaluation: NutritionEvaluation): PaceTone {
   // Below pace: slower than planned, or — if the trend is upward — outright
   // gaining weight during the cut, which is the worst read.
   return evaluation.observedRate > 0 ? "bad" : "warn";
+}
+
+export type RateTone = "good" | "warn" | "bad" | null;
+
+/** kg/week beyond a target-band edge before a rate reads as materially off
+ *  rather than just outside-but-close. */
+const RATE_NEAR_MARGIN = 0.15;
+
+/** Severity colour for the observed-rate *number* itself — how far it sits
+ *  from the target band, independent of confidence or direction framing.
+ *  Unlike paceTone (the pace verdict word), which folds in confidence-gating
+ *  and reads "above pace" as unconditionally good, the raw rate is a
+ *  magnitude: both too slow and too fast score worse the further they drift
+ *  from the band, so this is not monotonic in the rate's sign. Good = inside
+ *  the band; warn = within RATE_NEAR_MARGIN of an edge; bad = further out
+ *  than that. No active target → neutral, nothing to compare against. */
+export function rateTone(
+  evaluation: Pick<NutritionEvaluation, "observedRate" | "targetRange">,
+): RateTone {
+  const { observedRate, targetRange } = evaluation;
+  if (targetRange.min === targetRange.max) return null; // Not tracked
+  const loss = -observedRate;
+  if (loss >= targetRange.min && loss <= targetRange.max) return "good";
+  const distance = loss < targetRange.min ? targetRange.min - loss : loss - targetRange.max;
+  return distance <= RATE_NEAR_MARGIN ? "warn" : "bad";
+}
+
+/** Below this weekly rate (kg/week), a remaining/rate division produces a
+ *  triple-digit "weeks" number that's technically arithmetic but not a
+ *  meaningful estimate — the trend is too close to flat to extrapolate. */
+const MIN_RATE_FOR_ETA = 0.2;
+/** Above this many weeks, show ">1 year" instead of a large, falsely precise
+ *  week count. */
+const ETA_CEILING_WEEKS = 52;
+
+/** ETA readout for the Cut Progress card's "Remaining" row — "≈16 weeks left"
+ *  or a guarded fallback when an estimate would just be noise. Always divides
+ *  by the same 21-day observed rate `paceLabel`/`rateTone` use (never the
+ *  day's raw weight delta), so it can't swing day-to-day the way a naive
+ *  remainingWeight / today's-change ratio would — a single bad water-weight
+ *  reading can't make the ETA jump from 15 to 22 weeks and back. Returns null
+ *  when there's nothing worth showing (goal already reached/passed). */
+export function cutEtaLabel(
+  evaluation: Pick<NutritionEvaluation, "confidence" | "observedRate">,
+  weightDataPoints: number,
+  remainingWeight: number,
+): string | null {
+  if (remainingWeight <= 0) return null;
+  if (weightDataPoints < MIN_TREND_POINTS) return "Building estimate…";
+  if (evaluation.confidence === "low") return "Estimate unavailable";
+  if (evaluation.observedRate >= 0) return "No estimate";
+  const rate = -evaluation.observedRate;
+  if (rate < MIN_RATE_FOR_ETA) return "Rate too low to estimate";
+  const weeks = remainingWeight / rate;
+  return weeks > ETA_CEILING_WEEKS ? ">1 year" : `≈${Math.round(weeks)} weeks`;
 }

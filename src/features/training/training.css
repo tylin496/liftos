@@ -1683,7 +1683,9 @@
 
 /* Status color variants */
 .stagnation-excellent .stagnation-label { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
-.stagnation-on-track .stagnation-label  { background: color-mix(in srgb, var(--blue) 18%, transparent); color: var(--blue); }
+/* On Track is a Good-tier state → green, same as Excellent. --blue is reserved
+   for identity (Weight, chart series), never a status verdict. */
+.stagnation-on-track .stagnation-label  { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
 .stagnation-watch .stagnation-label     { background: transparent; border: 1.5px solid color-mix(in srgb, var(--gold) 55%, transparent); color: var(--gold); }
 .stagnation-review .stagnation-label    { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
 .stagnation-rebuilding .stagnation-label { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); }

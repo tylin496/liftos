@@ -19,10 +19,6 @@
   color: var(--bad);
 }
 
-.status-text--blue {
-  color: var(--blue);
-}
-
 .status-text--neutral {
   color: var(--ink-3);
 }
