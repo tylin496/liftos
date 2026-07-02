@@ -142,6 +142,13 @@
   color: var(--ink-3);
 }
 
+/* Active component: value + coloured up-good delta share a baseline row. */
+.health-tdee-component-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
 /* ── Recovery card ───────────────────────────────────────────────────── */
 .health-recovery-head {
   display: flex;

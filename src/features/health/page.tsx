@@ -282,6 +282,19 @@ export function HealthPage() {
   );
 
   const tdee = data?.tdee;
+  const tdeePrev = data?.tdeePrev;
+  // Component-level change vs the previous window (active 14→28d, resting 30→60d).
+  // Active is a judgeable behaviour ("did you move enough") so it carries a
+  // coloured up-good delta; resting is diagnostic (a drop is metabolic
+  // adaptation, not objectively good/bad) so it's shown as neutral text.
+  const activeChange =
+    tdee?.avgActive != null && tdeePrev?.avgActive != null
+      ? tdee.avgActive - tdeePrev.avgActive
+      : null;
+  const restingChange =
+    tdee?.avgResting != null && tdeePrev?.avgResting != null
+      ? tdee.avgResting - tdeePrev.avgResting
+      : null;
 
   const cards = useMemo(() => {
     if (!data) return [];
@@ -338,7 +351,68 @@ export function HealthPage() {
 
   return (
     <div className="page health">
-      {recovery && <RecoveryCard snap={recovery} />}
+      {/* TDEE — the metabolic anchor for the whole tab, so it leads. The total
+          stays uncoloured (a rising estimate isn't an "outcome"), but the two
+          components carry change vs the previous window: Active is coloured
+          up-good (did you move enough — a judgeable behaviour), Resting is
+          neutral text (a drop is metabolic adaptation, not good/bad). */}
+      <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
+        <span className="health-card-eyebrow">TDEE</span>
+        {!data ? (
+          <>
+            <div className="health-tdee-num">
+              <MetricValue size="md" unit="kcal">0000</MetricValue>
+            </div>
+            <div className="health-tdee-components">
+              <div className="health-tdee-component">
+                <span className="health-tdee-component-label">Resting</span>
+                <MetricValue size="sm" unit="kcal">0000</MetricValue>
+                <span className="health-tdee-component-window">30-day average</span>
+              </div>
+              <div className="health-tdee-component">
+                <span className="health-tdee-component-label">Active</span>
+                <MetricValue size="sm" unit="kcal">000</MetricValue>
+                <span className="health-tdee-component-window">14-day average</span>
+              </div>
+            </div>
+          </>
+        ) : tdee?.tdee != null ? (
+          <>
+            <div className="health-tdee-num">
+              <MetricValue size="md" unit="kcal">
+                <AnimatedTdee value={tdee.tdee} />
+              </MetricValue>
+            </div>
+            <div className="health-tdee-components">
+              <div className="health-tdee-component">
+                <span className="health-tdee-component-label">Resting</span>
+                <MetricValue size="sm" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
+                <span className="health-tdee-component-window">
+                  {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
+                  {restingChange != null &&
+                    ` · ${restingChange >= 0 ? "+" : "−"}${Math.abs(Math.round(restingChange))} vs prev`}
+                </span>
+              </div>
+              <div className="health-tdee-component">
+                <span className="health-tdee-component-label">Active</span>
+                <div className="health-tdee-component-stat">
+                  <MetricValue size="sm" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
+                  {activeChange != null && (
+                    <MetricDelta value={activeChange} direction="up-good" decimals={0} />
+                  )}
+                </div>
+                <span className="health-tdee-component-window">
+                  {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"}
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="page-note">
+            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
+          </p>
+        )}
+      </section>
 
       {/* Trend card skeleton — same TrendCard component, placeholder values,
           so height matches the loaded Weight / Body Fat / Lean Mass cards. */}
@@ -419,61 +493,10 @@ export function HealthPage() {
         />
       )}
 
-      {/* TDEE — a derived metabolic estimate, so it sits last, after the body-
-          state cards (Recovery / Weight / Body Fat / Lean Mass). Fixed windows,
-          independent of any period selector. */}
-      <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
-        <span className="health-card-eyebrow">TDEE</span>
-        {!data ? (
-          <>
-            <div className="health-tdee-num">
-              <MetricValue size="md" unit="kcal">0000</MetricValue>
-            </div>
-            <div className="health-tdee-components">
-              <div className="health-tdee-component">
-                <span className="health-tdee-component-label">Resting</span>
-                <MetricValue size="sm" unit="kcal">0000</MetricValue>
-                <span className="health-tdee-component-window">30-day average</span>
-              </div>
-              <div className="health-tdee-component">
-                <span className="health-tdee-component-label">Active</span>
-                <MetricValue size="sm" unit="kcal">000</MetricValue>
-                <span className="health-tdee-component-window">14-day average</span>
-              </div>
-            </div>
-          </>
-        ) : tdee?.tdee != null ? (
-          <>
-            <div className="health-tdee-num">
-              {/* TDEE is a diagnostic estimate, not an outcome — a rising number
-                  isn't "good", so it carries no coloured delta or trend arrow. */}
-              <MetricValue size="md" unit="kcal">
-                <AnimatedTdee value={tdee.tdee} />
-              </MetricValue>
-            </div>
-            <div className="health-tdee-components">
-              <div className="health-tdee-component">
-                <span className="health-tdee-component-label">Resting</span>
-                <MetricValue size="sm" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
-                <span className="health-tdee-component-window">
-                  {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
-                </span>
-              </div>
-              <div className="health-tdee-component">
-                <span className="health-tdee-component-label">Active</span>
-                <MetricValue size="sm" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
-                <span className="health-tdee-component-window">
-                  {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"}
-                </span>
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="page-note">
-            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
-          </p>
-        )}
-      </section>
+      {/* Recovery — sleep / HRV / RHR readiness snapshot. Sits last: it's a
+          day-to-day state read, below the longer-arc body-composition and TDEE
+          cards. */}
+      {recovery && <RecoveryCard snap={recovery} />}
     </div>
   );
 }

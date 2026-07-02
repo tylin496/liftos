@@ -40,6 +40,12 @@ export interface CompoundProgress {
 
 export interface OverviewData {
   weightLatest: number | null;
+  /** 14-day average active energy (kcal/day). The one metabolic input worth
+   *  surfacing here — it moves daily and is behaviour-controllable, unlike
+   *  resting/TDEE. Rides in the Weight card as it explains the weight pace. */
+  activeEnergy: number | null;
+  /** Active energy change vs the prior 14–28d window — the up-good delta. */
+  activeChange: number | null;
   recovery: RecoverySnapshot | null;
   strength: StrengthSummary;
   compoundProgress: CompoundProgress | null;
@@ -148,6 +154,16 @@ export async function fetchOverview(): Promise<OverviewData> {
   const recoverySnap = computeRecovery(metrics as BodyMetric[]);
   const recovery = recoverySnap.status ? recoverySnap : null;
 
+  // Active energy — reuse the Health tab's TDEE windows verbatim (single source
+  // of truth, already computed in fetchHealthData). Only the 14-day active
+  // average + its trend arrow ride onto the Weight card; resting/TDEE stay in
+  // Health as background model state.
+  const activeEnergy = health.tdee.avgActive;
+  const activeChange =
+    health.tdee.avgActive != null && health.tdeePrev.avgActive != null
+      ? health.tdee.avgActive - health.tdeePrev.avgActive
+      : null;
+
   // Training logs
   const logs = logsRes.data ?? [];
 
@@ -251,6 +267,8 @@ export async function fetchOverview(): Promise<OverviewData> {
 
   return {
     weightLatest,
+    activeEnergy,
+    activeChange,
     recovery,
     strength,
     compoundProgress,

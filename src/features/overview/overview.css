@@ -97,6 +97,14 @@
 .ov-weight-val.is-warn { color: var(--gold); }
 .ov-weight-val.is-bad  { color: var(--bad); }
 
+/* Activity row: the 14-day active-energy average sits with its up-good delta
+   (COLOR-SYSTEM: colour lives on the change, not the value). */
+.ov-weight-activity {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
 /* ─── System Card (top-priority recommendation) ──────────────────────────── */
 
 .ov-system-banner {

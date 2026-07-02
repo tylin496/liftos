@@ -225,12 +225,16 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 // "Below pace" — and that pairing is the point, not a contradiction.
 function WeightCard({
   weightLatest,
+  activeEnergy,
+  activeChange,
   metrics,
   state,
   cutStartDate,
   onNav,
 }: {
   weightLatest: number | null;
+  activeEnergy: number | null;
+  activeChange: number | null;
   metrics: BodyMetric[];
   state: NutritionStateFull | null;
   cutStartDate: string | null;
@@ -291,6 +295,15 @@ function WeightCard({
             {cutStartDate && ` ${fmtDaysSince(cutStartDate)}`}
           </span>
         </div>
+        {activeEnergy != null && (
+          <div className="ov-weight-row">
+            <span className="ov-weight-key">Activity</span>
+            <span className="ov-weight-activity">
+              <span className="ov-weight-val">{activeEnergy.toLocaleString()} kcal</span>
+              <MetricDelta value={activeChange} direction="up-good" decimals={0} />
+            </span>
+          </div>
+        )}
       </div>
     </button>
   );
@@ -622,6 +635,8 @@ export function OverviewPage() {
       {data && (
         <WeightCard
           weightLatest={data.weightLatest}
+          activeEnergy={data.activeEnergy}
+          activeChange={data.activeChange}
           metrics={data.metrics}
           state={data.nutritionState}
           cutStartDate={data.cutStartDate}
