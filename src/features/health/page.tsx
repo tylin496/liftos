@@ -48,16 +48,15 @@ const copyHealthData = () => buildHealthJson();
 // Sparkline range follows the card's own averaging window: each bead IS that
 // window's average (7-day bucket for Weight, 14-day for Body Fat/Lean Mass),
 // so a bead's position means something instead of landing on an arbitrary
-// slice. Fixed at 8 beads — the range is however many days that spans
-// (Weight → 56d/8wk, Body Fat/Lean Mass → 112d/16wk), which is the trend
-// horizon a cut actually plays out over. 6 was too short to read a plateau.
+// slice. Fixed at 6 beads — the range is however many days that spans
+// (Weight → 42d/6wk, Body Fat/Lean Mass → 84d/12wk).
 const SPARK_POINTS = 6;
 
 /* Small static trend indicator on each Trend card's header — a glance-only
    shape (range = its own bucket × SPARK_POINTS), not a scrubbable chart
    (that's a deliberate design call, not a fidelity cut: the card's own big
    number + delta already carry the "what changed" story). */
-function Sparkline({ points, color, minSpan = 0 }: { points: ChartPoint[]; color: string; minSpan?: number }) {
+function Sparkline({ points, minSpan = 0 }: { points: ChartPoint[]; minSpan?: number }) {
   const width = 92, height = 40;
   if (points.length < 2) return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline" />;
 
@@ -83,17 +82,17 @@ function Sparkline({ points, color, minSpan = 0 }: { points: ChartPoint[]; color
   const pts = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const last = coords[coords.length - 1];
 
-  // Apple-style: the line recedes to grey; each ~15-day reading is a hollow grey
-  // bead threaded on it (fill masks the line to read as open). The latest point
-  // is also hollow but ringed in the metric colour and a touch bigger/bolder —
-  // the "you are here" anchor. SPARK_POINTS keeps the beads from crowding.
+  // Apple-style: the line recedes to grey; each reading is a hollow grey bead
+  // threaded on it (fill masks the line to read as open). Every bead is the same
+  // size — only the latest is ringed in the metric colour, the "you are here"
+  // anchor. SPARK_POINTS keeps the beads from crowding.
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
-      <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       {coords.slice(0, -1).map((c, i) => (
-        <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r="1.8" fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="1.5" />
+        <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="2" />
       ))}
-      <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke={color} strokeWidth="1.75" />
+      <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--health-bodyfat)" strokeWidth="2" />
     </svg>
   );
 }
@@ -209,7 +208,7 @@ function TrendCard({
             {loading ? (
               <MetricValue size="md" unit={unit}>00.0</MetricValue>
             ) : value != null ? (
-              <MetricValue size="md" unit={unit} style={{ color }}>
+              <MetricValue size="md" unit={unit}>
                 <AnimatedMetric value={value} decimals={decimals} />
               </MetricValue>
             ) : (
