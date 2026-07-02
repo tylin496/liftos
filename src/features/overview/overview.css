@@ -644,7 +644,6 @@
   letter-spacing: var(--role-section-title-spacing);
   text-transform: uppercase;
   color: var(--role-section-title-color);
-  margin-bottom: var(--space-2);
 }
 
 /* Attention label stays neutral — red lives on the STALLED badge, not the
