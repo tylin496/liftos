@@ -181,7 +181,7 @@
 .ov-system-sub {
   font-size: var(--role-secondary-size);
   font-weight: var(--role-secondary-weight);
-  line-height: 1.5;
+  line-height: var(--leading-body);
   color: var(--role-secondary-color);
 }
 
@@ -271,21 +271,15 @@
 }
 
 .goal-col-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   color: var(--ink-4);
   margin-bottom: 6px;
 }
 
 .goal-sub {
-  font-size: var(--text-2xs);
-  color: var(--ink-4);
-  margin-top: var(--space-4);
-}
-
-.goal-basis {
   font-size: var(--text-2xs);
   color: var(--ink-4);
   margin-top: var(--space-4);
@@ -345,7 +339,7 @@
   margin: var(--space-3) 0 0;
   font-size: var(--text-sm);
   color: var(--ink-3);
-  line-height: 1.45;
+  line-height: var(--leading-body);
 }
 
 .goal-init-field {
@@ -357,7 +351,7 @@
   font-weight: var(--role-field-label-weight);
   color: var(--role-field-label-color);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--role-field-label-spacing);
 }
 
 .goal-init-field input {
@@ -482,7 +476,7 @@
 .ov-rec-insight {
   font-size: var(--role-secondary-size);
   font-weight: var(--role-secondary-weight);
-  line-height: 1.55;
+  line-height: var(--leading-body);
   color: var(--role-secondary-color);
   margin: 0;
   padding-top: var(--space-4);
@@ -692,9 +686,9 @@
 .ov-th-stalled {
   justify-self: end;
   flex-shrink: 0;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--bad);

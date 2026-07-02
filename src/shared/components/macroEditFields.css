@@ -20,7 +20,7 @@
   font-size: var(--role-field-label-size);
   font-weight: var(--role-field-label-weight);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--role-field-label-spacing);
   color: var(--role-field-label-color);
 }
 

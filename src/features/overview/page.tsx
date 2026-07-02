@@ -185,7 +185,6 @@ function CutProgressCard({
           <MetricValue size="md" unit="kg">{e.remainingWeight.toFixed(1)}</MetricValue>
         </div>
       </div>
-      <p className="goal-basis">Based on 30-day lean mass &amp; 14-day body-fat averages.</p>
     </button>
   );
 }

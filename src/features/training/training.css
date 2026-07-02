@@ -352,9 +352,9 @@
 }
 
 .pr-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   color: var(--gold);
   opacity: 0.85;
@@ -924,7 +924,7 @@
   font-weight: var(--role-field-label-weight);
   color: var(--role-field-label-color);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--role-field-label-spacing);
 }
 
 .reps-triple {
@@ -1075,6 +1075,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-base);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   background: transparent;
   border: none;
   outline: none;
@@ -1651,9 +1652,9 @@
 }
 
 .stagnation-at-pr .stagnation-pct {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   color: var(--gold);
   opacity: 1;
@@ -1748,9 +1749,9 @@
 }
 
 .baseline-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   color: var(--ink-4);
 }
@@ -1788,9 +1789,9 @@
   border-top: 1px solid var(--rule);
 }
 .data-check-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   color: var(--gold);
 }

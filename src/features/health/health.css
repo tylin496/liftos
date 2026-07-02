@@ -195,7 +195,7 @@
 .health-recovery-footer {
   font-size: var(--role-secondary-size);
   font-weight: var(--role-secondary-weight);
-  line-height: 1.55;
+  line-height: var(--leading-body);
   color: var(--role-secondary-color);
   margin: var(--space-4) 0 0;
   padding-top: var(--space-4);

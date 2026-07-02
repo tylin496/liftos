@@ -108,7 +108,7 @@ export function computeHistDelta(
   if (!Number.isFinite(cKg) || !Number.isFinite(pKg)) return null;
 
   const dw = parseFloat((cKg - pKg).toFixed(2));
-  if (dw > 0) return { text: `+${parseFloat(Math.abs(dw).toFixed(2))} kg` };
+  if (dw > 0) return { text: `▲ ${parseFloat(Math.abs(dw).toFixed(2))} kg` };
   if (dw !== 0) return null; // weight dropped — stay silent
 
   // Rep fallback: compare total reps regardless of set-count (a set added or
@@ -121,7 +121,7 @@ export function computeHistDelta(
   const dr = cTotal - pTotal;
   if (dr < 2) return null;
 
-  return { text: `+${dr} reps` };
+  return { text: `▲ ${dr} reps` };
 }
 
 // ─── timelineDate ────────────────────────────────────────────────────────────

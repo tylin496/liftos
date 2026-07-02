@@ -239,7 +239,7 @@
   font-size: var(--text-sm);
   color: var(--ink-3);
   margin: 0;
-  line-height: 1.5;
+  line-height: var(--leading-body);
 }
 
 /* ── Settings sheet ───────────────────────────────────────────── */
@@ -419,9 +419,9 @@
 }
 
 .settings-section-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   color: var(--ink-4);
   margin: 0;
@@ -507,6 +507,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-base);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: var(--bg-input);
   border: 1px solid var(--rule);
@@ -547,6 +548,7 @@
   text-align: center;
   font-family: var(--font-mono);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 
@@ -570,9 +572,9 @@
 }
 
 .settings-phase-l .k {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   color: var(--ink-4);
   margin-right: var(--space-2);

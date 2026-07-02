@@ -1,7 +1,7 @@
 /* ========================================================================
    LiftOS — unified design tokens
    Canonical language adopted from Lift Log: Apple-system neutrals, warm
-   accent (orange), blue-gray shadows, Manrope UI + JetBrains Mono notation.
+   accent (orange), blue-gray shadows, system UI + JetBrains Mono notation.
    Light/dark resolved by ThemeProvider (system preference or manual
    override) into a data-theme attribute on <html>.
    ======================================================================== */
@@ -70,6 +70,14 @@
   --text-4xl: 34px;
   --text-display: 46px; /* Training weight input — the on-screen hero of logging */
 
+  /* ── Leading (line-height) ────────────────────────────────────────────
+     Unitless so it scales with font-size. tight → single-line numbers &
+     labels; snug → 2-line headings; body → multi-line paragraphs. Body
+     copy uses --leading-body — do not hand-pick 1.4/1.45/1.55 per element. */
+  --leading-tight: 1;
+  --leading-snug: 1.2;
+  --leading-body: 1.5;
+
   /* ── Metric typography ────────────────────────────────────────────────
      One number language across all four tabs. Value = bold ink;
      unit = fixed step down (medium, ink-3); delta = signed +/− with
@@ -114,14 +122,6 @@
   --role-section-title-color: var(--ink-3);
   --role-section-title-spacing: 0.04em;
 
-  --role-body-size: var(--text-base);          /* 15 — body copy */
-  --role-body-weight: 400;
-  --role-body-color: var(--ink);
-
-  --role-body-strong-size: var(--text-base);   /* 15 — emphasised body */
-  --role-body-strong-weight: 600;
-  --role-body-strong-color: var(--ink);
-
   --role-secondary-size: var(--text-sm);       /* 13 — secondary text */
   --role-secondary-weight: 400;
   --role-secondary-color: var(--ink-3);
@@ -133,6 +133,7 @@
   --role-field-label-size: var(--text-sm);     /* 13 — form field label (UPPER) */
   --role-field-label-weight: 600;
   --role-field-label-color: var(--ink-3);
+  --role-field-label-spacing: 0.06em;
 
   --role-action-size: var(--text-sm);          /* 13 — neutral button/link */
   --role-action-weight: 600;
