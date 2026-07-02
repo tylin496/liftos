@@ -27,7 +27,6 @@ import { parse, score, formatRepsDisplay } from "./parser";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
-import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
 import "./training.css";
 
@@ -504,19 +503,14 @@ function TrainingPageInner() {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("3mo");
   const [addingExercise, setAddingExercise] = useState(false);
   const [stretches, setStretches] = useState<Record<SplitId, StretchItem[]>>(loadStretches);
-  const contentRef = useRef<HTMLDivElement | null>(null);
   // Slugs currently in an optimistic-delete undo window — a background reloadAll
   // must not resurrect them, since the server row hasn't committed the delete yet.
   const pendingDeleteSlugsRef = useRef<Set<string>>(new Set());
 
-  // Horizontal swipe → switch split. The hook stops the gesture bubbling to
-  // Shell's tab-swipe (this page owns it).
-  useHorizontalSwipe(contentRef, (dir) => {
-    const idx = splitIds.indexOf(split);
-    if (dir === 1 && idx < splitIds.length - 1) changeSplit(splitIds[idx + 1]);
-    else if (dir === -1 && idx > 0) changeSplit(splitIds[idx - 1]);
-  }, { threshold: 44 });
-
+  // Splits are switched via the SegmentedControl only. Horizontal swipe here is
+  // intentionally left to bubble to Shell's tab-swipe, so the gesture means the
+  // same thing everywhere (switch tab). Nutrition keeps its own day/week swipe
+  // because those have no equivalent control.
   function changeSplit(id: SplitId) {
     prevSplitIdx.current = splitIds.indexOf(split);
     setSplit(id);
@@ -704,10 +698,7 @@ function TrainingPageInner() {
   });
 
   return (
-    <div
-      className="page tr-page"
-      ref={contentRef}
-    >
+    <div className="page tr-page">
       {/* ── Segment control ── */}
       <div className="tr-top-row">
         <SegmentedControl

@@ -383,11 +383,12 @@ export function HealthPage() {
           points={bucketed}
           minSpan={spec.minSpan}
           delta={
-            // Weight has no colored delta — its verdict is delegated to the
-            // pace/observed-rate (Nutrition) and its shape to the sparkline; a
-            // raw week-over-week weight number is noise. Body Fat is a
-            // fixed-direction metric (down = good), so it carries one.
-            spec.key === "body_fat_pct" && change != null && readingCount >= 2 ? (
+            // Both Weight and Body Fat are down-good on a cut — this page is the
+            // body-composition trend view, so each carries its own coloured
+            // delta (the smoothed rolling average, not a single noisy day; the
+            // threshold still suppresses changes within noise). Overview's weight
+            // card stays delta-free because its pace/Status read covers it there.
+            change != null && readingCount >= 2 ? (
               <MetricDelta value={change} direction="down-good" decimals={spec.decimals} unit={spec.unit} />
             ) : null
           }
