@@ -299,7 +299,7 @@ function WeightCard({
           <div className="ov-weight-row">
             <span className="ov-weight-key">Activity</span>
             <span className="ov-weight-activity">
-              <span className="ov-weight-val">{activeEnergy.toLocaleString()} kcal</span>
+              <span className="ov-weight-val">{activeEnergy.toLocaleString()} kcal/day</span>
               <MetricDelta value={activeChange} direction="up-good" decimals={0} />
             </span>
           </div>
