@@ -28,6 +28,7 @@ import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
+import { EditIcon } from "./EditIcon";
 import "./training.css";
 
 const copyTrainingData = () => buildTrainingJson();
@@ -187,7 +188,8 @@ function StretchCard({
                     setMenuOpen(false);
                   }}
                 >
-                  Edit
+                  <EditIcon className="menu-icon" />
+                  <span>Edit</span>
                 </button>
                 <button
                   type="button"

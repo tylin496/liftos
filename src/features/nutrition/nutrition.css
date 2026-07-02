@@ -144,24 +144,18 @@
   gap: 4px;
 }
 
-/* HOLD pill carries the pace verdict's colour so the hold state reads its status
-   the same way the change state reads it off the accent number: green when the
-   cut is genuinely on plan (paceTone "good"), neutral while the trend is still
-   forming / gathering data. Hold is never red — a bad read proposes a change. */
+/* HOLD pill — "Maintain / hold" is the you're-fine state, so it reads green
+   (same Good convention as "✓ On plan"). A bad read never holds — it proposes a
+   change, carried by the accent target number instead. */
 .ni-verdict {
   font-size: var(--role-eyebrow-size);
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--ink-3);
-  background: var(--bg-soft);
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-}
-
-.ni-verdict.is-good {
   color: var(--good);
   background: color-mix(in srgb, var(--good) 14%, transparent);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
 }
 
 .ni-rec-reason {

@@ -27,6 +27,7 @@ import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
 import { haptic } from "@shared/lib/haptics";
 import { EditExerciseForm } from "./EditExerciseForm";
+import { EditIcon } from "./EditIcon";
 
 export { useToast };
 
@@ -361,7 +362,8 @@ export function ExerciseCard({
                 setEditingMode("meta");
               }}
             >
-              ✎ Edit exercise
+              <EditIcon className="menu-icon" />
+              <span>Edit exercise</span>
             </button>
             <button
               type="button"
@@ -622,8 +624,9 @@ export function ExerciseCard({
                           setEditingMode("view");
                           setEditingLogId(isEditing ? null : log.id);
                         }}
+                        className="hist-edit-btn"
                       >
-                        ✎
+                        <EditIcon />
                       </button>
                     </div>
                   </div>

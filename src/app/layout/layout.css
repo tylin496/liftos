@@ -87,19 +87,19 @@
   display: flex;
 }
 
-/* Frosted-glass surface on a pseudo-element so the blur sits behind the tab
-   items (icons/labels stay fully crisp). Intentionally NO tint fill and no
-   border — legibility rests on the blur alone, and the mask fades the whole
-   surface out toward the top so the bar dissolves into the content with no
-   hard edge (this is a deliberate look, not an oversight). */
+/* Frosted-glass surface on a pseudo-element so the tint + blur sit behind the
+   tab items (icons/labels stay fully crisp). A translucent --bg tint carries
+   most of the legibility so the blur can stay light; the mask fades the whole
+   surface (tint + blur together) out toward the top so the bar still dissolves
+   into the content with no hard edge. */
 .tabbar::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: transparent;
-  backdrop-filter: blur(22px) saturate(1.5);
-  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  background: color-mix(in srgb, var(--bg) 66%, transparent);
+  backdrop-filter: blur(16px) saturate(1.8);
+  -webkit-backdrop-filter: blur(16px) saturate(1.8);
   -webkit-mask-image: linear-gradient(to top, #000 30%, rgba(0,0,0,.85) 55%, rgba(0,0,0,.4) 78%, transparent);
   mask-image: linear-gradient(to top, #000 30%, rgba(0,0,0,.85) 55%, rgba(0,0,0,.4) 78%, transparent);
 }
@@ -113,12 +113,22 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  color: var(--ink-4);
+  /* Two-tier inactive hierarchy: the icon carries one step more presence
+     (--ink-3) so it reads as a tappable glyph, while the label (below) sits a
+     step quieter (--ink-4). Active flips both to the accent. */
+  color: var(--ink-3);
+  /* Inactive = "not fully lit": fade the sheen gradient's lower stops so the
+     glass bleeds up into the glyph. Active resets these to 1 (flat, solid). */
+  --tab-sheen-mid: 0.9;
+  --tab-sheen-base: 0.5;
   transition: color var(--motion-fast) var(--press-ease);
 }
 
 .tabbar-item.is-active {
   color: var(--accent);
+  /* Selected tab reads as fully lit: solid accent, no fade. */
+  --tab-sheen-mid: 1;
+  --tab-sheen-base: 1;
 }
 
 .tabbar-icon svg {
@@ -131,6 +141,12 @@
   font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.01em;
+  color: var(--ink-4);
+  transition: color var(--motion-fast) var(--press-ease);
+}
+
+.tabbar-item.is-active .tabbar-label {
+  color: var(--accent);
 }
 
 /* ── Generic page placeholder (P0) ──────────────────────────────────── */
