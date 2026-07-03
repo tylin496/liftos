@@ -526,17 +526,17 @@ export function HealthPage() {
         {!data ? (
           <>
             <div className="health-tdee-num">
-              <MetricValue size="xl" unit="kcal">0000</MetricValue>
+              <MetricValue size="md" unit="kcal">0000</MetricValue>
             </div>
             <div className="health-tdee-components">
               <div className="health-tdee-component">
                 <span className="health-tdee-component-label">Resting</span>
-                <MetricValue size="sm" unit="kcal">0000</MetricValue>
+                <MetricValue size="md" unit="kcal">0000</MetricValue>
                 <span className="health-tdee-component-window">30-day average</span>
               </div>
               <div className="health-tdee-component">
                 <span className="health-tdee-component-label">Active</span>
-                <MetricValue size="sm" unit="kcal">000</MetricValue>
+                <MetricValue size="md" unit="kcal">000</MetricValue>
                 <span className="health-tdee-component-window">14-day average</span>
               </div>
             </div>
@@ -544,7 +544,7 @@ export function HealthPage() {
         ) : tdee?.tdee != null ? (
           <>
             <div className="health-tdee-num">
-              <MetricValue size="xl" unit="kcal">
+              <MetricValue size="md" unit="kcal">
                 <AnimatedTdee value={tdee.tdee} />
               </MetricValue>
             </div>
@@ -552,7 +552,7 @@ export function HealthPage() {
               <div className="health-tdee-component">
                 <span className="health-tdee-component-label">Resting</span>
                 <div className="health-tdee-component-stat">
-                  <MetricValue size="sm" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
+                  <MetricValue size="md" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
                   {restingChange != null && (
                     <MetricDelta value={restingChange} direction="up-good" decimals={0} />
                   )}
@@ -564,7 +564,7 @@ export function HealthPage() {
               <div className="health-tdee-component">
                 <span className="health-tdee-component-label">Active</span>
                 <div className="health-tdee-component-stat">
-                  <MetricValue size="sm" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
+                  <MetricValue size="md" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
                   {activeChange != null && (
                     <MetricDelta value={activeChange} direction="up-good" decimals={0} />
                   )}
