@@ -351,10 +351,12 @@ function ActiveTargetCard({
 
           {view.session && view.session.workoutsNeeded > 0 && (
             <div className="active-target-hint">
-              A typical session adds ~{view.session.boost.toLocaleString()} active.{" "}
-              {view.session.workoutsNeeded === 1
-                ? "One more workout this week closes the gap."
-                : `${view.session.workoutsNeeded} more workouts this week close the gap.`}
+              <span>A typical session adds ~{view.session.boost.toLocaleString()} active</span>
+              <span>
+                {view.session.workoutsNeeded === 1
+                  ? "One more workout this week closes the gap"
+                  : `${view.session.workoutsNeeded} more workouts this week close the gap`}
+              </span>
             </div>
           )}
         </>
