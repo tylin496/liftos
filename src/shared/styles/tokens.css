@@ -26,33 +26,48 @@
   --rule-strong: rgba(60, 60, 67, 0.2);
 
   /* ── Accent ───────────────────────────────────────────────────────── */
-  /* Molten Ember — deep, desaturated terracotta-orange. Reads as hot
-     metal/clay rather than safety-vest orange; warmth + restraint. */
-  /* --accent and --accent-strong must stay SPLIT: a single value can't be
-     both a clean bright orange on white AND dark enough for white text on a
-     solid fill. Bright --accent does text/icons/focal-numbers/tints; deeper
-     --accent-strong does every solid white-on-accent fill (buttons, filled
-     pills, the "+" add). Collapsing them is what made light mode read muddy. */
+  /* Molten Ember — LiftOS brand orange. Sits OUTSIDE the semantic system:
+     brand/CTA identity, never a good/bad verdict. --accent and --accent-strong
+     stay SPLIT: bright --accent does text/icons/tints, deeper --accent-strong
+     does solid white-on-accent fills (buttons, pills, "+"). The progress
+     spectrum below has its OWN fixed ember tokens — not these — so it can't
+     drift if this brand accent is ever re-themed. */
   --accent-100: #ffe0d1;
   --accent: #ec5122;
   --accent-strong: #cf491a;   /* deeper ember — solid white-on-accent fills */
   --accent-soft: var(--accent-100);
   --accent-glow: rgba(236, 81, 34, 0.16);
 
-  /* ── Semantic ─────────────────────────────────────────────────────── */
-  --bad: #e03535;
-  --good: #12a150;
-  --gold: #c2740c;
-  /* PR / gold-reward celebration — a yellower "trophy" gold, kept distinct from
-     --gold (amber = attention/warning) so an achievement never reads as a
-     caution. Used by PR badges/labels and the gold save-celebration. */
-  --pr: #b8860b;
-  --blue: #5e9cf5;
+  /* ── Progress spectrum ────────────────────────────────────────────── */
+  /* Fixed ember anchors for the journey spectrum (progressColor.ts) — kept
+     INDEPENDENT of --accent/--accent-strong on purpose. If the brand accent
+     is ever re-themed, progress must still start ember; it is a deliberate,
+     load-bearing part of "how far along the journey," not a reflection of
+     whatever the current brand color happens to be. */
+  --progress-start: #cf491a;
+  --progress-mid: #ec5122;
+
+  /* ── Semantic ─────────────────────────────────────────────────────────
+     ONLY these three carry a good/bad verdict. Never use on charts,
+     progress, branding, or decoration — that drift is what erodes the
+     "colour = judgement" contract (see feedback-text-color-rule memory). */
+  --bad: #e83434;    /* Error */
+  --good: #1da05f;   /* Success — forest, not fitness-neon */
+  --gold: #e19006;   /* Warning / attention */
+  /* PR / gold-reward celebration — a darker antique-brass gold, deliberately
+     LESS bright than --gold so achievement reads as "rare metal," not a
+     louder warning. Reserved exclusively for achievements and personal
+     records — never reused as a generic warning or progress color. Identity
+     is carried by animation/stars/confetti, not by being the shiniest gold. */
+  --pr: #bf8207;
+  --blue: #478afa;   /* Weight identity — never a status verdict */
 
   /* ── Health chart metric colors (iOS-style; read fine on light + dark) ── */
-  --health-weight: #5e9cf5;
-  --health-bodyfat: #bf5af2;
-  --health-leanmass: #30d158;
+  /* Coral — a distinct red-orange from --accent's ember so the Active chart
+     never competes with brand/progress color at a glance. */
+  --health-active: #f3492b;
+  --health-measurement: #cc23f1;
+  --health-sleep: #5147fa;
 
   /* ── Overlay ── decorative, non-signal colors (theme-invariant) ──────── */
   --on-color: #fff; /* text/icon on a saturated accent/good/bad/gold surface */
@@ -217,13 +232,16 @@
   --rule-strong: rgba(235, 235, 245, 0.26);
   --accent-100: #3a1f12;
   --accent: #ff7a45;
-  --accent-strong: #e85f28;   /* deeper ember — gradient start (progress bar) */
+  --accent-strong: #e85f28;   /* deeper ember — solid white-on-accent fills */
   --accent-glow: rgba(255, 122, 69, 0.26);
-  --good: #4cd476;
-  --bad: #ff6b6b;
-  --gold: #ffbf3f;
-  --pr: #ffd45e;   /* PR / gold-reward gold — yellower than --gold amber */
-  --blue: #5e9cf5;
+  /* Fixed ember anchors for the progress spectrum — see :root for rationale. */
+  --progress-start: #e85f28;
+  --progress-mid: #ff7a45;
+  --good: #4de097;
+  --bad: #f28787;
+  --gold: #fbc15c;
+  --pr: #f9ba3d;   /* PR / gold-reward gold — antique gold, yellower than --gold amber */
+  --blue: #7eadfc;
   --card-blur: blur(22px);
   --glass-bg: rgba(26, 26, 26, 0.55);
   --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.4), 0 8px 22px -6px rgba(0, 0, 0, 0.42), 0 22px 50px -18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
