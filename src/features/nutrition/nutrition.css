@@ -746,6 +746,10 @@
   justify-content: space-between;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
+  /* Reserve the badge's line box (.status-text is --text-base) so the card
+     doesn't grow the ~4px difference when a "Double Hit" / "No entry" badge
+     appears next to the smaller INTAKE eyebrow. */
+  min-height: var(--text-base);
 }
 
 .daily-card-top .page-eyebrow {
@@ -981,18 +985,21 @@
 .date-slide-backward { animation: date-in-backward var(--motion-base) var(--reveal-ease) both; }
 
 /* ── Day navigation carousel ─────────────────────────────────────────── */
+/* Card enters from the screen edge (its full width off) and springs into place —
+   the overshoot easing gives the landing a physical, touch-driven feel. Body
+   clips overflow-x, so the off-screen start never spills a scrollbar. */
 @keyframes slide-from-right {
-  from { opacity: 0; transform: translateX(52%); }
-  to   { opacity: 1; transform: translateX(0); }
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
 }
 
 @keyframes slide-from-left {
-  from { opacity: 0; transform: translateX(-52%); }
-  to   { opacity: 1; transform: translateX(0); }
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
 }
 
-.daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--reveal-ease) both; }
-.daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--reveal-ease) both; }
+.daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--spring-ease) both; }
+.daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--spring-ease) both; }
 
 /* Both cards are drag-navigable: reserve the horizontal axis for the gesture
    while vertical scroll passes through, and don't let a drag select text. */

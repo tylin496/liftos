@@ -194,6 +194,7 @@
   --motion-celebrate: 900ms;  /* confetti, PR pop */
   --motion-sheen: 1000ms;     /* row-saved flash, PR sheen sweep */
   --motion-shimmer: 1600ms;   /* skeleton loading loop */
+  --spring-ease: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoot spring — day-nav card enter */
 
   /* ── Layout ───────────────────────────────────────────────────────── */
   --tabbar-h: 56px;
