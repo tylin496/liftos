@@ -1,4 +1,4 @@
-import { useEffect, useState, type Ref } from "react";
+import { useEffect, useState, type Ref, type ReactNode } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
@@ -77,15 +77,66 @@ function fmtDaysSince(isoDate: string): string {
 // centre so its on-screen position can be measured for the stagger.
 function ActiveTargetRingBody({ shown, target, innerRef }: { shown: number | null; target: number; innerRef?: Ref<HTMLDivElement> }) {
   const ratio = (shown ?? 0) / Math.max(1, target);
-  // Blue progress ramp while filling; at 100% flip to the discrete gold celebration.
-  const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
-  return (
+  // Fixed accent while open — this card is near-binary (a training day closes
+  // it, a rest day doesn't), so a continuous ramp just flickers without
+  // signaling anything. Flips once to --good on close, a discrete celebration.
+  const ringColor = ratio >= 1 ? "var(--good)" : "var(--accent)";
+  return ratio > 1 ? (
+    <OverflowRing ratio={ratio} size={96} strokeWidth={9}>
+      <div className="ov-active-target-ring-center" ref={innerRef}>
+        <span className="ov-active-target-ring-num">{shown == null ? "" : shown.toLocaleString()}</span>
+        <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
+      </div>
+    </OverflowRing>
+  ) : (
     <ActivityRing pct={ratio} size={96} strokeWidth={9} color={ringColor} trackColor="var(--bg-soft)" transition="none">
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{shown == null ? "" : shown.toLocaleString()}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
       </div>
     </ActivityRing>
+  );
+}
+
+// Past 100%, draw a second lap layered on the same track/radius instead of
+// re-coloring or nesting a smaller ring — reads as "stacked on top", not a
+// state change. Specific to Active Target; every other ring consumer keeps
+// the base component's clamp-at-1 behavior.
+function OverflowRing({
+  ratio,
+  size,
+  strokeWidth,
+  children,
+}: {
+  ratio: number;
+  size: number;
+  strokeWidth: number;
+  children?: ReactNode;
+}) {
+  const r = (size - strokeWidth) / 2;
+  const c = size / 2;
+  const circumference = 2 * Math.PI * r;
+  const overflowLength = Math.min(1, ratio - 1) * circumference;
+  return (
+    <div className="activity-ring" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={c} cy={c} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={strokeWidth} />
+        <circle cx={c} cy={c} r={r} fill="none" stroke="var(--good)" strokeWidth={strokeWidth} />
+        <circle
+          cx={c}
+          cy={c}
+          r={r}
+          fill="none"
+          stroke="var(--good)"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={`${overflowLength} ${circumference}`}
+          transform={`rotate(-90 ${c} ${c})`}
+          style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,.65))" }}
+        />
+      </svg>
+      {children && <div className="activity-ring-center">{children}</div>}
+    </div>
   );
 }
 
@@ -144,6 +195,8 @@ function ActiveTargetCard({
   const dailyAvg = view?.activeTargetPerDay ?? 0;
   const diff = view ? view.today.target - dailyAvg : 0;
   const position = Math.abs(diff) <= 30 ? "on" : diff > 0 ? "behind" : "ahead";
+  const ratio = view ? view.today.accrued / Math.max(1, view.today.target) : 0;
+  const isClosed = view ? view.today.accrued >= view.today.target : false;
 
   return (
     <section className="page-card ov-active-target">
@@ -166,11 +219,13 @@ function ActiveTargetCard({
             <div className="ov-active-target-ring-caption">
               <span className="ov-active-target-ring-title">Today's target</span>
               <span className="ov-active-target-ring-sub">
-                {position === "behind"
-                  ? `Behind this week — today's up from your ${dailyAvg.toLocaleString()}/day average`
-                  : position === "ahead"
-                    ? `Ahead this week — today eased below your ${dailyAvg.toLocaleString()}/day average`
-                    : `On pace — about your ${dailyAvg.toLocaleString()}/day average`}
+                {ratio > 1.05
+                  ? `Closed — ${Math.round(ratio * 100)}% of today's target`
+                  : position === "behind"
+                    ? <><span className="is-behind">Behind</span> this week — today's up from your {dailyAvg.toLocaleString()}/day average</>
+                    : position === "ahead"
+                      ? <><span className="is-ahead">Ahead</span> this week — today eased below your {dailyAvg.toLocaleString()}/day average</>
+                      : <><span className="is-on">On pace</span> — about your {dailyAvg.toLocaleString()}/day average</>}
               </span>
               {!view.today.synced && (
                 <span className="ov-active-target-ring-stale">
@@ -182,14 +237,21 @@ function ActiveTargetCard({
             </div>
           </div>
 
-          {view.today.accrued < view.today.target && (
-            <div className="ov-active-target-hint">
-              <span>{(view.today.target - view.today.accrued).toLocaleString()} kcal to close today's ring</span>
-              {view.session && (
-                <span>A typical session adds ~{view.session.boost.toLocaleString()} active</span>
-              )}
-            </div>
-          )}
+          <div className={`ov-active-target-hint${isClosed ? " is-closed" : ""}`}>
+            {isClosed ? (
+              <>
+                <span>Today's ring is closed</span>
+                <span>{view.today.accrued.toLocaleString()} active logged</span>
+              </>
+            ) : (
+              <>
+                <span>{(view.today.target - view.today.accrued).toLocaleString()} kcal to close today's ring</span>
+                {view.session && (
+                  <span>A typical session adds ~{view.session.boost.toLocaleString()} active</span>
+                )}
+              </>
+            )}
+          </div>
         </>
       ) : (
         <p className="page-note">
@@ -325,10 +387,6 @@ function CutProgressCard({
     : null;
   const isComplete = pct >= 100;
   const cutDay = cutStartDate ? daysSince(cutStartDate) : null;
-  // Days into the current calorie-target phase — the numerator of "Day
-  // {phase}/{cutDay}". Falls back to just the plain cut day when there's no
-  // nutrition state to read a phase from.
-  const daysOnTarget = state?.diagnostics.daysOnTarget ?? null;
   // Overview's first card: the % and bar re-roll from 0 on every tab-enter
   // (the leaves are keyed by activity, so only they remount — not the card, so
   // its rise-in entrance never re-fires). Honors reduced-motion (snaps).
@@ -361,8 +419,7 @@ function CutProgressCard({
           {!isComplete && cutDay != null && (
             <span className="goal-day">
               {" "}
-              · Day <b>{daysOnTarget != null ? Math.max(1, daysOnTarget) : cutDay}</b>
-              {daysOnTarget != null && `/${cutDay}`}
+              · Day <b>{cutDay}</b>
             </span>
           )}
         </span>
@@ -575,33 +632,38 @@ function WeightCard({
 /* ── Training Health Card ──────────────────────────────────────────────── */
 
 // On-track rows show "% of all-time PR" (how close to your best). Flagged
-// (watch) rows instead carry a STALLED badge counting whole weeks since the
-// last new best — that's what actually earned the flag, and it reads clearer
-// than a % that could look like a contradiction (e.g. "97% · Review").
+// (watch) rows instead carry a stalled readout counting whole weeks since
+// the last new best — that's what actually earned the flag, and it reads
+// clearer than a % that could look like a contradiction (e.g. "97% · Review").
 function exerciseRetention(ex: import("./api").StrengthExercise): number {
   return ex.latestE1RM / ex.prE1RM;
 }
 
-function fmtStalled(weeks: number): string {
-  if (weeks < 1) return "PR THIS WK";
-  return `PR ${weeks} ${weeks === 1 ? "WK" : "WKS"} AGO`;
+function fmtStalledReadout(weeks: number): { value: string; label: string } {
+  if (weeks < 1) return { value: "PR", label: "this wk" };
+  return { value: `${weeks}`, label: weeks === 1 ? "wk stalled" : "wks stalled" };
 }
 
-function ExerciseRow({ exercise }: { exercise: import("./api").StrengthExercise }) {
-  const isWatch = exercise.status === "watch";
-  if (isWatch) {
-    return (
-      <div className="ov-th-ex-row watch">
-        <span className="ov-th-ex-name">{exercise.name}</span>
-        <span className="ov-th-stalled">{fmtStalled(exercise.stalledWeeks)}</span>
-      </div>
-    );
-  }
+function AttentionRow({ exercise }: { exercise: import("./api").StrengthExercise }) {
+  const stalled = fmtStalledReadout(exercise.stalledWeeks);
+  return (
+    <div className="ov-th-row">
+      <span className="ov-th-row-dot" aria-hidden />
+      <span className="ov-th-row-name">{exercise.name}</span>
+      <span className="ov-th-row-stalled">
+        <span className="ov-th-row-stalled-val">{stalled.value}</span>{" "}
+        <span className="ov-th-row-stalled-label">{stalled.label}</span>
+      </span>
+    </div>
+  );
+}
+
+function OnTrackRow({ exercise }: { exercise: import("./api").StrengthExercise }) {
   const retPct = Math.round(exerciseRetention(exercise) * 100);
   return (
-    <div className="ov-th-ex-row">
-      <span className="ov-th-ex-name">{exercise.name}</span>
-      <span className="ov-th-ex-pct">{retPct}%</span>
+    <div className="ov-th-row">
+      <span className="ov-th-row-name">{exercise.name}</span>
+      <span className="ov-th-row-pct">{retPct}%</span>
     </div>
   );
 }
@@ -610,6 +672,9 @@ function ExerciseRow({ exercise }: { exercise: import("./api").StrengthExercise 
 // section only teases the first few; anyone wanting the full list has
 // Training for that (see onNav on the "+more" row below).
 const EXERCISE_ROW_LIMIT = 5;
+// On-track overflows far more often (most lifts are on track), so it's
+// capped tighter — the fold body stays reassurance-sized, not a full list.
+const ON_TRACK_ROW_LIMIT = 3;
 
 function TrainingHealthCard({
   strength,
@@ -653,7 +718,7 @@ function TrainingHealthCard({
     <div ref={ref} data-inview={inView} className={`page-card ov-training-health${expanded ? " is-expanded" : ""}`}>
       {/* Tapping the header navigates to Training (matches Weight·TDEE's
           whole-card-navigates pattern) — expand/collapse is the dedicated
-          "{N} more on track" toggle below, not this header. */}
+          fold trigger below, not this header. */}
       <button type="button" className="ov-th-summary" onClick={onNav}>
         <div className="ov-th-top">
           <span className="ov-th-label">Training Health</span>
@@ -661,51 +726,57 @@ function TrainingHealthCard({
         </div>
 
         <div className="ov-th-ret-hero">
-          {/* Hero % with no progress bar → semantic verdict: amber if any lift
-              needs attention, green when they're all on track. Neutral only
-              when there's no retention figure to judge. */}
-          <MetricValue
-            size="md"
-            style={retentionPct == null ? undefined : { color: attention > 0 ? "var(--gold)" : "var(--good)" }}
-          >
+          {/* Hero % is a ratio, not an identity metric/delta/verdict — stays
+              neutral ink, no good/bad coloring (color law). */}
+          <MetricValue size="xl">
             {retentionPct !== null ? (retCount == null ? "" : `${retCount}%`) : "—"}
           </MetricValue>
           <span className="ov-th-ret-count">
-            {onTrackExercises.length} / {strength.total} lifts on track
+            {onTrackExercises.length} of {strength.total} lifts on track
           </span>
         </div>
 
+        {/* Segmented ratio bar — visual read of on-track vs attention that
+            doesn't depend on expanding the fold below. */}
+        <div
+          className="ov-th-bar"
+          role="img"
+          aria-label={`${onTrackExercises.length} of ${strength.total} lifts on track`}
+        >
+          {strength.exercises.map((ex, i) => (
+            <span
+              key={ex.slug}
+              className={`ov-th-bar-seg${i < onTrackExercises.length ? " is-good" : ""}`}
+            />
+          ))}
+        </div>
       </button>
 
-      {/* Attention is always visible (not gated behind expand) — it's the
-          urgent signal; On Track is the reassurance detail, kept collapsed. */}
-      {watchExercises.length > 0 && (
-        <div className="ov-th-section">
-          <div className="ov-th-sect-head">Attention</div>
-          {watchExercises.slice(0, EXERCISE_ROW_LIMIT).map((ex) => (
-            <ExerciseRow key={ex.slug} exercise={ex} />
-          ))}
-          {watchExercises.length > EXERCISE_ROW_LIMIT && (
-            <button type="button" className="ov-th-show-more" onClick={onNav}>
-              +{watchExercises.length - EXERCISE_ROW_LIMIT} more in Training
-            </button>
-          )}
-        </div>
-      )}
-      {attention === 0 && (
-        <div className="ov-th-status">
-          <span className="ov-th-all-good">✓ All exercises on track</span>
-        </div>
-      )}
-
+      {/* Single fold controls both Attention and On Track together, so the
+          collapsed card height never depends on how many lifts are flagged
+          or tracked — this row stands in for the whole detail list. */}
       <button
         type="button"
-        className="ov-th-toggle"
+        className="ov-th-fold"
         onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
       >
-        {expanded ? "Show less" : `${onTrackExercises.length} more on track`}
+        <span className="ov-th-fold-left">
+          {attention > 0 && (
+            <>
+              <span className="ov-th-fold-chip">{attention}</span>
+              <span className="ov-th-fold-text">need attention</span>
+              {!expanded && <span className="ov-th-fold-sep" aria-hidden>·</span>}
+            </>
+          )}
+          {!expanded && (
+            <span className="ov-th-fold-text ov-th-fold-text--muted">
+              {onTrackExercises.length} on track
+            </span>
+          )}
+        </span>
         <svg
-          className={`ov-th-toggle-chevron${expanded ? " is-open" : ""}`}
+          className={`ov-th-fold-chevron${expanded ? " is-open" : ""}`}
           width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"
         >
           <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -713,16 +784,34 @@ function TrainingHealthCard({
       </button>
 
       {expanded && (
-        <div className="ov-th-expanded">
+        <div className="ov-th-fold-body">
+          {watchExercises.length > 0 && (
+            <div className="ov-th-section">
+              <div className="ov-th-sect-head-row">
+                <span className="ov-th-sect-head">Attention</span>
+                <span className="ov-th-count-chip">{watchExercises.length}</span>
+              </div>
+              {watchExercises.slice(0, EXERCISE_ROW_LIMIT).map((ex) => (
+                <AttentionRow key={ex.slug} exercise={ex} />
+              ))}
+              {watchExercises.length > EXERCISE_ROW_LIMIT && (
+                <button type="button" className="ov-th-show-more" onClick={onNav}>
+                  +{watchExercises.length - EXERCISE_ROW_LIMIT} more in Training
+                </button>
+              )}
+            </div>
+          )}
           {onTrackExercises.length > 0 && (
             <div className="ov-th-section">
-              <div className="ov-th-sect-head">On track · {onTrackExercises.length}</div>
-              {onTrackExercises.slice(0, EXERCISE_ROW_LIMIT).map((ex) => (
-                <ExerciseRow key={ex.slug} exercise={ex} />
+              <div className="ov-th-sect-head-row">
+                <span className="ov-th-sect-head">On track · {onTrackExercises.length}</span>
+              </div>
+              {onTrackExercises.slice(0, ON_TRACK_ROW_LIMIT).map((ex) => (
+                <OnTrackRow key={ex.slug} exercise={ex} />
               ))}
-              {onTrackExercises.length > EXERCISE_ROW_LIMIT && (
+              {onTrackExercises.length > ON_TRACK_ROW_LIMIT && (
                 <button type="button" className="ov-th-show-more" onClick={onNav}>
-                  +{onTrackExercises.length - EXERCISE_ROW_LIMIT} more in Training
+                  +{onTrackExercises.length - ON_TRACK_ROW_LIMIT} more in Training
                 </button>
               )}
             </div>
@@ -792,15 +881,26 @@ export function OverviewPage() {
                 <span className="ov-th-chevron" aria-hidden>›</span>
               </div>
               <div className="ov-th-ret-hero">
-                <MetricValue size="md">00%</MetricValue>
+                <MetricValue size="xl">00%</MetricValue>
                 <MetricCaption>of tracked lifts on track</MetricCaption>
               </div>
+              <div className="ov-th-bar" aria-hidden>
+                {Array.from({ length: 15 }).map((_, i) => (
+                  <span key={i} className="ov-th-bar-seg is-good" />
+                ))}
+              </div>
             </div>
-            <div className="ov-th-status">
-              <span className="ov-th-all-good">✓ All exercises on track</span>
+            <div className="ov-th-fold">
+              <span className="ov-th-fold-left">
+                <span className="ov-th-fold-text ov-th-fold-text--muted">Loading…</span>
+              </span>
             </div>
           </div>
         </>
+      )}
+
+      {data?.nutritionState?.recommendation && (
+        <SystemCard rec={data.nutritionState.recommendation} onNav={(tab) => nav(tab)} />
       )}
 
       {/* Active Target — leads: the actionable "what do I do today" number. */}
@@ -810,10 +910,6 @@ export function OverviewPage() {
           targetTdee={data.targetTdee}
           currentTdee={data.currentTdee}
         />
-      )}
-
-      {data?.nutritionState?.recommendation && (
-        <SystemCard rec={data.nutritionState.recommendation} onNav={(tab) => nav(tab)} />
       )}
 
       {data && data.targetBodyFat != null && data.cutStartDate == null ? (
