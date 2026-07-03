@@ -324,8 +324,11 @@ export function TodayView({
         setProtein(entry?.protein != null ? String(entry.protein) : "");
         setEntryExists(entry?.calories != null || entry?.protein != null);
         setLoading(false);
+        // Count-up is a first-appearance reveal only. Every later day switch —
+        // arrows, swipe, tapping a week bar, or the calendar — swaps the numbers
+        // in place, so changing days never re-animates the whole card.
+        if (firstLoad.current) pendingCountUp.current = true;
         firstLoad.current = false;
-        if (!isNavigating.current) pendingCountUp.current = true;
         isNavigating.current = false;
       })
       .catch((e) => {
