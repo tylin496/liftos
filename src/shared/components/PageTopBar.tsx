@@ -31,7 +31,8 @@ export function PageTopBar({
   const titleFade = useCrossfade(title);
   const ring = useActiveTargetRing();
   const ringPct = ring ? ring.today.accrued / Math.max(1, ring.today.target) : null;
-  const ringColor = ringPct == null ? "var(--rule-strong)" : "var(--health-move)";
+  const ringColor =
+    ringPct == null ? "var(--rule-strong)" : ringPct >= 1 ? "var(--good)" : "var(--gold)";
 
   return (
     <div className="page-topbar">
