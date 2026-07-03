@@ -138,7 +138,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
   const confReason = !noData && !loading && e && d ? confidenceReason(e, d) : null;
 
   return (
-    <section className={`page-card ni-card${loading ? " loading-card" : ""}`}>
+    <section id="nutrition-insight-card" className={`page-card ni-card${loading ? " loading-card" : ""}`}>
       {/* Decision — the focal point, read first. */}
       <div className="ni-rec">
         <span className="page-eyebrow" style={{ margin: 0 }}>Recommendation</span>
