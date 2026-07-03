@@ -278,13 +278,12 @@ function ActiveTargetCard({
     );
   }
 
-  const w = view?.week;
-  const behind = w?.shortPerDay != null && w.shortPerDay > 0;
-  const paceClass = w?.onTrack ? "is-good" : behind ? "is-behind" : "is-neutral";
-  const fillPct =
-    view && view.activeTargetPerDay > 0 && w?.avgSoFar != null
-      ? Math.min(100, Math.round((w.avgSoFar / view.activeTargetPerDay) * 100))
-      : 0;
+  // Why today's number floats: it's this week's position folded into one ask.
+  // On-pace → today.target == the flat daily average exactly; behind → higher,
+  // ahead → lower. A small deadband keeps it from flickering near equality.
+  const dailyAvg = view?.activeTargetPerDay ?? 0;
+  const diff = view ? view.today.target - dailyAvg : 0;
+  const position = Math.abs(diff) <= 30 ? "on" : diff > 0 ? "behind" : "ahead";
 
   return (
     <section className="page-card health-active-target">
@@ -334,8 +333,11 @@ function ActiveTargetCard({
             <div className="active-target-ring-caption">
               <span className="active-target-ring-title">Today's target</span>
               <span className="active-target-ring-sub">
-                Floats with this week's pace — {view.activeTargetPerDay.toLocaleString()} kcal/day average
-                keeps {view.targetTdee.toLocaleString()} TDEE
+                {position === "behind"
+                  ? `Behind this week — today's up from your ${dailyAvg.toLocaleString()}/day average`
+                  : position === "ahead"
+                    ? `Ahead this week — today eased below your ${dailyAvg.toLocaleString()}/day average`
+                    : `On pace — about your ${dailyAvg.toLocaleString()}/day average`}
               </span>
               {!view.today.synced && (
                 <span className="active-target-ring-stale">
@@ -347,29 +349,7 @@ function ActiveTargetCard({
             </div>
           </div>
 
-          <div className="active-target-pace">
-            <div className="active-target-pace-head">
-              <span className="active-target-pace-label">This week's pace</span>
-              <span className={`active-target-pace-stat ${paceClass}`}>
-                {w?.onTrack
-                  ? "On track"
-                  : behind
-                    ? `${w!.shortPerDay!.toLocaleString()} short / day`
-                    : w?.avgSoFar != null
-                      ? "Ahead of target"
-                      : "No data yet"}
-              </span>
-            </div>
-            <div className="active-target-bar">
-              <div className={`active-target-bar-fill ${paceClass}`} style={{ width: `${fillPct}%` }} />
-            </div>
-            <div className="active-target-pace-foot">
-              <span>{w?.avgSoFar != null ? `Averaging ${w.avgSoFar.toLocaleString()}/day` : "—"}</span>
-              <span>Goal {view.activeTargetPerDay.toLocaleString()}</span>
-            </div>
-          </div>
-
-          {view.session && view.session.workoutsNeeded > 0 && !w?.onTrack && (
+          {view.session && view.session.workoutsNeeded > 0 && (
             <div className="active-target-hint">
               A typical session adds ~{view.session.boost.toLocaleString()} active.{" "}
               {view.session.workoutsNeeded === 1

@@ -346,58 +346,6 @@
   color: var(--gold);
 }
 
-.active-target-pace {
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
-}
-
-.active-target-pace-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: var(--space-2);
-}
-
-.active-target-pace-label {
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-}
-
-.active-target-pace-stat {
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-.active-target-pace-stat.is-good { color: var(--good); }
-.active-target-pace-stat.is-behind { color: var(--gold); }
-.active-target-pace-stat.is-neutral { color: var(--ink-3); }
-
-.active-target-bar {
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--bg-soft);
-  overflow: hidden;
-}
-
-.active-target-bar-fill {
-  height: 100%;
-  border-radius: var(--radius-pill);
-  transition: width var(--motion-base);
-}
-
-.active-target-bar-fill.is-good { background: var(--good); }
-.active-target-bar-fill.is-behind { background: var(--gold); }
-.active-target-bar-fill.is-neutral { background: var(--ink-4); }
-
-.active-target-pace-foot {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-  font-size: var(--text-2xs);
-  color: var(--ink-4);
-}
-
 .active-target-hint {
   display: flex;
   gap: 6px;
