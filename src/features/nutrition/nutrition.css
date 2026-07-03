@@ -879,6 +879,14 @@
   animation-delay: calc(var(--bar-index, 0) * var(--stagger-step));
 }
 
+/* On a week change the whole card slides in first; the bars stay flat (scaleY 0
+   via the animation's `both` fill during the delay), then rise once the card is
+   in place — the rise waits out the slide duration before starting. */
+.nutri-trend--after-slide .ntb-pair {
+  animation: bar-rise var(--motion-slow) var(--reveal-ease) both;
+  animation-delay: calc(var(--motion-slow) + var(--bar-index, 0) * var(--stagger-step));
+}
+
 .ntb-bar {
   flex: 1;
   max-width: 18px;

@@ -67,8 +67,8 @@ export function HistoryView({
   // Set the instant a swipe commits, so onDragEnd hands the transform to the
   // slide-in animation instead of snapping the card back.
   const weekCommitted = useRef(false);
-  // Bars rise once, when the tab is first shown. Flips true on the first week
-  // change so switching weeks swaps the bars in without re-running the rise.
+  // On tab-enter the bars rise immediately; after the first week change they
+  // rise *after* the card has slid into place. Flips true on the first change.
   const introPlayed = useRef(false);
   // The week strip browses independently of the page's selected `date`, so the
   // ‹ › chevrons don't drag the Today card (and the whole page) along with them.
@@ -200,7 +200,8 @@ export function HistoryView({
   }
 
   const loading = !entries;
-  // Play the bar-rise only until the first week change (i.e. on tab-enter).
+  // On tab-enter the rise fires immediately; on week changes it waits for the
+  // card slide (--after-slide adds the slide duration to the rise delay).
   const introBars = !introPlayed.current;
 
   return (
@@ -254,7 +255,7 @@ export function HistoryView({
         </div>
 
         {/* Dual-bar 7-day trend */}
-        <div className={`nutri-trend${introBars ? " nutri-trend--intro" : ""}`}>
+        <div className={`nutri-trend ${introBars ? "nutri-trend--intro" : "nutri-trend--after-slide"}`}>
           {trend7.map((d, i) => {
             const dayDate = new Date(d.date + "T12:00:00");
             const dayLabel = WEEKDAY_NARROW[dayDate.getDay()];
