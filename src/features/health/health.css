@@ -296,27 +296,54 @@
   line-height: var(--leading-body);
 }
 
-.active-target-hero {
+.active-target-ring-row {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  font-size: var(--metric-xl);
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.active-target-ring-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+
+.active-target-ring-num {
+  font-size: var(--text-xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
-  margin-top: 6px;
-  line-height: 1;
 }
 
-.active-target-hero .health-unit {
-  font-size: var(--text-base);
-  color: var(--ink-3);
+.active-target-ring-of {
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
 }
 
-.active-target-formula {
+.active-target-ring-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.active-target-ring-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.active-target-ring-sub {
   font-size: var(--text-sm);
   color: var(--ink-4);
-  margin-top: 6px;
+  line-height: var(--leading-body);
+}
+
+.active-target-ring-stale {
+  font-size: var(--text-2xs);
+  color: var(--gold);
 }
 
 .active-target-pace {

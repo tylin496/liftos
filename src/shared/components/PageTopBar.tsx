@@ -3,7 +3,13 @@ import { useSessionUser } from "@app/layout/SessionContext";
 import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCrossfade } from "@shared/hooks/useCrossfade";
+import { useActiveTargetRing } from "@shared/hooks/useActiveTargetRing";
+import { ActivityRing } from "@shared/components/ActivityRing";
 import "./pageTopBar.css";
+import "@shared/components/activityRing.css";
+
+const RING_SIZE = 40;
+const RING_STROKE = 3;
 
 export function PageTopBar({
   eyebrow,
@@ -23,6 +29,10 @@ export function PageTopBar({
   const { copied, copy } = useCopyButton(onCopy ?? (() => ""));
   const eyebrowFade = useCrossfade(eyebrow);
   const titleFade = useCrossfade(title);
+  const ring = useActiveTargetRing();
+  const ringPct = ring ? ring.today.accrued / Math.max(1, ring.today.target) : null;
+  const ringColor =
+    ringPct == null ? "var(--rule-strong)" : ringPct >= 1 ? "var(--good)" : "var(--gold)";
 
   return (
     <div className="page-topbar">
@@ -58,12 +68,25 @@ export function PageTopBar({
             </span>
           </button>
         )}
-        <button type="button" className="page-topbar-avatar" onClick={openSettings} aria-label="Settings">
-          {avatar ? (
-            <img src={avatar} alt="" className="page-topbar-avatar-img" />
-          ) : (
-            <span className="page-topbar-avatar-fallback">{initial}</span>
-          )}
+        <button
+          type="button"
+          className="page-topbar-avatar-btn"
+          onClick={openSettings}
+          aria-label={
+            ring
+              ? `Settings — today's active target ${ring.today.accrued}/${ring.today.target} kcal`
+              : "Settings"
+          }
+        >
+          <ActivityRing pct={ringPct ?? 0} size={RING_SIZE} strokeWidth={RING_STROKE} color={ringColor}>
+            <span className="page-topbar-avatar">
+              {avatar ? (
+                <img src={avatar} alt="" className="page-topbar-avatar-img" />
+              ) : (
+                <span className="page-topbar-avatar-fallback">{initial}</span>
+              )}
+            </span>
+          </ActivityRing>
         </button>
       </div>
     </div>

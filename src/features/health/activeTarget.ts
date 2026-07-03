@@ -42,6 +42,21 @@ export interface ActiveTargetView {
     /** Training days needed in the remaining week to close the gap (0 = none). */
     workoutsNeeded: number;
   } | null;
+
+  /** Today's floating target — the ring. Rises/falls with the rest of the
+   *  week's pace so far, so a banked surplus quietly lowers today's ask and a
+   *  shortfall raises it. This is what makes the ring mean something. */
+  today: {
+    /** Active/day needed today to keep the week on pace for the target. */
+    target: number;
+    /** Active logged so far today (0 if not synced yet). */
+    accrued: number;
+    /** Whether today has a synced active reading at all. */
+    synced: boolean;
+    /** Most recent date with any active reading — for a staleness note when
+     *  `synced` is false. */
+    lastSyncDate: string | null;
+  };
 }
 
 const TRAIN_MIN_MINUTES = 20; // a day counts as "trained" at ≥20 exercise minutes
@@ -116,6 +131,27 @@ export function computeActiveTarget(
     }
   }
 
+  // Today's floating target: what's left of the weekly goal, spread across
+  // today + the days after it. Banking active on prior days lowers this;
+  // falling behind raises it — the number the ring is actually built on.
+  const accruedThroughYesterday = thisWeek
+    .filter((m) => m.metric_date < todayISO)
+    .reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
+  const daysRemainingInclToday = 8 - weekday;
+  const todayTarget = Math.max(
+    0,
+    Math.round((weeklyGoalTotal - accruedThroughYesterday) / daysRemainingInclToday),
+  );
+  const todayRow = metrics.find((m) => m.metric_date === todayISO);
+  const todaySynced = todayRow?.active_energy_kcal != null;
+  const todayAccrued = todayRow?.active_energy_kcal ?? 0;
+  const lastSyncDate =
+    metrics
+      .filter((m) => m.active_energy_kcal != null)
+      .map((m) => m.metric_date)
+      .sort()
+      .at(-1) ?? null;
+
   return {
     activeTargetPerDay,
     restingAvg,
@@ -131,6 +167,12 @@ export function computeActiveTarget(
       onTrack,
     },
     session,
+    today: {
+      target: todayTarget,
+      accrued: Math.round(todayAccrued),
+      synced: todaySynced,
+      lastSyncDate,
+    },
   };
 }
 

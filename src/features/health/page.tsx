@@ -17,6 +17,8 @@ import { ErrorState } from "@shared/components/ErrorState";
 import { useCountUp } from "@shared/hooks/useCountUp";
 import { useToast } from "@shared/components/Toast";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
+import { ActivityRing } from "@shared/components/ActivityRing";
+import "@shared/components/activityRing.css";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
@@ -316,13 +318,33 @@ function ActiveTargetCard({
 
       {view ? (
         <>
-          <div className="active-target-hero">
-            <MetricValue size="xl" unit="kcal active / day">
-              {view.activeTargetPerDay.toLocaleString()}
-            </MetricValue>
-          </div>
-          <div className="active-target-formula">
-            {view.targetTdee.toLocaleString()} target − {view.restingAvg.toLocaleString()} resting (30-day)
+          <div className="active-target-ring-row">
+            <ActivityRing
+              pct={view.today.accrued / Math.max(1, view.today.target)}
+              size={96}
+              strokeWidth={9}
+              color={view.today.accrued >= view.today.target ? "var(--good)" : "var(--gold)"}
+              trackColor="var(--bg-soft)"
+            >
+              <div className="active-target-ring-center">
+                <span className="active-target-ring-num">{view.today.accrued.toLocaleString()}</span>
+                <span className="active-target-ring-of">of {view.today.target.toLocaleString()}</span>
+              </div>
+            </ActivityRing>
+            <div className="active-target-ring-caption">
+              <span className="active-target-ring-title">Today's target</span>
+              <span className="active-target-ring-sub">
+                Floats with this week's pace — {view.activeTargetPerDay.toLocaleString()} kcal/day average
+                keeps {view.targetTdee.toLocaleString()} TDEE
+              </span>
+              {!view.today.synced && (
+                <span className="active-target-ring-stale">
+                  {view.today.lastSyncDate
+                    ? `Not synced today — last reading ${view.today.lastSyncDate}`
+                    : "Not synced yet"}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="active-target-pace">
