@@ -47,6 +47,10 @@ const METRICS: MetricSpec[] = [
 ];
 
 const FIXED_DAYS = 180;
+// Active-energy sparkline: 14-day buckets (matches Body Fat / Lean Mass), and a
+// kcal min-span so a small week-to-week wobble doesn't fill the whole chart.
+const ENERGY_BUCKET = 14;
+const ENERGY_MIN_SPAN = 200;
 const copyHealthData = () => buildHealthJson();
 
 // Sparkline range follows the card's own averaging window: each bead IS that
@@ -103,11 +107,6 @@ function Sparkline({ points, minSpan = 0 }: { points: ChartPoint[]; minSpan?: nu
 
 const fmt = (v: number, d: number) =>
   v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
-
-function AnimatedTdee({ value }: { value: number }) {
-  const count = useCountUp(Math.round(value), 700);
-  return <>{count.toLocaleString()}</>;
-}
 
 /* Hero metric number — tweens from the value on screen to the new one
    (e.g. weight 92.3 → 92.1) instead of snapping. */
@@ -449,6 +448,15 @@ export function HealthPage() {
     });
   }, [data, metrics]);
 
+  // Active-energy sparkline — Active is the one behaviour-driven, trend-worthy
+  // number in the Energy card, so it gets the same 14-day bucket / 84-day trend
+  // shape as Body Fat and Lean Mass. Resting + TDEE ride along as model context.
+  const energyBucketed = useMemo(() => {
+    if (!data) return [];
+    const s = series(metrics, "active_energy_kcal");
+    return bucketSeries(s, { spanDays: ENERGY_BUCKET * SPARK_POINTS, bucketDays: ENERGY_BUCKET });
+  }, [data, metrics]);
+
   const recovery = useMemo(() => {
     if (!data) return null;
     return computeRecovery(metrics);
@@ -514,9 +522,9 @@ export function HealthPage() {
           components carry an up-good coloured delta vs the previous window
           (Active = did you move enough; Resting = higher rate is less metabolic
           adaptation). */}
-      <section className={`page-card health-tdee${!data ? " loading-card" : ""}`}>
+      <section className={`page-card health-energy${!data ? " loading-card" : ""}`}>
         <div className="health-tdee-head">
-          <span className="health-card-eyebrow">TDEE</span>
+          <span className="health-card-eyebrow">Energy</span>
           {lastSynced && (
             <span className={`health-sync-note${lastSynced.stale ? " is-stale" : ""}`}>
               {lastSynced.text}
@@ -525,53 +533,66 @@ export function HealthPage() {
         </div>
         {!data ? (
           <>
-            <div className="health-tdee-num">
-              <MetricValue size="md" unit="kcal">0000</MetricValue>
-            </div>
-            <div className="health-tdee-components">
-              <div className="health-tdee-component">
-                <span className="health-tdee-component-label">Resting</span>
-                <MetricValue size="md" unit="kcal">0000</MetricValue>
-                <span className="health-tdee-component-window">30-day average</span>
+            <div className="health-trend-head">
+              <div className="health-trend-info">
+                <span className="health-energy-metric-label">Active</span>
+                <div className="health-trend-stat">
+                  <MetricValue size="md" unit="kcal">000</MetricValue>
+                </div>
+                <span className="health-energy-window">14-day average</span>
               </div>
-              <div className="health-tdee-component">
-                <span className="health-tdee-component-label">Active</span>
-                <MetricValue size="md" unit="kcal">000</MetricValue>
-                <span className="health-tdee-component-window">14-day average</span>
+              <Sparkline points={[]} minSpan={ENERGY_MIN_SPAN} />
+            </div>
+            <div className="health-energy-model">
+              <div className="health-energy-model-item">
+                <span className="health-energy-metric-label">Resting</span>
+                <MetricValue size="md" unit="kcal">0000</MetricValue>
+                <span className="health-energy-window">30-day average</span>
+              </div>
+              <div className="health-energy-model-item">
+                <span className="health-energy-metric-label">TDEE</span>
+                <MetricValue size="md" unit="kcal">0000</MetricValue>
+                <span className="health-energy-window">resting + active</span>
               </div>
             </div>
           </>
         ) : tdee?.tdee != null ? (
           <>
-            <div className="health-tdee-num">
-              <MetricValue size="md" unit="kcal">
-                <AnimatedTdee value={tdee.tdee} />
-              </MetricValue>
-            </div>
-            <div className="health-tdee-components">
-              <div className="health-tdee-component">
-                <span className="health-tdee-component-label">Resting</span>
-                <div className="health-tdee-component-stat">
-                  <MetricValue size="md" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
-                  {restingChange != null && (
-                    <MetricDelta value={restingChange} direction="up-good" decimals={0} />
-                  )}
-                </div>
-                <span className="health-tdee-component-window">
-                  {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
-                </span>
-              </div>
-              <div className="health-tdee-component">
-                <span className="health-tdee-component-label">Active</span>
-                <div className="health-tdee-component-stat">
+            {/* Active leads with the sparkline — the behaviour-driven number. */}
+            <div className="health-trend-head">
+              <div className="health-trend-info">
+                <span className="health-energy-metric-label">Active</span>
+                <div className="health-trend-stat">
                   <MetricValue size="md" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
                   {activeChange != null && (
                     <MetricDelta value={activeChange} direction="up-good" decimals={0} />
                   )}
                 </div>
-                <span className="health-tdee-component-window">
-                  {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"}
+                <span className="health-energy-window">
+                  {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"} · {ENERGY_BUCKET * SPARK_POINTS}-day trend
                 </span>
+              </div>
+              <Sparkline points={energyBucketed} minSpan={ENERGY_MIN_SPAN} />
+            </div>
+            {/* Resting + TDEE — the model behind the ring, so Resting+Active=TDEE
+                still visibly adds up. */}
+            <div className="health-energy-model">
+              <div className="health-energy-model-item">
+                <span className="health-energy-metric-label">Resting</span>
+                <div className="health-trend-stat">
+                  <MetricValue size="md" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
+                  {restingChange != null && (
+                    <MetricDelta value={restingChange} direction="up-good" decimals={0} />
+                  )}
+                </div>
+                <span className="health-energy-window">
+                  {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
+                </span>
+              </div>
+              <div className="health-energy-model-item">
+                <span className="health-energy-metric-label">TDEE</span>
+                <MetricValue size="md" unit="kcal">{tdee.tdee.toLocaleString()}</MetricValue>
+                <span className="health-energy-window">resting + active</span>
               </div>
             </div>
           </>
