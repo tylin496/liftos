@@ -4,6 +4,14 @@
    Back-solves the daily active-calorie goal from a maintenance TDEE target,
    then tracks this week's pace against it. Moved here from Health — it's
    the actionable "what do I do today" number, so it leads Overview. */
+/* Whole card is a button (taps through to Health → Energy); reset the button's
+   centred text and default width so it lays out like the section it replaced. */
+.ov-active-target {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
 .ov-active-target-head {
   display: flex;
   align-items: center;
@@ -20,7 +28,6 @@
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink-3);
-  cursor: pointer;
 }
 
 .ov-active-target-goal svg {
@@ -330,8 +337,8 @@
 }
 
 .goal-day b {
-  color: var(--accent);
-  font-weight: normal;
+  color: var(--ink-2);
+  font-weight: inherit;
 }
 
 .goal-pct {

@@ -422,7 +422,7 @@ export function HealthPage() {
       {/* 1. Energy — the metabolic model behind the ring. Active leads with its
           trend (behaviour-driven); Resting + TDEE ride below as context so
           Resting + Active = TDEE still adds up. */}
-      <section className={`page-card health-energy${!data ? " loading-card" : ""}`}>
+      <section id="health-energy-card" className={`page-card health-energy${!data ? " loading-card" : ""}`}>
         <div className="health-tdee-head">
           <span className="health-card-eyebrow">Active</span>
         </div>

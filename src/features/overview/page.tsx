@@ -167,10 +167,12 @@ function ActiveTargetCard({
   view,
   targetTdee,
   currentTdee,
+  onNav,
 }: {
   view: ActiveTargetView | null;
   targetTdee: number | null;
   currentTdee: number | null;
+  onNav: () => void;
 }) {
   const { openSettings } = useSettingsSheet();
   // Overview's first card: the ring re-rolls on every tab-enter (activity key),
@@ -199,13 +201,13 @@ function ActiveTargetCard({
   const isClosed = view ? view.today.accrued >= view.today.target : false;
 
   return (
-    <section className="page-card ov-active-target">
+    <button type="button" className="page-card ov-active-target" onClick={onNav}>
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
-        <button type="button" className="ov-active-target-goal" onClick={openSettings}>
+        <span className="ov-active-target-goal">
           {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
           {targetTdee.toLocaleString()} TDEE
-        </button>
+        </span>
       </div>
 
       {view ? (
@@ -258,7 +260,7 @@ function ActiveTargetCard({
           No resting-energy baseline yet — the target needs a few days of Apple Health data.
         </p>
       )}
-    </section>
+    </button>
   );
 }
 
@@ -387,6 +389,10 @@ function CutProgressCard({
     : null;
   const isComplete = pct >= 100;
   const cutDay = cutStartDate ? daysSince(cutStartDate) : null;
+  // Day into the *current* phase. daysOnTarget counts trailing days at the active
+  // target (0 = became active today), so +1 makes today read as "Day 1".
+  const phaseDay = state ? state.diagnostics.daysOnTarget + 1 : null;
+  const showPhase = phaseDay != null;
   // Overview's first card: the % and bar re-roll from 0 on every tab-enter
   // (the leaves are keyed by activity, so only they remount — not the card, so
   // its rise-in entrance never re-fires). Honors reduced-motion (snaps).
@@ -419,7 +425,11 @@ function CutProgressCard({
           {!isComplete && cutDay != null && (
             <span className="goal-day">
               {" "}
-              · Day <b>{cutDay}</b>
+              {showPhase ? (
+                <>· Day <b>{phaseDay}</b> / {cutDay}</>
+              ) : (
+                <>· Day <b>{cutDay}</b></>
+              )}
             </span>
           )}
         </span>
@@ -909,6 +919,7 @@ export function OverviewPage() {
           view={data.activeTarget}
           targetTdee={data.targetTdee}
           currentTdee={data.currentTdee}
+          onNav={() => nav("health", { scrollTo: "health-energy-card" })}
         />
       )}
 
