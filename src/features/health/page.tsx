@@ -524,7 +524,7 @@ export function HealthPage() {
           adaptation). */}
       <section className={`page-card health-energy${!data ? " loading-card" : ""}`}>
         <div className="health-tdee-head">
-          <span className="health-card-eyebrow">Energy</span>
+          <span className="health-card-eyebrow">Active</span>
           {lastSynced && (
             <span className={`health-sync-note${lastSynced.stale ? " is-stale" : ""}`}>
               {lastSynced.text}
@@ -535,9 +535,8 @@ export function HealthPage() {
           <>
             <div className="health-trend-head">
               <div className="health-trend-info">
-                <span className="health-energy-metric-label">Active</span>
                 <div className="health-trend-stat">
-                  <MetricValue size="md" unit="kcal">000</MetricValue>
+                  <MetricValue size="xl" unit="kcal">000</MetricValue>
                 </div>
                 <span className="health-energy-window">14-day average</span>
               </div>
@@ -561,9 +560,8 @@ export function HealthPage() {
             {/* Active leads with the sparkline — the behaviour-driven number. */}
             <div className="health-trend-head">
               <div className="health-trend-info">
-                <span className="health-energy-metric-label">Active</span>
                 <div className="health-trend-stat">
-                  <MetricValue size="md" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
+                  <MetricValue size="xl" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
                   {activeChange != null && (
                     <MetricDelta value={activeChange} direction="up-good" decimals={0} />
                   )}
