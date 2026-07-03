@@ -161,6 +161,27 @@ export function Shell({ session }: { session: Session }) {
     return () => document.documentElement.classList.remove("dev-phone-frame");
   }, []);
 
+  // The tab bar is `position: fixed; bottom: 0`, which iOS Safari anchors to
+  // the layout viewport (full screen height) rather than the visual viewport
+  // (which shrinks above the keyboard) — so once the keyboard opens, the bar
+  // ends up floating over form content instead of staying pinned under it.
+  // Simplest fix: hide it outright while the keyboard is open, since a form
+  // input being edited already occupies that space.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    function update() {
+      const shrunk = window.innerHeight - vv!.height > 120;
+      document.documentElement.classList.toggle("kb-open", shrunk);
+    }
+    vv.addEventListener("resize", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      document.documentElement.classList.remove("kb-open");
+    };
+  }, []);
+
   const contentRef = useRef<HTMLElement | null>(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);

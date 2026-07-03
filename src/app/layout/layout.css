@@ -73,6 +73,15 @@
 
 
 /* ── Tab bar ────────────────────────────────────────────────────────── */
+/* Fixed positioning resolves against the layout viewport on iOS Safari, which
+   stays full-height under the keyboard — so `bottom: 0` doesn't track the
+   visual viewport and the bar ends up floating above the keyboard/accessory
+   bar instead of staying pinned under it. Hiding it while the keyboard is
+   open (html.kb-open, toggled from Shell.tsx) sidesteps the mismatch. */
+html.kb-open .tabbar {
+  display: none;
+}
+
 .tabbar {
   position: fixed;
   bottom: 0;

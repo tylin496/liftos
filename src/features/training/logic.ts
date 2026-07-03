@@ -10,6 +10,7 @@ export interface LogEntry {
   weightKg: number;
   reps: string;
   e1rm: number;
+  volume: number;
 }
 
 // ─── Time filter ─────────────────────────────────────────────────────────────
@@ -45,6 +46,24 @@ export function epley1RM(weightKg: number, repsStr: string): number {
   return weightKg * (1 + maxR / 30);
 }
 
+/** Total reps across drop-set segments, e.g. "10/8/6" -> 24. */
+export function sumReps(repsStr: string): number {
+  return String(repsStr || "")
+    .split(/[/\-]/)
+    .map((n) => parseInt(n, 10))
+    .filter((n) => n > 0)
+    .reduce((a, b) => a + b, 0);
+}
+
+/** Training volume (weight × total reps across all sets) — a hypertrophy-
+ * oriented PR metric: doing more sets/reps at a weight counts as a bigger
+ * record, unlike e1RM (which only credits the single best set). */
+export function computeVolume(weightKg: number, repsStr: string): number {
+  const reps = sumReps(repsStr);
+  if (!reps || !weightKg || weightKg <= 0) return 0;
+  return weightKg * reps;
+}
+
 // ─── toLogEntry ──────────────────────────────────────────────────────────────
 
 export function toLogEntry(log: TrainingLog): LogEntry | null {
@@ -58,6 +77,7 @@ export function toLogEntry(log: TrainingLog): LogEntry | null {
     weightKg,
     reps: parsed.reps,
     e1rm: epley1RM(weightKg, parsed.reps),
+    volume: computeVolume(weightKg, parsed.reps),
   };
 }
 
@@ -74,11 +94,16 @@ export function computeStats(logs: TrainingLog[]): Stats {
   const entries = logs.map(toLogEntry).filter((e): e is LogEntry => e !== null);
   if (!entries.length) return { best: null, prIndex: -1, latest: null };
 
+  // PR = highest training volume (weight × total reps), not e1RM — doing
+  // more sets/reps at a weight is a bigger record for hypertrophy goals than
+  // a single best set would suggest.
   let best = entries[0];
-  let bestE1RM = best.e1rm;
+  let bestVolume = best.volume;
   for (const e of entries) {
-    if (e.e1rm > bestE1RM) {
-      bestE1RM = e.e1rm;
+    // >= (not >): entries are chronological ascending, so on a volume tie the
+    // more recent entry should keep the PR badge, not whichever hit it first.
+    if (e.volume >= bestVolume) {
+      bestVolume = e.volume;
       best = e;
     }
   }
@@ -177,27 +202,28 @@ function computeStrengthRetention(logsAsc: TrainingLog[]) {
   const entries = logsAsc.map(toLogEntry).filter((e): e is LogEntry => e !== null);
   if (!entries.length) return null;
 
-  let prE1RM = 0;
+  // Same PR metric as computeStats: highest volume, ties won by recency.
+  let prVolume = 0;
   let prEntry: LogEntry | null = null;
   for (const e of entries) {
-    if (e.e1rm > prE1RM) { prE1RM = e.e1rm; prEntry = e; }
+    if (e.volume >= prVolume) { prVolume = e.volume; prEntry = e; }
   }
-  if (!prE1RM || !prEntry) return null;
+  if (!prVolume || !prEntry) return null;
 
   const mostRecentDate = entries[entries.length - 1].log.log_date;
   const recent = entries.filter((e) => e.log.log_date === mostRecentDate);
-  let currentE1RM = 0;
-  for (const e of recent) { if (e.e1rm > currentE1RM) currentE1RM = e.e1rm; }
-  if (!currentE1RM) return null;
+  let currentVolume = 0;
+  for (const e of recent) { if (e.volume > currentVolume) currentVolume = e.volume; }
+  if (!currentVolume) return null;
 
-  const pct = Math.min(currentE1RM / prE1RM, 1);
+  const pct = Math.min(currentVolume / prVolume, 1);
 
-  let prevBestE1RM = 0;
+  let prevBestVolume = 0;
   for (const e of entries) {
     if (e.log.log_date === mostRecentDate) continue;
-    if (e.e1rm > prevBestE1RM) prevBestE1RM = e.e1rm;
+    if (e.volume > prevBestVolume) prevBestVolume = e.volume;
   }
-  const prRatio = prevBestE1RM ? currentE1RM / prevBestE1RM : null;
+  const prRatio = prevBestVolume ? currentVolume / prevBestVolume : null;
 
   let status: RetentionStatus;
   if (pct >= 0.97) status = "excellent";
@@ -343,7 +369,7 @@ export function buildStagnationView(logsAsc: TrainingLog[]): StagnationView | nu
   const isNewPR = prBoost > 100;
   const isFirstPR = isAtPR && prRatio == null;
   const showPR = isNewPR || isFirstPR;
-  const prLabel = isNewPR ? `${prBoost}% PR!` : "NEW PR!";
+  const prLabel = isNewPR ? `${prBoost}%!` : "NEW PR!";
   const label = RETENTION_LABELS[status] ?? status;
   const prFmt = !showPR ? fmtInspectorEntry(prEntry) : null;
   const prDate = !showPR ? fmtInspectorDate(prEntry.log.log_date ?? "") : null;

@@ -568,8 +568,8 @@ export function InlineEditEntry({
         <button type="submit" className="btn-log-primary" disabled={!isValid}>
           Save changes
         </button>
-        <button type="button" className="btn-log-secondary" onClick={onCancel}>
-          Cancel
+        <button type="button" className="log-dismiss" onClick={onCancel} aria-label="Cancel">
+          ✕
         </button>
       </div>
       <EditAdvancedActions onDelete={onDelete} />
@@ -707,8 +707,8 @@ export function InlineEditAssistedEntry({
         <button type="submit" className="btn-log-primary" disabled={!isValid}>
           Save changes
         </button>
-        <button type="button" className="btn-log-secondary" onClick={onCancel}>
-          Cancel
+        <button type="button" className="log-dismiss" onClick={onCancel} aria-label="Cancel">
+          ✕
         </button>
       </div>
       <EditAdvancedActions onDelete={onDelete} />
