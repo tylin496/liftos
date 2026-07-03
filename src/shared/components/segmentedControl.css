@@ -55,7 +55,7 @@
   justify-content: center;
   min-width: 18px;
   height: 18px;
-  padding: 0 5px;
+  padding: 0 6px;
   margin-left: var(--space-1);
   border-radius: var(--radius-pill);
   background: var(--ink-4);

@@ -164,6 +164,7 @@ const NUTRITION_CONFIG = {
   height_cm: 178,
   training_age_months: 36,
   target_body_fat_pct: 12,
+  target_tdee: 2800,
   // Cut baseline — pre-seeded so local dev doesn't re-show the initializer on
   // every reload (mockDb resets from this seed on each page load).
   cut_start_date: "2026-02-11",
@@ -214,9 +215,16 @@ function buildBodyMetrics() {
     const weightBase = 99.0 - (i / last) * 2.2; // 99.0 → 96.8
     const weight = Math.round((weightBase + fakeRand(i, -0.3, 0.3)) * 10) / 10;
     const resting = Math.round(fakeRand(i * 2, 1860, 1940));
-    const active = Math.round(fakeRand(i * 5, 350, 720));
+    // Every 3rd day is a rest day (low exercise + active); the rest are training
+    // days — so the active-target card has a real training-vs-rest boost signal.
+    const isRest = i % 3 === 0;
+    const active = isRest
+      ? Math.round(fakeRand(i * 5, 300, 430))
+      : Math.round(fakeRand(i * 5, 560, 760));
     const steps = Math.round(fakeRand(i * 11, 5800, 10500));
-    const exercise = Math.round(fakeRand(i * 13, 30, 80));
+    const exercise = isRest
+      ? Math.round(fakeRand(i * 13, 0, 8))
+      : Math.round(fakeRand(i * 13, 35, 80));
     metrics.push({
       id: `bm-${i}`,
       user_id: DEV_USER_ID,

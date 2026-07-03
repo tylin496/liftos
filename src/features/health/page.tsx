@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { fetchHealthData, type HealthData } from "./api";
+import { fetchHealthData, saveTargetTdee, type HealthData } from "./api";
+import type { ActiveTargetView } from "./activeTarget";
 import {
   series,
   bucketSeries,
@@ -14,6 +15,7 @@ import {
 } from "./math";
 import { ErrorState } from "@shared/components/ErrorState";
 import { useCountUp } from "@shared/hooks/useCountUp";
+import { useToast } from "@shared/components/Toast";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { buildHealthJson } from "@shared/lib/copyAllData";
@@ -235,6 +237,143 @@ function TrendCard({
 // sync gap silently shifts what "this period" means.
 const STALE_AFTER_DAYS = 3;
 
+/* Active Target — back-solves the daily active-calorie goal from a maintenance
+   TDEE target (target − resting), then tracks this week's pace against it. The
+   whole card is derived from the latest synced metrics, so it re-computes on
+   every sync without any stored state. Tap the target chip to edit the goal. */
+function ActiveTargetCard({
+  view,
+  targetTdee,
+  onSave,
+}: {
+  view: ActiveTargetView | null;
+  targetTdee: number | null;
+  onSave: (next: number | null) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  function beginEdit() {
+    setDraft(targetTdee != null ? String(targetTdee) : "");
+    setEditing(true);
+  }
+  async function commit() {
+    const n = parseInt(draft, 10);
+    setEditing(false);
+    const next = Number.isFinite(n) && n > 0 ? n : null;
+    if (next !== targetTdee) await onSave(next);
+  }
+
+  // Not configured yet — a one-tap invitation, no empty scaffolding.
+  if (targetTdee == null && !editing) {
+    return (
+      <section className="page-card health-active-target">
+        <div className="health-card-eyebrow">Active target</div>
+        <button type="button" className="active-target-setup" onClick={beginEdit}>
+          Set a maintenance TDEE goal to see your daily active target
+        </button>
+      </section>
+    );
+  }
+
+  const w = view?.week;
+  const behind = w?.shortPerDay != null && w.shortPerDay > 0;
+  const paceClass = w?.onTrack ? "is-good" : behind ? "is-behind" : "is-neutral";
+  const fillPct =
+    view && view.activeTargetPerDay > 0 && w?.avgSoFar != null
+      ? Math.min(100, Math.round((w.avgSoFar / view.activeTargetPerDay) * 100))
+      : 0;
+
+  return (
+    <section className="page-card health-active-target">
+      <div className="health-active-target-head">
+        <span className="health-card-eyebrow">Active target</span>
+        {editing ? (
+          <span className="active-target-edit">
+            <input
+              type="number"
+              inputMode="numeric"
+              className="active-target-input"
+              value={draft}
+              autoFocus
+              placeholder="2800"
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void commit();
+                if (e.key === "Escape") setEditing(false);
+              }}
+              onBlur={() => void commit()}
+            />
+            <span className="active-target-edit-unit">TDEE</span>
+          </span>
+        ) : (
+          <button type="button" className="active-target-goal" onClick={beginEdit}>
+            {targetTdee?.toLocaleString()} TDEE
+            <PenLineGlyph />
+          </button>
+        )}
+      </div>
+
+      {view ? (
+        <>
+          <div className="active-target-hero">
+            <MetricValue size="xl" unit="kcal active / day">
+              {view.activeTargetPerDay.toLocaleString()}
+            </MetricValue>
+          </div>
+          <div className="active-target-formula">
+            {view.targetTdee.toLocaleString()} target − {view.restingAvg.toLocaleString()} resting (30-day)
+          </div>
+
+          <div className="active-target-pace">
+            <div className="active-target-pace-head">
+              <span className="active-target-pace-label">This week's pace</span>
+              <span className={`active-target-pace-stat ${paceClass}`}>
+                {w?.onTrack
+                  ? "On track"
+                  : behind
+                    ? `${w!.shortPerDay!.toLocaleString()} short / day`
+                    : w?.avgSoFar != null
+                      ? "Ahead of target"
+                      : "No data yet"}
+              </span>
+            </div>
+            <div className="active-target-bar">
+              <div className={`active-target-bar-fill ${paceClass}`} style={{ width: `${fillPct}%` }} />
+            </div>
+            <div className="active-target-pace-foot">
+              <span>{w?.avgSoFar != null ? `Averaging ${w.avgSoFar.toLocaleString()}/day` : "—"}</span>
+              <span>Goal {view.activeTargetPerDay.toLocaleString()}</span>
+            </div>
+          </div>
+
+          {view.session && view.session.workoutsNeeded > 0 && !w?.onTrack && (
+            <div className="active-target-hint">
+              A typical session adds ~{view.session.boost.toLocaleString()} active.{" "}
+              {view.session.workoutsNeeded === 1
+                ? "One more workout this week closes the gap."
+                : `${view.session.workoutsNeeded} more workouts this week close the gap.`}
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="page-note">
+          No resting-energy baseline yet — the target needs a few days of Apple Health data.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function PenLineGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" aria-hidden="true">
+      <path d="M4 20h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M6 15l9-9 3 3-9 9H6v-3z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function syncLabel(latestDate: string | null): { text: string; stale: boolean } | null {
   if (!latestDate) return null;
   const daysAgo = Math.round((Date.parse(localDateStr()) - Date.parse(latestDate)) / 86400000);
@@ -249,6 +388,7 @@ export function HealthPage() {
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const activity = useTabActivity();
+  const toast = useToast();
 
   const load = useCallback(() => {
     return fetchHealthData(FIXED_DAYS)
@@ -326,6 +466,21 @@ export function HealthPage() {
     const bucketed = bucketSeries(pts, { spanDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket });
     return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS };
   }, [data, metrics]);
+
+  const saveTarget = useCallback(
+    async (next: number | null) => {
+      // Optimistic: reflect immediately, then persist + refresh derived pace.
+      setData((prev) => (prev ? { ...prev, targetTdee: next } : prev));
+      try {
+        await saveTargetTdee(next);
+        await load();
+      } catch (e) {
+        toast(String((e as Error)?.message ?? e), "error");
+        void load();
+      }
+    },
+    [load, toast],
+  );
 
   usePageHeader({ eyebrow: "HEALTH", title: "Trends", onCopy: copyHealthData });
 
@@ -411,6 +566,15 @@ export function HealthPage() {
           </p>
         )}
       </section>
+
+      {/* Active Target — only once there's real data to anchor the target. */}
+      {data && (
+        <ActiveTargetCard
+          view={data.activeTarget}
+          targetTdee={data.targetTdee}
+          onSave={saveTarget}
+        />
+      )}
 
       {/* Trend card skeleton — same TrendCard component, placeholder values,
           so height matches the loaded Weight / Body Fat / Lean Mass cards. */}

@@ -632,7 +632,9 @@ export function ExerciseCard({
                         PR
                       </span>
                     ) : delta ? (
-                      <span className="hist-status hist-status-gain">{delta.text}</span>
+                      <span className={`hist-status hist-status-${delta.direction}`}>
+                        {delta.text}
+                      </span>
                     ) : null}
                   </span>
 

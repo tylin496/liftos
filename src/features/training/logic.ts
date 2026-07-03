@@ -117,14 +117,15 @@ export function computeStats(logs: TrainingLog[]): Stats {
 
 export interface HistDelta {
   text: string;
+  direction: "gain" | "loss";
 }
 
 /**
- * Compare curr vs prev entry directly by weight (kg) and reps — no e1RM.
- * Only emits a gain when neither dimension regressed and at least one
- * improved (heavier weight, or same weight for more reps): "▲ +2.5kg".
- * Mixed-direction changes (e.g. heavier but fewer reps) stay silent since
- * there's no single number to compare kg and reps against.
+ * Compare curr vs prev entry by weight (kg) and reps. When one dimension
+ * rose and the other fell (e.g. lighter weight, more reps), there's no
+ * single number to compare kg vs reps against — so fall back to training
+ * volume (weight × total reps), the same hypertrophy-oriented metric
+ * computeStats uses to decide PRs, to call it a net gain or loss.
  */
 export function computeHistDelta(
   curr: TrainingLog,
@@ -145,14 +146,31 @@ export function computeHistDelta(
 
   const kgDelta = cKg - pKg;
   const repsDelta = cReps - pReps;
-  if (kgDelta < 0 || repsDelta < 0) return null; // regressed — stay silent
-  if (kgDelta === 0 && repsDelta === 0) return null; // flat — stay silent
+  if (kgDelta === 0 && repsDelta === 0) return null; // truly flat — stay silent
+
+  let direction: "gain" | "loss";
+  if (kgDelta >= 0 && repsDelta >= 0) {
+    direction = "gain";
+  } else if (kgDelta <= 0 && repsDelta <= 0) {
+    direction = "loss";
+  } else {
+    const cVol = computeVolume(cKg, cp.reps);
+    const pVol = computeVolume(pKg, pp.reps);
+    if (cVol === pVol) return null; // volume-neutral tradeoff — stay silent
+    direction = cVol > pVol ? "gain" : "loss";
+  }
 
   const parts: string[] = [];
-  if (kgDelta > 0) parts.push(`+${parseFloat(kgDelta.toFixed(2))}kg`);
-  if (repsDelta > 0) parts.push(`+${repsDelta} reps`);
+  if (kgDelta !== 0) {
+    const sign = kgDelta > 0 ? "+" : "";
+    parts.push(`${sign}${parseFloat(kgDelta.toFixed(2))}kg`);
+  }
+  if (repsDelta !== 0) {
+    const sign = repsDelta > 0 ? "+" : "";
+    parts.push(`${sign}${repsDelta} reps`);
+  }
 
-  return { text: `▲ ${parts.join(" ")}` };
+  return { text: `${direction === "gain" ? "▲" : "▼"} ${parts.join(" ")}`, direction };
 }
 
 // ─── timelineDate ────────────────────────────────────────────────────────────

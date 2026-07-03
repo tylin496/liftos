@@ -635,6 +635,10 @@
   color: color-mix(in srgb, var(--good) 78%, var(--ink-2));
 }
 
+.hist-status-loss {
+  color: color-mix(in srgb, var(--bad) 78%, var(--ink-2));
+}
+
 .hist-row-end {
   display: flex;
   align-items: center;

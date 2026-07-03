@@ -122,6 +122,7 @@ export type Database = {
           phase_deficits: Json
           protein_target: number
           target_body_fat_pct: number | null
+          target_tdee: number | null
           tdee: number
           training_age_months: number | null
           training_start_date: string | null
@@ -136,6 +137,7 @@ export type Database = {
           phase_deficits?: Json
           protein_target?: number
           target_body_fat_pct?: number | null
+          target_tdee?: number | null
           tdee?: number
           training_age_months?: number | null
           training_start_date?: string | null
@@ -150,6 +152,7 @@ export type Database = {
           phase_deficits?: Json
           protein_target?: number
           target_body_fat_pct?: number | null
+          target_tdee?: number | null
           tdee?: number
           training_age_months?: number | null
           training_start_date?: string | null
