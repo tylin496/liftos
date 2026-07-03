@@ -85,12 +85,6 @@ export function NutritionPage() {
               </div>
             </div>
           </section>
-
-          <section className="page-card nutri-month-card loading-card">
-            <p className="page-eyebrow" style={{ margin: 0 }}>LAST 30 DAYS</p>
-            <span className="metric-val">00%</span>
-            <MetricCaption>adherence</MetricCaption>
-          </section>
         </div>
       )}
 

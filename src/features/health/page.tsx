@@ -233,11 +233,6 @@ function TrendCard({
 // countSkippedBodyFat) now lives in ./math so the AI export applies the exact
 // same filter — a sample that never reaches a chart must never reach the export.
 
-// A metric that's quietly N days stale reads as confidently current unless
-// something says otherwise — every card anchors on the latest reading, so a
-// sync gap silently shifts what "this period" means.
-const STALE_AFTER_DAYS = 3;
-
 /* Active Target — back-solves the daily active-calorie goal from a maintenance
    TDEE target (target − resting), then tracks this week's pace against it. The
    whole card is derived from the latest synced metrics, so it re-computes on
@@ -377,14 +372,26 @@ function PenLineGlyph() {
   );
 }
 
-function syncLabel(latestDate: string | null): { text: string; stale: boolean } | null {
-  if (!latestDate) return null;
-  const daysAgo = Math.round((Date.parse(localDateStr()) - Date.parse(latestDate)) / 86400000);
-  const text =
-    daysAgo <= 0 ? "Synced today"
-    : daysAgo === 1 ? "Synced yesterday"
-    : `Synced ${daysAgo} days ago`;
-  return { text, stale: daysAgo > STALE_AFTER_DAYS };
+// Sync freshness for the header note. With multiple sync methods now (scheduled
+// runs, on-open), today shows the actual clock time of the last write so you can
+// tell how fresh it is; yesterday reads plainly; two-plus days is a real staleness
+// problem, so it flags bad.
+function syncLabel(
+  latest: { metric_date: string; updated_at: string } | null,
+): { text: string; tone: "normal" | "bad" } | null {
+  if (!latest) return null;
+  const daysAgo = Math.round((Date.parse(localDateStr()) - Date.parse(latest.metric_date)) / 86400000);
+  if (daysAgo <= 0) {
+    const t = new Date(latest.updated_at);
+    if (!Number.isNaN(t.getTime())) {
+      const hh = String(t.getHours()).padStart(2, "0");
+      const mm = String(t.getMinutes()).padStart(2, "0");
+      return { text: `Synced ${hh}:${mm}`, tone: "normal" };
+    }
+    return { text: "Synced today", tone: "normal" };
+  }
+  if (daysAgo === 1) return { text: "Synced yesterday", tone: "normal" };
+  return { text: `Synced ${daysAgo} days ago`, tone: "bad" };
 }
 
 export function HealthPage() {
@@ -413,9 +420,17 @@ export function HealthPage() {
   }, [activity]);
 
   const metrics = useMemo(() => (data ? sanitizeMetrics(data.metrics) : []), [data]);
-  const lastSynced = useMemo(
-    () => syncLabel(metrics.at(-1)?.metric_date ?? null),
-    [metrics],
+  const lastSynced = useMemo(() => syncLabel(metrics.at(-1) ?? null), [metrics]);
+  // Rendered beside the page title (Shell's PageTopBar). Memoised so the header
+  // effect only re-fires when the label actually changes, not every render.
+  const syncNote = useMemo(
+    () =>
+      lastSynced ? (
+        <span className={`health-sync-note${lastSynced.tone === "bad" ? " is-bad" : ""}`}>
+          {lastSynced.text}
+        </span>
+      ) : undefined,
+    [lastSynced],
   );
   const skippedBodyFatCount = useMemo(
     () => (data ? countSkippedBodyFat(data.metrics) : 0),
@@ -494,7 +509,7 @@ export function HealthPage() {
     [load, toast],
   );
 
-  usePageHeader({ eyebrow: "HEALTH", title: "Trends", onCopy: copyHealthData });
+  usePageHeader({ eyebrow: "HEALTH", title: "Trends", onCopy: copyHealthData, note: syncNote });
 
   if (error && !data) {
     return (
@@ -525,11 +540,6 @@ export function HealthPage() {
       <section className={`page-card health-energy${!data ? " loading-card" : ""}`}>
         <div className="health-tdee-head">
           <span className="health-card-eyebrow">Active</span>
-          {lastSynced && (
-            <span className={`health-sync-note${lastSynced.stale ? " is-stale" : ""}`}>
-              {lastSynced.text}
-            </span>
-          )}
         </div>
         {!data ? (
           <>

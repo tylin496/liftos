@@ -250,16 +250,17 @@
   color: var(--ink-3);
 }
 
-/* ── Sync staleness note ──────────────────────────────────────────────────
-   Every card anchors on the latest reading — a stale sync silently shifts
-   what "this period" means, so it needs to be visible, not just implied. */
+/* ── Sync freshness note (beside the page title) ───────────────────────────
+   Every card anchors on the latest reading — a stale sync silently shifts what
+   "this period" means, so it rides next to the title. Two-plus days stale flags
+   bad; today (with a time) and yesterday read neutral. */
 .health-sync-note {
   font-size: var(--text-sm);
   color: var(--ink-4);
 }
 
-.health-sync-note.is-stale {
-  color: var(--gold);
+.health-sync-note.is-bad {
+  color: var(--bad);
 }
 
 /* ── Active Target card ────────────────────────────────────────────────────

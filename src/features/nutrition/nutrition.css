@@ -22,20 +22,19 @@
      L985  Protein section
      L1011 7-day trend bars
      L1072 KPI row
-     L1112 Adherence hero
-     L1149 Program summary
-     L1191 Skeleton loading
-     L1222 ── CALORIE-TRACKER UX PORT ──
-     L1227 Daily card
-     L1254 Status pills (dc-pill)
-     L1307 Stat rows
-     L1425 Inline settlement form (sf-*)
-     L1525 Saved-pulse animation
-     L1611 Celebration confetti
-     L1726 History: dual-bar trend (ntb-*)
-     L1910 Programs: 4-phase cut rows
-     L1959 Day navigation carousel
-     L1974 Nutrition loading skeletons
+     L1112 Program summary
+     L1149 Skeleton loading
+     L1180 ── CALORIE-TRACKER UX PORT ──
+     L1185 Daily card
+     L1212 Status pills (dc-pill)
+     L1265 Stat rows
+     L1383 Inline settlement form (sf-*)
+     L1483 Saved-pulse animation
+     L1569 Celebration confetti
+     L1684 History: dual-bar trend (ntb-*)
+     L1868 Programs: 4-phase cut rows
+     L1917 Day navigation carousel
+     L1932 Nutrition loading skeletons
    ───────────────────────────────────────────────────────────────────────────── */
 
 .nutri {
@@ -286,38 +285,6 @@
   visibility: hidden;
 }
 
-/* ── Adherence distribution — single proportional bar + text legend ──── */
-.nutri-dist-track {
-  display: flex;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  overflow: hidden;
-  margin-top: var(--space-5);
-}
-
-.nutri-dist-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  margin-top: var(--space-3);
-  font-size: var(--text-2xs);
-  color: var(--ink-3);
-}
-
-.nutri-dist-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Direction glyph doubles as the colour swatch — shape + colour so the four
-   verdict levels stay legible for colourblind readers (● on-plan · ▲/▼ deviate
-   · ▲ surplus). Size nudged up one notch from the label so the glyph reads. */
-.nutri-dist-glyph {
-  font-size: var(--text-xs);
-  line-height: 1;
-  flex-shrink: 0;
-}
 
 /* ── Date nav ────────────────────────────────────────────────────────── */
 .nutri-datenav {
@@ -730,45 +697,11 @@
   border-radius: 50%;
 }
 
-/* ── Last 30 Days — eyebrow is muted here (not the accent used by Today /
-   This Week), and the 3 headline numbers sit in one light KPI row. ────── */
-.nutri-month-card .page-eyebrow {
-  color: var(--ink-4);
-}
 
-.nutri-month-kpis {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-}
-
-/* Columns must be able to shrink below their content's natural width, and
-   the unit may wrap onto a second line within its own column — the number
-   always stays put on the first line next to it. */
-.nutri-month-kpis .metric-val {
-  min-width: 0;
-  width: 100%;
-}
-
-.nutri-month-kpis .metric-unit {
-  white-space: normal;
-  min-width: 0;
-}
-
-/* Footnote clarifying "double hit" — sits between the KPI row and the bar. */
-.nutri-month-note {
-  margin: var(--space-2) 0 0;
-  font-size: var(--role-caption-size);
-  font-weight: var(--role-caption-weight);
-  color: var(--role-caption-color);
-}
-
-/* ── Skeleton loading state — This Week / Last 30 Days ────────────────── */
+/* ── Skeleton loading state — This Week ────────────────────────────────── */
 .loading-card .hist-status,
 .loading-card .hist-week-eyebrow,
-.loading-card .nutri-kpi .metric-val,
-.nutri-month-card.loading-card .metric-val {
+.loading-card .nutri-kpi .metric-val {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   background: linear-gradient(
@@ -783,11 +716,6 @@
 }
 
 .loading-card .hist-week-chevron {
-  visibility: hidden;
-}
-
-.nutri-month-card.loading-card .nutri-dist-legend,
-.nutri-month-card.loading-card .nutri-month-note {
   visibility: hidden;
 }
 

@@ -284,6 +284,11 @@ export function TodayView({
   const [savedPulse, setSavedPulse] = useState(false);
   const celebration = useCelebration();
   const [navDir, setNavDir] = useState<"forward" | "backward" | null>(null);
+  // Bumped only by navigate() (arrow / swipe). It keys the card so a swipe/arrow
+  // remounts it to replay the slide animation — but tapping a week bar or picking
+  // a calendar date changes `date` WITHOUT bumping this, so the card updates in
+  // place (numbers swap) instead of the whole card re-rendering.
+  const [navSeq, setNavSeq] = useState(0);
 
   const calNumRef = useRef<HTMLElement>(null);
   const protNumRef = useRef<HTMLElement>(null);
@@ -446,6 +451,7 @@ export function TodayView({
     countUpSignal.current = { cancelled: false };
     isNavigating.current = true;
     setNavDir(dir);
+    setNavSeq((n) => n + 1); // remount to replay the slide (arrow/swipe only)
     onDateChange(to);
   }
 
@@ -558,7 +564,7 @@ export function TodayView({
 
       {/* Daily card */}
       <section
-        key={date}
+        key={navSeq}
         ref={cardRef}
         className={[
           "page-card daily-card",

@@ -142,6 +142,12 @@ function CutProgressCard({
   const { ref, inView } = useInView<HTMLButtonElement>();
   const pctCount = useCountUp(inView ? pct : 0, 700);
   const barPct = inView ? pct : 0;
+  // Anchor the ember→green spectrum to the full track (not to the fill itself),
+  // so the fill's leading edge always shows the spectrum colour at the current
+  // %: low progress reads ember, and it greens as the goal is approached. The
+  // fill is barPct% of the track, so sizing its background to (100/barPct) of
+  // its own width = 100% of the track. Guard barPct→0 (fill is invisible then).
+  const barFillSize = barPct > 0 ? `${(10000 / barPct).toFixed(1)}% 100%` : "100% 100%";
 
   // Celebrate reaching 100% exactly once per cut (identified by its goal
   // weight — a new baseline produces a new goal weight, so a fresh cut can
@@ -176,7 +182,10 @@ function CutProgressCard({
         <span className="goal-pct">{pctCount}%</span>
       </div>
       <div className="goal-bar">
-        <div className="goal-bar-fill" style={{ width: `${barPct}%` }} />
+        <div
+          className="goal-bar-fill"
+          style={{ width: `${barPct}%`, backgroundSize: barFillSize }}
+        />
       </div>
       <div className="goal-detail">
         <div className="goal-row">
