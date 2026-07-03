@@ -22,6 +22,8 @@ import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import "@shared/components/nutriGrid.css";
 
 const MIN_DATE = "2026-02-09";
+// One-shot flag: has the day-swipe affordance hint already played?
+const DAY_SWIPE_HINT_KEY = "nutri-day-swipe-hint-seen";
 const INITIAL_HISTORY_MONTHS = 6;
 const HISTORY_CHUNK_MONTHS = 3;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -235,7 +237,7 @@ function shiftDate(date: string, days: number): string {
   return toDateStr(d);
 }
 
-function labelFor(date: string): string {
+export function labelFor(date: string): string {
   const today = defaultLogDate();
   if (date === today) {
     const weekday = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
@@ -286,9 +288,20 @@ export function TodayView({
   const calNumRef = useRef<HTMLElement>(null);
   const protNumRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // The card itself (inside containerRef) is what follows the drag, so the
+  // calendar overlay — a sibling under containerRef — never moves with it.
+  const cardRef = useRef<HTMLElement>(null);
+  // Set the instant a swipe commits, so onDragEnd knows to hand the transform
+  // over to the day-nav enter animation instead of snapping the old card back.
+  const swipeCommitted = useRef(false);
+  // First-ever visit plays a half-drag on the card to reveal it's swipeable.
+  const [dragHint, setDragHint] = useState(false);
   const pendingCountUp = useRef(false);
   const isNavigating = useRef(false);
   const countUpSignal = useRef<{ cancelled: boolean }>({ cancelled: false });
+  // Skeleton belongs to the very first load only. Later date switches keep the
+  // previous day's numbers on screen and swap in place — no full-card shimmer.
+  const firstLoad = useRef(true);
 
   const todayStr = defaultLogDate();
   const isToday = date === todayStr;
@@ -297,8 +310,12 @@ export function TodayView({
   useEffect(() => {
     let active = true;
     setEditField(null);
-    // Only show skeleton if data takes longer than the slide animation
-    const skeletonTimer = setTimeout(() => { if (active) setLoading(true); }, 300);
+    // Skeleton only on the first load. On later date switches, keep the current
+    // numbers visible and swap them for the new day's when they arrive, so
+    // changing days never flashes the whole card to a shimmer.
+    const skeletonTimer = firstLoad.current
+      ? setTimeout(() => { if (active) setLoading(true); }, 300)
+      : undefined;
     getEntry(date)
       .then((entry) => {
         if (!active) return;
@@ -307,6 +324,7 @@ export function TodayView({
         setProtein(entry?.protein != null ? String(entry.protein) : "");
         setEntryExists(entry?.calories != null || entry?.protein != null);
         setLoading(false);
+        firstLoad.current = false;
         if (!isNavigating.current) pendingCountUp.current = true;
         isNavigating.current = false;
       })
@@ -315,6 +333,7 @@ export function TodayView({
         clearTimeout(skeletonTimer);
         toast(String(e?.message ?? e), "error");
         setLoading(false);
+        firstLoad.current = false;
       });
     return () => { active = false; clearTimeout(skeletonTimer); };
   }, [date]);
@@ -366,12 +385,49 @@ export function TodayView({
   // is open. The hook claims the horizontal gesture so Shell's tab-swipe stays out.
   useHorizontalSwipe(containerRef, (dir) => {
     if (dir === 1 && !isToday) {
-      haptic("select"); navigate(shiftDate(date, 1));
+      swipeCommitted.current = true; haptic("select"); navigate(shiftDate(date, 1));
     } else if (dir === -1) {
       const prev = shiftDate(date, -1);
-      if (prev >= MIN_DATE) { haptic("select"); navigate(prev); }
+      if (prev >= MIN_DATE) { swipeCommitted.current = true; haptic("select"); navigate(prev); }
     }
-  }, { enabled: editField === null && !calendarOpen });
+  }, {
+    enabled: editField === null && !calendarOpen,
+    pointer: true,
+    // Whole card follows the finger/cursor 1:1; rubber-band when there's no day
+    // to reveal that way (forward past today, or back past the first loggable day).
+    onDrag: (dx) => {
+      const el = cardRef.current;
+      if (!el) return;
+      const atEdge = (dx < 0 && isToday) || (dx > 0 && shiftDate(date, -1) < MIN_DATE);
+      const offset = atEdge ? Math.sign(dx) * Math.min(72, Math.abs(dx) * 0.2) : dx;
+      el.style.transition = "none";
+      el.style.transform = `translateX(${offset}px)`;
+    },
+    onDragEnd: () => {
+      const el = cardRef.current;
+      if (!el) return;
+      if (swipeCommitted.current) {
+        // Committed: the card remounts (key={date}) and plays the day-nav enter
+        // animation — clear the drag transform instantly so it doesn't fight it.
+        swipeCommitted.current = false;
+        el.style.transition = "none";
+        el.style.transform = "";
+      } else {
+        el.style.transition = "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)";
+        el.style.transform = "";
+      }
+    },
+  });
+
+  // First visit ever: nudge the card half-open once to show it can be dragged.
+  useEffect(() => {
+    if (loading) return;
+    if (localStorage.getItem(DAY_SWIPE_HINT_KEY)) return;
+    localStorage.setItem(DAY_SWIPE_HINT_KEY, "1");
+    setDragHint(true);
+    const t = setTimeout(() => setDragHint(false), 1200);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   const targets = useMemo(() => targetsFromConfig(config), [config]);
   const calNum = Number(calories) || 0;
@@ -500,6 +556,7 @@ export function TodayView({
       {/* Daily card */}
       <section
         key={date}
+        ref={cardRef}
         className={[
           "page-card daily-card",
           loading ? "loading-card" : "",
@@ -507,21 +564,18 @@ export function TodayView({
           !hasEntry ? "is-empty" : "",
           doubleHit ? "double-hit" : "",
           savedPulse ? "saved-pulse" : "",
+          dragHint ? "is-drag-hint" : "",
           navDir === "forward" ? "day-nav-forward" : navDir === "backward" ? "day-nav-backward" : "",
         ].filter(Boolean).join(" ")}
       >
+        {/* "INTAKE" names the card's content (the viewed day's calories +
+            protein); the page header carries which day it is. A badge sits to
+            the right when there's one — "No entry" and "Double Hit" are mutually
+            exclusive (a double hit needs a logged entry). */}
         <div className="daily-card-top">
-          <span className="daily-card-heading">
-            {isToday ? "TODAY · NUTRITION" : labelFor(date)}
-          </span>
-          <div className="daily-card-top-right">
-            {!hasEntry && !isEditing && (
-              <Badge tone="neutral">No entry</Badge>
-            )}
-            {showDoubleHit && !isEditing && (
-              <Badge tone="gold">Double Hit</Badge>
-            )}
-          </div>
+          <p className="page-eyebrow">Intake</p>
+          {!isEditing && !hasEntry && <Badge tone="neutral">No entry</Badge>}
+          {!isEditing && showDoubleHit && <Badge tone="gold">Double Hit</Badge>}
         </div>
 
         {isEditing ? (

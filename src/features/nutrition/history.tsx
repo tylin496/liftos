@@ -16,30 +16,26 @@ import {
 
 const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
 
-// Four states on the app's single four-level verdict scale (matches the Today
-// card's calorieTone). On-plan green; BOTH deviations (over / low-intake) amber
-// — direction is carried by the glyph (▲ ate too much · ▼ ate too little), not
-// by the colour; only surplus (no deficit at all) is red. A colourblind-safe
-// glyph accompanies every swatch so the meaning survives without colour.
+// Bar order tells the adherence story left-to-right: the two states that KEEP
+// the deficit (on-plan + low-intake) sit together on the left, then the two
+// that break it (over + surplus). low-intake is amber — adherent but not
+// precise (ate under budget) — so it reads as a soft deviation, not a miss.
 const DIST_STATES: { key: CalorieState; label: string; glyph: string; color: string }[] = [
   { key: "on-plan", label: "On plan", glyph: "●", color: "var(--good)" },
-  { key: "over", label: "Over budget", glyph: "▲", color: "var(--gold)" },
   { key: "low-intake", label: "Low intake", glyph: "▼", color: "var(--gold)" },
+  { key: "over", label: "Over budget", glyph: "▲", color: "var(--gold)" },
   { key: "surplus", label: "Surplus", glyph: "▲", color: "var(--bad)" },
 ];
 
-// Legend groups the two amber deviations (over-budget + low-intake) into one
-// "Off target" row. They share the amber tier and can't be told apart by colour
-// anyway, so the bar's single amber block and the legend now agree instead of
-// the bar showing one block while the legend split it in two. Which direction
-// you missed (ate too much vs too little) lives in the daily view, not this
-// 30-day summary. All three swatches are dots (colour + text label carry the
-// meaning), matching the "This Week" Calories/Protein legend.
-const DIST_LEGEND: { keys: CalorieState[]; label: string; glyph: string; color: string }[] = [
-  { keys: ["on-plan"], label: "On plan", glyph: "●", color: "var(--good)" },
-  { keys: ["over", "low-intake"], label: "Off target", glyph: "●", color: "var(--gold)" },
-  { keys: ["surplus"], label: "Surplus", glyph: "●", color: "var(--bad)" },
-];
+// Legend keeps all four buckets separate so it agrees with the adherence KPI:
+// low-intake counts toward adherence, so it must NOT be lumped into an "Off
+// target" row — otherwise the card reads "87% adherence" above a bar that
+// calls 70% of the month off target. Direction is carried by the glyph
+// (▼ ate under · ▲ ate over / surplus); the two amber rows share a colour but
+// are told apart by glyph + label, matching the bar's two adjacent amber
+// segments.
+const DIST_LEGEND: { keys: CalorieState[]; label: string; glyph: string; color: string }[] =
+  DIST_STATES.map((s) => ({ keys: [s.key], label: s.label, glyph: s.glyph, color: s.color }));
 
 // Earliest loggable day — mirrors today.tsx.
 const MIN_DATE = "2026-02-09";
@@ -138,19 +134,21 @@ export function HistoryView({
     weekRef,
     (dir) => navigateWeek(dir === 1 ? "forward" : "backward"),
     {
+      pointer: true,
+      // Whole card follows the finger/cursor 1:1; rubber-band when there's no
+      // week to reveal that way (forward past this week, back past the earliest).
       onDrag: (dx) => {
-        const el = trendRef.current;
+        const el = weekRef.current;
         if (!el) return;
-        // Rubber-band harder when there's no week to reveal in that direction.
         const atEdge = (dx < 0 && isCurrentWeek) || (dx > 0 && !canGoBack);
-        const damped = Math.max(-64, Math.min(64, dx * (atEdge ? 0.18 : 0.4)));
+        const offset = atEdge ? Math.sign(dx) * Math.min(72, Math.abs(dx) * 0.2) : dx;
         el.style.transition = "none";
-        el.style.transform = `translateX(${damped}px)`;
+        el.style.transform = `translateX(${offset}px)`;
       },
       onDragEnd: () => {
-        const el = trendRef.current;
+        const el = weekRef.current;
         if (!el) return;
-        el.style.transition = "transform 190ms cubic-bezier(0.22, 1, 0.36, 1)";
+        el.style.transition = "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)";
         el.style.transform = "";
       },
     },
@@ -222,58 +220,33 @@ export function HistoryView({
   return (
     <>
       {/* ── This Week ── */}
-      <section ref={weekRef} className={`page-card${loading ? " loading-card" : ""}`}>
+      <section ref={weekRef} className={`page-card hist-week-card${loading ? " loading-card" : ""}`}>
+        {/* Eyebrow is now the week's date range (drag the card to change week);
+            tapping it still opens the date picker. */}
         <div className="section-head hist-week-head">
-          <div className="hist-week-toprow">
-            <p className="page-eyebrow" style={{ margin: 0 }}>THIS WEEK</p>
+          <p
+            className="page-eyebrow hist-week-eyebrow"
+            role="button"
+            tabIndex={0}
+            aria-label="Open date picker"
+            onClick={() => { if (loading) return; haptic("select"); onOpenCalendar(); }}
+            onKeyDown={(e) => {
+              if (loading) return;
+              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); haptic("select"); onOpenCalendar(); }
+            }}
+          >
             <span
-              className={`hist-status${week.consistency ? ` hist-status-${week.consistency.toLowerCase()}` : " hist-status--empty"}`}
+              key={trend7[0].date}
+              className={`hist-week-range-inner${weekNavDir === "forward" ? " slide-forward" : weekNavDir === "backward" ? " slide-backward" : ""}`}
             >
-              {week.consistency ?? "Stable"}
+              {`${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
             </span>
-          </div>
-          <div className="hist-week-nav">
-            <button
-              type="button"
-              className="hist-week-chevron"
-              onClick={() => navigateWeek("backward")}
-              disabled={loading || !canGoBack}
-              aria-label="Previous week"
-            >
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <span
-              className="hist-week-range"
-              role="button"
-              tabIndex={0}
-              aria-label="Open date picker"
-              onClick={() => { if (loading) return; haptic("select"); onOpenCalendar(); }}
-              onKeyDown={(e) => {
-                if (loading) return;
-                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); haptic("select"); onOpenCalendar(); }
-              }}
-            >
-              <span
-                key={trend7[0].date}
-                className={`hist-week-range-inner${weekNavDir === "forward" ? " slide-forward" : weekNavDir === "backward" ? " slide-backward" : ""}`}
-              >
-                {`${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
-              </span>
-            </span>
-            <button
-              type="button"
-              className="hist-week-chevron"
-              onClick={() => navigateWeek("forward")}
-              disabled={loading || isCurrentWeek}
-              aria-label="Next week"
-            >
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
+          </p>
+          <span
+            className={`hist-status${week.consistency ? ` hist-status-${week.consistency.toLowerCase()}` : " hist-status--empty"}`}
+          >
+            {week.consistency ?? "Stable"}
+          </span>
         </div>
 
         {/* KPI row — sits above the chart, unit-style copy */}
@@ -414,6 +387,11 @@ export function HistoryView({
           <MetricValue size="sm" unit="% double hit">{month.doubleHitPct}</MetricValue>
           <MetricValue size="sm" unit="day streak">{month.currentStreak}</MetricValue>
         </div>
+
+        {/* Spells out double hit so a low-intake day with protein met doesn't
+            read as an unexplained miss: it's the tight calorie band, not just
+            "a good day". */}
+        <p className="nutri-month-note">Double hit = calories on plan · protein met</p>
 
         {/* Distribution — one proportionally-coloured bar + text legend below */}
         <div className="nutri-dist-track" aria-hidden="true">

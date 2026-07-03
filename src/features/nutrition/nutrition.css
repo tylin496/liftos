@@ -682,70 +682,28 @@
 
 /* KPI value + unit now render via the shared <MetricValue size="md">. */
 
-/* ── This Week header — two-level: eyebrow+badge row, nav row below ──── */
+/* ── This Week header — single row: the date range doubles as the eyebrow
+   (drag the whole card to change week), the consistency chip on the right. ── */
 .hist-week-head {
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-2);
-}
-
-.hist-week-toprow {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
 }
 
-.hist-week-nav {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: var(--space-2);
-  width: 100%;
-}
-
-.hist-week-range {
-  display: inline-block;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-2);
-  line-height: 1;
+/* The date-range eyebrow is tappable (opens the date picker); the whole card
+   is draggable for week nav, so this needs no chevrons. */
+.hist-week-eyebrow {
+  margin: 0;
+  display: inline-flex;
+  overflow: hidden; /* clip the slide-in range animation */
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-.hist-week-range:active {
+.hist-week-eyebrow:active {
   transform: scale(var(--tap-scale));
 }
 
 .hist-week-range-inner {
   display: inline-block;
-}
-
-.hist-week-nav button.hist-week-chevron {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: none;
-  padding: 0;
-  line-height: 1;
-  color: var(--ink-3);
-}
-
-.hist-week-chevron svg {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-}
-
-.hist-week-chevron:active { transform: scale(var(--tap-scale)); }
-
-.hist-week-chevron:disabled {
-  pointer-events: none;
 }
 
 /* ── Colour legend — dots matching the dual-bar colours ──────────────── */
@@ -798,9 +756,17 @@
   min-width: 0;
 }
 
+/* Footnote clarifying "double hit" — sits between the KPI row and the bar. */
+.nutri-month-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
+}
+
 /* ── Skeleton loading state — This Week / Last 30 Days ────────────────── */
 .loading-card .hist-status,
-.loading-card .hist-week-range,
+.loading-card .hist-week-eyebrow,
 .loading-card .nutri-kpi .metric-val,
 .nutri-month-card.loading-card .metric-val {
   color: transparent !important;
@@ -820,7 +786,8 @@
   visibility: hidden;
 }
 
-.nutri-month-card.loading-card .nutri-dist-legend {
+.nutri-month-card.loading-card .nutri-dist-legend,
+.nutri-month-card.loading-card .nutri-month-note {
   visibility: hidden;
 }
 
@@ -842,39 +809,19 @@
   margin-bottom: var(--space-3);
 }
 
+/* Card heading row: "INTAKE" eyebrow on the left, an optional badge ("No entry"
+   / "Double Hit") on the right. Always populated by the eyebrow, so it's never
+   an empty strip. */
 .daily-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-4);
-}
-
-/* Reserve a constant header-row height so the card doesn't grow/shrink as the
-   date heading (dated days) or a badge ("No entry" / "Double Hit") comes and
-   goes. Overview's compact card keeps its own tighter rhythm. */
-.daily-card:not(.is-compact) .daily-card-top {
-  min-height: var(--space-6);
-}
-
-.daily-card-heading {
-  font-size: var(--role-eyebrow-size);
-  font-weight: var(--role-eyebrow-weight);
-  letter-spacing: var(--role-eyebrow-spacing);
-  text-transform: uppercase;
-  margin: 0;
-  color: var(--role-eyebrow-color);
-  line-height: 1;
-}
-
-/* Reserve the badge's height so the card doesn't shrink a few px when no
-   badge is shown (e.g. "No entry" cleared, or a day without a Double Hit). */
-.daily-card-top-right {
-  display: flex;
-  align-items: center;
   gap: var(--space-2);
-  /* Matches .badge's own box (line-height 1.5 × font-size + 2px×2 padding) so
-     the row doesn't shrink when no badge is rendered. */
-  min-height: calc(var(--text-2xs) * 1.5 + 4px);
+  margin-bottom: var(--space-3);
+}
+
+.daily-card-top .page-eyebrow {
+  margin: 0;
 }
 
 /* ── Copy button ─────────────────────────────────────────────────────── */
@@ -1118,6 +1065,32 @@
 
 .daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--reveal-ease) both; }
 .daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--reveal-ease) both; }
+
+/* Both cards are drag-navigable: reserve the horizontal axis for the gesture
+   while vertical scroll passes through, and don't let a drag select text. */
+.daily-card,
+.hist-week-card {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* First-visit affordance: nudge the Today card half-open (revealing the
+   previous day's edge) and settle back, so the swipe is discoverable. */
+@keyframes day-drag-hint {
+  0%   { transform: translateX(0); }
+  24%  { transform: translateX(44%); }
+  58%  { transform: translateX(0); }
+  100% { transform: translateX(0); }
+}
+
+.daily-card.is-drag-hint {
+  animation: day-drag-hint 1.15s var(--reveal-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-card.is-drag-hint { animation: none; }
+}
 
 /* ── Cold-load page skeleton — before config resolves ────────────────────
    Real card structure + placeholder values, scoped by .loading-card, so the

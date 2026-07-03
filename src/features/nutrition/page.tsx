@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNutritionConfig } from "./NutritionConfigContext";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
-import { TodayView } from "./today";
+import { TodayView, labelFor } from "./today";
 import { HistoryView } from "./history";
 import { NutritionInsightCard } from "./NutritionInsightCard";
 import { recomputeAndPersist } from "./evaluationApi";
@@ -20,7 +20,15 @@ export function NutritionPage() {
   const [entryVersion, setEntryVersion] = useState(0);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  usePageHeader({ eyebrow: "NUTRITION", title: "Today", onCopy: copyNutritionData });
+  // Header title tracks the viewed day: "Today" on today, otherwise the date
+  // ("Thu, Jul 2"). The daily card no longer repeats it — the header is the
+  // single place that says which day you're looking at.
+  const isToday = date === defaultLogDate();
+  usePageHeader({
+    eyebrow: "NUTRITION",
+    title: isToday ? "Today" : labelFor(date),
+    onCopy: copyNutritionData,
+  });
 
   // New data landed → refresh the day/history immediately, then recompute the
   // shared evaluation in the background and bump again so the Insight card picks
@@ -48,7 +56,7 @@ export function NutritionPage() {
         <div className="nutri-page-skeleton">
           <section className="page-card daily-card loading-card">
             <div className="daily-card-top">
-              <span className="daily-card-heading">TODAY · NUTRITION</span>
+              <p className="page-eyebrow">Intake</p>
             </div>
             <div className="nutri-grid">
               <div className="nutri-col">
@@ -96,11 +104,6 @@ export function NutritionPage() {
             calendarOpen={calendarOpen}
             onCalendarOpenChange={setCalendarOpen}
           />
-          {/* Self-contained — fetches its own state independently of config, so
-              it doesn't need to wait behind the gate above. Placed as the
-              second card (right after Today), before the History cards. */}
-          <NutritionInsightCard refreshKey={entryVersion} />
-
           <HistoryView
             config={config}
             date={date}
@@ -108,6 +111,11 @@ export function NutritionPage() {
             entryVersion={entryVersion}
             onOpenCalendar={() => setCalendarOpen(true)}
           />
+
+          {/* Self-contained — fetches its own state independently of config, so
+              it doesn't need to wait behind the gate above. Sits last, below the
+              History cards. */}
+          <NutritionInsightCard refreshKey={entryVersion} />
         </>
       )}
     </div>

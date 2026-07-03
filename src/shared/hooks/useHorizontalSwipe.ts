@@ -21,6 +21,13 @@ export interface HorizontalSwipeOptions {
   /** When false, in-flight and new gestures are ignored (e.g. an editor is open). */
   enabled?: boolean;
   /**
+   * Also bind mouse drag so the gesture works on desktop (touch is always
+   * bound). Opt-in because it suppresses the click that follows a real drag —
+   * consumers whose content is click-heavy and don't want desktop drag leave
+   * it off. A plain click (no horizontal travel) still passes through.
+   */
+  pointer?: boolean;
+  /**
    * Live finger offset (raw px, sign follows the finger) while the gesture is
    * locked horizontal. Opt in to a follow-the-finger drag; apply your own
    * damping/clamping. Fires only after the axis locks to "h".
@@ -150,15 +157,108 @@ export function useHorizontalSwipe<T extends HTMLElement>(
       if (wasHorizontal) optsRef.current.onDragEnd?.();
     }
 
+    // ── Mouse drag (desktop) — opt-in via `pointer`. Mirrors the touch path.
+    // window-level move/up so a drag that leaves the element still tracks and
+    // releases cleanly. `suppressClick` swallows the click a real drag emits so
+    // dragging across a child button doesn't also activate it.
+    let mouseDown = false;
+    let suppressClick = false;
+
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 0) return; // left button only
+      if (optsRef.current.enabled === false) return;
+      mouseDown = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      prevX = lastX = startX;
+      prevT = lastT = e.timeStamp;
+      axis = null;
+      cancelled = false;
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    }
+
+    function onMouseMove(e: MouseEvent) {
+      if (!mouseDown || cancelled) return;
+      if (optsRef.current.enabled === false) {
+        cancelled = true;
+        return;
+      }
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (axis === null) {
+        if (Math.abs(dx) > Math.abs(dy) * AXIS_RATIO && Math.abs(dx) > AXIS_LOCK_PX) {
+          axis = "h";
+        } else if (Math.abs(dy) > AXIS_LOCK_PX) {
+          axis = "v"; // vertical mouse drag — bow out, let the page behave normally
+          return;
+        } else {
+          return;
+        }
+      }
+      if (axis === "h") {
+        e.preventDefault(); // stop text selection while dragging
+        prevX = lastX;
+        prevT = lastT;
+        lastX = e.clientX;
+        lastT = e.timeStamp;
+        optsRef.current.onDrag?.(dx);
+      }
+    }
+
+    function onMouseUp(e: MouseEvent) {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      mouseDown = false;
+      if (axis !== "h" || cancelled) {
+        reset();
+        return;
+      }
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      reset();
+      // A real horizontal drag happened → swallow the click it will emit.
+      if (Math.abs(dx) > 5) suppressClick = true;
+      const threshold = optsRef.current.threshold ?? 56;
+      const horizontalEnough = Math.abs(dx) >= Math.abs(dy) * AXIS_RATIO;
+      const dt = e.timeStamp - prevT;
+      const velocity = dt > 0 ? (e.clientX - prevX) / dt : 0;
+      const farEnough = Math.abs(dx) >= threshold;
+      const flicked = Math.abs(velocity) >= FLICK_VELOCITY && Math.abs(dx) >= FLICK_MIN_DX;
+      if (horizontalEnough && (farEnough || flicked)) {
+        onSwipeRef.current(dx < 0 ? 1 : -1);
+      }
+      optsRef.current.onDragEnd?.();
+    }
+
+    function onClickCapture(e: MouseEvent) {
+      if (suppressClick) {
+        suppressClick = false;
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    }
+
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd, { passive: true });
     el.addEventListener("touchcancel", onTouchCancel, { passive: true });
+    const pointer = opts.pointer ?? false;
+    if (pointer) {
+      el.addEventListener("mousedown", onMouseDown);
+      el.addEventListener("click", onClickCapture, true); // capture: beat child handlers
+    }
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", onTouchCancel);
+      if (pointer) {
+        el.removeEventListener("mousedown", onMouseDown);
+        el.removeEventListener("click", onClickCapture, true);
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+      }
     };
-  }, [ref]);
+  }, [ref, opts.pointer]);
 }

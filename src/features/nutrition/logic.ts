@@ -212,6 +212,19 @@ export function weeklyStats(days: DayInput[]): WeeklyStats {
   };
 }
 
+// Adherence vs precision are two different questions the month card answers:
+//   • Adherence — did you stay inside the cut strategy at all? A day keeps the
+//     deficit whether you hit the band ("on-plan") OR undershot the budget
+//     ("low-intake" — ate even less). Only actively drifting toward maintenance
+//     ("over" — deficit too small) or erasing it ("surplus") breaks adherence.
+//     Eating too little is not optimal, but it is still moving toward the goal,
+//     so it should not be scored the same as eating over budget.
+//   • Precision — of the adherent days, how many landed in the tight target
+//     band. That's `onPlan` / the distribution's green block / double-hit.
+// So low-intake counts toward adherencePct + the streak, but NOT toward onPlan
+// or double-hit, and it still renders as an amber deviation in the distribution.
+const isAdherentState = (s: CalorieState) => s === "on-plan" || s === "low-intake";
+
 export interface MonthlyStats {
   logged: number;
   onPlan: number;
@@ -231,11 +244,13 @@ export function monthlyStats(days: DayInput[]): MonthlyStats {
     "low-intake": 0,
   };
   let onPlan = 0;
+  let adherent = 0;
   let doubleHit = 0;
 
   for (const d of logged) {
     const cal = getCalorieResult(d.calories as number, d.tdee ?? DEFAULTS.tdee, d.deficitTarget ?? DEFAULTS.deficitTarget);
     distribution[cal.state] += 1;
+    if (isAdherentState(cal.state)) adherent += 1;
     if (cal.celebrated) {
       onPlan += 1;
       const prot = getProteinResult(d.protein ?? 0, d.proteinTarget ?? DEFAULTS.proteinTarget);
@@ -243,12 +258,13 @@ export function monthlyStats(days: DayInput[]): MonthlyStats {
     }
   }
 
-  // Streak: consecutive most-recent on-plan days (days sorted ascending).
+  // Streak: consecutive most-recent days that kept the deficit (on-plan OR
+  // low-intake), matching the adherence definition — days sorted ascending.
   let currentStreak = 0;
   for (let i = logged.length - 1; i >= 0; i--) {
     const d = logged[i];
     const cal = getCalorieResult(d.calories as number, d.tdee ?? DEFAULTS.tdee, d.deficitTarget ?? DEFAULTS.deficitTarget);
-    if (cal.celebrated) currentStreak += 1;
+    if (isAdherentState(cal.state)) currentStreak += 1;
     else break;
   }
 
@@ -256,7 +272,7 @@ export function monthlyStats(days: DayInput[]): MonthlyStats {
   return {
     logged: logged.length,
     onPlan,
-    adherencePct: Math.round((onPlan / n) * 100),
+    adherencePct: Math.round((adherent / n) * 100),
     doubleHitCount: doubleHit,
     doubleHitPct: Math.round((doubleHit / n) * 100),
     currentStreak,

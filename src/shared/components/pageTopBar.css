@@ -30,12 +30,22 @@
   color: var(--role-page-title-color);
   margin: 0;
   opacity: 1;
-  transition: opacity var(--motion-fast) var(--press-ease);
+  transform: translateX(0);
+  transition:
+    opacity var(--motion-fast) var(--press-ease),
+    transform var(--motion-fast) var(--press-ease);
 }
 
-.page-topbar-eyebrow.is-fading,
+.page-topbar-eyebrow.is-fading {
+  opacity: 0;
+}
+
+/* Title slides as it changes (day nav / tab switch): the outgoing title fades
+   while drifting right, then the incoming one eases back in from the right —
+   a horizontal fade-in rather than the eyebrow's anchored opacity-only fade. */
 .page-topbar-title.is-fading {
   opacity: 0;
+  transform: translateX(10px);
 }
 
 .page-topbar-actions {
