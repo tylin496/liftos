@@ -607,18 +607,12 @@
   align-items: flex-end;
 }
 
-/* Shared bar-grow animation — consumed by .ntb-pair (dual-bar trend below). */
+/* Shared bar-grow animation — consumed by .ntb-pair (dual-bar trend below).
+   Only runs under .nutri-trend--intro, i.e. when the tab is first shown; week
+   changes swap the bars in without re-running the rise. */
 @keyframes bar-rise {
   from { transform: scaleY(0); }
   to   { transform: scaleY(1); }
-}
-
-/* Brief pre-collapse before a week change swaps in new bars — height (scale)
-   only, no fade, so the transition reads as one continuous motion. */
-.ntb-pair.is-collapsing {
-  animation: none;
-  transform: scaleY(0.85);
-  transition: transform var(--motion-fast) var(--move-ease);
 }
 
 .nutri-trend-day {
@@ -878,6 +872,9 @@
   max-width: 44px;
   height: 100%;
   transform-origin: bottom center;
+}
+
+.nutri-trend--intro .ntb-pair {
   animation: bar-rise var(--motion-slow) var(--reveal-ease) both;
   animation-delay: calc(var(--bar-index, 0) * var(--stagger-step));
 }

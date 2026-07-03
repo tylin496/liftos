@@ -67,6 +67,9 @@ export function HistoryView({
   // Set the instant a swipe commits, so onDragEnd hands the transform to the
   // slide-in animation instead of snapping the card back.
   const weekCommitted = useRef(false);
+  // Bars rise once, when the tab is first shown. Flips true on the first week
+  // change so switching weeks swaps the bars in without re-running the rise.
+  const introPlayed = useRef(false);
   // The week strip browses independently of the page's selected `date`, so the
   // ‹ › chevrons don't drag the Today card (and the whole page) along with them.
   const [weekAnchor, setWeekAnchor] = useState(date);
@@ -88,20 +91,22 @@ export function HistoryView({
   const todayStrNow = toDateStr(new Date());
   const canGoBack = shiftDate(weekAnchor, -7) >= MIN_DATE;
 
-  // Change week: jump ±7 days (same weekday), clamped to [MIN_DATE, today].
-  // Only moves the strip's own anchor — the page's selected day is untouched.
-  // The card remounts (key) and slides the new week in, so weekAnchor flips
-  // immediately; the direction drives the slide animation.
+  // Change week: move the selected day to the SAME weekday of the adjacent week
+  // (e.g. Wed → previous/next Wed), clamped to [MIN_DATE, today]. This moves the
+  // page's selected day, so the new week opens with that weekday highlighted and
+  // the Today card follows. The card remounts (key) and slides the new week in.
   function navigateWeek(dir: "forward" | "backward") {
-    const delta = dir === "forward" ? 7 : -7;
-    let next = shiftDate(weekAnchor, delta);
+    if (dir === "forward" && isCurrentWeek) return; // nothing past the current week
+    let next = shiftDate(date, dir === "forward" ? 7 : -7);
     if (dir === "forward" && next > todayStrNow) next = todayStrNow;
     if (dir === "backward" && next < MIN_DATE) return;
-    if (next === weekAnchor) return;
+    if (next === date) return;
     haptic("select");
+    introPlayed.current = true; // bars only rise on tab-enter, never on week change
     weekCommitted.current = true;
     setWeekNavDir(dir);
     setWeekAnchor(next);
+    onDateChange(next);
   }
 
   // Horizontal swipe changes the week. The whole card follows the finger/cursor
@@ -195,6 +200,8 @@ export function HistoryView({
   }
 
   const loading = !entries;
+  // Play the bar-rise only until the first week change (i.e. on tab-enter).
+  const introBars = !introPlayed.current;
 
   return (
     <>
@@ -247,7 +254,7 @@ export function HistoryView({
         </div>
 
         {/* Dual-bar 7-day trend */}
-        <div className="nutri-trend">
+        <div className={`nutri-trend${introBars ? " nutri-trend--intro" : ""}`}>
           {trend7.map((d, i) => {
             const dayDate = new Date(d.date + "T12:00:00");
             const dayLabel = WEEKDAY_NARROW[dayDate.getDay()];
