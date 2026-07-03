@@ -79,7 +79,7 @@
      semantic verdicts — surplus/over-budget states still override with
      --bad. Same vivid value in both themes (already high-contrast). */
   --nutrition-calorie: #a7ff00;
-  --nutrition-protein: #05fff5;
+  --nutrition-protein: #38b6ff;
 
   /* ── Overlay ── decorative, non-signal colors (theme-invariant) ──────── */
   --on-color: #fff; /* text/icon on a saturated accent/good/bad/gold surface */
