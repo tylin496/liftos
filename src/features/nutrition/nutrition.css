@@ -1001,6 +1001,11 @@
 .daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--spring-ease) both; }
 .daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--spring-ease) both; }
 
+/* This Week card slides the whole card through on week change, same as the
+   Today card slides between days. */
+.hist-week-card.week-nav-forward  { animation: slide-from-right var(--motion-slow) var(--spring-ease) both; }
+.hist-week-card.week-nav-backward { animation: slide-from-left  var(--motion-slow) var(--spring-ease) both; }
+
 /* Both cards are drag-navigable: reserve the horizontal axis for the gesture
    while vertical scroll passes through, and don't let a drag select text. */
 .daily-card,

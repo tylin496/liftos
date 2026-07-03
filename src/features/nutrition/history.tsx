@@ -58,13 +58,15 @@ export function HistoryView({
 }) {
   const [entries, setEntries] = useState<NutritionEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // True for the brief window where the outgoing week's bars are collapsing,
-  // before weekAnchor actually flips to the new week.
-  const [collapsing, setCollapsing] = useState(false);
-  const weekRef = useRef<HTMLElement>(null);
-  // The bars strip follows the finger during a horizontal drag (written
-  // directly to the DOM to avoid a re-render per touchmove).
-  const trendRef = useRef<HTMLDivElement>(null);
+  // Stable outer wrapper — owns the swipe listeners so they survive the inner
+  // card remounting on each week change.
+  const weekRef = useRef<HTMLDivElement>(null);
+  // The card itself follows the finger during a drag and slides through on
+  // commit (mirrors the Today card's containerRef/cardRef split).
+  const weekCardRef = useRef<HTMLElement>(null);
+  // Set the instant a swipe commits, so onDragEnd hands the transform to the
+  // slide-in animation instead of snapping the card back.
+  const weekCommitted = useRef(false);
   // The week strip browses independently of the page's selected `date`, so the
   // ‹ › chevrons don't drag the Today card (and the whole page) along with them.
   const [weekAnchor, setWeekAnchor] = useState(date);
@@ -88,8 +90,8 @@ export function HistoryView({
 
   // Change week: jump ±7 days (same weekday), clamped to [MIN_DATE, today].
   // Only moves the strip's own anchor — the page's selected day is untouched.
-  // The outgoing bars collapse briefly before weekAnchor flips, so the new
-  // week's bars expand in rather than simply replacing the old ones.
+  // The card remounts (key) and slides the new week in, so weekAnchor flips
+  // immediately; the direction drives the slide animation.
   function navigateWeek(dir: "forward" | "backward") {
     const delta = dir === "forward" ? 7 : -7;
     let next = shiftDate(weekAnchor, delta);
@@ -97,16 +99,13 @@ export function HistoryView({
     if (dir === "backward" && next < MIN_DATE) return;
     if (next === weekAnchor) return;
     haptic("select");
+    weekCommitted.current = true;
     setWeekNavDir(dir);
-    setCollapsing(true);
-    window.setTimeout(() => {
-      setWeekAnchor(next);
-      setCollapsing(false);
-    }, 130);
+    setWeekAnchor(next);
   }
 
-  // Horizontal swipe on the week strip changes the week. The bars follow the
-  // finger (damped) while dragging; the hook also stops the gesture bubbling to
+  // Horizontal swipe changes the week. The whole card follows the finger/cursor
+  // and slides through on commit; the hook also stops the gesture bubbling to
   // Shell's tab-swipe handler.
   useHorizontalSwipe(
     weekRef,
@@ -116,7 +115,7 @@ export function HistoryView({
       // Whole card follows the finger/cursor 1:1; rubber-band when there's no
       // week to reveal that way (forward past this week, back past the earliest).
       onDrag: (dx) => {
-        const el = weekRef.current;
+        const el = weekCardRef.current;
         if (!el) return;
         const atEdge = (dx < 0 && isCurrentWeek) || (dx > 0 && !canGoBack);
         const offset = atEdge ? Math.sign(dx) * Math.min(72, Math.abs(dx) * 0.2) : dx;
@@ -124,10 +123,18 @@ export function HistoryView({
         el.style.transform = `translateX(${offset}px)`;
       },
       onDragEnd: () => {
-        const el = weekRef.current;
+        const el = weekCardRef.current;
         if (!el) return;
-        el.style.transition = "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)";
-        el.style.transform = "";
+        if (weekCommitted.current) {
+          // Committed: the card remounts (key={week}) and plays the slide-in
+          // animation — clear the drag transform instantly so it doesn't fight it.
+          weekCommitted.current = false;
+          el.style.transition = "none";
+          el.style.transform = "";
+        } else {
+          el.style.transition = "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)";
+          el.style.transform = "";
+        }
       },
     },
   );
@@ -191,8 +198,15 @@ export function HistoryView({
 
   return (
     <>
-      {/* ── This Week ── */}
-      <section ref={weekRef} className={`page-card hist-week-card${loading ? " loading-card" : ""}`}>
+      {/* ── This Week ── The outer div owns the swipe gesture (stable across
+          week changes); the inner card remounts + slides the new week through
+          on commit, exactly like the Today card slides between days. */}
+      <div ref={weekRef}>
+      <section
+        ref={weekCardRef}
+        key={trend7[0].date}
+        className={`page-card hist-week-card${loading ? " loading-card" : ""}${weekNavDir === "forward" ? " week-nav-forward" : weekNavDir === "backward" ? " week-nav-backward" : ""}`}
+      >
         {/* Eyebrow is now the week's date range (drag the card to change week);
             tapping it still opens the date picker. */}
         <div className="section-head hist-week-head">
@@ -207,10 +221,7 @@ export function HistoryView({
               if (e.key === "Enter" || e.key === " ") { e.preventDefault(); haptic("select"); onOpenCalendar(); }
             }}
           >
-            <span
-              key={trend7[0].date}
-              className={`hist-week-range-inner${weekNavDir === "forward" ? " slide-forward" : weekNavDir === "backward" ? " slide-backward" : ""}`}
-            >
+            <span className="hist-week-range-inner">
               {`${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
             </span>
           </p>
@@ -236,7 +247,7 @@ export function HistoryView({
         </div>
 
         {/* Dual-bar 7-day trend */}
-        <div className="nutri-trend" ref={trendRef}>
+        <div className="nutri-trend">
           {trend7.map((d, i) => {
             const dayDate = new Date(d.date + "T12:00:00");
             const dayLabel = WEEKDAY_NARROW[dayDate.getDay()];
@@ -306,7 +317,7 @@ export function HistoryView({
                 <div className="nutri-trend-bars">
                   {hasCal || hasProtein ? (
                     <div
-                      className={`ntb-pair${collapsing ? " is-collapsing" : ""}`}
+                      className="ntb-pair"
                       style={{ "--bar-index": i } as React.CSSProperties}
                     >
                       <div
@@ -320,7 +331,7 @@ export function HistoryView({
                     </div>
                   ) : (
                     <div
-                      className={`ntb-pair ntb-pair--missing${collapsing ? " is-collapsing" : ""}`}
+                      className="ntb-pair ntb-pair--missing"
                       style={{ "--bar-index": i } as React.CSSProperties}
                     >
                       <div className="ntb-bar ntb-bar--missing" />
@@ -349,6 +360,7 @@ export function HistoryView({
           </span>
         </div>
       </section>
+      </div>
     </>
   );
 }
