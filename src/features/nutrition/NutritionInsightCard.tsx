@@ -12,7 +12,16 @@ import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS, confidenceReason } from "./evaluation";
 import { nutritionDecision, rateTone } from "./recommendation";
+import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import "./nutrition.css";
+
+/* Integer count-up (blank until it starts rolling, never a parked 0). Leads the
+   nutrition reveal: the hero number rolls first, then the trend bars rise, then
+   the This-Week KPIs. */
+function AnimatedInt({ value, delayMs = 0 }: { value: number; delayMs?: number }) {
+  const n = useCountUp(value, COUNT_UP_MS, 0, delayMs);
+  return <>{n == null ? "" : n.toLocaleString()}</>;
+}
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
 
@@ -154,7 +163,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
         ) : decision && decision.proposedTarget == null ? (
           <div className="ni-hero">
             <span className="ni-hero-val">
-              {decision.currentTarget.toLocaleString()}
+              <AnimatedInt value={decision.currentTarget} />
               <span className="metric-unit">kcal</span>
             </span>
             <span className="ni-verdict">Hold</span>

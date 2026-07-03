@@ -1,3 +1,5 @@
+import { useEffect, useRef, type CSSProperties } from "react";
+
 export type TabId = "overview" | "training" | "nutrition" | "health";
 
 /* Flat glyphs, iOS-style: inactive icons are a plain secondary ink and the
@@ -16,19 +18,6 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
     ),
   },
   {
-    id: "training",
-    label: "Training",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="2.5" y="9.5" width="3" height="5" rx="1" fill="currentColor" />
-        <rect x="18.5" y="9.5" width="3" height="5" rx="1" fill="currentColor" />
-        <rect x="5.5" y="7.5" width="2.5" height="9" rx="1" fill="currentColor" />
-        <rect x="16" y="7.5" width="2.5" height="9" rx="1" fill="currentColor" />
-        <rect x="8" y="11" width="8" height="2" rx="1" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
     id: "nutrition",
     label: "Nutrition",
     icon: (
@@ -38,6 +27,19 @@ const TABS: { id: TabId; label: string; icon: JSX.Element }[] = [
         <path d="M10 12v9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         <path d="M17 3c1.8.3 2.6 2.4 2.6 5s-1 5.3-2.6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M17 14v7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: "training",
+    label: "Training",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2.5" y="9.5" width="3" height="5" rx="1" fill="currentColor" />
+        <rect x="18.5" y="9.5" width="3" height="5" rx="1" fill="currentColor" />
+        <rect x="5.5" y="7.5" width="2.5" height="9" rx="1" fill="currentColor" />
+        <rect x="16" y="7.5" width="2.5" height="9" rx="1" fill="currentColor" />
+        <rect x="8" y="11" width="8" height="2" rx="1" fill="currentColor" />
       </svg>
     ),
   },
@@ -59,8 +61,31 @@ export function TabBar({
   active: TabId;
   onChange: (id: TabId) => void;
 }) {
+  const activeIdx = Math.max(0, TABS.findIndex((t) => t.id === active));
+  const thumbRef = useRef<HTMLSpanElement>(null);
+  const prevIdx = useRef(activeIdx);
+
+  // Retrigger the gel squash whenever the active tab changes (not on mount).
+  // Removing/reflowing/re-adding the class restarts the CSS animation.
+  useEffect(() => {
+    if (prevIdx.current === activeIdx) return;
+    prevIdx.current = activeIdx;
+    const t = thumbRef.current;
+    if (!t) return;
+    t.classList.remove("is-morphing");
+    void t.offsetWidth;
+    t.classList.add("is-morphing");
+  }, [activeIdx]);
+
   return (
-    <nav className="tabbar" role="tablist">
+    <nav
+      className="tabbar"
+      role="tablist"
+      style={{ "--tab-idx": activeIdx } as CSSProperties}
+    >
+      <span className="tabbar-thumb" ref={thumbRef} aria-hidden="true">
+        <span className="tabbar-thumb-fill" />
+      </span>
       {TABS.map((t) => (
         <button
           key={t.id}

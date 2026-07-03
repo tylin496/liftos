@@ -1,20 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Ref } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
-import { RECOVERY_STATUS_COLOR, series, rollingAvg, type RecoverySnapshot } from "@features/health/math";
-import { useCountUp } from "@shared/hooks/useCountUp";
+import type { ActiveTargetView } from "@features/health/activeTarget";
+import { series, rollingAvg } from "@features/health/math";
+import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
+import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useInView } from "@shared/hooks/useInView";
+import { progressColor, progressGradient } from "@shared/lib/progressColor";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
+import { ActivityRing } from "@shared/components/ActivityRing";
+import "@shared/components/activityRing.css";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
+import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
 import { useSessionUser } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
-import { paceLabel, paceTone, rateTone, cutEtaLabel } from "@features/nutrition/recommendation";
+import { paceLabel, paceTone, cutEtaLabel } from "@features/nutrition/recommendation";
 import type { Recommendation } from "@features/overview/recommendations";
 import type { Goal } from "./goal";
 import type { TabId } from "@app/layout/TabBar";
@@ -58,20 +64,140 @@ function daysSince(isoDate: string): number {
 /** Days since the current cut began, as "(141 d)" — appended after a *conclusive*
  *  pace word (On/Below/Above pace) so Weight answers "how long have I held this
  *  rate?" without a separate row. Mirrors Cut Progress's baseline. An
- *  inconclusive read uses fmtDaysOnTarget instead: pairing "Forming" with the cut
- *  clock reads as a contradiction, since the cut and the fresh-target clock are
- *  unrelated. */
+ *  inconclusive read ("Forming"/"Calibrating") carries no day count — just the
+ *  word itself. */
 function fmtDaysSince(isoDate: string): string {
   return `(${daysSince(isoDate)} d)`;
 }
 
-/** Days the current calorie target has been active, as "(3 d)" — appended after
- *  an inconclusive pace word ("Forming"/"Calibrating") to answer *why* it's not
- *  yet a verdict: the target is fresh, so the 21-day weight trend still partly
- *  reflects the prior target. The activation day is day 1, so this never reads
- *  "0 d". This is the same tenure the Nutrition confidence reason explains. */
-function fmtDaysOnTarget(days: number): string {
-  return `(${Math.max(1, days)} d)`;
+/* ── Active Target Card ────────────────────────────────────────────────── */
+
+// Renders the ring at a given accrued value (blank number + empty fill when
+// `shown` is null, i.e. before the roll starts). `innerRef` goes on the ring
+// centre so its on-screen position can be measured for the stagger.
+function ActiveTargetRingBody({ shown, target, innerRef }: { shown: number | null; target: number; innerRef?: Ref<HTMLDivElement> }) {
+  const ratio = (shown ?? 0) / Math.max(1, target);
+  // Blue progress ramp while filling; at 100% flip to the discrete gold celebration.
+  const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
+  return (
+    <ActivityRing pct={ratio} size={96} strokeWidth={9} color={ringColor} trackColor="var(--bg-soft)" transition="none">
+      <div className="ov-active-target-ring-center" ref={innerRef}>
+        <span className="ov-active-target-ring-num">{shown == null ? "" : shown.toLocaleString()}</span>
+        <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
+      </div>
+    </ActivityRing>
+  );
+}
+
+function ActiveTargetRingRoll({ accrued, target, delayMs }: { accrued: number; target: number; delayMs: number }) {
+  const shown = useCountUp(accrued, COUNT_UP_MS, 0, delayMs);
+  return <ActiveTargetRingBody shown={shown} target={target} />;
+}
+
+/* Today's-target ring: the accrued number counts up from 0 and the ring fills in
+   step with it (both derive from the same tween), staggered bottom-up by the
+   ring's on-screen position. It measures a blank ring first (carrying the ref)
+   so the roll only starts once its delay is known. Remounted on tab-enter via an
+   activity key so it replays each time you return to Overview. */
+function ActiveTargetRing({ accrued, target }: { accrued: number; target: number }) {
+  const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
+  if (delayMs == null) return <ActiveTargetRingBody shown={null} target={target} innerRef={ref} />;
+  return <ActiveTargetRingRoll accrued={accrued} target={target} delayMs={delayMs} />;
+}
+
+/* Active Target — back-solves the daily active-calorie goal from a maintenance
+   TDEE target (target − resting), then tracks this week's pace against it. The
+   whole card is derived from the latest synced metrics, so it re-computes on
+   every sync without any stored state. The goal itself is edited from
+   Settings (single source of truth, shared with Nutrition) — this card only
+   ever shows current TDEE against it for comparison; tapping the chip jumps
+   to Settings rather than editing inline. */
+function ActiveTargetCard({
+  view,
+  targetTdee,
+  currentTdee,
+}: {
+  view: ActiveTargetView | null;
+  targetTdee: number | null;
+  currentTdee: number | null;
+}) {
+  const { openSettings } = useSettingsSheet();
+  // Overview's first card: the ring re-rolls on every tab-enter (activity key),
+  // while every card below animates only on first load.
+  const activity = useTabActivity();
+
+  // Not configured yet — a one-tap invitation, no empty scaffolding.
+  if (targetTdee == null) {
+    return (
+      <section className="page-card ov-active-target">
+        <div className="page-eyebrow" style={{ margin: 0 }}>Active target</div>
+        <button type="button" className="ov-active-target-setup" onClick={openSettings}>
+          Set a maintenance TDEE goal to see your daily active target
+        </button>
+      </section>
+    );
+  }
+
+  // Why today's number floats: it's this week's position folded into one ask.
+  // On-pace → today.target == the flat daily average exactly; behind → higher,
+  // ahead → lower. A small deadband keeps it from flickering near equality.
+  const dailyAvg = view?.activeTargetPerDay ?? 0;
+  const diff = view ? view.today.target - dailyAvg : 0;
+  const position = Math.abs(diff) <= 30 ? "on" : diff > 0 ? "behind" : "ahead";
+
+  return (
+    <section className="page-card ov-active-target">
+      <div className="ov-active-target-head">
+        <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
+        <button type="button" className="ov-active-target-goal" onClick={openSettings}>
+          {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
+          {targetTdee.toLocaleString()} TDEE
+        </button>
+      </div>
+
+      {view ? (
+        <>
+          <div className="ov-active-target-ring-row">
+            <ActiveTargetRing
+              key={activity}
+              accrued={view.today.accrued}
+              target={view.today.target}
+            />
+            <div className="ov-active-target-ring-caption">
+              <span className="ov-active-target-ring-title">Today's target</span>
+              <span className="ov-active-target-ring-sub">
+                {position === "behind"
+                  ? `Behind this week — today's up from your ${dailyAvg.toLocaleString()}/day average`
+                  : position === "ahead"
+                    ? `Ahead this week — today eased below your ${dailyAvg.toLocaleString()}/day average`
+                    : `On pace — about your ${dailyAvg.toLocaleString()}/day average`}
+              </span>
+              {!view.today.synced && (
+                <span className="ov-active-target-ring-stale">
+                  {view.today.lastSyncDate
+                    ? `Not synced today — last reading ${view.today.lastSyncDate}`
+                    : "Not synced yet"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {view.today.accrued < view.today.target && (
+            <div className="ov-active-target-hint">
+              <span>{(view.today.target - view.today.accrued).toLocaleString()} kcal to close today's ring</span>
+              {view.session && (
+                <span>A typical session adds ~{view.session.boost.toLocaleString()} active</span>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="page-note">
+          No resting-energy baseline yet — the target needs a few days of Apple Health data.
+        </p>
+      )}
+    </section>
+  );
 }
 
 /* ── System Card ───────────────────────────────────────────────────────── */
@@ -112,6 +238,69 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
 
 /* ── Cut Progress Card ─────────────────────────────────────────────────── */
 
+// The % and the bar are split into their own leaves so they can be keyed by
+// activity and re-roll on tab-enter WITHOUT remounting the card (which would
+// re-fire its rise-in entrance and read as a jump). They roll from 0 each time.
+function GoalPctRoll({ target, delayMs }: { target: number; delayMs: number }) {
+  const pct = useCountUp(target, COUNT_UP_MS, 0, delayMs);
+  // The % is a hero number that HAS a progress bar, so it takes the bar's
+  // colour rather than a semantic verdict: the ramp colour at this fill (gold
+  // once complete), matching the bar's leading edge.
+  const color =
+    pct == null ? undefined
+    : pct >= 100 ? "var(--progress-complete)"
+    : progressColor(pct / 100);
+  return (
+    <span className="goal-pct" style={color ? { color } : undefined}>
+      {pct == null ? "" : `${pct}%`}
+    </span>
+  );
+}
+
+function GoalPct({ target }: { target: number }) {
+  // Measure a blank span first (carries the ref) so the roll starts from 0 only
+  // once its bottom-up delay is known — the delay overlaps the tab slide-in, so
+  // the % isn't already part-way up by the time the card is on screen.
+  const { ref, delayMs } = useBottomUpDelay<HTMLSpanElement>();
+  if (delayMs == null) return <span ref={ref} className="goal-pct" />;
+  return <GoalPctRoll target={target} delayMs={delayMs} />;
+}
+
+function GoalBarFill({ target, gradient }: { target: number; gradient: string }) {
+  // Sit at 0 until the bottom-up delay elapses, then grow to target so the CSS
+  // width transition fires. The delay overlaps the tab slide-in, so the bar
+  // starts filling from empty as the card lands (not already part-way).
+  const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    if (delayMs == null) return;
+    const timer = setTimeout(() => {
+      requestAnimationFrame(() => setW(target));
+    }, delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs, target]);
+  // Anchor the ember→green spectrum to the full track (not to the fill itself),
+  // so the fill's leading edge always shows the spectrum colour at the current
+  // %: low progress reads ember, and it greens as the goal is approached. The
+  // fill is w% of the track, so sizing its background to (100/w) of its own
+  // width = 100% of the track. Guard w→0 (fill is invisible then).
+  const barFillSize = w > 0 ? `${(10000 / w).toFixed(1)}% 100%` : "100% 100%";
+  return (
+    <div
+      ref={ref}
+      className="goal-bar-fill"
+      style={{
+        width: `${w}%`,
+        backgroundImage: gradient,
+        backgroundSize: barFillSize,
+        // Match the % count-up (COUNT_UP_MS, ease-out quart) so the bar and the
+        // number finish together instead of the bar racing ahead.
+        transition: `width ${COUNT_UP_MS}ms cubic-bezier(0.25, 1, 0.5, 1)`,
+      }}
+    />
+  );
+}
+
 // Answers one question only: "how far am I from my destination?" A single
 // merged Goal line (goal weight · target body fat) plus what's left to lose.
 // Pure render — every number is finished upstream in computeGoal (the Goal
@@ -136,18 +325,15 @@ function CutProgressCard({
     : null;
   const isComplete = pct >= 100;
   const cutDay = cutStartDate ? daysSince(cutStartDate) : null;
-  // Fill the % and the bar from 0 once the card scrolls into view (before that,
-  // hold both at 0 so the reveal is visible when reached). useCountUp and the
-  // bar's width transition both honor prefers-reduced-motion → snap to final.
+  // Days into the current calorie-target phase — the numerator of "Day
+  // {phase}/{cutDay}". Falls back to just the plain cut day when there's no
+  // nutrition state to read a phase from.
+  const daysOnTarget = state?.diagnostics.daysOnTarget ?? null;
+  // Overview's first card: the % and bar re-roll from 0 on every tab-enter
+  // (the leaves are keyed by activity, so only they remount — not the card, so
+  // its rise-in entrance never re-fires). Honors reduced-motion (snaps).
   const { ref, inView } = useInView<HTMLButtonElement>();
-  const pctCount = useCountUp(inView ? pct : 0, 700);
-  const barPct = inView ? pct : 0;
-  // Anchor the ember→green spectrum to the full track (not to the fill itself),
-  // so the fill's leading edge always shows the spectrum colour at the current
-  // %: low progress reads ember, and it greens as the goal is approached. The
-  // fill is barPct% of the track, so sizing its background to (100/barPct) of
-  // its own width = 100% of the track. Guard barPct→0 (fill is invisible then).
-  const barFillSize = barPct > 0 ? `${(10000 / barPct).toFixed(1)}% 100%` : "100% 100%";
+  const activity = useTabActivity();
 
   // Celebrate reaching 100% exactly once per cut (identified by its goal
   // weight — a new baseline produces a new goal weight, so a fresh cut can
@@ -175,17 +361,15 @@ function CutProgressCard({
           {!isComplete && cutDay != null && (
             <span className="goal-day">
               {" "}
-              · Day <b>{cutDay}</b>
+              · Day <b>{daysOnTarget != null ? Math.max(1, daysOnTarget) : cutDay}</b>
+              {daysOnTarget != null && `/${cutDay}`}
             </span>
           )}
         </span>
-        <span className="goal-pct">{pctCount}%</span>
+        <GoalPct key={activity} target={pct} />
       </div>
       <div className="goal-bar">
-        <div
-          className="goal-bar-fill"
-          style={{ width: `${barPct}%`, backgroundSize: barFillSize }}
-        />
+        <GoalBarFill key={activity} target={pct} gradient={progressGradient()} />
       </div>
       <div className="goal-detail">
         <div className="goal-row">
@@ -271,8 +455,6 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 // "Below pace" — and that pairing is the point, not a contradiction.
 function WeightCard({
   weightLatest,
-  activeEnergy,
-  activeChange,
   metrics,
   state,
   cutStartDate,
@@ -280,8 +462,6 @@ function WeightCard({
   onNavActivity,
 }: {
   weightLatest: number | null;
-  activeEnergy: number | null;
-  activeChange: number | null;
   metrics: BodyMetric[];
   state: NutritionStateFull | null;
   cutStartDate: string | null;
@@ -296,13 +476,8 @@ function WeightCard({
       : null;
   const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
-  const rate = trend != null && state ? rateTone(state.evaluation) : null;
-  // Which clock the status word gets: a conclusive verdict (tone set) carries the
-  // cut baseline day count; an inconclusive read on a real target ("Forming"/
-  // "Calibrating") carries the target's own tenure, which is *why* it's forming.
-  const noActiveTarget =
-    state == null || state.evaluation.targetRange.min === state.evaluation.targetRange.max;
-  const daysOnTarget = state?.diagnostics.daysOnTarget ?? 0;
+  // Only a conclusive verdict (tone set) carries the cut baseline day count; an
+  // inconclusive read ("Forming"/"Calibrating") is just the word, no suffix.
   const { ref, inView } = useInView<HTMLDivElement>();
 
   // 7-day average vs the prior 7 days — same signal the Health weight card
@@ -381,7 +556,7 @@ function WeightCard({
       >
         <div className="ov-weight-row">
           <span className="ov-weight-key">Rate</span>
-          <span className={`ov-weight-val${rate ? ` is-${rate}` : ""}`}>
+          <span className="ov-weight-val">
             {trend != null ? fmtTrend(trend) : "—"}
           </span>
         </div>
@@ -389,20 +564,9 @@ function WeightCard({
           <span className="ov-weight-key">Status</span>
           <span className={`ov-weight-val${tone ? ` is-${tone}` : ""}`}>
             {status ?? "—"}
-            {tone
-              ? cutStartDate && ` ${fmtDaysSince(cutStartDate)}`
-              : !noActiveTarget && ` ${fmtDaysOnTarget(daysOnTarget)}`}
+            {tone && cutStartDate && ` ${fmtDaysSince(cutStartDate)}`}
           </span>
         </div>
-        {activeEnergy != null && (
-          <div className="ov-weight-row">
-            <span className="ov-weight-key">Activity</span>
-            <span className="ov-weight-activity">
-              <span className="ov-weight-val">{activeEnergy.toLocaleString()} kcal/day</span>
-              <MetricDelta value={activeChange} direction="up-good" decimals={0} />
-            </span>
-          </div>
-        )}
       </button>
     </div>
   );
@@ -460,7 +624,7 @@ function TrainingHealthCard({
   const { ref, inView } = useInView<HTMLDivElement>();
   const hasData = strength.total > 0;
   const retentionPct = compoundProgress ? Math.round(compoundProgress.overall * 100) : null;
-  const retCount = useCountUp(inView ? (retentionPct ?? 0) : 0, 600);
+  const retCount = useCountUp(inView ? (retentionPct ?? 0) : 0);
   const attention = strength.watch;
 
   // Attention always sits above On Track and is ordered worst-first (steepest
@@ -497,8 +661,14 @@ function TrainingHealthCard({
         </div>
 
         <div className="ov-th-ret-hero">
-          <MetricValue size="md">
-            {retentionPct !== null ? `${retCount}%` : "—"}
+          {/* Hero % with no progress bar → semantic verdict: amber if any lift
+              needs attention, green when they're all on track. Neutral only
+              when there's no retention figure to judge. */}
+          <MetricValue
+            size="md"
+            style={retentionPct == null ? undefined : { color: attention > 0 ? "var(--gold)" : "var(--good)" }}
+          >
+            {retentionPct !== null ? (retCount == null ? "" : `${retCount}%`) : "—"}
           </MetricValue>
           <span className="ov-th-ret-count">
             {onTrackExercises.length} / {strength.total} lifts on track
@@ -560,86 +730,6 @@ function TrainingHealthCard({
         </div>
       )}
     </div>
-  );
-}
-
-/* ── Recovery Card ─────────────────────────────────────────────────────── */
-
-// Compact mirror of the Health tab's Recovery card: status word + the three
-// signals against their recovery baseline + the shared one-line insight. No
-// chart, gauge, or score — Overview answers "how am I today?" at a glance;
-// trends live in the Health tab.
-function RecoveryMetric({
-  label,
-  value,
-  unit,
-  decimals,
-  delta,
-  direction,
-}: {
-  label: string;
-  value: number | null;
-  unit: string;
-  decimals: number;
-  delta: number | null;
-  direction: "up-good" | "down-good";
-}) {
-  const fmt = (v: number) =>
-    v.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-
-  return (
-    <div className="ov-rec-metric">
-      <span className="ov-rec-metric-label">{label}</span>
-      <span className="ov-rec-metric-row">
-        <MetricValue size="md" unit={value != null ? unit : undefined}>
-          {value != null ? fmt(value) : "—"}
-        </MetricValue>
-        <span className="ov-rec-metric-delta-slot">
-          <MetricDelta value={delta} direction={direction} decimals={decimals} />
-        </span>
-      </span>
-    </div>
-  );
-}
-
-function RecoveryCard({ snap, onNav }: { snap: RecoverySnapshot | null; onNav: () => void }) {
-  const { ref, inView } = useInView<HTMLButtonElement>();
-  if (!snap || !snap.status) {
-    return (
-      <button type="button" ref={ref} data-inview={inView} className="page-card ov-recovery ov-recovery--empty" onClick={onNav}>
-        <div className="ov-rec-head">
-          <span className="ov-rec-title">Recovery</span>
-        </div>
-        <p className="ov-no-entry" style={{ textAlign: "left" }}>
-          No recovery data yet — sync sleep, HRV & resting HR from Apple Health
-        </p>
-      </button>
-    );
-  }
-
-  const sleepDelta = snap.sleepHours != null && snap.sleepBaseline != null
-    ? snap.sleepHours - snap.sleepBaseline : null;
-  const hrvDelta = snap.hrv != null && snap.hrvBaseline != null
-    ? snap.hrv - snap.hrvBaseline : null;
-  const rhrDelta = snap.rhr != null && snap.rhrBaseline != null
-    ? snap.rhr - snap.rhrBaseline : null;
-  const color = RECOVERY_STATUS_COLOR[snap.status];
-
-  return (
-    <button type="button" ref={ref} data-inview={inView} className="page-card ov-recovery" onClick={onNav}>
-      <div className="ov-rec-head">
-        <span className="ov-rec-title">Recovery</span>
-        <span className="ov-rec-status" style={{ color }}>
-          {snap.status}
-        </span>
-      </div>
-      <div className="ov-rec-metrics">
-        <RecoveryMetric label="Sleep" value={snap.sleepHours} unit="h"   decimals={1} delta={sleepDelta} direction="up-good" />
-        <RecoveryMetric label="HRV"   value={snap.hrv}        unit="ms"  decimals={0} delta={hrvDelta}   direction="up-good" />
-        <RecoveryMetric label="RHR"   value={snap.rhr}        unit="bpm" decimals={0} delta={rhrDelta}   direction="down-good" />
-      </div>
-      {snap.insight && <p className="ov-rec-insight">{snap.insight}</p>}
-    </button>
   );
 }
 
@@ -710,19 +800,16 @@ export function OverviewPage() {
               <span className="ov-th-all-good">✓ All exercises on track</span>
             </div>
           </div>
-
-          <div className="page-card ov-recovery loading-card">
-            <div className="ov-rec-head">
-              <span className="ov-rec-title">Recovery</span>
-              <span className="ov-rec-status">Ready</span>
-            </div>
-            <div className="ov-rec-metrics">
-              <RecoveryMetric label="Sleep" value={0} unit="h" decimals={1} delta={null} direction="up-good" />
-              <RecoveryMetric label="HRV" value={0} unit="ms" decimals={0} delta={null} direction="up-good" />
-              <RecoveryMetric label="RHR" value={0} unit="bpm" decimals={0} delta={null} direction="down-good" />
-            </div>
-          </div>
         </>
+      )}
+
+      {/* Active Target — leads: the actionable "what do I do today" number. */}
+      {data && (
+        <ActiveTargetCard
+          view={data.activeTarget}
+          targetTdee={data.targetTdee}
+          currentTdee={data.currentTdee}
+        />
       )}
 
       {data?.nutritionState?.recommendation && (
@@ -745,8 +832,6 @@ export function OverviewPage() {
       {data && (
         <WeightCard
           weightLatest={data.weightLatest}
-          activeEnergy={data.activeEnergy}
-          activeChange={data.activeChange}
           metrics={data.metrics}
           state={data.nutritionState}
           cutStartDate={data.cutStartDate}
@@ -762,8 +847,6 @@ export function OverviewPage() {
           onNav={() => nav("training")}
         />
       )}
-
-      {data && <RecoveryCard snap={data.recovery} onNav={() => nav("health")} />}
     </div>
   );
 }

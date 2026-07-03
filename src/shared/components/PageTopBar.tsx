@@ -5,6 +5,7 @@ import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCrossfade } from "@shared/hooks/useCrossfade";
 import { useActiveTargetRing } from "@shared/hooks/useActiveTargetRing";
 import { ActivityRing } from "@shared/components/ActivityRing";
+import { progressColor } from "@shared/lib/progressColor";
 import "./pageTopBar.css";
 import "@shared/components/activityRing.css";
 
@@ -29,10 +30,15 @@ export function PageTopBar({
   const { copied, copy } = useCopyButton(onCopy ?? (() => ""));
   const eyebrowFade = useCrossfade(eyebrow);
   const titleFade = useCrossfade(title);
+  // The note (e.g. Health's "Synced …") sits on the title row and changes in the
+  // same setHeader as the title on a tab swap — cross-fade it on the same 90ms
+  // clock so the two never desync (title sliding while the note pops in).
+  const noteFade = useCrossfade(note);
   const ring = useActiveTargetRing();
   const ringPct = ring ? ring.today.accrued / Math.max(1, ring.today.target) : null;
-  const ringColor =
-    ringPct == null ? "var(--rule-strong)" : ringPct >= 1 ? "var(--good)" : "var(--gold)";
+  // Shade the ring along the shared ember→green progress spectrum by today's
+  // ratio (same rule as the Cut Progress bar); grey when there's no data.
+  const ringColor = ringPct == null ? "var(--rule-strong)" : progressColor(ringPct);
 
   return (
     <div className="page-topbar">
@@ -44,7 +50,11 @@ export function PageTopBar({
           <h1 className={`page-topbar-title${titleFade.fading ? " is-fading" : ""}`}>
             {titleFade.displayed}
           </h1>
-          {note}
+          {noteFade.displayed != null && (
+            <span className={`page-topbar-note${noteFade.fading ? " is-fading" : ""}`}>
+              {noteFade.displayed}
+            </span>
+          )}
         </div>
       </div>
       <div className="page-topbar-actions">

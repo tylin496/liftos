@@ -1,6 +1,6 @@
 import { supabase } from "@shared/lib/supabase";
-import { computeRecovery, type RecoverySnapshot } from "@features/health/math";
 import { fetchHealthData, type BodyMetric } from "@features/health/api";
+import type { ActiveTargetView } from "@features/health/activeTarget";
 import { parse, score } from "@features/training/parser";
 import { epley1RM } from "@features/training/logic";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
@@ -46,7 +46,6 @@ export interface OverviewData {
   activeEnergy: number | null;
   /** Active energy change vs the prior 14–28d window — the up-good delta. */
   activeChange: number | null;
-  recovery: RecoverySnapshot | null;
   strength: StrengthSummary;
   compoundProgress: CompoundProgress | null;
   /** Shared nutrition evaluation + recommendation (single source of truth).
@@ -63,6 +62,13 @@ export interface OverviewData {
   /** Raw body metrics — the initializer snapshots the baseline at a chosen date
    *  from these (once, at Save). */
   metrics: BodyMetric[];
+  /** User-set maintenance TDEE goal (null until configured) — feeds Active Target. */
+  targetTdee: number | null;
+  /** Current computed TDEE (resting + active) — the Active Target chip's "current". */
+  currentTdee: number | null;
+  /** Derived active-calorie target + this-week pace, null until both a goal and a
+   *  resting-energy baseline exist. See health/activeTarget.ts. */
+  activeTarget: ActiveTargetView | null;
 }
 
 // Pull is resolved dynamically (first exercise in Pull split by sort_order).
@@ -147,12 +153,6 @@ export async function fetchOverview(): Promise<OverviewData> {
   const metrics = health.metrics;
   const weightLatestRaw = metrics.filter((m) => m.weight_kg != null).at(-1)?.weight_kg ?? null;
   const weightLatest = weightLatestRaw != null ? Math.round(weightLatestRaw * 10) / 10 : null;
-
-  // Recovery: reuse the Health tab's calculation verbatim (single source of
-  // truth). The 60-day metrics window covers the recovery baseline. Null status
-  // means no recovery data → the card renders its empty state.
-  const recoverySnap = computeRecovery(metrics as BodyMetric[]);
-  const recovery = recoverySnap.status ? recoverySnap : null;
 
   // Active energy — reuse the Health tab's TDEE windows verbatim (single source
   // of truth, already computed in fetchHealthData). Only the 14-day active
@@ -269,7 +269,6 @@ export async function fetchOverview(): Promise<OverviewData> {
     weightLatest,
     activeEnergy,
     activeChange,
-    recovery,
     strength,
     compoundProgress,
     nutritionState,
@@ -277,6 +276,9 @@ export async function fetchOverview(): Promise<OverviewData> {
     targetBodyFat: configRes.data?.target_body_fat_pct ?? null,
     cutStartDate: configRes.data?.cut_start_date ?? null,
     metrics: metrics as BodyMetric[],
+    targetTdee: health.targetTdee,
+    currentTdee: health.tdee.tdee,
+    activeTarget: health.activeTarget,
   };
 }
 

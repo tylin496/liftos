@@ -39,35 +39,47 @@
   --accent-glow: rgba(236, 81, 34, 0.16);
 
   /* ── Progress spectrum ────────────────────────────────────────────── */
-  /* Fixed ember anchors for the journey spectrum (progressColor.ts) — kept
-     INDEPENDENT of --accent/--accent-strong on purpose. If the brand accent
-     is ever re-themed, progress must still start ember; it is a deliberate,
-     load-bearing part of "how far along the journey," not a reflection of
-     whatever the current brand color happens to be. */
-  --progress-start: #cf491a;
-  --progress-mid: #ec5122;
+  /* Self-contained journey ramp for progressColor.ts — a WARM→COOL scale that
+     starts warm orange-red (low progress reads "not much yet"; kept RED, not
+     amber/gold, so gold stays reserved for celebration only), crosses cyan, and
+     lands on blue = "almost full." Uses its OWN tokens, clear of green
+     (--good's verdict). Completion is a SEPARATE discrete state — at exactly
+     100% an indicator flips to --progress-complete (gold) as a one-off
+     celebration. Gold has no range; it only means "done," never a ramp stop. */
+  --progress-start: #f05a2a;    /* warm orange-red — low / just started (redder than gold on purpose) */
+  --progress-mid: #2aa9c9;      /* cyan — mid-journey */
+  --progress-end: #1e6ef4;      /* Apple blue (IC-light) — almost full */
+  --progress-complete: #b8830a; /* deep gold — 100% only, the celebration */
 
   /* ── Semantic ─────────────────────────────────────────────────────────
      ONLY these three carry a good/bad verdict. Never use on charts,
      progress, branding, or decoration — that drift is what erodes the
      "colour = judgement" contract (see feedback-text-color-rule memory). */
-  --bad: #e83434;    /* Error */
-  --good: #1da05f;   /* Success — forest, not fitness-neon */
-  --gold: #e19006;   /* Warning / attention */
+  --bad: #e9152d;    /* Error — Apple red (IC-light) */
+  --good: #14ad57;   /* Success — brighter green */
+  --gold: #e85f45;   /* Warning / attention — coral (NOT yellow: keeps it clear
+                        of the celebration gold --pr / --progress-complete) */
   /* PR / gold-reward celebration — a darker antique-brass gold, deliberately
      LESS bright than --gold so achievement reads as "rare metal," not a
      louder warning. Reserved exclusively for achievements and personal
      records — never reused as a generic warning or progress color. Identity
      is carried by animation/stars/confetti, not by being the shiniest gold. */
-  --pr: #bf8207;
-  --blue: #478afa;   /* Weight identity — never a status verdict */
+  --pr: #956d51;   /* trophy metal — Apple brown (IC-light) */
+  --blue: #007eae;   /* Cyan — neutral series/identity colour, never a status verdict */
 
   /* ── Health chart metric colors (iOS-style; read fine on light + dark) ── */
   /* Coral — a distinct red-orange from --accent's ember so the Active chart
      never competes with brand/progress color at a glance. */
-  --health-active: #f3492b;
-  --health-measurement: #cc23f1;
-  --health-sleep: #5147fa;
+  --health-active: #c55300;      /* Apple orange (IC-light) */
+  --health-measurement: #b02fc2; /* Apple purple (IC-light) */
+  --health-sleep: #564ade;       /* Apple indigo (IC-light) */
+
+  /* ── Nutrition macro identity colors ─────────────────────────────────
+     Calorie/protein dual-bar chart (History). Identity colors, not
+     semantic verdicts — surplus/over-budget states still override with
+     --bad. Same vivid value in both themes (already high-contrast). */
+  --nutrition-calorie: #a7ff00;
+  --nutrition-protein: #05fff5;
 
   /* ── Overlay ── decorative, non-signal colors (theme-invariant) ──────── */
   --on-color: #fff; /* text/icon on a saturated accent/good/bad/gold surface */
@@ -185,8 +197,16 @@
      One shared material so the two bars read identically. Kept quite
      transparent — the blur, not the fill, does the separating work.
      Plain rgba (not color-mix) so it can transition from `transparent`. */
-  --glass-bg: rgba(244, 244, 246, 0.6);
-  --glass-blur: saturate(180%) blur(22px);
+  /* Kept quite transparent so the material genuinely interacts with (refracts +
+     saturates) whatever scrolls behind it, rather than reading as a flat slab. */
+  --glass-bg: rgba(244, 244, 246, 0.42);
+  --glass-blur: saturate(200%) blur(22px);
+  /* Specular set — what turns "frosted vinyl" into Liquid Glass. highlight is
+     the bright top rim that catches light; shadow is the lower inner shade that
+     gives the pane depth; edge is the crisp rim over any content. */
+  --glass-highlight: rgba(255, 255, 255, 0.72);
+  --glass-shadow: rgba(17, 24, 39, 0.16);
+  --glass-edge: rgba(255, 255, 255, 0.8);
 
   /* Modal scrim: one dim + blur for every full-screen backdrop, so every
      overlay darkens its background by the same amount. */
@@ -234,16 +254,26 @@
   --accent: #ff7a45;
   --accent-strong: #e85f28;   /* deeper ember — solid white-on-accent fills */
   --accent-glow: rgba(255, 122, 69, 0.26);
-  /* Fixed ember anchors for the progress spectrum — see :root for rationale. */
-  --progress-start: #e85f28;
-  --progress-mid: #ff7a45;
-  --good: #4de097;
-  --bad: #f28787;
-  --gold: #fbc15c;
-  --pr: #f9ba3d;   /* PR / gold-reward gold — antique gold, yellower than --gold amber */
-  --blue: #7eadfc;
+  /* Blue journey ramp — see :root. Brightens (not deepens) as it fills so
+     "almost full" pops on the dark background. */
+  --progress-start: #ff764a;      /* warm orange-red glow — low */
+  --progress-mid: #3bddec;        /* cyan glow — mid */
+  --progress-end: #5cb8ff;        /* blue — almost full */
+  --progress-complete: #ffcf3a;   /* glowing gold — 100% only */
+  --good: #4ad968;
+  --bad: #ff6165;
+  --gold: #ff856a;   /* Warning / attention — coral (bright for dark) */
+  --pr: #dba679;   /* PR / gold-reward — trophy metal (Apple brown) */
+  --blue: #6dd9ff;   /* Cyan (IC-dark) */
+  /* Health chart colours — Apple increased-contrast (dark), brighter on dark */
+  --health-active: #ffa056;
+  --health-measurement: #ea8dff;
+  --health-sleep: #a7aaff;
   --card-blur: blur(22px);
-  --glass-bg: rgba(26, 26, 26, 0.55);
+  --glass-bg: rgba(26, 26, 26, 0.42);
+  --glass-highlight: rgba(255, 255, 255, 0.22);
+  --glass-shadow: rgba(0, 0, 0, 0.55);
+  --glass-edge: rgba(255, 255, 255, 0.24);
   --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.4), 0 8px 22px -6px rgba(0, 0, 0, 0.42), 0 22px 50px -18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --shadow-md: 0 18px 42px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --focus-ring: 0 0 0 3px rgba(255, 122, 69, 0.32);

@@ -25,7 +25,7 @@ const PAGES: Record<TabId, () => JSX.Element> = {
   health: HealthPage,
 };
 
-const TAB_ORDER: TabId[] = ["overview", "training", "nutrition", "health"];
+const TAB_ORDER: TabId[] = ["overview", "nutrition", "training", "health"];
 
 const SLIDE_MS = 320;
 
@@ -128,12 +128,22 @@ export function Shell({ session }: { session: Session }) {
     }, SLIDE_MS + 20);
   }
 
+  // Bump a tab's activity version — this remounts its count-ups (blank → roll)
+  // and triggers its refetch. Fire it when the tab STARTS coming into view, not
+  // when the slide finalizes: otherwise the panel slides in showing its old
+  // settled numbers for the whole slide, then blanks and re-animates once it's
+  // already on screen (reads as "rendered → disappears → animates"). Bumping at
+  // slide-start means the roll happens as/while it slides in.
+  function enterTab(next: TabId) {
+    setVisited((prev) => new Set([...prev, next]));
+    setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
+  }
+
   function commitTab(next: TabId) {
     setHighlight(next);
     if (next !== tab) {
       haptic("select");
       setVisited((prev) => new Set([...prev, next]));
-      setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
     }
     localStorage.setItem("active-tab", next);
     pendingScrollTopRef.current = true;
@@ -144,15 +154,15 @@ export function Shell({ session }: { session: Session }) {
   // swipe by kicking off from dx:0 and letting the CSS transition run.
   function switchTab(next: TabId, options?: NavOptions) {
     if (next === tab) {
-      // Re-tapping the already-active tab scrolls it back to top or to a target.
+      // Re-tapping the already-active tab is a no-op — it no longer scrolls to
+      // top. A caller asking for a specific target (e.g. Weight → Nutrition's
+      // insight card) still jumps there.
       if (options?.scrollTo) {
         const el = document.getElementById(options.scrollTo);
         if (el) {
           const rect = el.getBoundingClientRect();
           window.scrollTo({ top: window.scrollY + rect.top, behavior: "smooth" });
         }
-      } else {
-        window.scrollTo({ top: 0, behavior: "smooth" });
       }
       return;
     }
@@ -161,13 +171,14 @@ export function Shell({ session }: { session: Session }) {
       // in-flight animation finish instead of snapping it to completion.
       if (slideRef.current.to === next) return;
       if (options?.scrollTo) setPendingScrollTarget(options.scrollTo);
+      enterTab(next);
       commitTab(next);
       return;
     }
     if (options?.scrollTo) setPendingScrollTarget(options.scrollTo);
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
-    setVisited((prev) => new Set([...prev, next]));
+    enterTab(next);
     // Place the incoming panel off-screen with no transition, then flip to the
     // target on a timer so the browser paints the start frame first. setTimeout
     // (not rAF) so the animation still completes if the tab is backgrounded.
@@ -284,6 +295,7 @@ export function Shell({ session }: { session: Session }) {
         return;
       }
       setHighlight(to);
+      enterTab(to);
       const dir: 1 | -1 = dx < 0 ? 1 : -1;
       const width = window.innerWidth || 1;
       setSlide({ to, dir, dx: -dir * width, settling: true });

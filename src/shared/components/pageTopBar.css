@@ -13,8 +13,6 @@
   text-transform: uppercase;
   color: var(--role-eyebrow-color);
   margin: 0 0 var(--space-1);
-  opacity: 1;
-  transition: opacity var(--motion-fast) var(--press-ease);
 }
 
 .page-topbar-title-row {
@@ -29,6 +27,13 @@
   letter-spacing: -0.02em;
   color: var(--role-page-title-color);
   margin: 0;
+}
+
+/* Eyebrow + title change together (day nav / tab switch) and animate in
+   lockstep: both slide in from the right as they fade, not just an opacity
+   fade — one consistent motion for the whole header block. */
+.page-topbar-eyebrow,
+.page-topbar-title {
   opacity: 1;
   transform: translateX(0);
   transition:
@@ -36,16 +41,24 @@
     transform var(--motion-fast) var(--press-ease);
 }
 
-.page-topbar-eyebrow.is-fading {
-  opacity: 0;
-}
-
-/* Title slides as it changes (day nav / tab switch): the outgoing title fades
-   while drifting right, then the incoming one eases back in from the right —
-   a horizontal fade-in rather than the eyebrow's anchored opacity-only fade. */
+.page-topbar-eyebrow.is-fading,
 .page-topbar-title.is-fading {
   opacity: 0;
   transform: translateX(10px);
+}
+
+/* Sits on the title row (e.g. Health's "Synced …"). Pure opacity fade — no
+   horizontal slide, so it doesn't compete with the title's motion — and its
+   fade-in trails the title by a beat so it reads as following it in, not
+   racing it. Fade-out stays on the same clock as the title (no delay). */
+.page-topbar-note {
+  opacity: 1;
+  transition: opacity var(--motion-fast) var(--press-ease) 40ms;
+}
+
+.page-topbar-note.is-fading {
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--press-ease);
 }
 
 .page-topbar-actions {

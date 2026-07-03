@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { fetchHealthData, saveTargetTdee, type HealthData } from "./api";
-import type { ActiveTargetView } from "./activeTarget";
+import { fetchHealthData, type HealthData } from "./api";
 import {
   series,
   bucketSeries,
@@ -14,16 +13,12 @@ import {
   type RecoverySnapshot,
 } from "./math";
 import { ErrorState } from "@shared/components/ErrorState";
-import { useCountUp } from "@shared/hooks/useCountUp";
-import { useToast } from "@shared/components/Toast";
+import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
-import { ActivityRing } from "@shared/components/ActivityRing";
-import "@shared/components/activityRing.css";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { localDateStr } from "@shared/lib/date";
-import { progressColor } from "@shared/lib/progressColor";
 import "./health.css";
 
 interface MetricSpec {
@@ -43,8 +38,8 @@ interface MetricSpec {
 }
 
 const METRICS: MetricSpec[] = [
-  { key: "weight_kg",    label: "Weight",   unit: "kg", decimals: 1, color: "var(--health-weight)",  bucket: 7,  avgLabel: "7-day average", minSpan: 3 },
-  { key: "body_fat_pct", label: "Body Fat", unit: "%",  decimals: 1, color: "var(--health-bodyfat)", bucket: 14, avgLabel: "14-day average", minSpan: 3 },
+  { key: "weight_kg",    label: "Weight",   unit: "kg", decimals: 1, color: "var(--health-measurement)", bucket: 7,  avgLabel: "7-day average", minSpan: 3 },
+  { key: "body_fat_pct", label: "Body Fat", unit: "%",  decimals: 1, color: "var(--health-measurement)", bucket: 14, avgLabel: "14-day average", minSpan: 3 },
 ];
 
 const FIXED_DAYS = 180;
@@ -65,7 +60,7 @@ const SPARK_POINTS = 6;
    shape (range = its own bucket × SPARK_POINTS), not a scrubbable chart
    (that's a deliberate design call, not a fidelity cut: the card's own big
    number + delta already carry the "what changed" story). */
-function Sparkline({ points, minSpan = 0 }: { points: ChartPoint[]; minSpan?: number }) {
+function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }: { points: ChartPoint[]; minSpan?: number; color?: string }) {
   const width = 92, height = 40;
   if (points.length < 2) return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline" />;
 
@@ -90,18 +85,71 @@ function Sparkline({ points, minSpan = 0 }: { points: ChartPoint[]; minSpan?: nu
   });
   const pts = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const last = coords[coords.length - 1];
+  const n = coords.length;
+
+  const reduced =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
   // Apple-style: the line recedes to grey; each reading is a hollow grey bead
   // threaded on it (fill masks the line to read as open). Every bead is the same
   // size — only the latest is ringed in the metric colour, the "you are here"
   // anchor. SPARK_POINTS keeps the beads from crowding.
+  if (reduced) {
+    return (
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
+        <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        {coords.slice(0, -1).map((c, i) => (
+          <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="2" />
+        ))}
+        <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke={color} strokeWidth="2" />
+      </svg>
+    );
+  }
+
+  // Draws itself in once, the first time the card mounts with data: the grey
+  // line strokes left→right and each bead pops the moment the line reaches it.
+  // A background re-fetch updates points in place (same element, no remount), so
+  // the draw never restarts — and tab switches don't replay it.
+  const dur = 900; // ms — line-draw duration; bead delays are fractions of it
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
-      <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      {coords.slice(0, -1).map((c, i) => (
-        <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="2" />
-      ))}
-      <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--health-bodyfat)" strokeWidth="2" />
+      <g>
+        <polyline
+          className="health-spark-line"
+          points={pts}
+          pathLength={1}
+          fill="none"
+          stroke="var(--ink-4)"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ ["--spark-dur" as string]: `${dur}ms` }}
+        />
+        {coords.slice(0, -1).map((c, i) => (
+          <circle
+            key={i}
+            className="health-spark-bead"
+            cx={c.x.toFixed(1)}
+            cy={c.y.toFixed(1)}
+            r={dot}
+            fill="var(--bg-card)"
+            stroke="var(--ink-4)"
+            strokeWidth="2"
+            style={{ animationDelay: `${((i / (n - 1)) * dur).toFixed(0)}ms` }}
+          />
+        ))}
+        <circle
+          className="health-spark-bead"
+          cx={last.x.toFixed(1)}
+          cy={last.y.toFixed(1)}
+          r={dot}
+          fill="var(--bg-card)"
+          stroke={color}
+          strokeWidth="2"
+          style={{ animationDelay: `${dur}ms` }}
+        />
+      </g>
     </svg>
   );
 }
@@ -109,11 +157,10 @@ function Sparkline({ points, minSpan = 0 }: { points: ChartPoint[]; minSpan?: nu
 const fmt = (v: number, d: number) =>
   v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 
-/* Hero metric number — tweens from the value on screen to the new one
-   (e.g. weight 92.3 → 92.1) instead of snapping. */
+/* Hero metric number — counts up, staggered bottom-up by its on-screen position
+   (see AnimatedNumber); a same-visit value settle tweens without blanking. */
 function AnimatedMetric({ value, decimals }: { value: number; decimals: number }) {
-  const count = useCountUp(value, 650, decimals);
-  return <>{fmt(count, decimals)}</>;
+  return <AnimatedNumber value={value} decimals={decimals} format={(n) => fmt(n, decimals)} />;
 }
 
 function RecoveryRow({
@@ -136,7 +183,7 @@ function RecoveryRow({
       <span className="health-recovery-row-label">{label}</span>
       <div className="health-recovery-row-stat">
         <MetricValue size="md" unit={value != null ? unit : undefined}>
-          {value != null ? fmt(value, decimals) : "—"}
+          {value != null ? <AnimatedMetric value={value} decimals={decimals} /> : "—"}
         </MetricValue>
         <MetricDelta value={delta} direction={direction} decimals={decimals} />
       </div>
@@ -184,6 +231,7 @@ function TrendCard({
   note,
   minSpan = 0,
   rangeDays,
+  color,
 }: {
   label: string;
   avgLabel: string;
@@ -200,6 +248,9 @@ function TrendCard({
   minSpan?: number;
   /** Sparkline span in days — bucketDays × SPARK_POINTS, not a fixed 180. */
   rangeDays: number;
+  /** Identity colour for this metric's eyebrow label and sparkline "you are
+      here" bead — not a good/bad signal, just which card it belongs to. */
+  color?: string;
 }) {
   return (
     <section className={`page-card health-trend${loading ? " loading-card" : ""}`}>
@@ -219,7 +270,7 @@ function TrendCard({
             {delta}
           </div>
         </div>
-        <Sparkline points={points} minSpan={minSpan} />
+        <Sparkline points={points} minSpan={minSpan} color={color} />
       </div>
       <div className="health-trend-foot">
         <MetricCaption>{loading ? "Loading…" : avgLabel}</MetricCaption>
@@ -233,143 +284,6 @@ function TrendCard({
 // Body-fat plausibility filtering (isImplausibleBodyFat / sanitizeMetrics /
 // countSkippedBodyFat) now lives in ./math so the AI export applies the exact
 // same filter — a sample that never reaches a chart must never reach the export.
-
-/* Active Target — back-solves the daily active-calorie goal from a maintenance
-   TDEE target (target − resting), then tracks this week's pace against it. The
-   whole card is derived from the latest synced metrics, so it re-computes on
-   every sync without any stored state. Tap the target chip to edit the goal. */
-function ActiveTargetCard({
-  view,
-  targetTdee,
-  onSave,
-}: {
-  view: ActiveTargetView | null;
-  targetTdee: number | null;
-  onSave: (next: number | null) => Promise<void>;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-
-  function beginEdit() {
-    setDraft(targetTdee != null ? String(targetTdee) : "");
-    setEditing(true);
-  }
-  async function commit() {
-    const n = parseInt(draft, 10);
-    setEditing(false);
-    const next = Number.isFinite(n) && n > 0 ? n : null;
-    if (next !== targetTdee) await onSave(next);
-  }
-
-  // Not configured yet — a one-tap invitation, no empty scaffolding.
-  if (targetTdee == null && !editing) {
-    return (
-      <section className="page-card health-active-target">
-        <div className="health-card-eyebrow">Active target</div>
-        <button type="button" className="active-target-setup" onClick={beginEdit}>
-          Set a maintenance TDEE goal to see your daily active target
-        </button>
-      </section>
-    );
-  }
-
-  // Why today's number floats: it's this week's position folded into one ask.
-  // On-pace → today.target == the flat daily average exactly; behind → higher,
-  // ahead → lower. A small deadband keeps it from flickering near equality.
-  const dailyAvg = view?.activeTargetPerDay ?? 0;
-  const diff = view ? view.today.target - dailyAvg : 0;
-  const position = Math.abs(diff) <= 30 ? "on" : diff > 0 ? "behind" : "ahead";
-
-  return (
-    <section className="page-card health-active-target">
-      <div className="health-active-target-head">
-        <span className="health-card-eyebrow">Active target</span>
-        {editing ? (
-          <span className="active-target-edit">
-            <input
-              type="number"
-              inputMode="numeric"
-              className="active-target-input"
-              value={draft}
-              autoFocus
-              placeholder="2800"
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void commit();
-                if (e.key === "Escape") setEditing(false);
-              }}
-              onBlur={() => void commit()}
-            />
-            <span className="active-target-edit-unit">TDEE</span>
-          </span>
-        ) : (
-          <button type="button" className="active-target-goal" onClick={beginEdit}>
-            {targetTdee?.toLocaleString()} TDEE
-            <PenLineGlyph />
-          </button>
-        )}
-      </div>
-
-      {view ? (
-        <>
-          <div className="active-target-ring-row">
-            <ActivityRing
-              pct={view.today.accrued / Math.max(1, view.today.target)}
-              size={96}
-              strokeWidth={9}
-              color={progressColor(view.today.accrued / Math.max(1, view.today.target))}
-              trackColor="var(--bg-soft)"
-            >
-              <div className="active-target-ring-center">
-                <span className="active-target-ring-num">{view.today.accrued.toLocaleString()}</span>
-                <span className="active-target-ring-of">of {view.today.target.toLocaleString()}</span>
-              </div>
-            </ActivityRing>
-            <div className="active-target-ring-caption">
-              <span className="active-target-ring-title">Today's target</span>
-              <span className="active-target-ring-sub">
-                {position === "behind"
-                  ? `Behind this week — today's up from your ${dailyAvg.toLocaleString()}/day average`
-                  : position === "ahead"
-                    ? `Ahead this week — today eased below your ${dailyAvg.toLocaleString()}/day average`
-                    : `On pace — about your ${dailyAvg.toLocaleString()}/day average`}
-              </span>
-              {!view.today.synced && (
-                <span className="active-target-ring-stale">
-                  {view.today.lastSyncDate
-                    ? `Not synced today — last reading ${view.today.lastSyncDate}`
-                    : "Not synced yet"}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {view.today.accrued < view.today.target && (
-            <div className="active-target-hint">
-              <span>{(view.today.target - view.today.accrued).toLocaleString()} kcal to close today's ring</span>
-              {view.session && (
-                <span>A typical session adds ~{view.session.boost.toLocaleString()} active</span>
-              )}
-            </div>
-          )}
-        </>
-      ) : (
-        <p className="page-note">
-          No resting-energy baseline yet — the target needs a few days of Apple Health data.
-        </p>
-      )}
-    </section>
-  );
-}
-
-function PenLineGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" aria-hidden="true">
-      <path d="M4 20h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M6 15l9-9 3 3-9 9H6v-3z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 // Sync freshness for the header note. With multiple sync methods now (scheduled
 // runs, on-open), today shows the actual clock time of the last write so you can
@@ -396,8 +310,8 @@ function syncLabel(
 export function HealthPage() {
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [energyExpanded, setEnergyExpanded] = useState(false);
   const activity = useTabActivity();
-  const toast = useToast();
 
   const load = useCallback(() => {
     return fetchHealthData(FIXED_DAYS)
@@ -493,21 +407,6 @@ export function HealthPage() {
     return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS };
   }, [data, metrics]);
 
-  const saveTarget = useCallback(
-    async (next: number | null) => {
-      // Optimistic: reflect immediately, then persist + refresh derived pace.
-      setData((prev) => (prev ? { ...prev, targetTdee: next } : prev));
-      try {
-        await saveTargetTdee(next);
-        await load();
-      } catch (e) {
-        toast(String((e as Error)?.message ?? e), "error");
-        void load();
-      }
-    },
-    [load, toast],
-  );
-
   usePageHeader({ eyebrow: "HEALTH", title: "Trends", onCopy: copyHealthData, note: syncNote });
 
   if (error && !data) {
@@ -520,18 +419,101 @@ export function HealthPage() {
 
   return (
     <div className="page health">
-      {/* Active Target leads — it's the actionable, glanceable "what do I do
-          today" number (the same ring worn on the avatar). TDEE right below
-          is the metabolic model behind it, for whoever wants the why. */}
-      {data && (
-        <ActiveTargetCard
-          view={data.activeTarget}
-          targetTdee={data.targetTdee}
-          onSave={saveTarget}
-        />
-      )}
+      {/* 1. Energy — the metabolic model behind the ring. Active leads with its
+          trend (behaviour-driven); Resting + TDEE ride below as context so
+          Resting + Active = TDEE still adds up. */}
+      <section className={`page-card health-energy${!data ? " loading-card" : ""}`}>
+        <div className="health-tdee-head">
+          <span className="health-card-eyebrow">Active</span>
+        </div>
+        {!data ? (
+          <>
+            <div className="health-trend-head">
+              <div className="health-trend-info">
+                <div className="health-trend-stat">
+                  <MetricValue size="md" unit="kcal">000</MetricValue>
+                </div>
+              </div>
+              <Sparkline points={[]} minSpan={ENERGY_MIN_SPAN} color="var(--health-active)" />
+            </div>
+            <div className="health-trend-foot">
+              <MetricCaption>Loading…</MetricCaption>
+              <div className="health-trend-range">{ENERGY_BUCKET * SPARK_POINTS}-day trend</div>
+            </div>
+          </>
+        ) : tdee?.tdee != null ? (
+          <>
+            {/* Active leads with the sparkline — the behaviour-driven number. */}
+            <div className="health-trend-head">
+              <div className="health-trend-info">
+                <div className="health-trend-stat">
+                  <MetricValue size="md" unit="kcal">
+                    {tdee.avgActive != null ? <AnimatedMetric value={tdee.avgActive} decimals={0} /> : null}
+                  </MetricValue>
+                  {activeChange != null && (
+                    <MetricDelta value={activeChange} direction="up-good" decimals={0} />
+                  )}
+                </div>
+              </div>
+              <Sparkline points={energyBucketed} minSpan={ENERGY_MIN_SPAN} color="var(--health-active)" />
+            </div>
+            <div className="health-trend-foot">
+              <MetricCaption>
+                {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"}
+              </MetricCaption>
+              <div className="health-trend-range">{ENERGY_BUCKET * SPARK_POINTS}-day trend</div>
+            </div>
 
-      {/* Trend card skeleton — same TrendCard component, placeholder values,
+            <button
+              type="button"
+              className="health-energy-toggle"
+              onClick={() => setEnergyExpanded((v) => !v)}
+            >
+              {energyExpanded ? "Show less" : "Resting + TDEE model"}
+              <svg
+                className={`health-energy-toggle-chevron${energyExpanded ? " is-open" : ""}`}
+                width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"
+              >
+                <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+
+            {/* Resting + TDEE — the model behind the ring, so Resting+Active=TDEE
+                still visibly adds up. */}
+            {energyExpanded && (
+              <div className="health-energy-model">
+                <div className="health-energy-model-item">
+                  <span className="health-energy-metric-label">Resting</span>
+                  <div className="health-trend-stat">
+                    <MetricValue size="md" unit="kcal">
+                      {tdee.avgResting != null ? <AnimatedMetric value={tdee.avgResting} decimals={0} /> : null}
+                    </MetricValue>
+                    {restingChange != null && (
+                      <MetricDelta value={restingChange} direction="up-good" decimals={0} />
+                    )}
+                  </div>
+                  <span className="health-energy-window">
+                    {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
+                  </span>
+                </div>
+                <div className="health-energy-model-item">
+                  <span className="health-energy-metric-label">TDEE</span>
+                  <MetricValue size="md" unit="kcal">
+                    <AnimatedMetric value={tdee.tdee} decimals={0} />
+                  </MetricValue>
+                  <span className="health-energy-window">resting + active</span>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="page-note">
+            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
+          </p>
+        )}
+      </section>
+
+      {/* 2. Trend card skeleton — same TrendCard component, placeholder values,
           so height matches the loaded Weight / Body Fat / Lean Mass cards. */}
       {!data && METRICS.map((spec) => (
         <TrendCard
@@ -545,6 +527,7 @@ export function HealthPage() {
           points={[]}
           delta={null}
           rangeDays={spec.bucket * SPARK_POINTS}
+          color={spec.color}
         />
       ))}
       {!data && (
@@ -558,10 +541,11 @@ export function HealthPage() {
           points={[]}
           delta={null}
           rangeDays={14 * SPARK_POINTS}
+          color="var(--health-measurement)"
         />
       )}
 
-      {/* Trend cards — Weight, Body Fat */}
+      {/* Trend cards — Weight, then Body Fat (body-composition read). */}
       {cards.map(({ spec, bucketed, thisWeek, change, readingCount }) => (
         <TrendCard
           key={spec.key}
@@ -573,6 +557,7 @@ export function HealthPage() {
           points={bucketed}
           minSpan={spec.minSpan}
           rangeDays={spec.bucket * SPARK_POINTS}
+          color={spec.color}
           delta={
             // Both Weight and Body Fat are down-good on a cut — this page is the
             // body-composition trend view, so each carries its own coloured
@@ -602,6 +587,7 @@ export function HealthPage() {
           points={lbmCard.bucketed}
           minSpan={2}
           rangeDays={lbmCard.rangeDays}
+          color="var(--health-measurement)"
           delta={
             lbmCard.change != null && lbmCard.readingCount >= 2 ? (
               <MetricDelta value={lbmCard.change} direction="up-good" decimals={1} unit="kg" />
@@ -609,84 +595,6 @@ export function HealthPage() {
           }
         />
       )}
-
-      {/* Energy — the metabolic model behind the ring at the top. Active leads
-          with its trend (behaviour-driven); Resting + TDEE ride below as context
-          so Resting + Active = TDEE still adds up. Sits below body-composition
-          as background model state, above only Recovery. */}
-      <section className={`page-card health-energy${!data ? " loading-card" : ""}`}>
-        <div className="health-tdee-head">
-          <span className="health-card-eyebrow">Active</span>
-        </div>
-        {!data ? (
-          <>
-            <div className="health-trend-head">
-              <div className="health-trend-info">
-                <div className="health-trend-stat">
-                  <MetricValue size="xl" unit="kcal">000</MetricValue>
-                </div>
-                <span className="health-energy-window">14-day average</span>
-              </div>
-              <Sparkline points={[]} minSpan={ENERGY_MIN_SPAN} />
-            </div>
-            <div className="health-energy-model">
-              <div className="health-energy-model-item">
-                <span className="health-energy-metric-label">Resting</span>
-                <MetricValue size="md" unit="kcal">0000</MetricValue>
-                <span className="health-energy-window">30-day average</span>
-              </div>
-              <div className="health-energy-model-item">
-                <span className="health-energy-metric-label">TDEE</span>
-                <MetricValue size="md" unit="kcal">0000</MetricValue>
-                <span className="health-energy-window">resting + active</span>
-              </div>
-            </div>
-          </>
-        ) : tdee?.tdee != null ? (
-          <>
-            {/* Active leads with the sparkline — the behaviour-driven number. */}
-            <div className="health-trend-head">
-              <div className="health-trend-info">
-                <div className="health-trend-stat">
-                  <MetricValue size="xl" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
-                  {activeChange != null && (
-                    <MetricDelta value={activeChange} direction="up-good" decimals={0} />
-                  )}
-                </div>
-                <span className="health-energy-window">
-                  {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"} · {ENERGY_BUCKET * SPARK_POINTS}-day trend
-                </span>
-              </div>
-              <Sparkline points={energyBucketed} minSpan={ENERGY_MIN_SPAN} />
-            </div>
-            {/* Resting + TDEE — the model behind the ring, so Resting+Active=TDEE
-                still visibly adds up. */}
-            <div className="health-energy-model">
-              <div className="health-energy-model-item">
-                <span className="health-energy-metric-label">Resting</span>
-                <div className="health-trend-stat">
-                  <MetricValue size="md" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
-                  {restingChange != null && (
-                    <MetricDelta value={restingChange} direction="up-good" decimals={0} />
-                  )}
-                </div>
-                <span className="health-energy-window">
-                  {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
-                </span>
-              </div>
-              <div className="health-energy-model-item">
-                <span className="health-energy-metric-label">TDEE</span>
-                <MetricValue size="md" unit="kcal">{tdee.tdee.toLocaleString()}</MetricValue>
-                <span className="health-energy-window">resting + active</span>
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="page-note">
-            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
-          </p>
-        )}
-      </section>
 
       {/* Recovery — sleep / HRV / RHR readiness snapshot. Sits last: it's a
           day-to-day state read, below the longer-arc body-composition and TDEE

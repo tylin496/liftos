@@ -138,6 +138,11 @@
   top: calc(100% + 4px);
   right: 0;
   background: var(--bg-card);
+  /* --bg-card is translucent in dark mode (frosted-card look) — every other
+     floating surface pairs it with this blur so content behind doesn't show
+     through; this popup was missing it, reading as too see-through. */
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
@@ -338,7 +343,7 @@
 }
 
 .ex-pr-inline.pr-just-set {
-  background: rgba(200, 117, 0, 0.12);
+  background: color-mix(in srgb, var(--pr) 12%, transparent);
   animation: pr-pop 500ms var(--reveal-ease);
   position: relative;
   overflow: hidden;
@@ -351,7 +356,7 @@
   background: linear-gradient(
     105deg,
     transparent 40%,
-    rgba(255, 200, 80, 0.35) 50%,
+    color-mix(in srgb, var(--pr) 35%, transparent) 50%,
     transparent 60%
   );
   background-size: 200% 100%;
@@ -531,12 +536,12 @@
 }
 
 .hist-row.hist-row-new {
-  background: rgba(30, 145, 73, 0.08);
+  background: color-mix(in srgb, var(--good) 8%, transparent);
   border-radius: var(--radius-sm);
 }
 
 @keyframes row-saved {
-  0%   { background: rgba(30, 145, 73, 0.14); }
+  0%   { background: color-mix(in srgb, var(--good) 14%, transparent); }
   100% { background: transparent; }
 }
 
@@ -1206,7 +1211,7 @@
 }
 
 .inline-edit-delete-btn:hover {
-  background: rgba(224, 53, 53, 0.08);
+  background: color-mix(in srgb, var(--bad) 8%, transparent);
 }
 
 /* ── "Log set" open button ───────────────────────────────────────────────────*/
@@ -1513,7 +1518,7 @@
 }
 
 .archived-actions button.danger:hover {
-  background: rgba(224, 53, 53, 0.08);
+  background: color-mix(in srgb, var(--bad) 8%, transparent);
 }
 
 /* ── Stretches ───────────────────────────────────────────────────────────────*/

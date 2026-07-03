@@ -1,5 +1,111 @@
 /* ─── Overview page ──────────────────────────────────────────────────────── */
 
+/* ─── Active Target Card ─────────────────────────────────────────────────
+   Back-solves the daily active-calorie goal from a maintenance TDEE target,
+   then tracks this week's pace against it. Moved here from Health — it's
+   the actionable "what do I do today" number, so it leads Overview. */
+.ov-active-target-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ov-active-target-goal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.ov-active-target-goal svg {
+  opacity: 0.6;
+}
+
+.ov-active-target-setup {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-top: 6px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  cursor: pointer;
+  line-height: var(--leading-body);
+}
+
+.ov-active-target-ring-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.ov-active-target-ring-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+
+.ov-active-target-ring-num {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.ov-active-target-ring-of {
+  font-size: var(--text-2xs);
+  /* ink-4 is only ~2.9:1 against the dark bg (fails 3:1 even for small text);
+     ink-3 clears ~6:1 while staying visually secondary to the hero number. */
+  color: var(--ink-3);
+}
+
+.ov-active-target-ring-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ov-active-target-ring-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ov-active-target-ring-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+  line-height: var(--leading-body);
+}
+
+.ov-active-target-ring-stale {
+  font-size: var(--text-2xs);
+  color: var(--gold);
+}
+
+.ov-active-target-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-4);
+  padding: 10px var(--space-3);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--accent-strong);
+  line-height: var(--leading-body);
+}
+
 .ov-no-entry {
   font-size: var(--text-sm);
   color: var(--ink-4);
@@ -115,14 +221,6 @@
 .ov-weight-val.is-warn { color: var(--gold); }
 .ov-weight-val.is-bad  { color: var(--bad); }
 
-/* Activity row: the 14-day active-energy average sits with its up-good delta
-   (COLOR-SYSTEM: colour lives on the change, not the value). */
-.ov-weight-activity {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
 /* ─── System Card (top-priority recommendation) ──────────────────────────── */
 
 .ov-system-banner {
@@ -229,10 +327,17 @@
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: var(--metric-lg);
-  color: var(--accent);
+  /* Colour is set inline to follow the progress bar (see GoalPct). This is only
+     the fallback for the pre-count-up empty state. */
+  color: var(--progress-end);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1;
+  /* The blank pre-roll span (no text node) and the rolled "83%" text can
+     resolve to different line-box heights, jumping .goal-head's (and the
+     whole card's) height the instant the count-up starts. Reserve one
+     line's height up front so both states measure the same. */
+  min-height: 1em;
 }
 
 .goal-bar {
@@ -246,17 +351,11 @@
 .goal-bar-fill {
   height: 100%;
   border-radius: var(--radius-pill);
-  /* Ember→green spectrum, anchored to the full track via inline background-size
-     (see barFillSize in page.tsx). The fill's leading edge shows the colour at
-     the current %: warm/ember early, greening as the goal is reached. Never red
-     — low progress is not a bad verdict (per the metric colour rule). */
-  background-image: linear-gradient(
-    90deg,
-    var(--accent-strong) 0%,
-    var(--accent) 40%,
-    color-mix(in oklab, var(--accent) 35%, var(--good)) 72%,
-    var(--good) 100%
-  );
+  /* Ember→green spectrum comes from progressGradient() inline (single source:
+     shared/lib/progressColor.ts), anchored to the full track via inline
+     background-size (barFillSize in page.tsx). The fill's leading edge shows
+     the colour at the current %: warm/ember early, greening as the goal is
+     reached. Never red — low progress is not a bad verdict (metric colour rule). */
   background-repeat: no-repeat;
   background-position: left center;
   transition: width var(--motion-slow) var(--reveal-ease);
@@ -298,10 +397,13 @@
 }
 
 /* ─── 100% completion state ──────────────────────────────────────────────── */
-.goal.is-complete .goal-label { color: var(--good); }
-.goal.is-complete .goal-pct { color: var(--good); }
+.goal.is-complete .goal-label { color: var(--progress-complete); }
+.goal.is-complete .goal-pct { color: var(--progress-complete); }
+/* At exactly 100% the whole bar flips to solid GOLD — the discrete "goal
+   reached" celebration, not a point on the blue progress ramp and not a green
+   good/bad verdict. !important beats the inline gradient. */
 .goal.is-complete .goal-bar-fill {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--good) 78%, #000), var(--good));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--progress-complete) 82%, #000), var(--progress-complete)) !important;
 }
 
 .goal.is-celebrating .goal-pct {
@@ -329,7 +431,7 @@
 }
 @keyframes goal-bar-glow {
   0% { box-shadow: 0 0 0 0 transparent; }
-  35% { box-shadow: 0 0 16px 2px rgba(76, 212, 118, 0.28); }
+  35% { box-shadow: 0 0 16px 2px color-mix(in srgb, var(--progress-complete) 28%, transparent); }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 @keyframes goal-sheen {
@@ -409,90 +511,6 @@
 
 .goal-init-save:disabled {
   opacity: 0.55;
-}
-
-/* ─── Recovery Card ──────────────────────────────────────────────────────── */
-
-.ov-recovery {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
-}
-
-@media (hover: hover) {
-  .ov-recovery:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-}
-
-.ov-recovery:active {
-  transform: scale(var(--tap-scale));
-  box-shadow: var(--shadow-sm);
-  transition-duration: var(--motion-fast);
-}
-
-.ov-rec-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.ov-rec-title {
-  font-size: var(--role-eyebrow-size);
-  font-weight: var(--role-eyebrow-weight);
-  letter-spacing: var(--role-eyebrow-spacing);
-  text-transform: uppercase;
-  color: var(--role-eyebrow-color);
-}
-
-.ov-rec-status {
-  font-size: var(--role-card-headline-size);
-  font-weight: var(--role-card-headline-weight);
-}
-
-.ov-rec-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-3);
-}
-
-.ov-rec-metric {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.ov-rec-metric-label {
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-}
-
-.ov-rec-metric-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-
-/* Reserve the delta's width so cards with no delta don't sit narrower.
-   The number itself comes from the shared <MetricDelta>. */
-.ov-rec-metric-delta-slot {
-  min-height: 1em;
-}
-
-.ov-rec-insight {
-  font-size: var(--role-secondary-size);
-  font-weight: var(--role-secondary-weight);
-  line-height: var(--leading-body);
-  color: var(--role-secondary-color);
-  margin: 0;
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
 }
 
 /* ─── Training Health Card ───────────────────────────────────────────────── */
@@ -745,8 +763,7 @@
 .loading-card .metric-val,
 .loading-card .metric-caption,
 .loading-card .ov-weight-val,
-.loading-card .ov-th-all-good,
-.loading-card .ov-rec-status {
+.loading-card .ov-th-all-good {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   background: linear-gradient(

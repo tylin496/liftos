@@ -10,6 +10,7 @@ export function ActivityRing({
   color,
   trackColor = "var(--bg-soft)",
   children,
+  transition = "stroke-dashoffset 400ms ease, stroke 400ms ease",
 }: {
   pct: number;
   size: number;
@@ -17,6 +18,10 @@ export function ActivityRing({
   color: string;
   trackColor?: string;
   children?: ReactNode;
+  /** Override the stroke transition. Pass "none" when `pct` is already being
+   *  driven frame-by-frame (e.g. by a count-up) so the ring tracks it exactly
+   *  instead of chasing it through its own 400ms ease. */
+  transition?: string;
 }) {
   const r = (size - strokeWidth) / 2;
   const c = size / 2;
@@ -39,7 +44,7 @@ export function ActivityRing({
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           transform={`rotate(-90 ${c} ${c})`}
-          style={{ transition: "stroke-dashoffset 400ms ease, stroke 400ms ease" }}
+          style={{ transition }}
         />
       </svg>
       {children && <div className="activity-ring-center">{children}</div>}

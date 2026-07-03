@@ -22,13 +22,18 @@
     box-shadow: 0 0 0 1px var(--rule), 0 12px 48px rgba(0, 0, 0, 0.18);
     overflow: hidden;
   }
-  .dev-phone-frame .tabbar,
   .dev-phone-frame .settings-sheet,
   .dev-phone-frame .settings-backdrop {
     left: 50%;
     right: auto;
     width: 402px;
     margin-left: calc(402px / -2); /* centre the fixed 402px column */
+  }
+  /* The floating tab-bar capsule already centres itself (left:50% +
+     translateX). Inside the dev frame just cap its width so it insets within
+     the 402px column instead of spanning the wider viewport. */
+  .dev-phone-frame .tabbar {
+    width: calc(402px - var(--space-5) * 2);
   }
 }
 
@@ -82,38 +87,77 @@ html.kb-open .tabbar {
   display: none;
 }
 
+/* Floating Liquid Glass capsule. Detached from the screen edges and centred
+   (left:50% + translateX so the dev-frame override only has to cap its width).
+   The shared --glass-* tokens are the single source of the material now — the
+   translucent tint + saturated blur separate it from content, while the layered
+   inset shadows are the specular rim (bright top edge + lower inner shade) that
+   read as real glass rather than flat frost. */
 .tabbar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   z-index: 20;
-  min-height: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-3));
-  /* Big top padding so the frosted surface starts well above the icon row and
-     the dissolve has a long runway (no abrupt edge). Token-based (32 + 24). */
-  padding-top: calc(var(--space-8) + var(--space-6));
-  padding-bottom: calc(var(--safe-bottom) + var(--space-3));
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + var(--space-3));
+  transform: translateX(-50%);
+  width: min(100vw - var(--space-5) * 2, var(--content-max));
   display: flex;
+  padding: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    inset 0 0 0 0.5px var(--glass-edge),
+    inset 0 -1px 2px var(--glass-shadow),
+    0 8px 28px -8px var(--glass-shadow),
+    0 0 0 0.5px var(--glass-edge);
 }
 
-/* Frosted-glass surface on a pseudo-element (icons/labels stay crisp). A
-   translucent --bg tint + blur, with NO border — the mask fades the whole
-   surface out toward the top so the bar dissolves into the content with no
-   hard edge (the core look). saturate stays modest so the vibrancy reads like
-   real glass, not an over-tinted filter. */
-.tabbar::before {
-  content: "";
+/* The active lozenge — a glass pill that slides between tabs on a spring. This
+   element only translates (transition below); its child .tabbar-thumb-fill
+   carries the visual and plays the squash/stretch, so the two transforms don't
+   fight. Width = one tab; translateX by --tab-idx * its own width lands it on
+   the active tab (mirrors .seg-thumb). */
+.tabbar-thumb {
   position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--bg) 66%, transparent);
-  backdrop-filter: blur(18px) saturate(1.5);
-  -webkit-backdrop-filter: blur(18px) saturate(1.5);
-  -webkit-mask-image: linear-gradient(to top, #000 30%, rgba(0,0,0,.85) 55%, rgba(0,0,0,.4) 78%, transparent);
-  mask-image: linear-gradient(to top, #000 30%, rgba(0,0,0,.85) 55%, rgba(0,0,0,.4) 78%, transparent);
+  top: var(--space-1);
+  bottom: var(--space-1);
+  left: var(--space-1);
+  width: calc((100% - var(--space-1) * 2) / 4);
+  transform: translateX(calc(var(--tab-idx, 0) * 100%));
+  transition: transform var(--motion-base) var(--spring-ease);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tabbar-thumb-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  /* A plain block that reads DARKER than the bar — no gradient, edge, or
+     specular. --glass-shadow is a translucent dark tint (in both themes), so it
+     deepens this patch of the glass while the background still shows through.
+     Identity colour is also carried by the accent label. */
+  background: var(--glass-shadow);
+}
+
+/* Gel squash on arrival — retriggered from TabBar.tsx by toggling .is-morphing.
+   Runs on the fill so the parent's translate keeps flowing underneath it. */
+.tabbar-thumb.is-morphing .tabbar-thumb-fill {
+  animation: tab-lozenge-squash var(--motion-base) var(--spring-ease);
+}
+
+@keyframes tab-lozenge-squash {
+  0%   { transform: scaleX(1) scaleY(1); }
+  40%  { transform: scaleX(1.14) scaleY(0.86); }
+  100% { transform: scaleX(1) scaleY(1); }
 }
 
 .tabbar-item {
+  position: relative;
+  z-index: 1;
   flex: 1;
   border: none;
   background: none;
@@ -122,6 +166,7 @@ html.kb-open .tabbar {
   align-items: center;
   justify-content: center;
   gap: 3px;
+  padding: 6px 0;
   /* Inactive: icon + label share one secondary ink (unified, iOS-style);
      active flips the whole item to the accent. */
   color: var(--ink-3);

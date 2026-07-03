@@ -53,6 +53,39 @@
   overflow: visible;
 }
 
+/* Trend redraw on tab-enter: the line strokes itself in left→right (linear, so
+   its tip stays in step with the bead delays), and each bead pops the instant
+   the line reaches it. */
+.health-spark-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: health-spark-draw var(--spark-dur, 900ms) linear forwards;
+}
+
+@keyframes health-spark-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.health-spark-bead {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: health-spark-bead 200ms ease-out forwards;
+}
+
+@keyframes health-spark-bead {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .health-trend-foot {
   display: flex;
   align-items: baseline;
@@ -192,6 +225,39 @@
   gap: 6px;
 }
 
+.health-energy-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  width: 100%;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--motion-base);
+}
+
+@media (hover: hover) {
+  .health-energy-toggle:hover {
+    color: var(--ink);
+  }
+}
+
+.health-energy-toggle-chevron {
+  color: var(--ink-4);
+  flex-shrink: 0;
+  transition: transform var(--motion-base) var(--move-ease);
+}
+
+.health-energy-toggle-chevron.is-open {
+  transform: rotate(180deg);
+}
+
 /* ── Recovery card ───────────────────────────────────────────────────── */
 .health-recovery-head {
   display: flex;
@@ -263,132 +329,4 @@
   color: var(--bad);
 }
 
-/* ── Active Target card ────────────────────────────────────────────────────
-   Back-solves the daily active-calorie goal from a maintenance TDEE target,
-   then tracks this week's pace against it. Mirrors the TDEE card's rhythm. */
-.health-active-target-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.active-target-goal {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: none;
-  background: transparent;
-  padding: 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-  cursor: pointer;
-}
-
-.active-target-goal svg {
-  opacity: 0.6;
-}
-
-.active-target-edit {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.active-target-input {
-  width: 72px;
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-align: right;
-  color: var(--ink);
-  background: var(--bg-input);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 2px var(--space-2);
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.active-target-edit-unit {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-}
-
-.active-target-setup {
-  display: block;
-  width: 100%;
-  text-align: left;
-  margin-top: 6px;
-  border: none;
-  background: transparent;
-  padding: 0;
-  font-size: var(--text-sm);
-  color: var(--accent);
-  cursor: pointer;
-  line-height: var(--leading-body);
-}
-
-.active-target-ring-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  margin-top: var(--space-2);
-}
-
-.active-target-ring-center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.15;
-}
-
-.active-target-ring-num {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-}
-
-.active-target-ring-of {
-  font-size: var(--text-2xs);
-  color: var(--ink-4);
-}
-
-.active-target-ring-caption {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.active-target-ring-title {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.active-target-ring-sub {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-  line-height: var(--leading-body);
-}
-
-.active-target-ring-stale {
-  font-size: var(--text-2xs);
-  color: var(--gold);
-}
-
-.active-target-hint {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: var(--space-4);
-  padding: 10px var(--space-3);
-  background: var(--accent-soft);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  color: var(--accent-strong);
-  line-height: var(--leading-body);
-}
+/* Active Target card moved to Overview — see overview.css */

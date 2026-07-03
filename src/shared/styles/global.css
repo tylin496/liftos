@@ -31,8 +31,8 @@ html[data-theme="light"],
 html[data-theme="light"] body {
   background:
     radial-gradient(circle at 50% -180px, rgba(0, 122, 255, 0.12), transparent 360px),
-    linear-gradient(180deg, #ffffff 0, #eef0f4 320px),
-    #eef0f4;
+    linear-gradient(180deg, var(--bg-card) 0, var(--bg) 320px),
+    var(--bg);
 }
 
 html[data-theme="dark"],

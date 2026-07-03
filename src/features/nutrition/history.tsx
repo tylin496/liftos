@@ -1,18 +1,50 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorState } from "@shared/components/ErrorState";
 import { MetricValue } from "@shared/components/Metric";
+import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { haptic } from "@shared/lib/haptics";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { getEntries, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
 import {
   getCalorieResult,
   getProteinResult,
+  monthlyStats,
   toDateStr,
   weeklyStats,
+  type CalorieState,
   type DayInput,
 } from "./logic";
 
 const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
+
+// Bar order tells the adherence story left-to-right: the two states that KEEP
+// the deficit (on-plan + low-intake) sit together on the left, then the two
+// that break it (over + surplus). low-intake is amber — adherent but not
+// precise (ate under budget) — so it reads as a soft deviation, not a miss.
+const DIST_STATES: { key: CalorieState; label: string; glyph: string; color: string }[] = [
+  { key: "on-plan", label: "On plan", glyph: "●", color: "var(--good)" },
+  { key: "low-intake", label: "Low intake", glyph: "▼", color: "var(--gold)" },
+  { key: "over", label: "Over budget", glyph: "▲", color: "var(--gold)" },
+  { key: "surplus", label: "Surplus", glyph: "▲", color: "var(--bad)" },
+];
+
+// Legend keeps all four buckets separate so it agrees with the adherence KPI:
+// low-intake counts toward adherence, so it must NOT be lumped into an "Off
+// target" row — otherwise the card reads "87% adherence" above a bar that
+// calls 70% of the month off target. Direction is carried by the glyph
+// (▼ ate under · ▲ ate over / surplus); the two amber rows share a colour but
+// are told apart by glyph + label, matching the bar's two adjacent amber
+// segments.
+const DIST_LEGEND: { keys: CalorieState[]; label: string; glyph: string; color: string }[] =
+  DIST_STATES.map((s) => ({ keys: [s.key], label: s.label, glyph: s.glyph, color: s.color }));
+
+/* Integer count-up (blank until it starts rolling, never a parked 0). The KPI
+   row is the last phase of the nutrition reveal — it waves in after the hero
+   number and the trend bars, via delayMs during the intro only. */
+function AnimatedInt({ value, delayMs = 0 }: { value: number; delayMs?: number }) {
+  const n = useCountUp(value, COUNT_UP_MS, 0, delayMs);
+  return <>{n == null ? "" : n.toLocaleString()}</>;
+}
 
 
 // Earliest loggable day — mirrors today.tsx.
@@ -160,7 +192,7 @@ export function HistoryView({
       .catch((e) => setError(String(e?.message ?? e)));
   }, [entryVersion, weekAnchor]);
 
-  const { week, trend7, todayStr, isCurrentWeek } = useMemo(() => {
+  const { week, month, trend7, todayStr, isCurrentWeek } = useMemo(() => {
     const todayStr = toDateStr(new Date());
     const inputs = (entries ?? []).map(toInput);
 
@@ -192,7 +224,13 @@ export function HistoryView({
     const logged7 = trend7.filter((d) => d.calories != null);
     const isCurrentWeek = trend7[0].date <= todayStr && todayStr <= trend7[6].date;
 
-    return { week: weeklyStats(logged7), trend7, todayStr, isCurrentWeek };
+    // Month stats stay a strict last-30-days, independent of the viewed week.
+    const monthFrom = new Date();
+    monthFrom.setDate(monthFrom.getDate() - 29);
+    const monthFromStr = toDateStr(monthFrom);
+    const monthInputs = inputs.filter((d) => d.date >= monthFromStr && d.date <= todayStr);
+
+    return { week: weeklyStats(logged7), month: monthlyStats(monthInputs), trend7, todayStr, isCurrentWeek };
   }, [entries, weekAnchor]);
 
   if (error) {
@@ -244,12 +282,12 @@ export function HistoryView({
         <div className="nutri-kpi-row">
           <div className="nutri-kpi">
             <MetricValue size="md" unit={week.avgCalories > 0 ? "kcal avg" : undefined}>
-              {week.avgCalories > 0 ? week.avgCalories.toLocaleString() : "—"}
+              {week.avgCalories > 0 ? <AnimatedInt value={week.avgCalories} delayMs={introBars ? 700 : 0} /> : "—"}
             </MetricValue>
           </div>
           <div className="nutri-kpi">
             <MetricValue size="md" unit={week.avgProtein > 0 ? "g avg" : undefined}>
-              {week.avgProtein > 0 ? week.avgProtein : "—"}
+              {week.avgProtein > 0 ? <AnimatedInt value={week.avgProtein} delayMs={introBars ? 700 : 0} /> : "—"}
             </MetricValue>
           </div>
         </div>
@@ -359,16 +397,55 @@ export function HistoryView({
         {/* Colour legend — matches the dual-bar colours */}
         <div className="nutri-trend-legend">
           <span className="nutri-trend-legend-item">
-            <span className="nutri-trend-legend-dot" style={{ background: "var(--good)" }} />
+            <span className="nutri-trend-legend-dot" style={{ background: "var(--nutrition-calorie)" }} />
             Calories
           </span>
           <span className="nutri-trend-legend-item">
-            <span className="nutri-trend-legend-dot" style={{ background: "var(--blue)" }} />
+            <span className="nutri-trend-legend-dot" style={{ background: "var(--nutrition-protein)" }} />
             Protein
           </span>
         </div>
       </section>
       </div>
+
+      {/* ── Last 30 Days ── */}
+      <section className={`page-card nutri-month-card${loading ? " loading-card" : ""}`}>
+        <p className="page-eyebrow" style={{ margin: 0 }}>Last 30 Days</p>
+
+        <div className="nutri-month-kpis">
+          <MetricValue size="sm" unit="% adherence">{month.adherencePct}</MetricValue>
+          <MetricValue size="sm" unit="% double hit">{month.doubleHitPct}</MetricValue>
+        </div>
+
+        {/* Spells out double hit so a low-intake day with protein met doesn't
+            read as an unexplained miss: it's the tight calorie band, not just
+            "a good day". */}
+        <p className="nutri-month-note">Double hit = calories on plan · protein met</p>
+
+        {/* Distribution — one proportionally-coloured bar + text legend below */}
+        <div className="nutri-dist-track" aria-hidden="true">
+          {loading ? (
+            <span style={{ width: "35%", opacity: 0.3, background: "var(--ink-4)" }} />
+          ) : (
+            DIST_STATES.map(({ key, color }) => {
+              const pct = Math.round(((month.distribution[key] || 0) / (month.logged || 1)) * 100);
+              return pct > 0 ? <span key={key} style={{ width: `${pct}%`, background: color }} /> : null;
+            })
+          )}
+        </div>
+        <div className="nutri-dist-legend">
+          {DIST_LEGEND.map(({ keys, label, glyph, color }) => {
+            const count = keys.reduce((sum, k) => sum + (month.distribution[k] || 0), 0);
+            const pct = Math.round((count / (month.logged || 1)) * 100);
+            return pct > 0 ? (
+              <span className="nutri-dist-item" key={label}>
+                <span className="nutri-dist-glyph" style={{ color }} aria-hidden="true">{glyph}</span>
+                {label} {pct}%
+              </span>
+            ) : null;
+          })}
+        </div>
+      </section>
     </>
   );
 }

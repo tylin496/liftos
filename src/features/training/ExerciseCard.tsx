@@ -29,8 +29,18 @@ import { useCelebration } from "@shared/components/Celebration";
 import { haptic } from "@shared/lib/haptics";
 import { EditExerciseForm } from "./EditExerciseForm";
 import { EditIcon, PenLineIcon, ArrowUpIcon, ArrowDownIcon, ArchiveIcon } from "./EditIcon";
+import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 
 export { useToast };
+
+/* PR weight number — counts up once on first load, staggered bottom-up by
+   card. Blank until it rolls; off-screen cards get no stagger. Stays settled
+   across tab switches — only a real value change tweens it again. */
+function AnimatedWeight({ value }: { value: number }) {
+  if (!Number.isFinite(value)) return <>{fmtWeightNum(value)}</>;
+  const decimals = fmtWeightNum(value).split(".")[1]?.length ?? 0;
+  return <AnimatedNumber value={value} decimals={decimals} format={fmtWeightNum} />;
+}
 
 
 function SmartImage({
@@ -474,11 +484,10 @@ export function ExerciseCard({
                 <div className="pr-top-row">
                   <span className="pr-label">PR</span>
                   <span className="pr-weight">
-                    {bestParsed.assisted
-                      ? `${fmtWeightNum(score(bestParsed))} kg`
-                      : isLbUnit(bestParsed.unit)
-                        ? `${fmtWeightNum(bestParsed.weight)} lb`
-                        : `${fmtWeightNum(bestParsed.weight)} kg`}
+                    <AnimatedWeight
+                      value={bestParsed.assisted ? score(bestParsed) : bestParsed.weight}
+                    />{" "}
+                    {bestParsed.assisted ? "kg" : isLbUnit(bestParsed.unit) ? "lb" : "kg"}
                   </span>
                   <span className="pr-meta mono">×{formatRepsDisplay(bestParsed.reps)}</span>
                   {bestParsed.assisted && (
