@@ -220,7 +220,7 @@ function TrendCard({
         <Sparkline points={points} minSpan={minSpan} />
       </div>
       <div className="health-trend-foot">
-        <MetricCaption>{loading ? "Loading" : avgLabel}</MetricCaption>
+        <MetricCaption>{loading ? "Loading…" : avgLabel}</MetricCaption>
         <div className="health-trend-range">{rangeDays}-day trend</div>
       </div>
       {!loading && note && <p className="health-trend-note">{note}</p>}

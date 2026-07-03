@@ -306,7 +306,7 @@ export function ExerciseCard({
     try {
       const ex = await updateExercise(exercise.slug, { archived: true });
       onUpdate(ex);
-      toast(`${exercise.name} archived`, "info", 5000, {
+      toast("Exercise archived", "info", 5000, {
         label: "Undo",
         onClick: async () => {
           try {
@@ -486,7 +486,7 @@ export function ExerciseCard({
                   )}
                 </div>
               ) : (
-                <span className="pr-empty">no PR yet</span>
+                <span className="pr-empty">No PR yet</span>
               )}
             </div>
             <StagnationBadge
@@ -532,7 +532,7 @@ export function ExerciseCard({
       {editingMode !== "meta" && (
         <div className="ex-history">
         {filteredDesc.length === 0 ? (
-          <div className="empty-row">no entries yet — log your first set ↓</div>
+          <div className="empty-row">No sets yet — log your first below</div>
         ) : (
           visible.map((log, vi) => {
             // prIndex is index in filteredAsc; vi 0 = newest = last in asc

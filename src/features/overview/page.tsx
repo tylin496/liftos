@@ -324,7 +324,7 @@ function WeightCard({
           <span className="ov-weight-chevron" aria-hidden>›</span>
         </div>
         <p className="ov-no-entry" style={{ textAlign: "left" }}>
-          No weight data yet — sync from Apple Health.
+          No weight data yet — sync from Apple Health
         </p>
       </div>
     );
@@ -470,7 +470,7 @@ function TrainingHealthCard({
       <button type="button" className="page-card ov-training-health ov-training-health--nav" onClick={onNav}>
         <span className="ov-th-label">Training Health</span>
         <p className="ov-no-entry" style={{ textAlign: "left" }}>
-          Log at least 4 sessions per exercise to see training health.
+          Log 4+ sessions per exercise to unlock training health
         </p>
       </button>
     );
@@ -602,7 +602,7 @@ function RecoveryCard({ snap, onNav }: { snap: RecoverySnapshot | null; onNav: (
           <span className="ov-rec-title">Recovery</span>
         </div>
         <p className="ov-no-entry" style={{ textAlign: "left" }}>
-          No recovery data yet — sync sleep, HRV & resting HR from Apple Health.
+          No recovery data yet — sync sleep, HRV & resting HR from Apple Health
         </p>
       </button>
     );

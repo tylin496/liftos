@@ -11,7 +11,7 @@ const TREND_LABELS: Record<string, string> = {
   recovering: "Recovering",
   stable: "Stable",
   declining: "Declining",
-  uncertain: "Data Check",
+  uncertain: "Need more data",
 };
 
 
@@ -84,7 +84,7 @@ export function StagnationDetail({
       )}
       {t && t.trend === "uncertain" && t.refDate && t.lastDate && (
         <div className="data-check-detail">
-          <span className="data-check-label">Jump detected</span>
+          <span className="data-check-label">{t.change >= 0 ? "▲" : "▼"} Jump</span>
           <span className="data-check-row">
             <span className="data-check-dates">
               {fmtInspectorDate(t.refDate)} → {fmtInspectorDate(t.lastDate)}

@@ -143,7 +143,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
       <div className="ni-rec">
         <span className="page-eyebrow" style={{ margin: 0 }}>Recommendation</span>
         <p className="ni-rec-headline">
-          {loading ? "Loading" : decision ? decision.actionHeadline : "Not enough data yet"}
+          {loading ? "Loading…" : decision ? decision.actionHeadline : "Not enough data yet"}
         </p>
 
         {loading ? (

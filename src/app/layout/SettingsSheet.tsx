@@ -408,7 +408,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
                         <span className="u">cm</span>
                       </>
                     ) : (
-                      "Set"
+                      "—"
                     )}
                     <span className="chev">›</span>
                   </span>
@@ -433,7 +433,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
                   onClick={() => editRow("start")}
                 >
                   <span className={`settings-row-val${trainingStartDate ? "" : " placeholder"}`}>
-                    {trainingStartDate ? fmtDate(trainingStartDate) : "Set"}
+                    {trainingStartDate ? fmtDate(trainingStartDate) : "—"}
                     <span className="chev">›</span>
                   </span>
                 </button>
@@ -465,7 +465,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
                         <span className="u">%</span>
                       </>
                     ) : (
-                      "Set"
+                      "—"
                     )}
                     <span className="chev">›</span>
                   </span>
