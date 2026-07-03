@@ -53,6 +53,8 @@
   --health-weight: #5e9cf5;
   --health-bodyfat: #bf5af2;
   --health-leanmass: #30d158;
+  /* Apple Move-ring magenta — the Active Target ring's identity color. */
+  --health-move: #fa114f;
 
   /* ── Overlay ── decorative, non-signal colors (theme-invariant) ──────── */
   --on-color: #fff; /* text/icon on a saturated accent/good/bad/gold surface */

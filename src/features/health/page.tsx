@@ -323,7 +323,7 @@ function ActiveTargetCard({
               pct={view.today.accrued / Math.max(1, view.today.target)}
               size={96}
               strokeWidth={9}
-              color={view.today.accrued >= view.today.target ? "var(--good)" : "var(--gold)"}
+              color="var(--health-move)"
               trackColor="var(--bg-soft)"
             >
               <div className="active-target-ring-center">
