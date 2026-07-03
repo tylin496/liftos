@@ -23,6 +23,7 @@ import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { localDateStr } from "@shared/lib/date";
+import { progressColor } from "@shared/lib/progressColor";
 import "./health.css";
 
 interface MetricSpec {
@@ -316,7 +317,7 @@ function ActiveTargetCard({
               pct={view.today.accrued / Math.max(1, view.today.target)}
               size={96}
               strokeWidth={9}
-              color={view.today.accrued >= view.today.target ? "var(--good)" : "var(--gold)"}
+              color={progressColor(view.today.accrued / Math.max(1, view.today.target))}
               trackColor="var(--bg-soft)"
             >
               <div className="active-target-ring-center">
@@ -343,14 +344,12 @@ function ActiveTargetCard({
             </div>
           </div>
 
-          {view.session && view.session.workoutsNeeded > 0 && (
+          {view.today.accrued < view.today.target && (
             <div className="active-target-hint">
-              <span>A typical session adds ~{view.session.boost.toLocaleString()} active</span>
-              <span>
-                {view.session.workoutsNeeded === 1
-                  ? "One more workout this week closes the gap"
-                  : `${view.session.workoutsNeeded} more workouts this week close the gap`}
-              </span>
+              <span>{(view.today.target - view.today.accrued).toLocaleString()} kcal to close today's ring</span>
+              {view.session && (
+                <span>A typical session adds ~{view.session.boost.toLocaleString()} active</span>
+              )}
             </div>
           )}
         </>
@@ -532,85 +531,6 @@ export function HealthPage() {
         />
       )}
 
-      {/* TDEE — the metabolic model behind the Active Target above. The total
-          stays uncoloured (a rising estimate isn't an "outcome"), but both
-          components carry an up-good coloured delta vs the previous window
-          (Active = did you move enough; Resting = higher rate is less metabolic
-          adaptation). */}
-      <section className={`page-card health-energy${!data ? " loading-card" : ""}`}>
-        <div className="health-tdee-head">
-          <span className="health-card-eyebrow">Active</span>
-        </div>
-        {!data ? (
-          <>
-            <div className="health-trend-head">
-              <div className="health-trend-info">
-                <div className="health-trend-stat">
-                  <MetricValue size="xl" unit="kcal">000</MetricValue>
-                </div>
-                <span className="health-energy-window">14-day average</span>
-              </div>
-              <Sparkline points={[]} minSpan={ENERGY_MIN_SPAN} />
-            </div>
-            <div className="health-energy-model">
-              <div className="health-energy-model-item">
-                <span className="health-energy-metric-label">Resting</span>
-                <MetricValue size="md" unit="kcal">0000</MetricValue>
-                <span className="health-energy-window">30-day average</span>
-              </div>
-              <div className="health-energy-model-item">
-                <span className="health-energy-metric-label">TDEE</span>
-                <MetricValue size="md" unit="kcal">0000</MetricValue>
-                <span className="health-energy-window">resting + active</span>
-              </div>
-            </div>
-          </>
-        ) : tdee?.tdee != null ? (
-          <>
-            {/* Active leads with the sparkline — the behaviour-driven number. */}
-            <div className="health-trend-head">
-              <div className="health-trend-info">
-                <div className="health-trend-stat">
-                  <MetricValue size="xl" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
-                  {activeChange != null && (
-                    <MetricDelta value={activeChange} direction="up-good" decimals={0} />
-                  )}
-                </div>
-                <span className="health-energy-window">
-                  {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"} · {ENERGY_BUCKET * SPARK_POINTS}-day trend
-                </span>
-              </div>
-              <Sparkline points={energyBucketed} minSpan={ENERGY_MIN_SPAN} />
-            </div>
-            {/* Resting + TDEE — the model behind the ring, so Resting+Active=TDEE
-                still visibly adds up. */}
-            <div className="health-energy-model">
-              <div className="health-energy-model-item">
-                <span className="health-energy-metric-label">Resting</span>
-                <div className="health-trend-stat">
-                  <MetricValue size="md" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
-                  {restingChange != null && (
-                    <MetricDelta value={restingChange} direction="up-good" decimals={0} />
-                  )}
-                </div>
-                <span className="health-energy-window">
-                  {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
-                </span>
-              </div>
-              <div className="health-energy-model-item">
-                <span className="health-energy-metric-label">TDEE</span>
-                <MetricValue size="md" unit="kcal">{tdee.tdee.toLocaleString()}</MetricValue>
-                <span className="health-energy-window">resting + active</span>
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="page-note">
-            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
-          </p>
-        )}
-      </section>
-
       {/* Trend card skeleton — same TrendCard component, placeholder values,
           so height matches the loaded Weight / Body Fat / Lean Mass cards. */}
       {!data && METRICS.map((spec) => (
@@ -689,6 +609,84 @@ export function HealthPage() {
           }
         />
       )}
+
+      {/* Energy — the metabolic model behind the ring at the top. Active leads
+          with its trend (behaviour-driven); Resting + TDEE ride below as context
+          so Resting + Active = TDEE still adds up. Sits below body-composition
+          as background model state, above only Recovery. */}
+      <section className={`page-card health-energy${!data ? " loading-card" : ""}`}>
+        <div className="health-tdee-head">
+          <span className="health-card-eyebrow">Active</span>
+        </div>
+        {!data ? (
+          <>
+            <div className="health-trend-head">
+              <div className="health-trend-info">
+                <div className="health-trend-stat">
+                  <MetricValue size="xl" unit="kcal">000</MetricValue>
+                </div>
+                <span className="health-energy-window">14-day average</span>
+              </div>
+              <Sparkline points={[]} minSpan={ENERGY_MIN_SPAN} />
+            </div>
+            <div className="health-energy-model">
+              <div className="health-energy-model-item">
+                <span className="health-energy-metric-label">Resting</span>
+                <MetricValue size="md" unit="kcal">0000</MetricValue>
+                <span className="health-energy-window">30-day average</span>
+              </div>
+              <div className="health-energy-model-item">
+                <span className="health-energy-metric-label">TDEE</span>
+                <MetricValue size="md" unit="kcal">0000</MetricValue>
+                <span className="health-energy-window">resting + active</span>
+              </div>
+            </div>
+          </>
+        ) : tdee?.tdee != null ? (
+          <>
+            {/* Active leads with the sparkline — the behaviour-driven number. */}
+            <div className="health-trend-head">
+              <div className="health-trend-info">
+                <div className="health-trend-stat">
+                  <MetricValue size="xl" unit="kcal">{tdee.avgActive?.toLocaleString()}</MetricValue>
+                  {activeChange != null && (
+                    <MetricDelta value={activeChange} direction="up-good" decimals={0} />
+                  )}
+                </div>
+                <span className="health-energy-window">
+                  {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"} · {ENERGY_BUCKET * SPARK_POINTS}-day trend
+                </span>
+              </div>
+              <Sparkline points={energyBucketed} minSpan={ENERGY_MIN_SPAN} />
+            </div>
+            {/* Resting + TDEE — the model behind the ring, so Resting+Active=TDEE
+                still visibly adds up. */}
+            <div className="health-energy-model">
+              <div className="health-energy-model-item">
+                <span className="health-energy-metric-label">Resting</span>
+                <div className="health-trend-stat">
+                  <MetricValue size="md" unit="kcal">{tdee.avgResting?.toLocaleString()}</MetricValue>
+                  {restingChange != null && (
+                    <MetricDelta value={restingChange} direction="up-good" decimals={0} />
+                  )}
+                </div>
+                <span className="health-energy-window">
+                  {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
+                </span>
+              </div>
+              <div className="health-energy-model-item">
+                <span className="health-energy-metric-label">TDEE</span>
+                <MetricValue size="md" unit="kcal">{tdee.tdee.toLocaleString()}</MetricValue>
+                <span className="health-energy-window">resting + active</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="page-note">
+            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
+          </p>
+        )}
+      </section>
 
       {/* Recovery — sleep / HRV / RHR readiness snapshot. Sits last: it's a
           day-to-day state read, below the longer-arc body-composition and TDEE
