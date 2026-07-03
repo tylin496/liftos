@@ -16,7 +16,6 @@ import {
   timelineDate,
   buildStagnationView,
   epley1RM,
-  computeVolume,
   type TimeFilter,
 } from "./logic";
 import { useToast } from "@shared/components/Toast";
@@ -190,7 +189,7 @@ export function ExerciseCard({
   async function handleAdd(raw: string, date: string, note: string) {
     if (submitting) return;
     setSubmitting(true);
-    const oldBestVolume = stats.best?.volume ?? -1;
+    const oldBestE1RM = stats.best?.e1rm ?? -1;
     try {
       const newLog = await addLog({
         slug: exercise.slug,
@@ -206,8 +205,8 @@ export function ExerciseCard({
       });
       const newParsed = parse(raw);
       const newScore = newParsed ? score(newParsed) : 0;
-      const newVolume = computeVolume(newScore, newParsed?.reps ?? "1");
-      if (newVolume > oldBestVolume) {
+      const newE1RM = epley1RM(newScore, newParsed?.reps ?? "1");
+      if (newE1RM > oldBestE1RM) {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);
         haptic("success");
@@ -237,9 +236,9 @@ export function ExerciseCard({
     try {
       const parsed = parse(raw);
       if (!parsed || !Number.isFinite(parsed.weight)) throw new Error("Cannot parse");
-      const newVolume = computeVolume(score(parsed), parsed.reps);
-      const oldBestVolume = stats.best?.volume ?? 0;
-      const isNewPR = newVolume > oldBestVolume && log.id !== stats.best?.log.id;
+      const newE1RM = epley1RM(score(parsed), parsed.reps);
+      const oldBestE1RM = stats.best?.e1rm ?? 0;
+      const isNewPR = newE1RM > oldBestE1RM && log.id !== stats.best?.log.id;
       await updateLog(log.id, {
         raw,
         reps: parsed.reps,

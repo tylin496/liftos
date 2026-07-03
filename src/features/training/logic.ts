@@ -10,7 +10,6 @@ export interface LogEntry {
   weightKg: number;
   reps: string;
   e1rm: number;
-  volume: number;
 }
 
 // ─── Time filter ─────────────────────────────────────────────────────────────
@@ -46,24 +45,6 @@ export function epley1RM(weightKg: number, repsStr: string): number {
   return weightKg * (1 + maxR / 30);
 }
 
-/** Total reps across drop-set segments, e.g. "10/8/6" -> 24. */
-export function sumReps(repsStr: string): number {
-  return String(repsStr || "")
-    .split(/[/\-]/)
-    .map((n) => parseInt(n, 10))
-    .filter((n) => n > 0)
-    .reduce((a, b) => a + b, 0);
-}
-
-/** Training volume (weight × total reps across all sets) — a hypertrophy-
- * oriented PR metric: doing more sets/reps at a weight counts as a bigger
- * record, unlike e1RM (which only credits the single best set). */
-export function computeVolume(weightKg: number, repsStr: string): number {
-  const reps = sumReps(repsStr);
-  if (!reps || !weightKg || weightKg <= 0) return 0;
-  return weightKg * reps;
-}
-
 // ─── toLogEntry ──────────────────────────────────────────────────────────────
 
 export function toLogEntry(log: TrainingLog): LogEntry | null {
@@ -77,8 +58,20 @@ export function toLogEntry(log: TrainingLog): LogEntry | null {
     weightKg,
     reps: parsed.reps,
     e1rm: epley1RM(weightKg, parsed.reps),
-    volume: computeVolume(weightKg, parsed.reps),
   };
+}
+
+/**
+ * "Which set is stronger" — the single ordering the whole training tab uses for
+ * PRs, status, and history deltas, so the badge and the trend never disagree.
+ * Hybrid: estimated 1RM first (Epley folds weight × reps into one number, so a
+ * heavier-but-fewer vs lighter-but-more tradeoff resolves cleanly); on an e1RM
+ * tie, more max-reps wins; a full tie returns 0 and the caller keeps whoever
+ * came first. Returns >0 when `a` beats `b`, <0 when weaker, 0 when equal.
+ */
+export function cmpStrength(a: LogEntry, b: LogEntry): number {
+  if (a.e1rm !== b.e1rm) return a.e1rm - b.e1rm;
+  return maxReps(a.reps) - maxReps(b.reps);
 }
 
 // ─── computeStats ────────────────────────────────────────────────────────────
@@ -94,18 +87,12 @@ export function computeStats(logs: TrainingLog[]): Stats {
   const entries = logs.map(toLogEntry).filter((e): e is LogEntry => e !== null);
   if (!entries.length) return { best: null, prIndex: -1, latest: null };
 
-  // PR = highest training volume (weight × total reps), not e1RM — doing
-  // more sets/reps at a weight is a bigger record for hypertrophy goals than
-  // a single best set would suggest.
+  // PR = strongest set by cmpStrength (e1RM, then reps). Strict > with the
+  // ascending order means on a full tie the earliest entry keeps the PR —
+  // whoever hit it first owns the record.
   let best = entries[0];
-  let bestVolume = best.volume;
   for (const e of entries) {
-    // >= (not >): entries are chronological ascending, so on a volume tie the
-    // more recent entry should keep the PR badge, not whichever hit it first.
-    if (e.volume >= bestVolume) {
-      bestVolume = e.volume;
-      best = e;
-    }
+    if (cmpStrength(e, best) > 0) best = e;
   }
 
   const prIndex = logs.indexOf(best.log);
@@ -121,11 +108,11 @@ export interface HistDelta {
 }
 
 /**
- * Compare curr vs prev entry by weight (kg) and reps. When one dimension
- * rose and the other fell (e.g. lighter weight, more reps), there's no
- * single number to compare kg vs reps against — so fall back to training
- * volume (weight × total reps), the same hypertrophy-oriented metric
- * computeStats uses to decide PRs, to call it a net gain or loss.
+ * Compare curr vs prev entry. Direction follows the same cmpStrength ordering
+ * as PRs/status: estimated 1RM first (which folds a heavier-but-fewer vs
+ * lighter-but-more tradeoff into one number), then max reps on an e1RM tie.
+ * The label still spells out the raw kg / reps change so the user sees what
+ * actually moved.
  */
 export function computeHistDelta(
   curr: TrainingLog,
@@ -142,22 +129,21 @@ export function computeHistDelta(
 
   const cReps = maxReps(cp.reps);
   const pReps = maxReps(pp.reps);
-  if (!cReps || !pReps) return null;
 
   const kgDelta = cKg - pKg;
   const repsDelta = cReps - pReps;
-  if (kgDelta === 0 && repsDelta === 0) return null; // truly flat — stay silent
 
+  const cE1 = epley1RM(cKg, cp.reps);
+  const pE1 = epley1RM(pKg, pp.reps);
   let direction: "gain" | "loss";
-  if (kgDelta >= 0 && repsDelta >= 0) {
-    direction = "gain";
-  } else if (kgDelta <= 0 && repsDelta <= 0) {
-    direction = "loss";
+  if (cE1 !== pE1) {
+    direction = cE1 > pE1 ? "gain" : "loss";
+  } else if (repsDelta !== 0) {
+    direction = repsDelta > 0 ? "gain" : "loss";
+  } else if (kgDelta !== 0) {
+    direction = kgDelta > 0 ? "gain" : "loss";
   } else {
-    const cVol = computeVolume(cKg, cp.reps);
-    const pVol = computeVolume(pKg, pp.reps);
-    if (cVol === pVol) return null; // volume-neutral tradeoff — stay silent
-    direction = cVol > pVol ? "gain" : "loss";
+    return null; // genuinely identical — stay silent
   }
 
   const parts: string[] = [];
@@ -220,28 +206,30 @@ function computeStrengthRetention(logsAsc: TrainingLog[]) {
   const entries = logsAsc.map(toLogEntry).filter((e): e is LogEntry => e !== null);
   if (!entries.length) return null;
 
-  // Same PR metric as computeStats: highest volume, ties won by recency.
-  let prVolume = 0;
-  let prEntry: LogEntry | null = null;
+  // Same PR metric as computeStats: strongest by cmpStrength (e1RM, then reps),
+  // full ties kept by the earliest entry.
+  let prEntry: LogEntry = entries[0];
   for (const e of entries) {
-    if (e.volume >= prVolume) { prVolume = e.volume; prEntry = e; }
+    if (cmpStrength(e, prEntry) > 0) prEntry = e;
   }
-  if (!prVolume || !prEntry) return null;
+  const prE1RM = prEntry.e1rm;
+  if (!prE1RM) return null;
 
   const mostRecentDate = entries[entries.length - 1].log.log_date;
   const recent = entries.filter((e) => e.log.log_date === mostRecentDate);
-  let currentVolume = 0;
-  for (const e of recent) { if (e.volume > currentVolume) currentVolume = e.volume; }
-  if (!currentVolume) return null;
+  let current: LogEntry = recent[0];
+  for (const e of recent) { if (cmpStrength(e, current) > 0) current = e; }
+  const currentE1RM = current.e1rm;
+  if (!currentE1RM) return null;
 
-  const pct = Math.min(currentVolume / prVolume, 1);
+  const pct = Math.min(currentE1RM / prE1RM, 1);
 
-  let prevBestVolume = 0;
+  let prevBest: LogEntry | null = null;
   for (const e of entries) {
     if (e.log.log_date === mostRecentDate) continue;
-    if (e.volume > prevBestVolume) prevBestVolume = e.volume;
+    if (!prevBest || cmpStrength(e, prevBest) > 0) prevBest = e;
   }
-  const prRatio = prevBestVolume ? currentVolume / prevBestVolume : null;
+  const prRatio = prevBest?.e1rm ? currentE1RM / prevBest.e1rm : null;
 
   let status: RetentionStatus;
   if (pct >= 0.97) status = "excellent";

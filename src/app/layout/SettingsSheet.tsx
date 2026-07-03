@@ -10,7 +10,7 @@ import { useTheme, type ThemePreference } from "@shared/lib/theme";
 import logoUrl from "@shared/assets/logo.png";
 import { version as APP_VERSION } from "../../../package.json";
 
-type RowKey = "protein" | "intake" | "height" | "start" | "bf";
+type RowKey = "protein" | "intake" | "targettdee" | "height" | "start" | "bf";
 
 const APPEARANCE_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "light", label: "Light" },
@@ -96,6 +96,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
 
   const [protein, setProtein] = useState("");
   const [currentIntake, setCurrentIntake] = useState("");
+  const [targetTdee, setTargetTdee] = useState("");
   const [height, setHeight] = useState("");
   const [trainingStartDate, setTrainingStartDate] = useState("");
   const [targetBf, setTargetBf] = useState("");
@@ -220,6 +221,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
     const t = targetsFromConfig(config);
     setProtein(String(config.protein_target));
     setCurrentIntake(String(t.calorieTarget));
+    setTargetTdee(config.target_tdee == null ? "" : String(config.target_tdee));
     setHeight(config.height_cm == null ? "" : String(config.height_cm));
     setTrainingStartDate(config.training_start_date ?? "");
     setTargetBf(config.target_body_fat_pct == null ? "" : String(config.target_body_fat_pct));
@@ -245,6 +247,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
       const updated = await saveConfig({
         protein_target: Math.round(Number(protein) || config.protein_target),
         phase_deficits: [...savedDefs, intake] as unknown as any,
+        target_tdee: targetTdee.trim() === "" ? null : Math.round(Number(targetTdee)),
         height_cm: numOrNull(height),
         training_start_date: trainingStartDate || null,
         target_body_fat_pct: numOrNull(targetBf),
@@ -334,6 +337,34 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
                   <span className="settings-row-val">
                     {Number(currentIntake).toLocaleString()}
                     <span className="u">kcal</span>
+                    <span className="chev">›</span>
+                  </span>
+                </button>
+              )}
+            </div>
+            <div className={`settings-row${editingRow === "targettdee" ? " is-editing" : ""}`}>
+              <span className="settings-row-label">Active TDEE goal</span>
+              {editingRow === "targettdee" ? (
+                <Stepper
+                  value={Number(targetTdee) || 0}
+                  step={50}
+                  onChange={(v) => setTargetTdee(String(Math.max(0, v)))}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="settings-row-val-btn"
+                  onClick={() => editRow("targettdee")}
+                >
+                  <span className={`settings-row-val${targetTdee ? "" : " placeholder"}`}>
+                    {targetTdee ? (
+                      <>
+                        {Number(targetTdee).toLocaleString()}
+                        <span className="u">kcal</span>
+                      </>
+                    ) : (
+                      "Set"
+                    )}
                     <span className="chev">›</span>
                   </span>
                 </button>
