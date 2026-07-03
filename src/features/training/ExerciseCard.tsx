@@ -596,14 +596,19 @@ export function ExerciseCard({
                     log.bodyweight != null &&
                     log.assistance != null ? (
                       <span className="hist-assisted-wrap">
-                        <span className="mono">
-                          <strong>
-                            {fmtWeightNum(log.bodyweight - log.assistance)}
-                          </strong>
-                          <span className="expr-sep">
-                            {" "}
-                            ×{formatRepsDisplay(log.reps ?? "")}
+                        <span className="hist-expr-row">
+                          <span className="mono">
+                            <strong>
+                              {fmtWeightNum(log.bodyweight - log.assistance)}
+                            </strong>
+                            <span className="expr-sep">
+                              {" "}
+                              ×{formatRepsDisplay(log.reps ?? "")}
+                            </span>
                           </span>
+                          {isPR && stagView?.showPR && (
+                            <span className="pr-pct">{stagView.prLabel} PR!</span>
+                          )}
                         </span>
                         <span className="hist-assist-sub">
                           {log.assistance} kg assist
@@ -612,8 +617,8 @@ export function ExerciseCard({
                     ) : (
                       <span className="hist-expr-row">
                         <ExprDisplay raw={log.raw} histMode />
-                        {isPR && stagView?.showPR && (
-                          <span className="pr-pct">{stagView.prLabel}</span>
+                        {isPR && stagView?.showPR && !isEditing && (
+                          <span className="pr-pct">{stagView.prLabel} PR!</span>
                         )}
                       </span>
                     )}
@@ -623,7 +628,7 @@ export function ExerciseCard({
                   </span>
 
                   <span className="hist-change">
-                    {isPR ? (
+                    {isEditing ? null : isPR ? (
                       <span
                         className="hist-status hist-status-pr"
                         aria-label="Personal record"

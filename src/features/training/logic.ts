@@ -146,17 +146,14 @@ export function computeHistDelta(
     return null; // genuinely identical — stay silent
   }
 
-  const parts: string[] = [];
-  if (kgDelta !== 0) {
-    const sign = kgDelta > 0 ? "+" : "";
-    parts.push(`${sign}${parseFloat(kgDelta.toFixed(2))}kg`);
-  }
-  if (repsDelta !== 0) {
-    const sign = repsDelta > 0 ? "+" : "";
-    parts.push(`${sign}${repsDelta} reps`);
-  }
+  // Weight is the headline metric — show kg alone when it moved. Only fall back
+  // to the reps delta when the weight held and reps carried the change.
+  const detail =
+    kgDelta !== 0
+      ? `${Math.abs(parseFloat(kgDelta.toFixed(2)))}kg`
+      : `${Math.abs(repsDelta)} reps`;
 
-  return { text: `${direction === "gain" ? "▲" : "▼"} ${parts.join(" ")}`, direction };
+  return { text: `${direction === "gain" ? "▲" : "▼"} ${detail}`, direction };
 }
 
 // ─── timelineDate ────────────────────────────────────────────────────────────
@@ -375,7 +372,7 @@ export function buildStagnationView(logsAsc: TrainingLog[]): StagnationView | nu
   const isNewPR = prBoost > 100;
   const isFirstPR = isAtPR && prRatio == null;
   const showPR = isNewPR || isFirstPR;
-  const prLabel = isNewPR ? `${prBoost}%!` : "NEW PR!";
+  const prLabel = isNewPR ? `${prBoost}%` : "NEW";
   const label = RETENTION_LABELS[status] ?? status;
   const prFmt = !showPR ? fmtInspectorEntry(prEntry) : null;
   const prDate = !showPR ? fmtInspectorDate(prEntry.log.log_date ?? "") : null;

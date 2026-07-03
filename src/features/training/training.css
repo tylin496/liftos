@@ -512,27 +512,22 @@
   margin-left: calc(-1 * var(--space-2));
 }
 
-@keyframes row-edit-in {
-  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
-  50%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent); }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
-
-.hist-row.is-editing {
-  background: var(--accent-glow);
-  animation: row-edit-in var(--motion-base) var(--reveal-ease);
-  margin: 0 calc(-1 * var(--space-5));
-  padding: var(--space-2) var(--space-5);
-}
-
+/* While editing, a PR row sheds its gold border so it matches a plain row
+   exactly — same padding, same height, no gold accents. */
 .hist-row.is-pr.is-editing {
-  border-left: 3px solid var(--pr);
-  padding-left: var(--space-5);
-  margin-left: calc(-1 * var(--space-5));
+  border-left-width: 0;
+  padding-left: 0;
+  margin-left: 0;
 }
 
 .hist-row.is-editing .hist-actions button {
   opacity: 1;
+}
+
+/* Editing tucks the entry row flush against the editor drawer's top rule —
+   no idle padding between the row content and the divider below it. */
+.hist-row.is-editing {
+  padding-bottom: 0;
 }
 
 .hist-row.hist-row-new {
@@ -774,7 +769,6 @@
 
 /* ── Editor drawer ───────────────────────────────────────────────────────────*/
 .ex-editor-drawer {
-  border-top: 1px solid var(--rule);
   margin: 0 calc(-1 * var(--space-5));
   padding: var(--space-3) var(--space-5);
   background: transparent;
@@ -800,6 +794,12 @@
   margin-top: var(--space-2);
   animation: add-form-in var(--motion-base) var(--reveal-ease) both;
   transform-origin: top center;
+}
+
+.add-form.log-redesign.log-edit {
+  border-top: none;
+  padding-top: var(--space-2);
+  margin-top: 0;
 }
 
 .add-form.log-redesign > * {
