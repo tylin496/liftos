@@ -10,7 +10,7 @@ import { SettingsSheetProvider, useSettingsSheet } from "./SettingsSheetContext"
 import { SettingsSheet } from "./SettingsSheet";
 import { Splash } from "./Splash";
 import { SessionUserProvider } from "./SessionContext";
-import { NavContext } from "./NavContext";
+import { NavContext, type NavOptions } from "./NavContext";
 import { TabActivityContext } from "./TabActivityContext";
 import { PageHeaderContext, IsActiveTabContext, type PageHeader } from "./PageHeaderContext";
 import { PageTopBar } from "@shared/components/PageTopBar";
@@ -71,6 +71,8 @@ export function Shell({ session }: { session: Session }) {
   >(null);
   const slideRef = useRef(slide);
   slideRef.current = slide;
+  // Pending scroll target (element ID to scroll to within the next tab)
+  const [pendingScrollTarget, setPendingScrollTarget] = useState<string | null>(null);
 
   // Cold-start splash: shown once on first mount, then fades out into Overview.
   // `splash` keeps it mounted; `splashLeaving` triggers the fade-out class just
@@ -93,14 +95,25 @@ export function Shell({ session }: { session: Session }) {
   const pendingScrollTopRef = useRef(false);
 
   useEffect(() => {
-    if (!pendingScrollTopRef.current) return;
+    if (!pendingScrollTopRef.current && !pendingScrollTarget) return;
     pendingScrollTopRef.current = false;
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, behavior: "instant" });
+        if (pendingScrollTarget) {
+          // Scroll to a specific element
+          const el = document.getElementById(pendingScrollTarget);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            window.scrollTo({ top: window.scrollY + rect.top, behavior: "instant" });
+          }
+          setPendingScrollTarget(null);
+        } else {
+          // Scroll to top
+          window.scrollTo({ top: 0, behavior: "instant" });
+        }
       });
     });
-  }, [tab]);
+  }, [tab, pendingScrollTarget]);
 
   // Finalize a settle animation deterministically after it plays. We use a
   // timer rather than transitionend because descendant transform transitions
@@ -129,20 +142,29 @@ export function Shell({ session }: { session: Session }) {
 
   // Programmatic (tab-bar tap) navigation — plays the same slide animation as a
   // swipe by kicking off from dx:0 and letting the CSS transition run.
-  function switchTab(next: TabId) {
+  function switchTab(next: TabId, options?: NavOptions) {
     if (next === tab) {
-      // Re-tapping the already-active tab scrolls it back to top — the native
-      // tab-bar gesture, and the only quick way up on a long page.
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // Re-tapping the already-active tab scrolls it back to top or to a target.
+      if (options?.scrollTo) {
+        const el = document.getElementById(options.scrollTo);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          window.scrollTo({ top: window.scrollY + rect.top, behavior: "smooth" });
+        }
+      } else {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       return;
     }
     if (slideRef.current) {
       // A tap on the tab we're already animating toward is a no-op — let the
       // in-flight animation finish instead of snapping it to completion.
       if (slideRef.current.to === next) return;
+      if (options?.scrollTo) setPendingScrollTarget(options.scrollTo);
       commitTab(next);
       return;
     }
+    if (options?.scrollTo) setPendingScrollTarget(options.scrollTo);
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
     setVisited((prev) => new Set([...prev, next]));

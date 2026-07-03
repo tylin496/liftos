@@ -742,7 +742,7 @@ export function OverviewPage() {
           state={data.nutritionState}
           cutStartDate={data.cutStartDate}
           onNav={() => nav("health")}
-          onNavActivity={() => nav("nutrition")}
+          onNavActivity={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />
       )}
 
