@@ -498,7 +498,18 @@ export function HealthPage() {
 
   return (
     <div className="page health">
-      {/* TDEE — the metabolic anchor for the whole tab, so it leads. The total
+      {/* Active Target leads — it's the actionable, glanceable "what do I do
+          today" number (the same ring worn on the avatar). TDEE right below
+          is the metabolic model behind it, for whoever wants the why. */}
+      {data && (
+        <ActiveTargetCard
+          view={data.activeTarget}
+          targetTdee={data.targetTdee}
+          onSave={saveTarget}
+        />
+      )}
+
+      {/* TDEE — the metabolic model behind the Active Target above. The total
           stays uncoloured (a rising estimate isn't an "outcome"), but both
           components carry an up-good coloured delta vs the previous window
           (Active = did you move enough; Resting = higher rate is less metabolic
@@ -570,15 +581,6 @@ export function HealthPage() {
           </p>
         )}
       </section>
-
-      {/* Active Target — only once there's real data to anchor the target. */}
-      {data && (
-        <ActiveTargetCard
-          view={data.activeTarget}
-          targetTdee={data.targetTdee}
-          onSave={saveTarget}
-        />
-      )}
 
       {/* Trend card skeleton — same TrendCard component, placeholder values,
           so height matches the loaded Weight / Body Fat / Lean Mass cards. */}
