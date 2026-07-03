@@ -25,7 +25,7 @@ export function StagnationBadge({
   onToggle: () => void;
 }) {
   if (!view) return null;
-  const { status, showPR, prLabel, label, expandable, t } = view;
+  const { status, showPR, label, expandable, t } = view;
   return (
     <div
       className={`stagnation-badge stagnation-${status}${showPR ? " stagnation-at-pr" : ""}${expandable ? " stagnation-expandable" : ""}`}
@@ -46,7 +46,6 @@ export function StagnationBadge({
     >
       <span className="stagnation-head">
         <span className="stagnation-label">{label}</span>
-        {showPR && <span className="stagnation-pct">{prLabel}</span>}
         {expandable && <span className="stagnation-expand-hint" aria-hidden="true" />}
       </span>
       {t && (

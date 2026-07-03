@@ -136,7 +136,13 @@ export function Shell({ session }: { session: Session }) {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    if (slideRef.current) { commitTab(next); return; }
+    if (slideRef.current) {
+      // A tap on the tab we're already animating toward is a no-op — let the
+      // in-flight animation finish instead of snapping it to completion.
+      if (slideRef.current.to === next) return;
+      commitTab(next);
+      return;
+    }
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
     setVisited((prev) => new Set([...prev, next]));

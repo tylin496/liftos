@@ -5,6 +5,14 @@ Auth). Google sign-in is handled entirely by Supabase Auth. A Supabase Edge
 Function bridges Apple Health data via the nightly Shortcut — see
 [docs/HEALTH-SYNC.md](docs/HEALTH-SYNC.md).
 
+## Stack
+
+- **Frontend**: Vite + React + TypeScript, deployed to GitHub Pages
+- **Backend**: Supabase (Postgres + RLS + Auth) — the frontend talks to
+  Supabase directly via `@supabase/supabase-js`; no custom API server
+- **Tabs**: Overview / Training / Nutrition / Health — see
+  [docs/LIFTOS-ARCHITECTURE.md](docs/LIFTOS-ARCHITECTURE.md)
+
 ## Google Cloud setup
 
 1. Create a project in [Google Cloud Console](https://console.cloud.google.com/).
@@ -25,3 +33,12 @@ npm run dev
 ```
 
 Open `http://127.0.0.1:5173/` and sign in with Google.
+
+## Scripts
+
+```bash
+npm run dev        # local dev server
+npm run build       # typecheck + production build
+npm run test         # vitest
+npm run lint:css     # stylelint (design token enforcement)
+```

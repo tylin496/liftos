@@ -453,12 +453,6 @@ function TrainingHealthCard({
   const retentionPct = compoundProgress ? Math.round(compoundProgress.overall * 100) : null;
   const retCount = useCountUp(inView ? (retentionPct ?? 0) : 0, 600);
   const attention = strength.watch;
-  const retColor =
-    retentionPct === null || retentionPct <= 0
-      ? "var(--bad)"
-      : retentionPct >= 100
-        ? "var(--good)"
-        : "var(--gold)";
 
   // Attention always sits above On Track and is ordered worst-first (steepest
   // recent decline, i.e. lowest trend), so the most urgent exercise reads first.
@@ -494,7 +488,7 @@ function TrainingHealthCard({
         </div>
 
         <div className="ov-th-ret-hero">
-          <MetricValue size="md" style={{ color: retColor }}>
+          <MetricValue size="md">
             {retentionPct !== null ? `${retCount}%` : "—"}
           </MetricValue>
           <span className="ov-th-ret-count">

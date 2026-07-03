@@ -356,7 +356,7 @@ export function HealthPage() {
         {!data ? (
           <>
             <div className="health-tdee-num">
-              <MetricValue size="md" unit="kcal">0000</MetricValue>
+              <MetricValue size="xl" unit="kcal">0000</MetricValue>
             </div>
             <div className="health-tdee-components">
               <div className="health-tdee-component">
@@ -374,7 +374,7 @@ export function HealthPage() {
         ) : tdee?.tdee != null ? (
           <>
             <div className="health-tdee-num">
-              <MetricValue size="md" unit="kcal">
+              <MetricValue size="xl" unit="kcal">
                 <AnimatedTdee value={tdee.tdee} />
               </MetricValue>
             </div>
@@ -432,7 +432,7 @@ export function HealthPage() {
         <TrendCard
           loading
           label="Lean Mass"
-          avgLabel="14-day average · derived"
+          avgLabel="14-day average"
           value={0}
           unit="kg"
           decimals={1}
@@ -476,7 +476,7 @@ export function HealthPage() {
       {lbmCard && (
         <TrendCard
           label="Lean Mass"
-          avgLabel="14-day average · derived"
+          avgLabel="14-day average"
           value={lbmCard.thisWeek}
           unit="kg"
           decimals={1}

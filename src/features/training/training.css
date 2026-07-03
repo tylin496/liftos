@@ -412,6 +412,7 @@
   font-size: var(--text-base);
   font-weight: 600;
   color: var(--ink-3);
+  white-space: nowrap;
 }
 
 .pr-kg-hint {
@@ -1701,21 +1702,12 @@
   border-radius: var(--radius-pill);
 }
 
-.stagnation-pct {
+.pr-pct {
+  margin-left: 1em;
   font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-  letter-spacing: 0;
-  opacity: 0.72;
-}
-
-.stagnation-at-pr .stagnation-pct {
-  font-size: var(--role-eyebrow-size);
-  font-weight: var(--role-eyebrow-weight);
-  letter-spacing: var(--role-eyebrow-spacing);
-  text-transform: uppercase;
+  font-weight: 700;
   color: var(--pr);
-  opacity: 1;
+  white-space: nowrap;
 }
 
 .stagnation-expandable {
@@ -1765,6 +1757,7 @@
   font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 .stagnation-trend-recovering { color: var(--ink-3); }
 .stagnation-trend-stable     { color: var(--ink-4); }

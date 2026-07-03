@@ -53,13 +53,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   margin-left: var(--space-1);
-  font-size: var(--text-sm);
+  border-radius: var(--radius-pill);
+  background: var(--ink-4);
+  font-size: var(--text-2xs);
   font-weight: 700;
-  color: var(--ink-4);
+  color: var(--bg-card);
   line-height: 1;
 }
 
 .seg-item.is-active .seg-count {
-  color: var(--ink-3);
+  background: var(--ink-3);
 }

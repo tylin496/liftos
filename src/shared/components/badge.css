@@ -20,5 +20,6 @@
 }
 
 .status-text--neutral {
-  color: var(--ink-3);
+  color: var(--ink-4);
+  font-weight: 400;
 }

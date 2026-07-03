@@ -613,6 +613,9 @@ export function ExerciseCard({
                     ) : (
                       <span className="hist-expr-row">
                         <ExprDisplay raw={log.raw} histMode />
+                        {isPR && stagView?.showPR && (
+                          <span className="pr-pct">{stagView.prLabel}</span>
+                        )}
                       </span>
                     )}
                     {log.note && (
