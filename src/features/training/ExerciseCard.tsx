@@ -66,6 +66,22 @@ function SmartImage({
   );
 }
 
+/** Compact "weight × reps" for a log — used by the Last/PR target refs shown
+    above the weight input while logging. Handles assisted (bodyweight − assist)
+    and lb entries the same way the history rows do, so the reference never
+    disagrees with the list below it. */
+function fmtSet(log: TrainingLog | null | undefined): string | null {
+  if (!log) return null;
+  if (log.kind === "assisted" && log.bodyweight != null && log.assistance != null) {
+    return `${fmtWeightNum(log.bodyweight - log.assistance)} × ${formatRepsDisplay(log.reps ?? "")}`;
+  }
+  const p = log.raw ? parse(log.raw) : null;
+  if (!p || !Number.isFinite(p.weight)) return null;
+  const w = p.assisted ? score(p) : p.weight;
+  const unit = p.assisted ? "kg" : isLbUnit(p.unit) ? "lb" : "kg";
+  return `${fmtWeightNum(w)} ${unit} × ${formatRepsDisplay(p.reps)}`;
+}
+
 function scrollIntoViewInterruptible(el: Element) {
   el.scrollIntoView({ behavior: "smooth", block: "start" });
   const stop = () => {
@@ -377,6 +393,12 @@ export function ExerciseCard({
 
   const best = stats.best;
   const bestParsed = best?.log.raw ? parse(best.log.raw) : null;
+  // Targets shown above the weight input while logging: the last set is the
+  // cut-realistic floor to at least match, the PR is the overload ceiling.
+  // When the last set IS the PR, collapse to one ref so it doesn't read twice.
+  const lastLog = effectiveLogs[0] ?? null;
+  const prRef = fmtSet(best?.log);
+  const lastRef = best && lastLog && best.log.id === lastLog.id ? null : fmtSet(lastLog);
   const imgSrc =
     localImageUrl ??
     exercise.image_url ??
@@ -716,6 +738,8 @@ export function ExerciseCard({
           <AddAssistedForm
             setCount={sc}
             lastLog={effectiveLogs[0] ?? null}
+            lastRef={lastRef}
+            prRef={prRef}
             onAdd={handleAdd}
             onCancel={() => setEditingMode("view")}
             submitting={submitting}
@@ -724,6 +748,8 @@ export function ExerciseCard({
           <AddEntryForm
             setCount={sc}
             lastRaw={effectiveLogs.find((l) => l.kind !== "assisted")?.raw ?? ""}
+            lastRef={lastRef}
+            prRef={prRef}
             onAdd={handleAdd}
             onCancel={() => setEditingMode("view")}
             submitting={submitting}
