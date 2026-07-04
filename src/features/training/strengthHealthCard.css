@@ -146,7 +146,7 @@
    matches the red attention chip below, so the bar itself flags which lifts
    need a look, not just the fold row. */
 .ov-th-bar-seg.is-watch {
-  background: rgba(233, 21, 45, 0.5);
+  background: color-mix(in srgb, var(--bad) 50%, transparent);
 }
 
 /* Loading skeleton: grey shimmer only — no green/red fill. */
