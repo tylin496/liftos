@@ -22,6 +22,18 @@ export async function currentUserId(): Promise<string> {
   return data.user.id;
 }
 
+/** The training-journey anchor date (nutrition_config.training_start_date).
+ *  Null until the user sets it in Settings. Read-only here — Settings owns writes.
+ *  Lives in nutrition_config; RLS scopes the row to the current user. */
+export async function fetchTrainingStartDate(): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("nutrition_config")
+    .select("training_start_date")
+    .maybeSingle();
+  if (error) throw error;
+  return data?.training_start_date ?? null;
+}
+
 /** Insert the default catalog the first time (no-op if the user already has rows). */
 export async function ensureSeeded(): Promise<void> {
   const userId = await currentUserId();

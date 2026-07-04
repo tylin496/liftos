@@ -25,6 +25,7 @@ import {
 } from "./ExerciseCard";
 import { computeStats } from "./logic";
 import { StrengthHealthCard } from "./StrengthHealthCard";
+import { TrainingTrophy } from "./TrainingTrophy";
 import { computeStrengthSummary } from "@features/overview/api";
 import { defaultSetCount, useScrollAboveKeyboard } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
@@ -923,6 +924,9 @@ function TrainingPageInner() {
           strength={strengthHealth.strength}
         />
       )}
+
+      {/* ── Training-age trophy (quiet footer signature) ── */}
+      <TrainingTrophy />
     </div>
   );
 }
