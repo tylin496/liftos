@@ -346,6 +346,94 @@ button {
   100% { transform: translate(var(--ex), var(--ey)) rotate(var(--rot)); opacity: 0; }
 }
 
+/* ── Milestone: the big, sticky "moment" — bigger card, rotating gold rays,
+      a looping confetti rain, and a confirm button that waits for the user. ── */
+.save-celebration.is-sticky {
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  transition: background var(--dur-exit) var(--ease-move);
+}
+
+.save-celebration.is-sticky.is-closing {
+  background: transparent;
+}
+
+.save-celebration.v-milestone .celeb-badge {
+  width: 72px;
+  height: 72px;
+  margin-bottom: var(--space-3);
+}
+
+.save-celebration.v-milestone .celeb-card strong {
+  font-size: var(--text-2xl);
+}
+
+.celeb-rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 120px;
+  height: 120px;
+  /* geometric centering on the badge: negative half of the 120px halo, not spacing */
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  margin: -60px 0 0 -60px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: repeating-conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--gold) 26%, transparent) 0deg 5deg,
+    transparent 5deg 16deg
+  );
+  -webkit-mask: radial-gradient(circle, #000 18%, transparent 62%);
+  mask: radial-gradient(circle, #000 18%, transparent 62%);
+  animation: celeb-rays-spin 9s linear infinite, celeb-rays-in var(--dur-enter) ease-out both;
+}
+
+@keyframes celeb-rays-spin { to { transform: rotate(360deg); } }
+@keyframes celeb-rays-in { from { opacity: 0; } to { opacity: 1; } }
+
+.celeb-rain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.celeb-rain span {
+  position: absolute;
+  top: -8%;
+  will-change: transform, opacity;
+  animation-name: celeb-rain-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes celeb-rain-fall {
+  0%   { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
+  8%   { opacity: var(--op, 1); }
+  92%  { opacity: var(--op, 1); }
+  100% { transform: translateY(112vh) rotate(var(--rot)); opacity: 0; }
+}
+
+.celeb-confirm {
+  margin-top: var(--space-2);
+  padding: 10px var(--space-5);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--gold);
+  color: #2a1d00;
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform var(--dur-press) var(--ease-press);
+}
+
+.celeb-confirm:active { transform: scale(0.96); }
+
 /* Hide number-input spinner arrows globally (use inputMode for keyboard hints instead) */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {

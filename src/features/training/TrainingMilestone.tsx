@@ -5,19 +5,14 @@ import { trainingMonthsFromStart } from "@features/nutrition/logic";
 
 const SEEN_KEY = "training-milestone-seen";
 
-// Front-loaded ladder: monthly-ish at the start where each month is real
-// progress, then annual once tenure is an identity fact. Celebrating every
-// month long-term would dilute the gold; a year apart keeps each one an event.
-const EARLY_RUNGS = [1, 3, 6, 9, 12];
-
-/** Highest milestone (in completed months) at or below the given tenure. */
+/** Highest milestone (in completed months) at or below the given tenure —
+    every 3 months (3, 6, 9, 12, 15…). Quarterly keeps each one a real event
+    without diluting the gold the way a monthly cadence would. */
 export function milestoneFor(months: number | null): number | null {
   if (months == null) return null;
   const m = Math.floor(months);
-  if (m >= 12) return Math.floor(m / 12) * 12; // 12, 24, 36…
-  let best: number | null = null;
-  for (const rung of EARLY_RUNGS) if (m >= rung) best = rung;
-  return best;
+  if (m < 3) return null;
+  return Math.floor(m / 3) * 3;
 }
 
 /** "3 Months" / "1 Year" / "1 Year 6 Months". */
@@ -58,7 +53,7 @@ export function TrainingMilestone() {
     }
     if (ms > Number(stored)) {
       localStorage.setItem(SEEN_KEY, String(ms));
-      celebrate({ variant: "milestone", title: fmtTenure(ms), sub: "Training milestone" });
+      celebrate({ variant: "milestone", title: fmtTenure(ms), sub: "Training milestone", sticky: true });
     }
   }, [config, celebrate]);
 

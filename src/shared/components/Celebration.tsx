@@ -10,6 +10,9 @@ export interface CelebPayload {
   title?: string;
   /** Override the default subtitle (e.g. the PR weight). */
   sub?: string;
+  /** Stay on screen (with backdrop + confirm button) until the user dismisses,
+      instead of auto-fading. Used by the tenure milestone — a "big moment". */
+  sticky?: boolean;
 }
 
 // Confetti palettes — dominant stops use theme tokens so they track light/dark;
@@ -24,10 +27,10 @@ const DEFAULTS: Record<
   "logged": { title: "Logged", sub: "Entry saved", gold: false, tone: "var(--good)", count: 20, pal: ACCENT_PAL },
   "double-hit": { title: "Double Hit!", sub: "Under budget & protein floor cleared", gold: true, tone: "var(--gold)", count: 34, pal: GOLD_PAL },
   "pr": { title: "New PR!", sub: "Personal record", gold: true, tone: "var(--gold)", count: 34, pal: GOLD_PAL },
-  "milestone": { title: "Milestone", sub: "Training milestone", gold: true, tone: "var(--gold)", count: 34, pal: GOLD_PAL },
+  "milestone": { title: "Milestone", sub: "Training milestone", gold: true, tone: "var(--gold)", count: 64, pal: GOLD_PAL },
 };
 
-// Crafted SVG badge glyphs (draw-on check / bullseye / trophy) — colored by --tone.
+// Crafted SVG badge glyphs (draw-on check / bullseye / trophy / star) — colored by --tone.
 const GLYPHS: Record<CelebVariant, React.ReactNode> = {
   "logged": (
     <svg viewBox="0 0 66 66" aria-hidden>
@@ -100,22 +103,62 @@ function particleStyle(i: number, count: number, pal: string[]): React.CSSProper
   } as React.CSSProperties;
 }
 
+/** A single continuously-falling piece for the sticky milestone "rain" layer. */
+function rainStyle(i: number, pal: string[]): React.CSSProperties {
+  const circle = rand(i + 9) > 0.6;
+  const sz = 6 + Math.round(rand(i + 13) * 5);
+  const w = circle ? sz : sz - 2;
+  const h = circle ? sz : sz + 5;
+  const dur = 2.6 + rand(i + 3) * 2.2;
+  return {
+    left: `${(rand(i) * 100).toFixed(1)}%`,
+    width: `${w}px`,
+    height: `${h}px`,
+    borderRadius: circle ? "50%" : "1.5px",
+    background: pal[i % pal.length],
+    "--rot": `${((rand(i + 7) - 0.5) * 720).toFixed(0)}deg`,
+    "--op": (0.5 + rand(i + 2) * 0.4).toFixed(2),
+    animationDuration: `${dur.toFixed(2)}s`,
+    animationDelay: `${(rand(i + 5) * -4).toFixed(2)}s`, // negative → already mid-fall on mount
+  } as React.CSSProperties;
+}
+
 // ── Celebration confetti ──────────────────────────────────────────────────────
-function Celebration({ variant, title, sub, closing }: CelebPayload & { closing?: boolean }) {
+function Celebration({
+  variant,
+  title,
+  sub,
+  sticky,
+  closing,
+  onDismiss,
+}: CelebPayload & { closing?: boolean; onDismiss: () => void }) {
   const d = DEFAULTS[variant];
   return createPortal(
     <div
-      className={`save-celebration v-${variant}${d.gold ? " is-gold" : ""}${closing ? " is-closing" : ""}`}
+      className={`save-celebration v-${variant}${d.gold ? " is-gold" : ""}${sticky ? " is-sticky" : ""}${closing ? " is-closing" : ""}`}
       role="status"
       aria-live="polite"
+      onClick={sticky ? onDismiss : undefined}
     >
       <div className="celeb-confetti" aria-hidden>
         {Array.from({ length: d.count }, (_, i) => (
           <span key={i} style={particleStyle(i, d.count, d.pal)} />
         ))}
       </div>
-      <div className="celeb-card" style={{ "--tone": d.tone } as React.CSSProperties}>
+      {sticky && (
+        <div className="celeb-rain" aria-hidden>
+          {Array.from({ length: 24 }, (_, i) => (
+            <span key={i} style={rainStyle(i, d.pal)} />
+          ))}
+        </div>
+      )}
+      <div
+        className="celeb-card"
+        style={{ "--tone": d.tone } as React.CSSProperties}
+        onClick={sticky ? (e) => e.stopPropagation() : undefined}
+      >
         <span className="celeb-badge" aria-hidden>
+          {variant === "milestone" && <span className="celeb-rays" />}
           <span className="celeb-disc" />
           <span className="celeb-ring" />
           {d.gold && <span className="celeb-ring r2" />}
@@ -123,6 +166,11 @@ function Celebration({ variant, title, sub, closing }: CelebPayload & { closing?
         </span>
         <strong>{title ?? d.title}</strong>
         <span className="celeb-sub">{sub ?? d.sub}</span>
+        {sticky && (
+          <button type="button" className="celeb-confirm" onClick={onDismiss}>
+            Nice
+          </button>
+        )}
       </div>
     </div>,
     document.body,
@@ -132,7 +180,8 @@ function Celebration({ variant, title, sub, closing }: CelebPayload & { closing?
 /**
  * Fire-and-forget celebration overlay. Call `celebrate(...)` to show the
  * confetti card; it auto-dismisses after `durationMs` and plays its exit
- * animation. Render `node` somewhere in the component tree.
+ * animation — unless the payload is `sticky`, which waits for a user tap.
+ * Render `node` somewhere in the component tree.
  */
 export function useCelebration(durationMs = 2000) {
   const [active, setActive] = useState<CelebPayload | null>(null);
@@ -142,15 +191,23 @@ export function useCelebration(durationMs = 2000) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const celebrate = useCallback((payload: CelebVariant | CelebPayload) => {
-    setActive(typeof payload === "string" ? { variant: payload } : payload);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setActive(null), durationMs);
+    const p = typeof payload === "string" ? { variant: payload } : payload;
+    setActive(p);
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    if (!p.sticky) {
+      timer.current = setTimeout(() => setActive(null), durationMs);
+    }
   }, [durationMs]);
+
+  const dismiss = useCallback(() => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    setActive(null);
+  }, []);
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const node = t.mounted && payloadRef.current
-    ? <Celebration {...payloadRef.current} closing={t.closing} />
+    ? <Celebration {...payloadRef.current} closing={t.closing} onDismiss={dismiss} />
     : null;
 
   return { celebrate, node };
