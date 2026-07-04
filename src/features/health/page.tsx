@@ -545,6 +545,31 @@ export function HealthPage() {
         />
       )}
 
+      {/* Recovery card skeleton — same structure as the loaded RecoveryCard so
+          the tail of the page doesn't jump when readiness data lands. */}
+      {!data && (
+        <section className="page-card health-recovery loading-card">
+          <div className="health-recovery-head">
+            <span className="health-card-eyebrow">Recovery</span>
+            <span className="health-recovery-status">Loading…</span>
+          </div>
+          <div className="health-recovery-rows">
+            {[
+              { label: "Sleep", value: "0.0", unit: "h" },
+              { label: "HRV", value: "00", unit: "ms" },
+              { label: "RHR", value: "00", unit: "bpm" },
+            ].map((r) => (
+              <div key={r.label} className="health-recovery-row">
+                <span className="health-recovery-row-label">{r.label}</span>
+                <div className="health-recovery-row-stat">
+                  <MetricValue size="md" unit={r.unit}>{r.value}</MetricValue>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Trend cards — Weight, then Body Fat (body-composition read). */}
       {cards.map(({ spec, bucketed, thisWeek, change, readingCount }) => (
         <TrendCard

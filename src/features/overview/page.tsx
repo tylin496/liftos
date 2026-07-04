@@ -8,7 +8,7 @@ import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useInView } from "@shared/hooks/useInView";
 import { progressColor } from "@shared/lib/progressColor";
-import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
+import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
 import { StrengthHealthCard } from "@features/training/StrengthHealthCard";
 import { ActivityRing } from "@shared/components/ActivityRing";
@@ -756,39 +756,80 @@ export function OverviewPage() {
           the page never shows a blank gap under the header while data loads. */}
       {!data && (
         <>
+          {/* Active target — leads the loaded layout, so leads the skeleton. */}
+          <section className="page-card ov-active-target loading-card">
+            <div className="ov-active-target-head">
+              <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
+              <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
+            </div>
+            <div className="ov-active-target-ring-row">
+              <ActiveTargetRingBody shown={null} target={0} />
+              <div className="ov-active-target-ring-caption">
+                <span className="ov-active-target-ring-title">Today's active target</span>
+                <span className="ov-active-target-ring-sub">Loading…</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Cut Progress — mirrors CutProgressCard's goal markup. */}
+          <div className="page-card goal loading-card">
+            <div className="goal-head">
+              <span className="goal-label">Cut Progress</span>
+              <span className="goal-pct">00%</span>
+            </div>
+            <div className="goal-bar">
+              <div className="goal-bar-fill" style={{ width: 0 }} />
+            </div>
+            <div className="goal-detail">
+              <div className="goal-row">
+                <div className="goal-col-label">Goal</div>
+                <MetricValue size="md" unit="kg">00.0</MetricValue>
+                <div className="goal-sub">00% body fat</div>
+              </div>
+              <div className="goal-divider" aria-hidden />
+              <div className="goal-row">
+                <div className="goal-col-label">Remaining</div>
+                <MetricValue size="md" unit="kg">0.0</MetricValue>
+              </div>
+            </div>
+          </div>
+
+          {/* Weight — sparkline + single Rate/Status row, matching WeightCard. */}
           <div className="page-card ov-weight loading-card">
             <div className="ov-weight-head">
               <span className="ov-weight-label">Weight</span>
               <span className="ov-weight-chevron" aria-hidden>›</span>
             </div>
-            <MetricValue size="lg" unit="kg">00.0</MetricValue>
-            <div className="ov-weight-rows">
-              <div className="ov-weight-row">
-                <span className="ov-weight-key">Trend</span>
+            <div className="ov-weight-stat">
+              <MetricValue size="lg" unit="kg">00.0</MetricValue>
+            </div>
+            <WeightSparkline values={[]} tone="flat" />
+            <div className="ov-weight-rows ov-weight-rows--single">
+              <span className="ov-weight-rate">
+                <span className="ov-weight-key">Rate</span>{" "}
                 <span className="ov-weight-val">−0.00 kg/wk</span>
-              </div>
-              <div className="ov-weight-row">
-                <span className="ov-weight-key">Status</span>
-                <span className="ov-weight-val">On pace</span>
-              </div>
+              </span>
+              <span className="ov-weight-status-pill">
+                <span className="ov-weight-status-dot" />
+                On pace
+              </span>
             </div>
           </div>
 
+          {/* Training Health — mirrors StrengthHealthCard variant="snapshot". */}
           <div className="page-card ov-training-health loading-card">
-            <div className="ov-th-summary">
-              <div className="ov-th-top">
-                <span className="ov-th-label">Training Health</span>
-                <span className="ov-th-chevron" aria-hidden>›</span>
-              </div>
-              <div className="ov-th-ret-hero">
-                <MetricValue size="lg">00%</MetricValue>
-                <MetricCaption>of tracked lifts on track</MetricCaption>
-              </div>
-              <div className="ov-th-bar" aria-hidden>
-                {Array.from({ length: 15 }).map((_, i) => (
-                  <span key={i} className="ov-th-bar-seg is-good" />
-                ))}
-              </div>
+            <div className="ov-th-top">
+              <span className="ov-th-label">Training Health</span>
+              <span className="ov-th-chevron" aria-hidden>›</span>
+            </div>
+            <div className="ov-th-ret-hero">
+              <MetricValue size="lg">00%</MetricValue>
+              <span className="ov-th-ret-count">0 of 0 tracked lifts on track</span>
+            </div>
+            <div className="ov-th-bar" aria-hidden>
+              {Array.from({ length: 15 }).map((_, i) => (
+                <span key={i} className="ov-th-bar-seg is-good" />
+              ))}
             </div>
             <div className="ov-th-fold">
               <span className="ov-th-fold-left">

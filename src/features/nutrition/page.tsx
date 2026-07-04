@@ -114,13 +114,14 @@ export function NutritionPage() {
             entryVersion={entryVersion}
             onOpenCalendar={() => setCalendarOpen(true)}
           />
-
-          {/* Self-contained — fetches its own state independently of config, so
-              it doesn't need to wait behind the gate above. Sits last, below the
-              History cards. */}
-          <NutritionInsightCard refreshKey={entryVersion} />
         </>
       )}
+
+      {/* Self-contained — fetches its own state independently of config, so it
+          renders OUTSIDE the config gate: during cold load its own internal
+          skeleton holds the page's tail, instead of the slot being empty until
+          config arrives. Sits last, below the History cards. */}
+      <NutritionInsightCard refreshKey={entryVersion} />
     </div>
   );
 }
