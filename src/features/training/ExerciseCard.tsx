@@ -14,18 +14,15 @@ import {
   computeHistDelta,
   filterByTime,
   timelineDate,
-  buildStagnationView,
   epley1RM,
   beatsBest,
   totalReps,
   type TimeFilter,
 } from "./logic";
 import { useToast } from "@shared/components/Toast";
-import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import { defaultSetCount } from "./logFormHelpers";
 import { AddEntryForm, AddAssistedForm, InlineEditEntry, InlineEditAssistedEntry } from "./LogForms";
-import { StagnationBadge, StagnationDetail } from "./StagnationBadge";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
 import { haptic } from "@shared/lib/haptics";
@@ -90,19 +87,6 @@ function scrollIntoViewInterruptible(el: Element) {
   setTimeout(cleanup, 1000);
 }
 
-/** e1RM for a single log, handling both assisted (bodyweight − assistance) and
-    normal (parsed expression) entries. Shared by the row value and the vs-Last
-    comparison so they can never drift apart. */
-function logE1RM(log: TrainingLog): number | null {
-  if (log.kind === "assisted") {
-    return log.bodyweight != null && log.assistance != null
-      ? epley1RM(log.bodyweight - log.assistance, log.reps ?? "1")
-      : null;
-  }
-  const p = log.raw ? parse(log.raw) : null;
-  return p && Number.isFinite(p.weight) ? epley1RM(score(p), p.reps) : null;
-}
-
 export interface ExerciseCardProps {
   exercise: Exercise;
   logs: TrainingLog[]; // newest-first (as returned by fetchLogsBySlug)
@@ -135,13 +119,11 @@ export function ExerciseCard({
 
   const [editingMode, setEditingMode] = useState<EditingMode>("view");
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [justExpanded, setJustExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [prFlash, setPrFlash] = useState(false);
   const [newLogId, setNewLogId] = useState<string | null>(null);
-  const [retOpen, setRetOpen] = useState(false);
   const [deletedLogIds, setDeletedLogIds] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string>();
@@ -219,7 +201,6 @@ export function ExerciseCard({
     () => (stats.best ? filteredAsc.indexOf(stats.best.log) : -1),
     [filteredAsc, stats.best],
   );
-  const stagView = useMemo(() => buildStagnationView(effectiveLogsAsc, sc), [effectiveLogsAsc, sc]);
 
   // For display: newest first
   const filteredDesc = useMemo(() => [...filteredAsc].reverse(), [filteredAsc]);
@@ -237,6 +218,14 @@ export function ExerciseCard({
 
   async function handleAdd(raw: string, date: string, note: string) {
     if (submitting) return;
+    // One entry per exercise per day — every set for the day lives in a single
+    // drop-set entry, so a second same-day log is always a mistake. Point the
+    // user at the existing entry instead of silently creating a duplicate.
+    if (effectiveLogs.some((l) => l.log_date === date)) {
+      haptic("error");
+      toast("Already logged for that day — edit that entry instead", "error");
+      return;
+    }
     setSubmitting(true);
     const oldBest = stats.best;
     try {
@@ -287,6 +276,11 @@ export function ExerciseCard({
     try {
       const parsed = parse(raw);
       if (!parsed || !Number.isFinite(parsed.weight)) throw new Error("Cannot parse");
+      // Same one-per-day guard as add: block moving this entry onto a date
+      // another entry already occupies (self excluded, so an in-place edit is fine).
+      if (effectiveLogs.some((l) => l.id !== log.id && l.log_date === date)) {
+        throw new Error("Another entry already exists on that day");
+      }
       const newE1RM = epley1RM(score(parsed), parsed.reps);
       const oldBest = stats.best;
       const isNewPR =
@@ -546,12 +540,6 @@ export function ExerciseCard({
                 <span className="pr-empty">No PR yet</span>
               )}
             </div>
-            <StagnationBadge
-              view={stagView}
-              open={retOpen}
-              onToggle={() => setRetOpen((v) => !v)}
-            />
-            <StagnationDetail view={stagView} open={retOpen} />
           </div>
           <div className="ex-ident-wrap">
             <SmartImage src={imgSrc} alt="" className="ex-ident" />
@@ -604,17 +592,6 @@ export function ExerciseCard({
             const delta =
               isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog, sc);
             const isAssisted = log.kind === "assisted";
-            const isExpanded = expandedId === log.id;
-            const rowE1RM = logE1RM(log);
-            // vs PR: this set's e1RM as a % of the all-time best e1RM.
-            const vsPrPct =
-              rowE1RM != null && best?.e1rm ? (rowE1RM / best.e1rm) * 100 : null;
-            // vs Last: signed e1RM % change from the immediately older entry.
-            const prevE1RM = prevLog ? logE1RM(prevLog) : null;
-            const vsLastPct =
-              rowE1RM != null && prevE1RM
-                ? ((rowE1RM - prevE1RM) / prevE1RM) * 100
-                : null;
 
             return (
               <div key={log.id}>
@@ -632,16 +609,6 @@ export function ExerciseCard({
                   style={
                     revealing ? { animationDelay: `${(vi - 3) * 32}ms` } : undefined
                   }
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={isExpanded}
-                  onClick={() => setExpandedId((id) => (id === log.id ? null : log.id))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setExpandedId((id) => (id === log.id ? null : log.id));
-                    }
-                  }}
                 >
                   <span className="hist-date" title={log.log_date ?? ""}>
                     <span className="hist-date-mon">{td.mon}</span>
@@ -663,9 +630,6 @@ export function ExerciseCard({
                               ×{formatRepsDisplay(log.reps ?? "")}
                             </span>
                           </span>
-                          {isPR && stagView?.showPR && (
-                            <span className="pr-pct">{stagView.prLabel} PR!</span>
-                          )}
                         </span>
                         <span className="hist-assist-sub">
                           {log.assistance} kg assist
@@ -673,15 +637,7 @@ export function ExerciseCard({
                       </span>
                     ) : (
                       <span className="hist-expr-row">
-                        <ExprDisplay
-                          raw={log.raw}
-                          histMode
-                          badge={
-                            isPR && stagView?.showPR && !isEditing ? (
-                              <span className="pr-pct">{stagView.prLabel} PR!</span>
-                            ) : undefined
-                          }
-                        />
+                        <ExprDisplay raw={log.raw} histMode />
                       </span>
                     )}
                     {log.note && (
@@ -710,8 +666,7 @@ export function ExerciseCard({
                         type="button"
                         title="Edit entry"
                         disabled={deletedLogIds.size > 0}
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        onClick={() => {
                           setEditingMode("view");
                           setEditingLogId(isEditing ? null : log.id);
                         }}
@@ -722,49 +677,6 @@ export function ExerciseCard({
                     </div>
                   </div>
                 </div>
-
-                {isExpanded && !isEditing && (
-                  <div className="hist-perf">
-                    {rowE1RM != null ? (
-                      <>
-                        <div className="hist-perf-row">
-                          <span className="hist-perf-label">e1RM</span>
-                          <MetricValue size="md" unit="kg">
-                            {rowE1RM.toFixed(1)}
-                          </MetricValue>
-                        </div>
-                        {vsPrPct != null && (
-                          <div className="hist-perf-row">
-                            <span className="hist-perf-label">vs PR</span>
-                            <span
-                              className={`hist-perf-pct ${
-                                vsPrPct >= 99.5 ? "is-pr" : "is-good"
-                              }`}
-                            >
-                              {Math.round(vsPrPct)}%
-                            </span>
-                          </div>
-                        )}
-                        {vsLastPct != null && Math.round(vsLastPct) !== 0 && (
-                          <div className="hist-perf-row">
-                            <span className="hist-perf-label">vs Last</span>
-                            <MetricDelta
-                              value={vsLastPct}
-                              direction="up-good"
-                              decimals={0}
-                              unit="%"
-                            />
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="hist-perf-row">
-                        <span className="hist-perf-label">e1RM</span>
-                        <span className="hist-perf-pct">—</span>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {isEditing && (
                   <div className="ex-editor-drawer">
