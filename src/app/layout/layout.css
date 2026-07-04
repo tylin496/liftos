@@ -516,6 +516,15 @@ html.kb-open .tabbar {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  /* Flex items default to min-height:auto, which forbids shrinking below content
+     size. When the settings content is taller than the sheet's max-height, that
+     stops this scroller from shrinking — so it keeps full content height and the
+     last row (.settings-about) overflows past the bottom of the sheet. Since
+     .settings-sheet is overflow:visible, that overflowed footer paints outside
+     the sheet, over the page behind it, and taps there fall through to the
+     backdrop and dismiss the sheet. min-height:0 lets the body shrink to the
+     sheet and scroll internally, keeping every row clipped inside the overlay. */
+  min-height: 0;
   /* iOS Safari sometimes fails to repaint a scrollable child correctly after
      the parent's transform animation (sheet-in) finishes when the parent also
      has backdrop-filter, leaving rows clipped/missing until a manual scroll.
