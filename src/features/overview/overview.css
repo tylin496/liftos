@@ -785,11 +785,13 @@
   transform: rotate(180deg);
 }
 
-/* Fold body */
+/* Fold body — .ov-th-fold above is a <button> that only resets padding-top,
+   so it keeps the browser's default UA button padding (6px) on left/right.
+   Match it here so this div's rows line up with the fold row above them. */
 .ov-th-fold-body {
   display: flex;
   flex-direction: column;
-  padding-top: var(--space-3);
+  padding: var(--space-3) 6px 0;
   gap: 0;
 }
 
