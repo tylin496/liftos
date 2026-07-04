@@ -149,13 +149,13 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
 }
 
 .health-trend.loading-card .health-sparkline {
   background: color-mix(in srgb, var(--ink-4) 8%, transparent);
   border-radius: var(--radius-sm);
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite;
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite;
 }
 
 .health-trend.loading-card .metric-val {
@@ -248,7 +248,7 @@
   border: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform var(--motion-base) var(--move-ease);
+  transition: transform var(--dur-move) var(--ease-move);
 }
 
 .health-energy-toggle.is-open {

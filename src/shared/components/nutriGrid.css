@@ -17,7 +17,7 @@
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity var(--motion-fast);
+  transition: opacity var(--dur-press);
 }
 
 .nutri-col:active { opacity: 0.72; }

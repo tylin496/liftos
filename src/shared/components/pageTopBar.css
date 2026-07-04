@@ -37,8 +37,8 @@
   opacity: 1;
   transform: translateX(0);
   transition:
-    opacity var(--motion-fast) var(--press-ease),
-    transform var(--motion-fast) var(--press-ease);
+    opacity var(--dur-press) var(--ease-press),
+    transform var(--dur-press) var(--ease-press);
 }
 
 .page-topbar-eyebrow.is-fading,
@@ -53,12 +53,12 @@
    racing it. Fade-out stays on the same clock as the title (no delay). */
 .page-topbar-note {
   opacity: 1;
-  transition: opacity var(--motion-fast) var(--press-ease) 40ms;
+  transition: opacity var(--dur-press) var(--ease-press) 40ms;
 }
 
 .page-topbar-note.is-fading {
   opacity: 0;
-  transition: opacity var(--motion-fast) var(--press-ease);
+  transition: opacity var(--dur-press) var(--ease-press);
 }
 
 .page-topbar-actions {
@@ -80,7 +80,7 @@
   color: inherit;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: color var(--motion-fast) var(--press-ease), background var(--motion-fast) var(--press-ease);
+  transition: color var(--dur-press) var(--ease-press), background var(--dur-press) var(--ease-press);
 }
 
 .copy-phase-header-btn:active {
@@ -92,7 +92,7 @@
   grid-area: 1 / 1;
   width: 13px;
   height: 13px;
-  transition: opacity var(--motion-fast) var(--press-ease), transform var(--motion-fast) var(--press-ease);
+  transition: opacity var(--dur-press) var(--ease-press), transform var(--dur-press) var(--ease-press);
 }
 
 .copy-phase-header-btn .check-icon {
@@ -133,7 +133,7 @@ button.copy-all-data-btn {
   cursor: pointer;
   display: grid;
   place-items: center;
-  transition: transform var(--motion-fast) var(--press-ease);
+  transition: transform var(--dur-press) var(--ease-press);
   -webkit-tap-highlight-color: transparent;
 }
 

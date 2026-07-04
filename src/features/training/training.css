@@ -44,8 +44,8 @@
   from { transform: translateX(60px); }
   to   { transform: translateX(0); }
 }
-.tr-slide-left  { animation: tr-slide-from-right var(--motion-slow) var(--reveal-ease); }
-.tr-slide-right { animation: tr-slide-from-left  var(--motion-slow) var(--reveal-ease); }
+.tr-slide-left  { animation: tr-slide-from-right var(--dur-move) var(--ease-move); }
+.tr-slide-right { animation: tr-slide-from-left  var(--dur-move) var(--ease-move); }
 
 /* suppress card-enter when the whole list is sliding horizontally */
 .tr-slide-left .ex-card,
@@ -74,8 +74,8 @@
   -webkit-backdrop-filter: var(--card-blur);
   padding: var(--space-5);
   overflow: visible;
-  /* Flat entrance, unified with every other card (--enter-wait + --enter-dur). */
-  animation: card-enter var(--enter-dur) var(--reveal-ease) both;
+  /* Flat entrance, unified with every other card (--enter-wait + --dur-enter). */
+  animation: card-enter var(--dur-enter) var(--ease-enter) both;
   animation-delay: var(--enter-wait);
 }
 
@@ -118,7 +118,7 @@
   line-height: 1;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast);
+  transition: background var(--dur-press), color var(--dur-press);
 }
 
 .card-menu-btn:hover,
@@ -156,11 +156,11 @@
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
   padding: var(--space-1) 0;
-  animation: menu-pop var(--motion-fast) var(--reveal-ease) both;
+  animation: menu-pop var(--dur-press) var(--ease-press) both;
 }
 
 .menu-popup.is-closing {
-  animation: menu-pop-out var(--motion-fast) var(--move-ease) both;
+  animation: menu-pop-out var(--dur-exit) var(--ease-move) both;
 }
 
 .menu-item {
@@ -328,7 +328,7 @@
 /* ── PR display ──────────────────────────────────────────────────────────────*/
 .ex-pr-inline {
   margin-bottom: var(--space-1);
-  transition: background var(--motion-slow);
+  transition: background var(--dur-press);
   border-radius: var(--radius-sm);
   padding: var(--space-1) 0;
   /* .pr-weight's background-clip:text gradient promotes it to its own
@@ -354,7 +354,7 @@
 
 .ex-pr-inline.pr-just-set {
   background: color-mix(in srgb, var(--pr) 12%, transparent);
-  animation: pr-pop 500ms var(--reveal-ease);
+  animation: pr-pop var(--dur-pop) var(--ease-pop);
   position: relative;
   overflow: hidden;
 }
@@ -370,7 +370,7 @@
     transparent 60%
   );
   background-size: 200% 100%;
-  animation: pr-sheen var(--motion-sheen) ease forwards;
+  animation: pr-sheen var(--dur-sheen) var(--ease-move) forwards;
   pointer-events: none;
 }
 
@@ -457,7 +457,7 @@
   gap: var(--space-2);
   padding: var(--space-2) 0;
   border-bottom: 1px solid transparent;
-  transition: background var(--motion-fast), opacity var(--motion-fast);
+  transition: background var(--dur-press), opacity var(--dur-press);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -481,7 +481,7 @@
   margin-bottom: var(--space-2);
   border-bottom: 1px solid var(--rule);
   transform-origin: top center;
-  animation: hist-perf-in var(--motion-base) var(--reveal-ease) both;
+  animation: hist-perf-in var(--dur-enter) var(--ease-enter) both;
 }
 
 .hist-perf-row {
@@ -489,7 +489,7 @@
   align-items: baseline;
   justify-content: flex-start;
   gap: var(--space-2);
-  animation: hist-perf-in var(--motion-base) var(--reveal-ease) both;
+  animation: hist-perf-in var(--dur-enter) var(--ease-enter) both;
 }
 
 .hist-perf-row:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
@@ -557,7 +557,7 @@
 
 .hist-row.hist-row-saved {
   border-radius: var(--radius-sm);
-  animation: row-saved var(--motion-sheen) ease forwards;
+  animation: row-saved var(--dur-sheen) ease forwards;
 }
 
 .hist-date {
@@ -668,7 +668,7 @@
   font-size: var(--text-sm);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: background var(--motion-fast), color var(--motion-fast), opacity var(--motion-fast);
+  transition: background var(--dur-press), color var(--dur-press), opacity var(--dur-press);
   opacity: 0.38;
   padding: 0;
 }
@@ -815,7 +815,7 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--rule);
   margin-top: var(--space-2);
-  animation: add-form-in var(--motion-base) var(--reveal-ease) both;
+  animation: add-form-in var(--dur-enter) var(--ease-enter) both;
   transform-origin: top center;
 }
 
@@ -826,7 +826,7 @@
 }
 
 .add-form.log-redesign > * {
-  animation: log-zone-in var(--motion-base) var(--reveal-ease) both;
+  animation: log-zone-in var(--dur-enter) var(--ease-enter) both;
 }
 
 .add-form.log-redesign > *:nth-child(1) { animation-delay: calc(var(--stagger-step) * 1); }
@@ -854,7 +854,7 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background var(--motion-fast), color var(--motion-fast);
+  transition: background var(--dur-press), color var(--dur-press);
 }
 
 .log-dismiss:hover {
@@ -864,7 +864,7 @@
 
 .log-dismiss:active {
   transform: scale(var(--tap-scale));
-  transition-duration: var(--motion-fast);
+  transition-duration: var(--dur-press);
 }
 
 .log-date-chip {
@@ -911,7 +911,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background var(--motion-fast), transform var(--motion-fast) var(--press-ease);
+  transition: background var(--dur-press), transform var(--dur-press) var(--ease-press);
 }
 
 .log-adj-btn:active {
@@ -932,7 +932,7 @@
   outline: none;
   padding: 0;
   line-height: 1;
-  transition: font-size var(--motion-fast);
+  transition: font-size var(--dur-press);
 }
 
 .log-hero-input.mono::placeholder {
@@ -964,7 +964,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast);
+  transition: background var(--dur-press), color var(--dur-press);
 }
 
 .unit-btn.on {
@@ -989,7 +989,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: background var(--motion-fast), transform var(--motion-fast) var(--press-ease);
+  transition: background var(--dur-press), transform var(--dur-press) var(--ease-press);
 }
 
 .chip:active {
@@ -1038,7 +1038,7 @@
   border-radius: var(--radius-sm);
   padding: var(--space-2);
   outline: none;
-  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
+  transition: border-color var(--dur-press), box-shadow var(--dur-press);
 }
 
 .reps-input.mono:focus {
@@ -1091,7 +1091,7 @@
   font-size: var(--text-base);
   font-weight: 700;
   cursor: pointer;
-  transition: transform var(--motion-fast) var(--press-ease), opacity var(--motion-fast);
+  transition: transform var(--dur-press) var(--ease-press), opacity var(--dur-press);
 }
 
 .btn-log-primary:active {
@@ -1118,7 +1118,7 @@
   font-size: var(--role-action-size);
   font-weight: var(--role-action-weight);
   cursor: pointer;
-  transition: background var(--motion-fast);
+  transition: background var(--dur-press);
 }
 
 .btn-log-secondary:hover {
@@ -1207,7 +1207,7 @@
 
 .log-edit-advanced-toggle .caret {
   display: inline-block;
-  transition: transform var(--motion-fast);
+  transition: transform var(--dur-press);
 }
 
 .log-edit-advanced-toggle .caret.open {
@@ -1225,7 +1225,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--motion-fast);
+  transition: background var(--dur-press);
 }
 
 .inline-edit-delete-btn:hover {
@@ -1249,7 +1249,7 @@
   text-align: center;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: color var(--motion-fast), background var(--motion-fast);
+  transition: color var(--dur-press), background var(--dur-press);
 }
 
 @media (hover: hover) {
@@ -1278,7 +1278,7 @@
   font-family: inherit;
   text-align: left;
   width: 100%;
-  transition: color var(--motion-fast);
+  transition: color var(--dur-press);
 }
 
 @media (hover: hover) {
@@ -1292,7 +1292,7 @@
 }
 
 .hist-row-reveal {
-  animation: hist-reveal var(--motion-base) var(--reveal-ease) both;
+  animation: hist-reveal var(--dur-enter) var(--ease-enter) both;
 }
 
 /* ── Page ─────────────────────────────────────────────────────────────────────*/
@@ -1317,7 +1317,7 @@
   font-size: var(--role-action-size);
   font-weight: var(--role-action-weight);
   cursor: pointer;
-  transition: background var(--motion-fast);
+  transition: background var(--dur-press);
 }
 
 .add-exercise-btn:hover {
@@ -1450,7 +1450,7 @@
 .archived-chevron {
   color: var(--ink-4);
   flex-shrink: 0;
-  transition: transform var(--motion-base) var(--move-ease);
+  transition: transform var(--dur-move) var(--ease-move);
 }
 
 .archived-chevron.open {
@@ -1511,7 +1511,7 @@
   font-size: var(--role-action-size);
   font-weight: var(--role-action-weight);
   cursor: pointer;
-  transition: background var(--motion-fast);
+  transition: background var(--dur-press);
 }
 
 .archived-actions button:hover {
@@ -1520,7 +1520,7 @@
 
 .archived-actions button:active {
   transform: scale(var(--tap-scale));
-  transition-duration: var(--motion-fast);
+  transition-duration: var(--dur-press);
 }
 
 .archived-actions button.danger {
@@ -1690,7 +1690,7 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
 }
 
 /* ─── Stagnation / Strength Retention Badge ────────────────────────────────── */
@@ -1755,7 +1755,7 @@
   border-left: 3.5px solid transparent;
   border-right: 3.5px solid transparent;
   border-top: 4px solid var(--ink-4);
-  transition: transform var(--motion-fast) var(--move-ease);
+  transition: transform var(--dur-press) var(--ease-move);
 }
 [aria-expanded="true"] .stagnation-expand-hint::after {
   transform: rotate(180deg);
@@ -1795,7 +1795,7 @@
   gap: 2px;
   padding-top: var(--space-1);
   margin-top: 3px;
-  animation: stagnation-reason-in var(--motion-fast) var(--reveal-ease) both;
+  animation: stagnation-reason-in var(--dur-press) var(--ease-press) both;
 }
 @keyframes stagnation-reason-in {
   from { opacity: 0; transform: translateY(-3px); }
@@ -1966,7 +1966,7 @@
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast);
+  transition: background var(--dur-press), color var(--dur-press);
   font-family: var(--font-ui);
 }
 
@@ -2021,7 +2021,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  animation: add-form-in var(--motion-base) var(--reveal-ease) both;
+  animation: add-form-in var(--dur-enter) var(--ease-enter) both;
 }
 
 .edit-exercise-topbar {
@@ -2043,7 +2043,7 @@
   font-size: var(--text-lg);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast);
+  transition: background var(--dur-press), color var(--dur-press);
   flex-shrink: 0;
 }
 
@@ -2077,7 +2077,7 @@
   font-size: var(--text-sm);
   outline: none;
   box-sizing: border-box;
-  transition: border var(--motion-fast), box-shadow var(--motion-fast);
+  transition: border var(--dur-press), box-shadow var(--dur-press);
 }
 
 .field-input:focus {
@@ -2120,7 +2120,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast);
+  transition: background var(--dur-press), color var(--dur-press);
 }
 
 .btn-log-primary {
@@ -2159,7 +2159,7 @@
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--bad) 40%, transparent);
   text-underline-offset: 3px;
-  transition: color var(--motion-fast);
+  transition: color var(--dur-press);
   padding: 0;
   margin-top: var(--space-1);
 }
@@ -2195,7 +2195,7 @@
   font-weight: 600;
   border-radius: var(--radius-card);
   cursor: pointer;
-  transition: border-color var(--motion-fast), color var(--motion-fast);
+  transition: border-color var(--dur-press), color var(--dur-press);
   margin-top: var(--space-3);
   display: flex;
   align-items: center;

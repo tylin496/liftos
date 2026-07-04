@@ -110,7 +110,7 @@
 }
 
 .ni-prog-new.is-fresh {
-  animation: ni-target-attention var(--motion-slow) var(--reveal-ease);
+  animation: ni-target-attention var(--dur-pop) var(--ease-pop);
 }
 
 .ni-prog-hold {
@@ -223,7 +223,7 @@
   margin-left: 6px;
   color: var(--role-caption-color);
   font-family: var(--font-ui);
-  transition: transform 0.15s ease;
+  transition: transform var(--dur-press) var(--ease-press);
 }
 
 .ni-cell-expandable[aria-expanded="true"] .ni-cell-caret {
@@ -261,7 +261,7 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
 }
 
 /* ── History ─────────────────────────────────────────────────────────── */
@@ -327,7 +327,7 @@
   border-radius: var(--radius-sm);
   background: var(--bg-soft);
   padding: 3px;
-  animation: rise-in var(--motion-slow) var(--reveal-ease) both;
+  animation: rise-in var(--dur-enter) var(--ease-enter) both;
 }
 
 .nutri-date {
@@ -368,7 +368,7 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background var(--motion-fast), border-color var(--motion-fast);
+  transition: background var(--dur-press), border-color var(--dur-press);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -399,7 +399,7 @@
   color: var(--on-color);
   font-size: var(--text-base);
   font-weight: 700;
-  transition: transform var(--motion-fast) var(--press-ease), opacity var(--motion-fast);
+  transition: transform var(--dur-press) var(--ease-press), opacity var(--dur-press);
 }
 
 @media (hover: hover) {
@@ -424,11 +424,11 @@
   background: var(--scrim-bg);
   backdrop-filter: var(--scrim-blur);
   -webkit-backdrop-filter: var(--scrim-blur);
-  animation: fade-in var(--motion-base) ease both;
+  animation: fade-in var(--dur-enter) ease both;
 }
 
 .ncal-backdrop.is-closing {
-  animation: fade-out var(--motion-base) ease both;
+  animation: fade-out var(--dur-exit) ease both;
 }
 
 .ncal-panel {
@@ -448,7 +448,7 @@
   -webkit-backdrop-filter: var(--card-blur);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
   padding: var(--space-6) var(--space-5) var(--space-6);
-  animation: ncal-in var(--motion-base) ease both;
+  animation: ncal-in var(--dur-enter) ease both;
 }
 
 @keyframes ncal-in {
@@ -461,7 +461,7 @@
 }
 
 .ncal-panel.is-closing {
-  animation: ncal-out var(--motion-fast) var(--move-ease) both;
+  animation: ncal-out var(--dur-exit) var(--ease-move) both;
 }
 
 .ncal-header {
@@ -769,7 +769,7 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
 }
 
 .loading-card .hist-week-chevron {
@@ -838,7 +838,7 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
 }
 
 /* ── Inline settlement form ──────────────────────────────────────────── */
@@ -848,7 +848,7 @@
 
 /* ── Saved-pulse: flash the card on successful save ──────────────────── */
 .daily-card.saved-pulse {
-  animation: save-pulse 700ms var(--reveal-ease) both;
+  animation: save-pulse 700ms var(--ease-enter) both;
 }
 
 /* ── History: dual-bar trend ─────────────────────────────────────────── */
@@ -865,7 +865,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
-  transition: transform var(--motion-fast) var(--press-ease);
+  transition: transform var(--dur-press) var(--ease-press);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -897,7 +897,7 @@
   justify-content: flex-end;
   margin-bottom: 3px;
   opacity: 0;
-  transition: opacity var(--motion-fast) var(--move-ease);
+  transition: opacity var(--dur-press) var(--ease-move);
 }
 
 .nutri-trend-col.is-selected .ntb-values { opacity: 1; }
@@ -943,7 +943,7 @@
 }
 
 .nutri-trend--intro .ntb-pair {
-  animation: bar-rise var(--enter-dur) var(--reveal-ease) both;
+  animation: bar-rise var(--dur-enter) var(--ease-enter) both;
   /* Unified entrance: bars start on the flat --enter-wait beat (no long lead),
      keeping only their own left→right stagger (exception — internal detail). */
   animation-delay: calc(var(--enter-wait) + var(--bar-index, 0) * var(--stagger-step));
@@ -953,8 +953,8 @@
    via the animation's `both` fill during the delay), then rise once the card is
    in place — the rise waits out the slide duration before starting. */
 .nutri-trend--after-slide .ntb-pair {
-  animation: bar-rise var(--motion-slow) var(--reveal-ease) both;
-  animation-delay: calc(var(--motion-slow) + var(--bar-index, 0) * var(--stagger-step));
+  animation: bar-rise var(--dur-enter) var(--ease-enter) both;
+  animation-delay: calc(var(--dur-enter) + var(--bar-index, 0) * var(--stagger-step));
 }
 
 .ntb-bar {
@@ -966,7 +966,7 @@
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--bg-card) 38%, transparent),
     0 6px 12px color-mix(in srgb, #000000 10%, transparent);
-  transition: background var(--motion-base) var(--move-ease), box-shadow var(--motion-base) var(--move-ease);
+  transition: background var(--dur-move) var(--ease-move), box-shadow var(--dur-move) var(--ease-move);
 }
 
 .ntb-bar-kcal {
@@ -1056,8 +1056,8 @@
   from { opacity: 0; transform: translateX(-40%); }
   to   { opacity: 1; transform: translateX(0); }
 }
-.date-slide-forward  { animation: date-in-forward  var(--motion-base) var(--reveal-ease) both; }
-.date-slide-backward { animation: date-in-backward var(--motion-base) var(--reveal-ease) both; }
+.date-slide-forward  { animation: date-in-forward  var(--dur-move) var(--ease-move) both; }
+.date-slide-backward { animation: date-in-backward var(--dur-move) var(--ease-move) both; }
 
 /* ── Day navigation carousel ─────────────────────────────────────────── */
 /* Card enters from the screen edge (its full width off) and springs into place —
@@ -1073,13 +1073,13 @@
   to   { transform: translateX(0); }
 }
 
-.daily-card.day-nav-forward  { animation: slide-from-right var(--motion-slow) var(--spring-ease) both; }
-.daily-card.day-nav-backward { animation: slide-from-left  var(--motion-slow) var(--spring-ease) both; }
+.daily-card.day-nav-forward  { animation: slide-from-right var(--dur-move) var(--ease-move) both; }
+.daily-card.day-nav-backward { animation: slide-from-left  var(--dur-move) var(--ease-move) both; }
 
 /* This Week card slides the whole card through on week change, same as the
    Today card slides between days. */
-.hist-week-card.week-nav-forward  { animation: slide-from-right var(--motion-slow) var(--spring-ease) both; }
-.hist-week-card.week-nav-backward { animation: slide-from-left  var(--motion-slow) var(--spring-ease) both; }
+.hist-week-card.week-nav-forward  { animation: slide-from-right var(--dur-move) var(--ease-move) both; }
+.hist-week-card.week-nav-backward { animation: slide-from-left  var(--dur-move) var(--ease-move) both; }
 
 /* Both cards are drag-navigable: reserve the horizontal axis for the gesture
    while vertical scroll passes through, and don't let a drag select text. */
@@ -1100,7 +1100,7 @@
 }
 
 .daily-card.is-drag-hint {
-  animation: day-drag-hint 1.15s var(--reveal-ease) both;
+  animation: day-drag-hint 1.15s var(--ease-enter) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1122,5 +1122,5 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
 }

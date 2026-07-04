@@ -39,16 +39,12 @@
   --accent-glow: rgba(236, 81, 34, 0.16);
 
   /* ── Progress spectrum ────────────────────────────────────────────── */
-  /* Self-contained journey ramp for progressColor.ts — a WARM→COOL scale that
-     starts warm orange-red (low progress reads "not much yet"; kept RED, not
-     amber/gold, so gold stays reserved for celebration only), crosses cyan, and
-     lands on blue = "almost full." Uses its OWN tokens, clear of green
-     (--good's verdict). Completion is a SEPARATE discrete state — at exactly
+  /* The continuous progress ramp is RED→GREEN and lives in progressColor.ts
+     (PROGRESS_STOPS: --bad → --good by 99%) — it reuses the semantic tokens and
+     has NO colour tokens of its own. Only COMPLETION owns a token: at exactly
      100% an indicator flips to --progress-complete (gold) as a one-off
-     celebration. Gold has no range; it only means "done," never a ramp stop. */
-  --progress-start: #f05a2a;    /* warm orange-red — low / just started (redder than gold on purpose) */
-  --progress-mid: #2aa9c9;      /* cyan — mid-journey */
-  --progress-end: #1e6ef4;      /* Apple blue (IC-light) — almost full */
+     celebration. Gold has no range; it only ever means "done," never a ramp
+     stop. Consumed by the Cut Progress bar/%, Active Target ring, top-bar ring. */
   --progress-complete: #b8830a; /* deep gold — 100% only, the celebration */
 
   /* ── Semantic ─────────────────────────────────────────────────────────
@@ -217,30 +213,42 @@
   --scrim-blur: blur(16px);
   --scrim-strong: rgba(0, 0, 0, 0.85); /* near-opaque backdrop — photo lightbox only */
 
-  /* ── Motion ───────────────────────────────────────────────────────── */
-  /* 3 durations · 3 curves · 1 stagger step. Use these everywhere. */
-  --motion-fast: 120ms; /* press, hover, color/opacity feedback */
-  --motion-base: 220ms; /* enter, menu, modal, crossfade, slides */
-  --motion-slow: 340ms; /* card stagger, page transitions */
-  --press-ease: cubic-bezier(0.2, 0.8, 0.2, 1);  /* tap scale-down / return */
-  --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);  /* reveals — slight overshoot */
-  --move-ease: cubic-bezier(0.4, 0, 0.2, 1);     /* slides / positional */
-  --stagger-step: 50ms;   /* entrance cascade: delay between adjacent tiers (top → bottom) */
-  --enter-rise: 12px;     /* entrance travel — shared by rise-in / card-enter so every reveal lifts the same distance */
-  /* Unified entrance budget: everything waits --enter-wait, then animates for
-     --enter-dur → 500ms total. Page-level reveals are FLAT (all start together at
-     --enter-wait, no bottom-up wave). Only within-element detail (Training-Health
-     bar segments, Nutrition week bars) keeps an internal stagger, bounded to
-     --enter-dur. */
-  --enter-wait: 100ms;
-  --enter-dur: 400ms;
-  --tap-scale: 0.97;
+  /* ── Motion ───────────────────────────────────────────────────────────
+     ROLE-DRIVEN. You never pick a number — you pick a ROLE. Each role has
+     exactly one duration and one curve, so two things with the same role
+     animate identically and can't drift apart. Every animation and transition
+     in the app resolves to one of these. Adding a raw ms or a fourth curve is
+     the bug. */
 
-  /* Expressive tier — celebration / ambient / loading, longer than UI transitions */
-  --motion-celebrate: 900ms;  /* confetti, PR pop */
-  --motion-sheen: 1000ms;     /* row-saved flash, PR sheen sweep */
-  --motion-shimmer: 1600ms;   /* skeleton loading loop */
-  --spring-ease: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoot spring — day-nav card enter */
+  /* Durations — one per role */
+  --dur-press:     120ms;  /* tap · hover · colour/opacity feedback */
+  --dur-exit:      200ms;  /* anything leaving (fade / slide out) */
+  --dur-move:      280ms;  /* positional travel: slide · sheet · nav · sheen */
+  --dur-enter:     400ms;  /* anything appearing: card · form · row · bar · toast */
+  --dur-pop:       440ms;  /* attention / celebration pulse */
+  --dur-celebrate: 900ms;  /* confetti · gold ring */
+  --dur-sheen:    1000ms;  /* PR sheen · row-saved flash sweep */
+  --dur-shimmer:  1600ms;  /* skeleton loading loop */
+  --dur-ambient:  3000ms;  /* splash breathe / float loops */
+
+  /* Curves — one per role. --ease-pop is the ONLY bounce; nothing else overshoots. */
+  --ease-press: cubic-bezier(0.2, 0.8, 0.2, 1);    /* feedback */
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);     /* reveals — slight settle */
+  --ease-move:  cubic-bezier(0.4, 0, 0.2, 1);      /* positional */
+  --ease-pop:   cubic-bezier(0.34, 1.56, 0.64, 1); /* pops only */
+
+  /* Entrance budget: everything waits --enter-wait then plays for --dur-enter
+     (→ 500ms total). Page reveals are FLAT (all start together, no wave); only
+     within-element detail (Health beads, Nutrition week bars) keeps an internal
+     --stagger-step cascade, bounded to --dur-enter. */
+  --enter-wait:   100ms;
+  --stagger-step:  50ms;   /* delay between adjacent cascade tiers */
+  --enter-rise:    12px;   /* shared vertical travel for every rise-in */
+
+  /* Shared motion constants */
+  --slide-near:    40%;    /* in-place slide distance (date label, segment) */
+  --pop-peak:     1.08;    /* canonical attention-pulse scale peak */
+  --tap-scale:    0.97;    /* press scale-down */
 
   /* ── Layout ───────────────────────────────────────────────────────── */
   --tabbar-h: 56px;
@@ -265,11 +273,7 @@
   --accent: #ff7a45;
   --accent-strong: #e85f28;   /* deeper ember — solid white-on-accent fills */
   --accent-glow: rgba(255, 122, 69, 0.26);
-  /* Blue journey ramp — see :root. Brightens (not deepens) as it fills so
-     "almost full" pops on the dark background. */
-  --progress-start: #ff764a;      /* warm orange-red glow — low */
-  --progress-mid: #3bddec;        /* cyan glow — mid */
-  --progress-end: #5cb8ff;        /* blue — almost full */
+  /* Completion gold — see :root. Glows on the dark background. */
   --progress-complete: #ffcf3a;   /* glowing gold — 100% only */
   --good: #4ad968;
   --bad: #ff6165;

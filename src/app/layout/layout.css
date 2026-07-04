@@ -126,7 +126,7 @@ html.kb-open .tabbar {
   left: var(--space-1);
   width: calc((100% - var(--space-1) * 2) / 4);
   transform: translateX(calc(var(--tab-idx, 0) * 100%));
-  transition: transform var(--motion-base) var(--spring-ease);
+  transition: transform var(--dur-move) var(--ease-pop);
   pointer-events: none;
   z-index: 0;
 }
@@ -145,7 +145,7 @@ html.kb-open .tabbar {
 /* Gel squash on arrival — retriggered from TabBar.tsx by toggling .is-morphing.
    Runs on the fill so the parent's translate keeps flowing underneath it. */
 .tabbar-thumb.is-morphing .tabbar-thumb-fill {
-  animation: tab-lozenge-squash var(--motion-base) var(--spring-ease);
+  animation: tab-lozenge-squash var(--dur-move) var(--ease-pop);
 }
 
 @keyframes tab-lozenge-squash {
@@ -169,8 +169,8 @@ html.kb-open .tabbar {
   /* Inactive: icon + label share one secondary ink (unified, iOS-style);
      active flips the whole item to the accent. */
   color: var(--ink-3);
-  transition: color var(--motion-fast) var(--press-ease),
-    opacity var(--motion-fast) var(--press-ease);
+  transition: color var(--dur-press) var(--ease-press),
+    opacity var(--dur-press) var(--ease-press);
 }
 
 /* Touch-down dim — iOS-style press feedback. */
@@ -207,14 +207,14 @@ html.kb-open .tabbar {
 
 /* ── Tab entrance: one flat, uniform reveal ──────────────────────────────────
    When a tab mounts, every top-level card rises together — same --enter-wait
-   delay, same --enter-dur duration (500ms total). Deliberately FLAT: no
+   delay, same --dur-enter duration (500ms total). Deliberately FLAT: no
    bottom-up wave. Card numbers (useBottomUpDelay → flat --enter-wait) and
    sparklines start on the same beat, so the whole page reads as one clean
    entrance. Only within-element detail (Training-Health bar segments, Nutrition
    week bars) keeps an internal stagger — see those components. Reduced-motion
    collapses rise-in to its end-state via the global reduce rule. */
 .page > * {
-  animation: rise-in var(--enter-dur) var(--reveal-ease) both;
+  animation: rise-in var(--dur-enter) var(--ease-enter) both;
   animation-delay: var(--enter-wait);
 }
 /* Per-card bottom-up tier (counted from the bottom). The flat rule above does
@@ -276,7 +276,7 @@ html.kb-open .tabbar {
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast);
+  transition: background var(--dur-press), color var(--dur-press);
 }
 
 .section-head button:hover {
@@ -286,7 +286,7 @@ html.kb-open .tabbar {
 
 .section-head button:active {
   transform: scale(var(--tap-scale));
-  transition-duration: var(--motion-fast);
+  transition-duration: var(--dur-press);
 }
 
 .page-note {
@@ -304,11 +304,11 @@ html.kb-open .tabbar {
   background: var(--scrim-bg);
   backdrop-filter: var(--scrim-blur);
   -webkit-backdrop-filter: var(--scrim-blur);
-  animation: fade-in var(--motion-base) ease both;
+  animation: fade-in var(--dur-enter) ease both;
 }
 
 .settings-backdrop.is-closing {
-  animation: fade-out var(--motion-fast) ease both;
+  animation: fade-out var(--dur-exit) ease both;
 }
 
 .settings-sheet {
@@ -323,7 +323,7 @@ html.kb-open .tabbar {
   border-radius: var(--radius) var(--radius) 0 0;
   border-top: 1px solid var(--rule-strong);
   box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.2);
-  animation: sheet-in var(--motion-base) var(--move-ease) both;
+  animation: sheet-in var(--dur-move) var(--ease-move) both;
   will-change: transform;
 }
 
@@ -351,7 +351,7 @@ html.kb-open .tabbar {
 }
 
 .settings-sheet.is-closing {
-  animation: sheet-out var(--motion-fast) var(--move-ease) both;
+  animation: sheet-out var(--dur-exit) var(--ease-move) both;
 }
 
 @keyframes sheet-out {
@@ -418,7 +418,7 @@ html.kb-open .tabbar {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: opacity var(--motion-base) var(--reveal-ease), color var(--motion-base) var(--reveal-ease);
+  transition: opacity var(--dur-enter) var(--ease-enter), color var(--dur-enter) var(--ease-enter);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -443,7 +443,7 @@ html.kb-open .tabbar {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  transition: color var(--motion-fast) ease;
+  transition: color var(--dur-press) ease;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -664,7 +664,7 @@ html.kb-open .tabbar {
   font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background var(--motion-fast);
+  transition: background var(--dur-press);
 }
 
 @media (hover: hover) {
@@ -694,7 +694,7 @@ html.kb-open .tabbar {
 .splash--static {
   min-height: 100dvh;
 }
-.splash.is-leaving { animation: fade-out var(--motion-slow) ease forwards; }
+.splash.is-leaving { animation: fade-out var(--dur-exit) ease forwards; }
 .splash::after {
   content: "";
   position: absolute;
@@ -710,7 +710,7 @@ html.kb-open .tabbar {
   width: 96px;
   height: 96px;
   z-index: 1;
-  animation: mark-in var(--motion-slow) var(--reveal-ease) both;
+  animation: mark-in var(--dur-enter) var(--ease-enter) both;
 }
 .splash-mark img {
   width: 100%;
@@ -724,7 +724,7 @@ html.kb-open .tabbar {
   letter-spacing: -0.02em;
   color: var(--ink);
   z-index: 1;
-  animation: word-in var(--motion-slow) var(--reveal-ease) 90ms both;
+  animation: word-in var(--dur-enter) var(--ease-enter) 90ms both;
 }
 .splash-word b { color: var(--accent); }
 .splash-tag {
@@ -736,7 +736,7 @@ html.kb-open .tabbar {
   text-transform: uppercase;
   color: var(--ink-4);
   z-index: 1;
-  animation: word-in var(--motion-slow) var(--reveal-ease) 180ms both;
+  animation: word-in var(--dur-enter) var(--ease-enter) 180ms both;
 }
 @keyframes mark-in {
   from { opacity: 0; transform: scale(0.82) translateY(6px); }

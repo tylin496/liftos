@@ -5,7 +5,7 @@ import type { RefObject } from "react";
  * Entrance delay for a count-up: a flat, uniform wait (`--enter-wait`) — the
  * SAME beat as the card rise-in (layout.css) and everything else on the page.
  * The bottom-up cascade was retired in favour of one clean, uniform reveal
- * (100ms wait + --enter-dur, 500ms total), so numbers no longer stagger by
+ * (100ms wait + --dur-enter, 500ms total), so numbers no longer stagger by
  * position; they roll together with their cards.
  *
  * Still returns `null` until read (one pre-paint pass) so the caller renders

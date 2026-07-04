@@ -69,12 +69,12 @@ function daysSince(isoDate: string): number {
 // centre so its on-screen position can be measured for the stagger.
 function ActiveTargetRingBody({ shown, target, innerRef }: { shown: number | null; target: number; innerRef?: Ref<HTMLDivElement> }) {
   const ratio = (shown ?? 0) / Math.max(1, target);
-  // Always accent — the ring never takes on another colour. This card is
-  // near-binary (a training day closes it, a rest day doesn't), so a continuous
-  // ramp or an on-close flip just adds colour without signalling anything.
-  const ringColor = "var(--accent)";
+  // Follows the shared red→green progress ramp by fill (progressColor) — the same
+  // spectrum as the Cut Progress bar and top-bar ring. At/over 100% it flips to
+  // the discrete completion gold (--progress-complete), never a ramp stop.
+  const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
   return ratio > 1 ? (
-    <OverflowRing ratio={ratio} size={96} strokeWidth={9}>
+    <OverflowRing ratio={ratio} size={96} strokeWidth={9} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{shown == null ? "" : shown.toLocaleString()}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
@@ -98,11 +98,13 @@ function OverflowRing({
   ratio,
   size,
   strokeWidth,
+  color,
   children,
 }: {
   ratio: number;
   size: number;
   strokeWidth: number;
+  color: string;
   children?: ReactNode;
 }) {
   const r = (size - strokeWidth) / 2;
@@ -120,13 +122,13 @@ function OverflowRing({
     <div className="activity-ring" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <circle cx={c} cy={c} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={strokeWidth} />
-        <circle cx={c} cy={c} r={r} fill="none" stroke="var(--accent)" strokeWidth={strokeWidth} />
+        <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} />
         <circle
           cx={c}
           cy={c}
           r={r}
           fill="none"
-          stroke="var(--accent)"
+          stroke={color}
           strokeWidth={strokeWidth}
           strokeDasharray={`${overflowLength} ${circumference}`}
           transform={`rotate(-90 ${c} ${c})`}
@@ -136,7 +138,7 @@ function OverflowRing({
             cx={tailX}
             cy={tailY}
             r={strokeWidth / 2}
-            fill="var(--accent)"
+            fill={color}
             style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,.65))" }}
           />
         )}
@@ -346,11 +348,11 @@ function GoalBarFill({ target }: { target: number }) {
     }, delayMs);
     return () => clearTimeout(timer);
   }, [delayMs, target]);
-  // A SOLID fill whose colour IS the ramp point at the current fill — ember when
+  // A SOLID fill whose colour IS the ramp point at the current fill — red when
   // low, greening as the goal is approached (gold at 100% flips via the
   // .is-complete CSS override). NOT a gradient smeared across the track: the
   // whole fill is one colour that shifts WITH progress. Derived from w, so as
-  // the bar grows the colour tweens from ember to its final shade alongside the
+  // the bar grows the colour tweens from red to its final shade alongside the
   // width (both share COUNT_UP_MS) — matching the % number's own colour count-up.
   return (
     <div
@@ -838,9 +840,13 @@ function TrainingHealthCard({
         </div>
 
         <div className="ov-th-ret-hero">
-          {/* Hero % is a ratio, not an identity metric/delta/verdict — stays
-              neutral ink, no good/bad coloring (color law). */}
-          <MetricValue size="lg">
+          {/* Hero % that HAS a progress bar → takes a semantic verdict colour
+              (v3.7 hero-% rule): coral if any lift needs attention, else green.
+              Neutral only when there's no data ("—"). */}
+          <MetricValue
+            size="lg"
+            style={retentionPct === null ? undefined : { color: attention > 0 ? "var(--gold)" : "var(--good)" }}
+          >
             {retentionPct !== null ? <RetentionPct target={retentionPct} /> : "—"}
           </MetricValue>
           <span className="ov-th-ret-count">
@@ -860,9 +866,9 @@ function TrainingHealthCard({
               key={ex.slug}
               className={`ov-th-bar-seg${i < onTrackExercises.length ? " is-good" : ""}`}
               // Exception to the flat entrance: segments still fill one-by-one,
-              // but the whole run is spread across --enter-dur (after --enter-wait)
+              // but the whole run is spread across --dur-enter (after --enter-wait)
               // so it stays inside the 500ms budget regardless of segment count.
-              style={{ animationDelay: `calc(var(--enter-wait) + ${i} * var(--enter-dur) / ${Math.max(1, strength.exercises.length)})` }}
+              style={{ animationDelay: `calc(var(--enter-wait) + ${i} * var(--dur-enter) / ${Math.max(1, strength.exercises.length)})` }}
             />
           ))}
         </div>

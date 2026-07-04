@@ -141,7 +141,7 @@
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
+  transition: transform var(--dur-press) var(--ease-press), box-shadow var(--dur-press);
 }
 
 @media (hover: hover) {
@@ -154,7 +154,7 @@
 .ov-weight:active {
   transform: scale(var(--tap-scale));
   box-shadow: var(--shadow-sm);
-  transition-duration: var(--motion-fast);
+  transition-duration: var(--dur-press);
 }
 
 .ov-weight-head {
@@ -250,12 +250,12 @@
 }
 
 /* Reveal the whole spark (line + area together) in one left→right wipe, on the
-   flat unified entrance (--enter-wait + --enter-dur, same as everything else).
+   flat unified entrance (--enter-wait + --dur-enter, same as everything else).
    One wipe avoids the line-draw / area-fade desync that read as broken. Base
    clip hides it through the wait, so nothing flashes. */
 .ov-weight-spark--draw {
   clip-path: inset(0 100% 0 0);
-  animation: ov-spark-wipe var(--enter-dur) var(--reveal-ease) forwards;
+  animation: ov-spark-wipe var(--dur-enter) var(--ease-enter) forwards;
   animation-delay: var(--enter-wait);
 }
 @keyframes ov-spark-wipe { to { clip-path: inset(0 0 0 0); } }
@@ -441,7 +441,7 @@
      reached. Never red — low progress is not a bad verdict (metric colour rule). */
   background-repeat: no-repeat;
   background-position: left center;
-  transition: width var(--motion-slow) var(--reveal-ease);
+  transition: width var(--dur-enter) var(--ease-enter);
 }
 
 .goal-detail {
@@ -490,12 +490,12 @@
 }
 
 .goal.is-celebrating .goal-pct {
-  animation: goal-pct-pop var(--motion-celebrate) var(--reveal-ease);
+  animation: goal-pct-pop var(--dur-pop) var(--ease-pop);
 }
 .goal.is-celebrating .goal-bar {
   position: relative;
   overflow: hidden;
-  animation: goal-bar-glow var(--motion-celebrate) ease;
+  animation: goal-bar-glow var(--dur-celebrate) ease;
 }
 .goal.is-celebrating .goal-bar-fill { position: relative; }
 .goal.is-celebrating .goal-bar-fill::after {
@@ -503,7 +503,7 @@
   position: absolute;
   inset: 0;
   background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.55) 50%, transparent 80%);
-  animation: goal-sheen var(--motion-sheen) var(--reveal-ease);
+  animation: goal-sheen var(--dur-sheen) var(--ease-move);
 }
 
 @keyframes goal-pct-pop {
@@ -585,7 +585,7 @@
   color: var(--on-color);
   font-size: var(--text-base);
   font-weight: 700;
-  transition: transform var(--motion-fast) var(--press-ease), opacity var(--motion-fast);
+  transition: transform var(--dur-press) var(--ease-press), opacity var(--dur-press);
 }
 
 .goal-init-save:not(:disabled):active {
@@ -613,7 +613,7 @@
   text-align: left;
   width: 100%;
   -webkit-tap-highlight-color: transparent;
-  transition: transform var(--motion-base) var(--press-ease), box-shadow var(--motion-base);
+  transition: transform var(--dur-press) var(--ease-press), box-shadow var(--dur-press);
 }
 
 @media (hover: hover) {
@@ -626,7 +626,7 @@
 .ov-training-health--nav:active {
   transform: scale(var(--tap-scale));
   box-shadow: var(--shadow-sm);
-  transition-duration: var(--motion-fast);
+  transition-duration: var(--dur-press);
 }
 
 /* Summary button — navigates to Training (like Weight·TDEE's whole-card nav) */
@@ -667,7 +667,7 @@
   font-size: var(--text-xl);
   color: var(--ink-4);
   line-height: 1;
-  transition: color var(--motion-base);
+  transition: color var(--dur-press);
 }
 
 .ov-th-ret-hero {
@@ -701,7 +701,7 @@
      an inline animation-delay (tier + index × --stagger-step). Discrete steps,
      not a smooth sweep, so it reads segment-by-segment as the % counts up. */
   transform-origin: left center;
-  animation: th-seg-in var(--motion-fast) var(--reveal-ease) both;
+  animation: th-seg-in var(--dur-press) var(--ease-press) both;
 }
 
 @keyframes th-seg-in {
@@ -778,7 +778,7 @@
 .ov-th-fold-chevron {
   color: var(--ink-4);
   flex-shrink: 0;
-  transition: transform var(--motion-base) var(--move-ease);
+  transition: transform var(--dur-move) var(--ease-move);
 }
 
 .ov-th-fold-chevron.is-open {
@@ -905,7 +905,7 @@
   padding: var(--space-1) 0;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: color var(--motion-base);
+  transition: color var(--dur-press);
 }
 
 @media (hover: hover) {
@@ -916,7 +916,7 @@
 
 /* ── Cold-load skeleton ───────────────────────────────────────────────────
    Real card structure with placeholder values, scoped by .loading-card.
-   Same shimmer treatment (skel-fade + --motion-shimmer) as Health/Nutrition/
+   Same shimmer treatment (skel-fade + --dur-shimmer) as Health/Nutrition/
    Training so loading feels consistent across tabs. */
 .loading-card .metric-val,
 .loading-card .metric-caption,
@@ -932,7 +932,7 @@
   ) !important;
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite !important;
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
 }
 
 .loading-card .ov-th-bar-seg {
@@ -950,7 +950,7 @@
     color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
   );
   background-size: 300% 100%;
-  animation: skel-fade var(--motion-shimmer) ease-in-out infinite;
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite;
 }
 .loading-card .ov-weight-spark > * {
   visibility: hidden;

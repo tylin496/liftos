@@ -10,7 +10,7 @@
 
 html {
   scroll-behavior: smooth;
-  transition: background-color var(--motion-base) var(--move-ease);
+  transition: background-color var(--dur-move) var(--ease-move);
   /* Always reserve room for the vertical scrollbar so the centered content
      doesn't jump horizontally when switching between short/tall tabs. */
   scrollbar-gutter: stable;
@@ -91,7 +91,7 @@ button {
   font-weight: 600;
   pointer-events: all;
   cursor: pointer;
-  animation: toast-in var(--motion-base) var(--reveal-ease) both;
+  animation: toast-in var(--dur-enter) var(--ease-enter) both;
   white-space: nowrap;
   background: var(--bg-card);
   backdrop-filter: var(--card-blur);
@@ -101,7 +101,7 @@ button {
 }
 
 .toast-exit {
-  animation: toast-out var(--motion-base) var(--move-ease) both;
+  animation: toast-out var(--dur-exit) var(--ease-move) both;
 }
 
 @keyframes toast-in {
@@ -161,7 +161,7 @@ button {
   font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
-  transition: background var(--motion-fast) var(--press-ease);
+  transition: background var(--dur-press) var(--ease-press);
 }
 
 /* Expand Undo's tap target to ~44px without growing the pill itself — this
@@ -199,7 +199,7 @@ button {
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
-  animation: celeb-card-in var(--motion-base) var(--reveal-ease) both;
+  animation: celeb-card-in var(--dur-enter) var(--ease-enter) both;
 }
 
 @keyframes celeb-card-out {
@@ -207,7 +207,7 @@ button {
 }
 
 .save-celebration.is-closing .celeb-card {
-  animation: celeb-card-out var(--motion-base) var(--move-ease) both;
+  animation: celeb-card-out var(--dur-exit) var(--ease-move) both;
 }
 
 @keyframes celeb-card-in {
@@ -255,7 +255,7 @@ button {
   inset: -10px;
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, var(--pr) 38%, transparent);
-  animation: gold-ring var(--motion-celebrate) ease-out both;
+  animation: gold-ring var(--dur-celebrate) ease-out both;
 }
 
 @keyframes gold-ring {
@@ -281,7 +281,7 @@ button {
   /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   margin: -5px 0 0 -3.5px;
   background: hsl(calc(var(--i, 0) * 22deg), 72%, 58%);
-  animation: confetti-pop var(--motion-celebrate) cubic-bezier(0.2, 0.9, 0.35, 1) both;
+  animation: confetti-pop var(--dur-celebrate) cubic-bezier(0.2, 0.9, 0.35, 1) both;
   animation-delay: calc(var(--i, 0) * 22ms);
   transform-origin: center center;
 }

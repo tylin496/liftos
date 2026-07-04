@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 /** The single count-up duration for the whole app — every number tween uses
  *  this (ease-out quart) so no two feel different. Stagger by delaying the
  *  *start* (delayMs), never by changing the duration. */
-export const COUNT_UP_MS = 400; // mirrors --enter-dur (unified 500ms entrance: 100ms wait + 400ms)
+export const COUNT_UP_MS = 400; // mirrors --dur-enter (unified 500ms entrance: 100ms wait + 400ms)
 
 /**
  * Animates a number toward `target`. On first mount it counts up from 0 (a

@@ -291,14 +291,16 @@ export function AddAssistedForm({
   const [bodyweight, setBodyweight] = useState(
     () => localStorage.getItem(LAST_BW_KEY) ?? "",
   );
+  // True once Health supplied the weight. The field is locked (read-only) only
+  // then — Health stays authoritative when present, but degrades to manual entry
+  // when there's no Health data, so a first-ever assisted log isn't blocked.
+  const [bwFromHealth, setBwFromHealth] = useState(false);
   const [repValues, setRepValues] = useState(() => emptyRepValues(n));
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
 
-  // Bodyweight always reflects the latest Health measurement — it's not a
-  // user-editable field, so there's no "touched" guard to protect here.
   useEffect(() => {
     supabase
       .from("health_metrics")
@@ -308,7 +310,10 @@ export function AddAssistedForm({
       .limit(1)
       .single()
       .then(({ data }) => {
-        if (data?.weight_kg) setBodyweight(String(data.weight_kg));
+        if (data?.weight_kg) {
+          setBodyweight(String(data.weight_kg));
+          setBwFromHealth(true);
+        }
       });
   }, []);
 
@@ -383,15 +388,22 @@ export function AddAssistedForm({
           </button>
         </div>
         <div className="log-bw-row">
-          <label className="log-bw-label">Bodyweight</label>
+          <label className="log-bw-label">
+            {bwFromHealth ? "Bodyweight" : "Bodyweight (manual)"}
+          </label>
           <input
-            className="log-bw-input log-bw-input--static mono"
+            className={`log-bw-input mono${bwFromHealth ? " log-bw-input--static" : ""}`}
             value={bodyweight}
-            readOnly
-            tabIndex={-1}
+            onChange={(e) => setBodyweight(e.target.value)}
+            readOnly={bwFromHealth}
+            tabIndex={bwFromHealth ? -1 : undefined}
             placeholder="0"
-            aria-label="Bodyweight kg (from latest Health measurement)"
-            inputMode="none"
+            aria-label={
+              bwFromHealth
+                ? "Bodyweight kg (from latest Health measurement)"
+                : "Bodyweight kg"
+            }
+            inputMode={bwFromHealth ? "none" : "decimal"}
             autoComplete="off"
           />
           <span className="log-bw-unit">kg</span>
