@@ -142,8 +142,8 @@ button.copy-all-data-btn {
 }
 
 .page-topbar-avatar {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: grid;
   place-items: center;

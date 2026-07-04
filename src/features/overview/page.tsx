@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type Ref, type ReactNode } from "react";
+import { useEffect, useState, type Ref } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
@@ -11,7 +11,7 @@ import { progressColor } from "@shared/lib/progressColor";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
 import { StrengthHealthCard } from "@features/training/StrengthHealthCard";
-import { ActivityRing } from "@shared/components/ActivityRing";
+import { ActivityRing, OverflowRing } from "@shared/components/ActivityRing";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import "@shared/components/activityRing.css";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
@@ -78,95 +78,19 @@ function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { show
   // (--progress-complete), never a ramp stop.
   const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
   return ratio > 1 ? (
-    <OverflowRing ratio={ratio} size={108} strokeWidth={10} color={ringColor}>
+    <OverflowRing ratio={ratio} size={108} strokeWidth={13} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
       </div>
     </OverflowRing>
   ) : (
-    <ActivityRing pct={ratio} size={108} strokeWidth={10} color={ringColor} trackColor="var(--bg-soft)" transition="none">
+    <ActivityRing pct={ratio} size={108} strokeWidth={13} color={ringColor} transition="none">
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
       </div>
     </ActivityRing>
-  );
-}
-
-// Past 100%, draw a second lap layered on the same track/radius instead of
-// re-coloring or nesting a smaller ring — reads as "stacked on top", not a
-// state change. Specific to Active Target; every other ring consumer keeps
-// the base component's clamp-at-1 behavior.
-function OverflowRing({
-  ratio,
-  size,
-  strokeWidth,
-  color,
-  children,
-}: {
-  ratio: number;
-  size: number;
-  strokeWidth: number;
-  color: string;
-  children?: ReactNode;
-}) {
-  const r = (size - strokeWidth) / 2;
-  const c = size / 2;
-  const circumference = 2 * Math.PI * r;
-  const overflowFrac = Math.min(1, ratio - 1);
-  const overflowLength = overflowFrac * circumference;
-  const tailClipId = useId();
-  const bandClipId = useId();
-  // Tail = the leading end of the second lap; the shadow is revealed only here.
-  const tailAngle = overflowFrac * 2 * Math.PI - Math.PI / 2;
-  const tailX = c + r * Math.cos(tailAngle);
-  const tailY = c + r * Math.sin(tailAngle);
-  // Annulus matching the ring's own stroke band (outer r+sw/2, inner r−sw/2) as
-  // an even-odd path so the inner circle is a hole. Clips the tail shadow to
-  // land only ON the ring — never past the outer edge nor into the inner hole.
-  const rOut = r + strokeWidth / 2;
-  const rIn = r - strokeWidth / 2;
-  const bandPath =
-    `M ${c - rOut} ${c} a ${rOut} ${rOut} 0 1 0 ${rOut * 2} 0 a ${rOut} ${rOut} 0 1 0 ${-rOut * 2} 0 Z ` +
-    `M ${c - rIn} ${c} a ${rIn} ${rIn} 0 1 0 ${rIn * 2} 0 a ${rIn} ${rIn} 0 1 0 ${-rIn * 2} 0 Z`;
-  // The second lap is ONE arc, drawn twice from the same props: the plain ribbon
-  // on top, and a shadowed copy behind it shown only where the tail window AND
-  // the ring band overlap — so the shadow lifts the ribbon's END, cast onto the
-  // ring beneath, while the head continues seamlessly onto the first lap.
-  const overflowArc = {
-    cx: c, cy: c, r,
-    fill: "none",
-    stroke: color,
-    strokeWidth,
-    strokeLinecap: "round" as const,
-    strokeDasharray: `${overflowLength} ${circumference}`,
-    transform: `rotate(-90 ${c} ${c})`,
-  };
-  return (
-    <div className="activity-ring" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <defs>
-          <clipPath id={tailClipId}>
-            <circle cx={tailX} cy={tailY} r={strokeWidth * 1.6} />
-          </clipPath>
-          <clipPath id={bandClipId}>
-            <path d={bandPath} clipRule="evenodd" fillRule="evenodd" />
-          </clipPath>
-        </defs>
-        <circle cx={c} cy={c} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={strokeWidth} />
-        <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} />
-        {overflowFrac > 0 && (
-          <g clipPath={`url(#${tailClipId})`}>
-            <g clipPath={`url(#${bandClipId})`}>
-              <circle {...overflowArc} style={{ filter: "drop-shadow(0 2.5px 3.5px rgba(0,0,0,.7))" }} />
-            </g>
-          </g>
-        )}
-        <circle {...overflowArc} />
-      </svg>
-      {children && <div className="activity-ring-center">{children}</div>}
-    </div>
   );
 }
 

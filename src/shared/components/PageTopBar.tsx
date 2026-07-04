@@ -9,8 +9,8 @@ import { progressColor } from "@shared/lib/progressColor";
 import "./pageTopBar.css";
 import "@shared/components/activityRing.css";
 
-const RING_SIZE = 40;
-const RING_STROKE = 3;
+const RING_SIZE = 44;
+const RING_STROKE = 5;
 
 export function PageTopBar({
   eyebrow,
