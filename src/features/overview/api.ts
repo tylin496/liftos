@@ -146,7 +146,7 @@ export async function fetchOverview(): Promise<OverviewData> {
   if (userErr || !userData.user) throw userErr ?? new Error("Not signed in");
   const userId = userData.user.id;
 
-  const [health, logsRes, nutritionState, configRes] = await Promise.all([
+  const [health, logsRes, archivedRes, nutritionState, configRes] = await Promise.all([
     // 180 days of body metrics. Recovery's 7/30-day windows anchor to the latest
     // reading, so the wider window doesn't shift its baseline.
     fetchHealthData(180),
@@ -154,6 +154,9 @@ export async function fetchOverview(): Promise<OverviewData> {
       .from("training_logs")
       .select("exercise_slug, raw, log_date")
       .order("log_date", { ascending: true }),
+    // Archived exercises are excluded from the strength watch list below —
+    // they're retired, not stalled.
+    supabase.from("exercises").select("slug").eq("archived", true),
     // Shared nutrition state — a plain read; recompute happens on data change.
     getNutritionState(),
     // Goal Provider config: the target plus the persisted cut baseline
@@ -170,6 +173,7 @@ export async function fetchOverview(): Promise<OverviewData> {
   // rejecting — check explicitly so a transient failure surfaces the real
   // ErrorState instead of silently reading back as "no data".
   if (logsRes.error) throw logsRes.error;
+  if (archivedRes.error) throw archivedRes.error;
   if (configRes.error) throw configRes.error;
 
   // Weight — latest reading. The trend/status the Weight card shows comes from
@@ -192,10 +196,12 @@ export async function fetchOverview(): Promise<OverviewData> {
   // Training logs
   const logs = logsRes.data ?? [];
 
-  // Group logs by exercise for the performance-trend summary
+  // Group logs by exercise for the performance-trend summary, excluding
+  // archived exercises — they're retired, not stalled.
+  const archivedSlugs = new Set((archivedRes.data ?? []).map((e) => e.slug));
   const bySlug: Record<string, typeof logs> = {};
   for (const l of logs) {
-    if (!l.exercise_slug) continue;
+    if (!l.exercise_slug || archivedSlugs.has(l.exercise_slug)) continue;
     (bySlug[l.exercise_slug] ??= []).push(l);
   }
 

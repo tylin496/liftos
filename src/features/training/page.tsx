@@ -753,10 +753,13 @@ function TrainingPageInner() {
   // same pure functions Overview uses, so the two surfaces can't disagree. The
   // compound hero needs the first Pull-split lift and the first "row" lift,
   // resolved here from the exercise list (Overview resolves them via query).
-  const strengthHealth = useMemo(
-    () => ({ strength: computeStrengthSummary(logs) }),
-    [logs],
-  );
+  const strengthHealth = useMemo(() => {
+    const archivedSlugs = new Set((exercises ?? []).filter((e) => e.archived).map((e) => e.slug));
+    const activeLogs = Object.fromEntries(
+      Object.entries(logs).filter(([slug]) => !archivedSlugs.has(slug)),
+    );
+    return { strength: computeStrengthSummary(activeLogs) };
+  }, [logs, exercises]);
 
   usePageHeader({
     eyebrow: "TRAINING",
