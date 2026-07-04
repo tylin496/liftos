@@ -3,13 +3,16 @@
 //
 // Presentation only. The Recommendation block leads: it's the focal point a
 // daily user reads in a second (action + target + reason). Below it, the
-// supporting numbers are grouped by *meaning*, not implementation:
-//   - Evidence (21d trend) — measurements: Observed rate + Estimated actual
-//     intake, the two numbers that genuinely share the 21-day regression.
-//   - Target — the plan: Target pace is a fixed band looked up from the cut
-//     mode, not a windowed measurement.
-//   - Confidence — how sure the read is: a composite of trend quality (21d)
-//     and target tenure (daysOnTarget), with a tap-to-expand reason.
+// supporting numbers are grouped by the order a reader judges them, not by
+// data source or time window:
+//   - Weight-loss pace — Observed (21d regression) paired against Target
+//     (fixed band from cut mode) side by side: this is the one comparison
+//     that actually drives the decision.
+//   - Est. intake — the same 21d regression's implied intake, on its own row:
+//     the *why* behind the pace reading.
+//   - Confidence — a composite of trend quality (21d) and target tenure
+//     (daysOnTarget), sunk to the bottom as a closing stamp rather than a
+//     fourth parallel number, since it's meta (about the read) not a measurement.
 // Numbers come from the persisted evaluation; the decision is the same pure
 // `nutritionDecision` the System card uses, so the two never disagree.
 
@@ -44,10 +47,25 @@ const RATE_STATUS: Record<"good" | "warn" | "bad", string> = {
   bad: "status-bad",
 };
 
+// Leading status dot before Observed rate / Confidence values — same
+// good/gold/bad language as the text colour above, just a glance-only mark.
+const RATE_DOT: Record<"good" | "warn" | "bad", "good" | "gold" | "bad"> = {
+  good: "good",
+  warn: "gold",
+  bad: "bad",
+};
+const CONFIDENCE_DOT: Record<string, "good" | "gold" | "bad"> = {
+  high: "good",
+  medium: "gold",
+  low: "bad",
+};
+
 function EvidenceCell({
   label,
   value,
   status,
+  dot,
+  full,
   expandable,
   open,
   onToggle,
@@ -55,13 +73,15 @@ function EvidenceCell({
   label: string;
   value: string;
   status?: string;
+  dot?: "good" | "gold" | "bad";
+  full?: boolean;
   expandable?: boolean;
   open?: boolean;
   onToggle?: () => void;
 }) {
   return (
     <div
-      className={`ni-cell${expandable ? " ni-cell-expandable" : ""}`}
+      className={`ni-cell${full ? " ni-cell-full" : ""}${expandable ? " ni-cell-expandable" : ""}`}
       role={expandable ? "button" : undefined}
       tabIndex={expandable ? 0 : undefined}
       aria-expanded={expandable ? open : undefined}
@@ -79,6 +99,7 @@ function EvidenceCell({
     >
       <span className="ni-cell-label">{label}</span>
       <span className={`ni-cell-value${status ? ` ${status}` : ""}`}>
+        {dot && <span className={`ni-status-dot status-${dot}`} aria-hidden="true" />}
         {value}
         {expandable && <span className="ni-cell-caret" aria-hidden="true">›</span>}
       </span>
@@ -169,7 +190,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
               <AnimatedInt value={decision.currentTarget} />
               <span className="metric-unit">kcal</span>
             </span>
-            <span className="ni-verdict">Hold</span>
+            <span className="ni-verdict">✓ Hold</span>
           </div>
         ) : decision && decision.proposedTarget != null ? (
           <div className="ni-prog">
@@ -180,6 +201,10 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
               onAnimationEnd={() => setFreshTarget(false)}
             >
               {decision.proposedTarget.toLocaleString()} kcal
+            </span>
+            <span className="ni-prog-delta">
+              {decision.proposedTarget < decision.currentTarget ? "▼" : "▲"}{" "}
+              {Math.abs(decision.currentTarget - decision.proposedTarget).toLocaleString()}/day
             </span>
           </div>
         ) : null}
@@ -193,14 +218,14 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
         </p>
       </div>
 
-      {/* Supporting numbers, grouped by meaning — description only, no action. */}
+      {/* Supporting numbers, grouped by the order a reader judges them. */}
       <div className="ni-evidence">
-        {/* Measurements — the two numbers that share the 21-day regression. */}
+        {/* The comparison that drives the decision: Observed vs Target, paired. */}
         <div className="ni-group">
-          <span className="page-eyebrow" style={{ margin: 0 }}>Evidence (21d trend)</span>
+          <span className="page-eyebrow" style={{ margin: 0 }}>Weight-loss pace</span>
           <div className="ni-grid">
             <EvidenceCell
-              label="Observed rate"
+              label="Observed rate · 21d"
               value={!noData && !loading && hasTrend ? fmtRate(e!.observedRate) : "—"}
               status={
                 !noData && !loading && hasTrend && e
@@ -210,25 +235,17 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
                     })()
                   : undefined
               }
-            />
-            <EvidenceCell
-              label="Estimated actual intake"
-              value={
-                !noData && !loading && hasTrend
-                  ? `≈${d!.estimatedIntake.toLocaleString()} kcal/day`
-                  : "—"
+              dot={
+                !noData && !loading && hasTrend && e
+                  ? (() => {
+                      const t = rateTone(e);
+                      return t ? RATE_DOT[t] : undefined;
+                    })()
+                  : undefined
               }
             />
-          </div>
-        </div>
-
-        {/* The plan (fixed band per cut mode) and how sure the read is —
-            side-by-side groups, each named for what the number *is*. */}
-        <div className="ni-grid">
-          <div className="ni-group">
-            <span className="page-eyebrow" style={{ margin: 0 }}>Target</span>
             <EvidenceCell
-              label="Target pace"
+              label="Target pace · fixed"
               value={
                 !noData && !loading && hasRange
                   ? `−${e!.targetRange.min.toFixed(2)} – ${e!.targetRange.max.toFixed(2)} kg/wk`
@@ -236,17 +253,30 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
               }
             />
           </div>
-          <div className="ni-group">
-            <span className="page-eyebrow" style={{ margin: 0 }}>Confidence</span>
-            <EvidenceCell
-              label="Level"
-              value={!noData && !loading ? (CONFIDENCE_LABEL[e!.confidence] ?? e!.confidence) : "—"}
-              expandable={confReason != null}
-              open={confOpen}
-              onToggle={() => setConfOpen((v) => !v)}
-            />
-          </div>
         </div>
+
+        {/* Why the pace reads the way it does — the reason, on its own row. */}
+        <EvidenceCell
+          label="Est. intake · 21d"
+          value={
+            !noData && !loading && hasTrend
+              ? `≈${d!.estimatedIntake.toLocaleString()} kcal/day`
+              : "—"
+          }
+          full
+        />
+
+        {/* Confidence — meta tier, sinks to the bottom as a closing stamp
+            rather than a fourth parallel number. */}
+        <EvidenceCell
+          label="Confidence"
+          value={!noData && !loading ? (CONFIDENCE_LABEL[e!.confidence] ?? e!.confidence) : "—"}
+          dot={!noData && !loading && e ? CONFIDENCE_DOT[e.confidence] : undefined}
+          expandable={confReason != null}
+          open={confOpen}
+          onToggle={() => setConfOpen((v) => !v)}
+          full
+        />
         {/* Revealed reason spans the card, but reads as part of Confidence. */}
         {confReason && confOpen && <p className="ni-conf-reason">{confReason}</p>}
       </div>

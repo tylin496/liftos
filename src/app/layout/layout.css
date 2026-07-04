@@ -519,7 +519,7 @@ html.kb-open .tabbar {
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--ink-4);
+  color: var(--ink-3);
   margin: 0;
 }
 
@@ -672,7 +672,7 @@ html.kb-open .tabbar {
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--ink-4);
+  color: var(--ink-3);
   margin-right: var(--space-2);
 }
 
@@ -691,7 +691,7 @@ html.kb-open .tabbar {
 
 .settings-hint {
   font-size: var(--text-2xs);
-  color: var(--ink-4);
+  color: var(--ink-3);
   margin: var(--space-2) 0 0 var(--space-1);
 }
 
@@ -776,7 +776,7 @@ html.kb-open .tabbar {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-4);
+  color: var(--ink-3);
   z-index: 1;
   animation: word-in var(--dur-enter) var(--ease-enter) 180ms both;
 }
@@ -827,5 +827,5 @@ html.kb-open .tabbar {
 .settings-about-ver {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  color: var(--ink-4);
+  color: var(--ink-3);
 }

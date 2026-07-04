@@ -226,7 +226,7 @@ export function StrengthHealthCard({
       {strength.exercises.map((ex, i) => (
         <span
           key={ex.slug}
-          className={`ov-th-bar-seg${i < onTrackExercises.length ? " is-good" : ""}`}
+          className={`ov-th-bar-seg${i < onTrackExercises.length ? " is-good" : " is-watch"}`}
           // Green cells snap in one at a time on a fixed --stagger-step tick
           // (NOT divided by count) so the one-by-one rhythm stays legible — a
           // discrete cascade, intentionally past the flat-entrance budget.

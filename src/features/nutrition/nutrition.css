@@ -71,20 +71,22 @@
 .ni-prog {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
 /* Target numbers are SUPPORTING, not the hero — the headline sentence leads.
-   Both states (current→new here, single value in .ni-hero) render the number at
-   one size (--text-xl) so the card never resizes the same slot between hold and
-   change. The old value fades (ink-3); only the new target the user acts on gets
-   accent. */
+   The old value fades (ink-3) and strikes through — it's superseded, not just
+   quieter. Only the new target the user acts on gets accent AND a bigger size,
+   so the "what to do" reads at a glance; the Hold state (.ni-hero-val) stays at
+   the old shared size since there's no change to announce there. */
 .ni-prog-current {
   font-family: var(--font-mono);
   font-size: var(--text-xl);
   font-weight: 700;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
+  text-decoration: line-through;
 }
 
 .ni-prog-arrow {
@@ -94,10 +96,22 @@
 
 .ni-prog-new {
   font-family: var(--font-mono);
-  font-size: var(--text-xl);
+  font-size: var(--text-3xl);
   font-weight: 700;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+}
+
+/* Delta chip — the size of the coming change, neutral (the accent target
+   number already carries the "act on this" signal). */
+.ni-prog-delta {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--bg-soft);
+  font-variant-numeric: tabular-nums;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
 }
 
 /* One-shot pulse when a *new* recommended target appears — draws the eye to the
@@ -116,7 +130,7 @@
 .ni-prog-hold {
   font-size: var(--role-eyebrow-size);
   font-weight: var(--role-eyebrow-weight);
-  color: var(--ink-4);
+  color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: var(--role-eyebrow-spacing);
 }
@@ -165,12 +179,13 @@
   color: var(--role-secondary-color);
 }
 
-/* Supporting numbers — below a divider, grouped by meaning (Evidence / Target /
-   Confidence), each group led by its own eyebrow. */
+/* Supporting numbers — below a divider, grouped by the order a reader judges
+   them: Weight-loss pace (Observed vs Target, paired) → Est. intake (the
+   why) → Confidence (a closing stamp, sunk to the bottom). */
 .ni-evidence {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
 }
@@ -185,13 +200,28 @@
 .ni-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-3) var(--space-4);
+  gap: var(--space-3);
 }
 
+/* Each evidence cell is a --bg-soft rounded cell, not a floating label/value —
+   groups them visually the way the label already groups them semantically. */
 .ni-cell {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: var(--space-3);
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+}
+
+/* Full-width cells (Est. intake, Confidence) read as a row, not a stacked
+   pair — label left, value right — so they're visually distinct from the
+   paired Weight-loss pace grid above. */
+.ni-cell-full {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .ni-cell-label {
@@ -201,6 +231,9 @@
 }
 
 .ni-cell-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
   font-size: var(--text-base);
   font-weight: 600;
@@ -220,6 +253,18 @@
 .ni-cell-value.status-bad {
   color: var(--bad);
 }
+
+/* Leading status dot — glance-only, same good/gold/bad language as the value
+   colour above (Observed rate: in/near/off target band; Confidence: level). */
+.ni-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+.ni-status-dot.status-good { background: var(--good); }
+.ni-status-dot.status-gold { background: var(--warn); }
+.ni-status-dot.status-bad  { background: var(--bad); }
 
 /* Confidence cell is tappable when its value needs explaining (fresh target). */
 .ni-cell-expandable {
@@ -718,7 +763,7 @@
   font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .nutri-trend-legend-dot {
@@ -731,7 +776,7 @@
 /* ── Last 30 Days — eyebrow is muted here (not the accent used by Today /
    This Week), and the headline numbers sit in one light KPI row. ────── */
 .nutri-month-card .page-eyebrow {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .nutri-month-kpis {

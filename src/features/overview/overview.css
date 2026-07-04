@@ -18,6 +18,12 @@
   justify-content: space-between;
 }
 
+.ov-active-target-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .ov-active-target-goal {
   display: inline-flex;
   align-items: center;
@@ -28,6 +34,12 @@
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink-3);
+}
+
+.ov-active-target-chevron {
+  font-size: var(--text-xl);
+  color: var(--ink-4);
+  line-height: 1;
 }
 
 .ov-active-target-goal svg {
@@ -63,7 +75,7 @@
 }
 
 .ov-active-target-ring-num {
-  font-size: var(--text-xl);
+  font-size: var(--text-2xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
@@ -221,13 +233,13 @@
 .ov-weight-val.is-warn { color: var(--warn); }
 .ov-weight-val.is-bad  { color: var(--bad); }
 
-/* 14-day trend line — the card's dominant element. Fixed 64px height so the
+/* 14-day trend line — the card's dominant element. Fixed 80px height so the
    card never reflows between loading / empty / loaded (the SVG holds this space
    with a flat placeholder when data is thin). */
 .ov-weight-spark {
   display: block;
   width: 100%;
-  height: 64px;
+  height: 80px;
   margin-top: var(--space-4);
 }
 
@@ -294,18 +306,20 @@
   gap: var(--space-3);
   width: 100%;
   text-align: left;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-card);
   box-shadow: none;
-  padding: 2px 2px var(--space-5);
+  padding: var(--space-4);
   margin-top: var(--space-2);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-press), box-shadow var(--dur-press);
 }
 
 .ov-system-banner:active {
-  opacity: 0.7;
+  transform: scale(var(--tap-scale));
+  transition-duration: var(--dur-press);
 }
 
 .ov-system-dot {
@@ -379,8 +393,21 @@
   justify-content: space-between;
 }
 
-.goal-day {
+.goal-head-right {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.goal-chevron {
+  font-size: var(--text-xl);
   color: var(--ink-4);
+  line-height: 1;
+  align-self: center;
+}
+
+.goal-day {
+  color: var(--ink-3);
 }
 
 .goal-day b {
@@ -406,11 +433,12 @@
 }
 
 .goal-bar {
-  height: 8px;
+  height: 10px;
   border-radius: var(--radius-pill);
   background: var(--bg-soft);
   margin-top: var(--space-3);
   overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .goal-bar-fill {
@@ -448,13 +476,13 @@
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--ink-4);
+  color: var(--ink-3);
   margin-bottom: 6px;
 }
 
 .goal-sub {
   font-size: var(--text-2xs);
-  color: var(--ink-4);
+  color: var(--ink-3);
   margin-top: var(--space-4);
 }
 
@@ -551,7 +579,7 @@
 .goal-init-preview {
   margin: var(--space-2) 0 0;
   font-size: var(--text-2xs);
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -601,7 +629,7 @@
 }
 
 /* Sparkline shimmers as one block during cold load — hide the placeholder line
-   and shimmer the whole 64px region, matching the other skeleton fields. */
+   and shimmer the whole 80px region, matching the other skeleton fields. */
 .loading-card .ov-weight-spark {
   border-radius: var(--radius-sm);
   background: linear-gradient(

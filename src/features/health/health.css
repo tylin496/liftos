@@ -123,7 +123,7 @@
 
 .health-trend-range {
   font-size: var(--text-2xs);
-  color: var(--ink-4);
+  color: var(--ink-3);
   text-align: right;
 }
 
@@ -131,7 +131,7 @@
    range line, muted — it's an integrity note, not a headline. */
 .health-trend-note {
   font-size: var(--text-2xs);
-  color: var(--ink-4);
+  color: var(--ink-3);
   margin: var(--space-1) 0 0;
 }
 

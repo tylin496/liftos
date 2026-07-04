@@ -156,7 +156,7 @@
 
   --role-eyebrow-size: var(--text-2xs);        /* 11 — card identity badge */
   --role-eyebrow-weight: 700;
-  --role-eyebrow-color: var(--ink-4);
+  --role-eyebrow-color: var(--ink-3);
   --role-eyebrow-spacing: 0.06em;
 
   --role-section-title-size: var(--text-sm);   /* 13 — in-card row-group divider */

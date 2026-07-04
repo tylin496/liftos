@@ -142,7 +142,14 @@
   animation-delay: inherit;
 }
 
-/* Loading skeleton: grey shimmer only — no green fill. */
+/* Watch segments (needs attention) tint red instead of sitting neutral grey —
+   matches the red attention chip below, so the bar itself flags which lifts
+   need a look, not just the fold row. */
+.ov-th-bar-seg.is-watch {
+  background: rgba(233, 21, 45, 0.5);
+}
+
+/* Loading skeleton: grey shimmer only — no green/red fill. */
 .loading-card .ov-th-bar-seg::before { display: none; }
 
 /* Summary row — snapshot's one-line stand-in for the detail list. Reused as a

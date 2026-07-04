@@ -78,14 +78,14 @@ function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { show
   // (--progress-complete), never a ramp stop.
   const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
   return ratio > 1 ? (
-    <OverflowRing ratio={ratio} size={96} strokeWidth={9} color={ringColor}>
+    <OverflowRing ratio={ratio} size={108} strokeWidth={10} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
       </div>
     </OverflowRing>
   ) : (
-    <ActivityRing pct={ratio} size={96} strokeWidth={9} color={ringColor} trackColor="var(--bg-soft)" transition="none">
+    <ActivityRing pct={ratio} size={108} strokeWidth={10} color={ringColor} trackColor="var(--bg-soft)" transition="none">
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
@@ -230,9 +230,12 @@ function ActiveTargetCard({
     <button type="button" className="page-card ov-active-target" onClick={onNav}>
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
-        <span className="ov-active-target-goal">
-          {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
-          {targetTdee.toLocaleString()} TDEE
+        <span className="ov-active-target-head-right">
+          <span className="ov-active-target-goal">
+            {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
+            {targetTdee.toLocaleString()} TDEE
+          </span>
+          <span className="ov-active-target-chevron" aria-hidden>›</span>
         </span>
       </div>
 
@@ -400,10 +403,6 @@ function CutProgressCard({
     : null;
   const isComplete = pct >= 100;
   const cutDay = cutStartDate ? daysSince(cutStartDate) : null;
-  // Day into the *current* phase. daysOnTarget counts trailing days at the active
-  // target (0 = became active today), so +1 makes today read as "Day 1".
-  const phaseDay = state ? state.diagnostics.daysOnTarget + 1 : null;
-  const showPhase = phaseDay != null;
   // The % and bar roll/fill from 0 once on first reveal, then settle — see
   // GoalPctRoll. Honors reduced-motion (snaps).
   const { ref, inView } = useInView<HTMLButtonElement>();
@@ -433,16 +432,14 @@ function CutProgressCard({
           {isComplete ? "Goal reached" : "Cut Progress"}
           {!isComplete && cutDay != null && (
             <span className="goal-day">
-              {" "}
-              {showPhase ? (
-                <>· Day <b>{phaseDay}</b> / {cutDay}</>
-              ) : (
-                <>· Day <b>{cutDay}</b></>
-              )}
+              {" "}· Day <b>{cutDay}</b>
             </span>
           )}
         </span>
-        <GoalPct target={pct} />
+        <span className="goal-head-right">
+          <GoalPct target={pct} />
+          <span className="goal-chevron" aria-hidden>›</span>
+        </span>
       </div>
       <div className="goal-bar">
         <GoalBarFill target={pct} />
@@ -540,9 +537,9 @@ const WEIGHT_SPARK_MIN_SPAN = 1; // kg — floor so a flat week doesn't fill hei
 function WeightSparkline({ values, tone }: { values: number[]; tone: "good" | "bad" | "flat" }) {
   const stroke = tone === "good" ? "var(--good)" : tone === "bad" ? "var(--bad)" : "var(--ink-4)";
   const gradId = `ov-spark-grad-${tone}`;
-  const W = 100, H = 64, pad = 4;
+  const W = 100, H = 80, pad = 4;
 
-  // Not enough data: hold the 64px height with a flat dashed placeholder so the
+  // Not enough data: hold the 80px height with a flat dashed placeholder so the
   // card never changes height between loading / empty / loaded (layout stability).
   if (values.length < 2) {
     const y = (H / 2).toFixed(1);
@@ -577,7 +574,7 @@ function WeightSparkline({ values, tone }: { values: number[]; tone: "good" | "b
     <svg className="ov-weight-spark ov-weight-spark--draw" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={stroke} stopOpacity="0.28" />
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
           <stop offset="100%" stopColor={stroke} stopOpacity="0" />
         </linearGradient>
       </defs>
@@ -760,7 +757,10 @@ export function OverviewPage() {
           <section className="page-card ov-active-target loading-card">
             <div className="ov-active-target-head">
               <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
-              <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
+              <span className="ov-active-target-head-right">
+                <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
+                <span className="ov-active-target-chevron" aria-hidden>›</span>
+              </span>
             </div>
             <div className="ov-active-target-ring-row">
               <ActiveTargetRingBody shown={null} target={0} />
@@ -775,7 +775,10 @@ export function OverviewPage() {
           <div className="page-card goal loading-card">
             <div className="goal-head">
               <span className="goal-label">Cut Progress</span>
-              <span className="goal-pct">00%</span>
+              <span className="goal-head-right">
+                <span className="goal-pct">00%</span>
+                <span className="goal-chevron" aria-hidden>›</span>
+              </span>
             </div>
             <div className="goal-bar">
               <div className="goal-bar-fill" style={{ width: 0 }} />
