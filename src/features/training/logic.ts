@@ -18,9 +18,11 @@ export interface LogEntry {
 export function filterByTime(logs: TrainingLog[], filter: TimeFilter): TrainingLog[] {
   if (!filter || filter === "all") return logs;
   const now = new Date();
+  // Both windows are trailing so the two filters stay consistent — "1Y" means
+  // the last 365 days, not year-to-date (which showed almost nothing in Jan).
   const cutoff =
     filter === "year"
-      ? new Date(now.getFullYear(), 0, 1)
+      ? new Date(now.getTime() - 365 * 86400000)
       : new Date(now.getTime() - 90 * 86400000);
   return logs.filter((l) => {
     if (!l.log_date) return false;

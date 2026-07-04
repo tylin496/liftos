@@ -15,6 +15,9 @@ export function todayStr() {
 export function heroInputStyle(value: string): CSSProperties | undefined {
   const len = String(value ?? "").trim().length;
   if (len <= 7) return undefined;
+  // Shrink-to-fit for long weight expressions — a continuous function of length,
+  // so it can't be a --text token. 46 = hero max, 22 = readable min (both ends of
+  // the --text scale); 400 is the char-width fit constant (≈ len × fontSize).
   return { fontSize: Math.min(46, Math.max(22, Math.round(400 / len))) + "px" };
 }
 

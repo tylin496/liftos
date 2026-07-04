@@ -6,6 +6,16 @@ import { SEED, SPLITS, type SplitId } from "./seed";
 export type Exercise = Database["public"]["Tables"]["exercises"]["Row"];
 export type TrainingLog = Database["public"]["Tables"]["training_logs"]["Row"];
 
+/** URL/id-safe slug from a display name. Shared by exercise + stretch creation. */
+export function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+}
+
 export async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) throw error ?? new Error("Not signed in");
@@ -149,14 +159,8 @@ export async function addExercise(
   if (maxErr) throw maxErr;
   const maxOrder = existing?.[0]?.sort_order ?? -1;
 
-  const slugBase = name
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-");
   // Ensure unique slug by appending timestamp suffix
-  const slug = `${slugBase}-${Date.now().toString(36)}`;
+  const slug = `${slugify(name)}-${Date.now().toString(36)}`;
 
   const row = {
     user_id: userId,

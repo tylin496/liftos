@@ -154,6 +154,12 @@ export function ExerciseCard({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Undo-window timers for log deletes, keyed by log id, so an unmount (e.g.
+  // switching splits inside the 5s window) can flush them instead of firing a
+  // stray setTimeout against an unmounted card.
+  const pendingLogDeletesRef = useRef<
+    Map<string, { undone: boolean; timer: ReturnType<typeof setTimeout> }>
+  >(new Map());
 
 
   useEffect(() => {
@@ -166,6 +172,19 @@ export function ExerciseCard({
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [menuOpen]);
+
+  // On unmount (e.g. switching splits inside the undo window), flush pending log
+  // deletes: commit them immediately rather than leave stray timers behind.
+  useEffect(() => {
+    const timers = pendingLogDeletesRef.current;
+    return () => {
+      for (const [id, rec] of timers) {
+        clearTimeout(rec.timer);
+        if (!rec.undone) deleteLog(id).catch(() => {});
+      }
+      timers.clear();
+    };
+  }, []);
 
   // Keep the menu mounted through its exit animation.
   const menuT = useExitTransition(menuOpen, 120);
@@ -287,12 +306,16 @@ export function ExerciseCard({
 
   function handleDelete(log: TrainingLog) {
     haptic("tap");
-    let undone = false;
     const UNDO_MS = 5000;
+    const record = {
+      undone: false,
+      timer: 0 as unknown as ReturnType<typeof setTimeout>,
+    };
     setDeletedLogIds((prev) => new Set([...prev, log.id]));
     setEditingLogId(null);
-    const commit = setTimeout(async () => {
-      if (undone) return;
+    record.timer = setTimeout(async () => {
+      if (record.undone) return;
+      pendingLogDeletesRef.current.delete(log.id);
       try {
         await deleteLog(log.id);
         onLogged();
@@ -305,11 +328,13 @@ export function ExerciseCard({
         toast(String((err as Error)?.message ?? err), "error");
       }
     }, UNDO_MS);
+    pendingLogDeletesRef.current.set(log.id, record);
     toast("Entry deleted", "info", UNDO_MS, {
       label: "Undo",
       onClick: () => {
-        undone = true;
-        clearTimeout(commit);
+        record.undone = true;
+        pendingLogDeletesRef.current.delete(log.id);
+        clearTimeout(record.timer);
         setDeletedLogIds((prev) => {
           const s = new Set(prev);
           s.delete(log.id);

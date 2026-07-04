@@ -18,6 +18,10 @@ export interface Parsed {
   assisted: { bw: number; assist: number } | null;
 }
 
+// NOTE: `x`→`×` is global so weight expressions like "27x2" evaluate. This also
+// rewrites an `x` inside a trailing note ("box" → "bo×"), which is harmless in
+// practice: every log form composes `raw` from structured fields with no inline
+// note, so only imported/legacy raw strings carrying notes could be affected.
 export function normalize(s: string): string {
   return String(s || "")
     .replace(/[xX]/g, "×")

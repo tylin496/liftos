@@ -13,6 +13,7 @@ import {
   loadStretches,
   saveStretches,
   uploadStretchImage,
+  slugify,
   type Exercise,
   type TrainingLog,
   type StretchItem,
@@ -25,6 +26,7 @@ import {
 import { computeStats } from "./logic";
 import { defaultSetCount, useScrollAboveKeyboard } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
+import { fmtWeightNum } from "./ExprDisplay";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
@@ -33,23 +35,6 @@ import { EditIcon } from "./EditIcon";
 import "./training.css";
 
 const copyTrainingData = () => buildTrainingJson();
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function slugify(s: string) {
-  return s
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-");
-}
-
-function fmtWeightNum(n: number): string {
-  return n.toFixed(2);
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SmartStretchImage
@@ -356,11 +341,9 @@ function AddExerciseForm({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+    // Don't clear the fields here: on success the parent unmounts this form, on
+    // error it stays open — resetting would wipe the user's input on failure.
     onAdd(name.trim(), target.trim(), note.trim(), assisted);
-    setName("");
-    setTarget("");
-    setNote("");
-    setAssisted(false);
   }
 
   return (
@@ -536,6 +519,12 @@ function TrainingPageInner() {
   // Slugs currently in an optimistic-delete undo window — a background reloadAll
   // must not resurrect them, since the server row hasn't committed the delete yet.
   const pendingDeleteSlugsRef = useRef<Set<string>>(new Set());
+  // Undo-window timers for archived deletes, keyed by slug, so an unmount
+  // (leaving the tab inside the 5s window) can flush the pending deletes rather
+  // than fire a stray setTimeout against an unmounted component.
+  const archivedDeleteTimersRef = useRef<
+    Map<string, { undone: boolean; timer: ReturnType<typeof setTimeout> }>
+  >(new Map());
 
   // Splits are switched via the SegmentedControl only. Horizontal swipe here is
   // intentionally left to bubble to Shell's tab-swipe, so the gesture means the
@@ -570,10 +559,20 @@ function TrainingPageInner() {
   // on the app's most frequent action. Edits/deletes still go through
   // reloadLogs since they touch existing rows.
   const onLogAdded = useCallback((log: TrainingLog) => {
-    setLogs((prev) => ({
-      ...prev,
-      [log.exercise_slug]: [log, ...(prev[log.exercise_slug] ?? [])],
-    }));
+    setLogs((prev) => {
+      const existing = prev[log.exercise_slug] ?? [];
+      // Keep the slug's list newest-first by log_date so a back-dated set lands
+      // in its true chronological slot instead of being pinned to the top —
+      // otherwise it skews the vs-last delta / PR / trend until the next refetch.
+      const at = existing.findIndex(
+        (l) => (l.log_date ?? "") <= (log.log_date ?? ""),
+      );
+      const next =
+        at === -1
+          ? [...existing, log]
+          : [...existing.slice(0, at), log, ...existing.slice(at)];
+      return { ...prev, [log.exercise_slug]: next };
+    });
   }, []);
 
   useEffect(() => {
@@ -596,6 +595,23 @@ function TrainingPageInner() {
   useEffect(() => {
     saveStretches(stretches);
   }, [stretches]);
+
+  // On unmount (leaving the tab), flush any archived-deletes still inside their
+  // undo window: commit the delete now instead of letting a stray timer fire.
+  useEffect(() => {
+    const timers = archivedDeleteTimersRef.current;
+    return () => {
+      for (const [slug, rec] of timers) {
+        clearTimeout(rec.timer);
+        if (!rec.undone) {
+          currentUserId()
+            .then((userId) => deleteExerciseAndLogs(userId, slug))
+            .catch(() => {});
+        }
+      }
+      timers.clear();
+    };
+  }, []);
 
   const activeExercises = (exercises ?? []).filter(
     (e) => e.split === split && !e.archived,
@@ -682,7 +698,10 @@ function TrainingPageInner() {
     const idx = exercises?.findIndex((e) => e.slug === slug) ?? -1;
     const ex = idx >= 0 ? exercises![idx] : undefined;
     const UNDO_MS = 5000;
-    let undone = false;
+    const record = {
+      undone: false,
+      timer: 0 as unknown as ReturnType<typeof setTimeout>,
+    };
     // Restore the exercise at its original sort_order position.
     const restore = () =>
       setExercises((prev) => {
@@ -694,8 +713,9 @@ function TrainingPageInner() {
     pendingDeleteSlugsRef.current.add(slug);
     // Optimistically hide from list
     setExercises((prev) => prev?.filter((e) => e.slug !== slug) ?? prev);
-    const commit = setTimeout(async () => {
-      if (undone) return;
+    record.timer = setTimeout(async () => {
+      if (record.undone) return;
+      archivedDeleteTimersRef.current.delete(slug);
       try {
         const userId = await currentUserId();
         await deleteExerciseAndLogs(userId, slug);
@@ -707,12 +727,14 @@ function TrainingPageInner() {
         toast(String((err as Error)?.message ?? err), "error");
       }
     }, UNDO_MS);
+    archivedDeleteTimersRef.current.set(slug, record);
     toast(`${ex?.name ?? "Exercise"} deleted`, "info", UNDO_MS, {
       label: "Undo",
       onClick: () => {
-        undone = true;
+        record.undone = true;
         pendingDeleteSlugsRef.current.delete(slug);
-        clearTimeout(commit);
+        archivedDeleteTimersRef.current.delete(slug);
+        clearTimeout(record.timer);
         restore();
       },
     });

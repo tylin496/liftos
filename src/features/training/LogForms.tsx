@@ -194,13 +194,8 @@ export function AddEntryForm({
             −
           </button>
           <input
-            ref={(node) => {
-              weightRef.current = node;
-              if (node && !(node as HTMLInputElement & { _f?: boolean })._f) {
-                (node as HTMLInputElement & { _f?: boolean })._f = true;
-                node.focus();
-              }
-            }}
+            ref={weightRef}
+            autoFocus
             className="log-hero-input mono"
             style={heroInputStyle(weightExpr)}
             value={weightExpr}
@@ -362,13 +357,8 @@ export function AddAssistedForm({
             −
           </button>
           <input
-            ref={(node) => {
-              assistRef.current = node;
-              if (node && !(node as HTMLInputElement & { _f?: boolean })._f) {
-                (node as HTMLInputElement & { _f?: boolean })._f = true;
-                node.focus();
-              }
-            }}
+            ref={assistRef}
+            autoFocus
             className="log-hero-input mono"
             style={heroInputStyle(assistance)}
             value={assistance}
