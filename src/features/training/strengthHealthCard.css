@@ -118,27 +118,32 @@
   flex: 1;
   height: 6px;
   border-radius: var(--radius-pill);
-  /* Grey track segments are FIXED — always present, no entrance. */
+  /* Full grey track — always present, static, so the bar is never blank. */
   background: var(--rule-strong);
-  transform-origin: left center;
+  position: relative;
 }
 
 @keyframes th-seg-in {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
+  to { opacity: 1; }
 }
 
-/* Only the on-track (green) segments animate: each fills from the left,
-   staggered by the inline animation-delay so the green runs in one segment at a
-   time across the fixed grey track. */
-.ov-th-bar-seg.is-good {
+/* On-track segments overlay a green fill on the grey track. Each cell SNAPS to
+   full instantly at its own delay (not a gradual grow) — the one-segment-at-a-
+   time rhythm comes purely from the staggered inline animation-delay (inherited
+   by ::before), so it reads as discrete ticks, never a stepless sweep. */
+.ov-th-bar-seg.is-good::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background: var(--good);
-  animation: th-seg-in var(--dur-press) var(--ease-press) both;
+  opacity: 0;
+  animation: th-seg-in 1ms linear both;
+  animation-delay: inherit;
 }
 
-/* Loading skeleton segments are static (they shimmer via .loading-card).
-   !important so it still wins now that the animation lives on .is-good. */
-.loading-card .ov-th-bar-seg { animation: none !important; transform: none; }
+/* Loading skeleton: grey shimmer only — no green fill. */
+.loading-card .ov-th-bar-seg::before { display: none; }
 
 /* Summary row — snapshot's one-line stand-in for the detail list. Reused as a
    plain div (no fold button / chevron); the border-top gives the same
@@ -229,6 +234,12 @@
   padding: 0;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Needs Attention's header is a plain div, not a toggle — always expanded, so
+   it shouldn't read as clickable. */
+.ov-th-sect-head-row--static {
+  cursor: default;
 }
 
 .ov-th-sect-head {

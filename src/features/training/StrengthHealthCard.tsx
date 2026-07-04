@@ -133,9 +133,9 @@ export function StrengthHealthCard({
   // Now is read once per render for the staleness labels. Fine as a plain read —
   // it only drives a "logged Nw ago" hint, nothing that needs to be reactive.
   const nowMs = Date.now();
-  // Both sections default collapsed — the full card opens as just the hero +
-  // bar (a status read), and the row-by-row detail is opt-in per section.
-  const [watchOpen, setWatchOpen] = useState(false);
+  // On Track defaults collapsed — it's reassurance, not urgent. Needs Attention
+  // is always shown expanded: if something needs attention, that's the whole
+  // point of the card, not something to tuck behind a tap.
   const [trackOpen, setTrackOpen] = useState(false);
 
   // Attention always sits above On Track and is ordered worst-first (furthest
@@ -189,13 +189,12 @@ export function StrengthHealthCard({
 
   const hero = (
     <div className="ov-th-ret-hero">
-      {/* Hero % that HAS a progress bar → takes a semantic verdict colour: gold
-          if any lift needs attention, else green. Neutral only when there's no
-          data ("—"). */}
-      <MetricValue
-        size="lg"
-        style={retentionPct === null ? undefined : { color: attention > 0 ? "var(--gold)" : "var(--good)" }}
-      >
+      {/* Neutral ink — a big metric value never carries a verdict colour
+          (colour lives on the delta/bar/badge, not the hero number). The
+          on-track/attention verdict is already owned by the segmented bar +
+          "N of M lifts" count below, so colouring the % too would double-
+          encode it (invariant I3). */}
+      <MetricValue size="lg">
         {retentionPct !== null ? <RetentionPct target={retentionPct} /> : "—"}
       </MetricValue>
       {/* "tracked" qualifies M — only lifts with enough history (4+ logged
@@ -266,15 +265,12 @@ export function StrengthHealthCard({
       <div className="ov-th-fold-body">
         {watchExercises.length > 0 && (
           <div className="ov-th-section">
-            <SectHeadRow
-              label={`Needs attention · ${watchExercises.length}`}
-              open={watchOpen}
-              onToggle={() => setWatchOpen((v) => !v)}
-            />
-            {watchOpen &&
-              watchExercises.map((ex) => (
-                <AttentionRow key={ex.slug} exercise={ex} nowMs={nowMs} />
-              ))}
+            <div className="ov-th-sect-head-row ov-th-sect-head-row--static">
+              <span className="ov-th-sect-head">Needs attention · {watchExercises.length}</span>
+            </div>
+            {watchExercises.map((ex) => (
+              <AttentionRow key={ex.slug} exercise={ex} nowMs={nowMs} />
+            ))}
           </div>
         )}
         {onTrackExercises.length > 0 && (
