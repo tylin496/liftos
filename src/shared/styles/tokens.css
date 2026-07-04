@@ -298,10 +298,13 @@
   --warn: #ff9f0a;   /* Warning / attention — Apple systemOrange (dark), clear of --bad/--gold */
   --gold: #f2c94c;   /* PR / gold-reward — glowing trophy gold (was --pr) */
   --blue: #6dd9ff;   /* Cyan (IC-dark) */
-  /* Health chart colours — Apple increased-contrast (dark), brighter on dark */
+  /* Health chart colours — Apple increased-contrast (dark) for active (brighter
+     on dark); measurement/sleep use Default (dark) instead of IC-dark — the
+     IC-dark purple/indigo sit at ~80% lightness, reading as washed-out pastel
+     rather than a true system colour despite 100% HSL saturation. */
   --health-active: #ffa056;
-  --health-measurement: #ea8dff;
-  --health-sleep: #a7aaff;
+  --health-measurement: #db34f2;
+  --health-sleep: #6d7cff;
   --card-blur: blur(22px);
   --glass-bg: rgba(26, 26, 26, 0.42);
   --glass-highlight: rgba(255, 255, 255, 0.22);
