@@ -5,7 +5,6 @@ export type MetricKey =
   | "body_fat_pct"
   | "active_energy_kcal"
   | "resting_energy_kcal"
-  | "steps"
   | "exercise_minutes"
   | "sleep_seconds"
   | "resting_heart_rate"

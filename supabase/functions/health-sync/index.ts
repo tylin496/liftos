@@ -10,6 +10,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 //     activeEnergy: number|"", restingEnergy: number|"",
 //     steps: number|"", exerciseMinutes: number|"",
 //     sleepSeconds: number|"", restingHeartRate: number|"", hrvSdnn: number|"" }
+// Also accepts these aliases the iOS Shortcut's auto-generated variable names
+// sometimes use instead of the names above: exercise_minutes / excercises_time
+// (exerciseMinutes), sleepDuration (sleepSeconds), heartRateVariability (hrvSdnn).
 // Upserts one row per date into Supabase health_metrics. Empty/non-numeric
 // fields are OMITTED from the upsert (not written as null), so running the
 // Shortcut multiple times a day never overwrites a previously-synced value
@@ -26,10 +29,16 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** "" / null / undefined / non-numeric → null. Otherwise the number. */
+/**
+ * "" / null / undefined / non-numeric → null. Otherwise the number.
+ * Tolerates trailing garbage some Shortcuts number conversions append
+ * (e.g. "6749\n0") by reading the leading numeric token only.
+ */
 function num(value: unknown): number | null {
   if (value === "" || value === null || value === undefined) return null;
-  const n = Number(value);
+  const match = String(value).match(/-?\d+(\.\d+)?/);
+  if (!match) return null;
+  const n = Number(match[0]);
   return Number.isFinite(n) ? n : null;
 }
 
@@ -61,13 +70,13 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   if (resting !== null) record.resting_energy_kcal = resting;
   const steps = intOrNull(body.steps);
   if (steps !== null) record.steps = steps;
-  const exerciseMinutes = intOrNull(body.exerciseMinutes);
+  const exerciseMinutes = intOrNull(body.exerciseMinutes ?? body.exercise_minutes ?? body.excercises_time);
   if (exerciseMinutes !== null) record.exercise_minutes = exerciseMinutes;
-  const sleepSeconds = intOrNull(body.sleepSeconds);
+  const sleepSeconds = intOrNull(body.sleepSeconds ?? body.sleepDuration);
   if (sleepSeconds !== null && sleepSeconds > 3600) record.sleep_seconds = sleepSeconds;
   const restingHR = intOrNull(body.restingHeartRate);
   if (restingHR !== null && restingHR > 0) record.resting_heart_rate = restingHR;
-  const hrv = num(body.hrvSdnn);
+  const hrv = num(body.hrvSdnn ?? body.heartRateVariability);
   if (hrv !== null && hrv > 0) record.hrv_sdnn_ms = hrv;
 
   return { record };
@@ -130,33 +139,17 @@ Deno.serve(async (req) => {
     }
     const { data, error: dbErr } = await supabase
       .from("nutrition_entries")
-      .select("entry_date, calories, protein, dietary_exported_at")
+      .select("entry_date, calories, protein")
       .eq("user_id", userId)
       .eq("entry_date", date)
       .maybeSingle();
     if (dbErr) return json({ error: dbErr.message }, 500);
 
-    // Already exported once → return nulls so the Shortcut logs nothing.
-    // Makes manual re-runs safe (Apple Health's logging is append-only).
-    if (data?.dietary_exported_at) {
-      return json({ ok: true, date, calories: null, protein: null, alreadyExported: true });
-    }
-
-    // First export of a day that actually has data → hand back the values
-    // and stamp it so any later run skips.
-    if (data && data.calories != null) {
-      await supabase
-        .from("nutrition_entries")
-        .update({ dietary_exported_at: new Date().toISOString() })
-        .eq("user_id", userId)
-        .eq("entry_date", date);
-    }
     return json({
       ok: true,
       date,
       calories: data?.calories ?? null,
       protein: data?.protein ?? null,
-      alreadyExported: false,
     });
   }
 
