@@ -2,10 +2,15 @@
 // evidence).
 //
 // Presentation only. The Recommendation block leads: it's the focal point a
-// daily user reads in a second (action + target + reason). The Evidence grid
-// sits below as a compact 2-column layout to verify the numbers (Observed rate
-// / Target range / Estimated intake / Confidence — no "what to do"). Numbers
-// come from the persisted evaluation; the decision is the same pure
+// daily user reads in a second (action + target + reason). Below it, the
+// supporting numbers are grouped by *meaning*, not implementation:
+//   - Evidence (21d trend) — measurements: Observed rate + Estimated actual
+//     intake, the two numbers that genuinely share the 21-day regression.
+//   - Target — the plan: Target pace is a fixed band looked up from the cut
+//     mode, not a windowed measurement.
+//   - Confidence — how sure the read is: a composite of trend quality (21d)
+//     and target tenure (daysOnTarget), with a tap-to-expand reason.
+// Numbers come from the persisted evaluation; the decision is the same pure
 // `nutritionDecision` the System card uses, so the two never disagree.
 
 import { useEffect, useRef, useState } from "react";
@@ -188,46 +193,61 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
         </p>
       </div>
 
-      {/* Evidence — supports the decision; description only, no action. */}
+      {/* Supporting numbers, grouped by meaning — description only, no action. */}
       <div className="ni-evidence">
-        <span className="page-eyebrow" style={{ margin: 0 }}>Evidence (21d trend)</span>
-        <div className="ni-grid">
-          <EvidenceCell
-            label="Observed rate"
-            value={!noData && !loading && hasTrend ? fmtRate(e!.observedRate) : "—"}
-            status={
-              !noData && !loading && hasTrend && e
-                ? (() => {
-                    const t = rateTone(e);
-                    return t ? RATE_STATUS[t] : undefined;
-                  })()
-                : undefined
-            }
-          />
-          <EvidenceCell
-            label="Target pace"
-            value={
-              !noData && !loading && hasRange
-                ? `−${e!.targetRange.min.toFixed(2)} – ${e!.targetRange.max.toFixed(2)} kg/wk`
-                : "—"
-            }
-          />
-          <EvidenceCell
-            label="Estimated actual intake"
-            value={
-              !noData && !loading && hasTrend
-                ? `≈${d!.estimatedIntake.toLocaleString()} kcal/day`
-                : "—"
-            }
-          />
-          <EvidenceCell
-            label="Confidence"
-            value={!noData && !loading ? (CONFIDENCE_LABEL[e!.confidence] ?? e!.confidence) : "—"}
-            expandable={confReason != null}
-            open={confOpen}
-            onToggle={() => setConfOpen((v) => !v)}
-          />
+        {/* Measurements — the two numbers that share the 21-day regression. */}
+        <div className="ni-group">
+          <span className="page-eyebrow" style={{ margin: 0 }}>Evidence (21d trend)</span>
+          <div className="ni-grid">
+            <EvidenceCell
+              label="Observed rate"
+              value={!noData && !loading && hasTrend ? fmtRate(e!.observedRate) : "—"}
+              status={
+                !noData && !loading && hasTrend && e
+                  ? (() => {
+                      const t = rateTone(e);
+                      return t ? RATE_STATUS[t] : undefined;
+                    })()
+                  : undefined
+              }
+            />
+            <EvidenceCell
+              label="Estimated actual intake"
+              value={
+                !noData && !loading && hasTrend
+                  ? `≈${d!.estimatedIntake.toLocaleString()} kcal/day`
+                  : "—"
+              }
+            />
+          </div>
         </div>
+
+        {/* The plan (fixed band per cut mode) and how sure the read is —
+            side-by-side groups, each named for what the number *is*. */}
+        <div className="ni-grid">
+          <div className="ni-group">
+            <span className="page-eyebrow" style={{ margin: 0 }}>Target</span>
+            <EvidenceCell
+              label="Target pace"
+              value={
+                !noData && !loading && hasRange
+                  ? `−${e!.targetRange.min.toFixed(2)} – ${e!.targetRange.max.toFixed(2)} kg/wk`
+                  : "—"
+              }
+            />
+          </div>
+          <div className="ni-group">
+            <span className="page-eyebrow" style={{ margin: 0 }}>Confidence</span>
+            <EvidenceCell
+              label="Level"
+              value={!noData && !loading ? (CONFIDENCE_LABEL[e!.confidence] ?? e!.confidence) : "—"}
+              expandable={confReason != null}
+              open={confOpen}
+              onToggle={() => setConfOpen((v) => !v)}
+            />
+          </div>
+        </div>
+        {/* Revealed reason spans the card, but reads as part of Confidence. */}
         {confReason && confOpen && <p className="ni-conf-reason">{confReason}</p>}
       </div>
     </section>
