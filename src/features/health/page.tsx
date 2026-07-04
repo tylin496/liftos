@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { fetchHealthData, type HealthData } from "./api";
 import {
   series,
@@ -61,7 +61,7 @@ const SPARK_POINTS = 6;
    (that's a deliberate design call, not a fidelity cut: the card's own big
    number + delta already carry the "what changed" story). */
 function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }: { points: ChartPoint[]; minSpan?: number; color?: string }) {
-  const width = 92, height = 40;
+  const width = 130, height = 44;
   if (points.length < 2) return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline" />;
 
   const vals = points.map((p) => p.value);
@@ -77,7 +77,11 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
   const span = halfSpan * 2 || 1;
   // Inset the plot by the endpoint dot's radius so the "you are here" marker
   // sits fully inside the viewBox instead of poking past the right edge.
-  const dot = 3;
+  const dot = 2.2;
+  // The anchor ("you are here") bead reads slightly larger than the history
+  // beads it's threaded among — the size bump is itself part of the signal,
+  // not just the colour ring.
+  const anchorDot = 4;
   const coords = points.map((p, i) => {
     const x = dot + (i / (points.length - 1)) * (width - dot * 2);
     const y = height - dot - ((p.value - min) / span) * (height - dot * 2);
@@ -98,11 +102,11 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
   if (reduced) {
     return (
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
-        <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         {coords.slice(0, -1).map((c, i) => (
-          <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="2" />
+          <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="1.4" />
         ))}
-        <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke={color} strokeWidth="2" />
+        <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={anchorDot} fill="var(--bg-card)" stroke={color} strokeWidth="2.4" />
       </svg>
     );
   }
@@ -126,7 +130,7 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
           pathLength={1}
           fill="none"
           stroke="var(--ink-4)"
-          strokeWidth="1.75"
+          strokeWidth="1.6"
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{ ["--spark-dur" as string]: `${dur}ms` }}
@@ -140,7 +144,7 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
             r={dot}
             fill="var(--bg-card)"
             stroke="var(--ink-4)"
-            strokeWidth="2"
+            strokeWidth="1.4"
             style={{ animationDelay: `calc(${tierDelay} + ${((i / (n - 1)) * dur).toFixed(0)}ms)` }}
           />
         ))}
@@ -148,10 +152,10 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
           className="health-spark-bead health-spark-bead--anchor"
           cx={last.x.toFixed(1)}
           cy={last.y.toFixed(1)}
-          r={dot}
+          r={anchorDot}
           fill="var(--bg-card)"
           stroke={color}
-          strokeWidth="2"
+          strokeWidth="2.4"
           style={{ animationDelay: `calc(${tierDelay} + ${dur}ms)` }}
         />
       </g>
@@ -264,13 +268,13 @@ function TrendCard({
           <span className="health-card-eyebrow">{label}</span>
           <div className="health-trend-stat">
             {loading ? (
-              <MetricValue size="md" unit={unit}>00.0</MetricValue>
+              <MetricValue size="lg" unit={unit}>00.0</MetricValue>
             ) : value != null ? (
-              <MetricValue size="md" unit={unit}>
+              <MetricValue size="lg" unit={unit}>
                 <AnimatedMetric value={value} decimals={decimals} />
               </MetricValue>
             ) : (
-              <MetricValue size="md" className="health-metric-val--empty">—</MetricValue>
+              <MetricValue size="lg" className="health-metric-val--empty">—</MetricValue>
             )}
             {delta}
           </div>
@@ -426,28 +430,41 @@ export function HealthPage() {
       {/* 1. Energy — the metabolic model behind the ring. Active leads with its
           trend (behaviour-driven); Resting + TDEE ride below as context so
           Resting + Active = TDEE still adds up. */}
-      <section id="health-energy-card" className={`page-card health-energy${!data ? " loading-card" : ""}`}>
+      <section
+        id="health-energy-card"
+        className={`page-card health-energy${!data ? " loading-card" : ""}`}
+        {...(data && tdee?.tdee != null
+          ? {
+              role: "button" as const,
+              tabIndex: 0,
+              "aria-expanded": energyExpanded,
+              onClick: () => setEnergyExpanded((v) => !v),
+              onKeyDown: (e: KeyboardEvent) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setEnergyExpanded((v) => !v);
+                }
+              },
+            }
+          : {})}
+      >
         <div className="health-tdee-head">
           <span className="health-card-eyebrow">Active</span>
-          <button
-            type="button"
-            className={`ov-weight-chevron health-energy-toggle${energyExpanded ? " is-open" : ""}`}
-            onClick={() => setEnergyExpanded((v) => !v)}
-            aria-expanded={energyExpanded}
-            aria-label="Toggle resting and TDEE breakdown"
-          >
-            ›
-          </button>
+          <span className={`health-energy-chevron${energyExpanded ? " is-open" : ""}`} aria-hidden>
+            <svg width="13" height="8" viewBox="0 0 12 7" fill="none">
+              <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
         </div>
         {!data ? (
           <>
             <div className="health-trend-head">
               <div className="health-trend-info">
                 <div className="health-trend-stat">
-                  <MetricValue size="md" unit="kcal">000</MetricValue>
+                  <MetricValue size="lg" unit="kcal">000</MetricValue>
                 </div>
               </div>
-              <Sparkline points={[]} minSpan={ENERGY_MIN_SPAN} color="var(--health-active)" />
+              <Sparkline points={[]} minSpan={ENERGY_MIN_SPAN} color="var(--accent)" />
             </div>
             <div className="health-trend-foot">
               <MetricCaption>Loading…</MetricCaption>
@@ -460,7 +477,7 @@ export function HealthPage() {
             <div className="health-trend-head">
               <div className="health-trend-info">
                 <div className="health-trend-stat">
-                  <MetricValue size="md" unit="kcal">
+                  <MetricValue size="lg" unit="kcal">
                     {tdee.avgActive != null ? <AnimatedMetric value={tdee.avgActive} decimals={0} /> : null}
                   </MetricValue>
                   {activeChange != null && (
@@ -468,7 +485,7 @@ export function HealthPage() {
                   )}
                 </div>
               </div>
-              <Sparkline points={energyBucketed} minSpan={ENERGY_MIN_SPAN} color="var(--health-active)" />
+              <Sparkline points={energyBucketed} minSpan={ENERGY_MIN_SPAN} color="var(--accent)" />
             </div>
             <div className="health-trend-foot">
               <MetricCaption>
@@ -480,13 +497,15 @@ export function HealthPage() {
             </div>
 
             {/* Resting + TDEE — the model behind the ring, revealed on tapping the
-                chevron, so Resting + Active = TDEE still visibly adds up. */}
-            {energyExpanded && (
+                card, so Resting + Active = TDEE still visibly adds up. Always
+                mounted (not conditionally rendered) so the grid-rows collapse
+                can animate instead of the content just vanishing. */}
+            <div className={`health-energy-model-wrap${energyExpanded ? " is-open" : ""}`}>
               <div className="health-energy-model">
                 <div className="health-energy-model-item">
                   <span className="health-energy-metric-label">Resting</span>
                   <div className="health-trend-stat">
-                    <MetricValue size="md" unit="kcal">
+                    <MetricValue size="sm" unit="kcal">
                       {tdee.avgResting != null ? <AnimatedMetric value={tdee.avgResting} decimals={0} /> : null}
                     </MetricValue>
                   </div>
@@ -498,13 +517,13 @@ export function HealthPage() {
                 </div>
                 <div className="health-energy-model-item">
                   <span className="health-energy-metric-label">TDEE</span>
-                  <MetricValue size="md" unit="kcal">
+                  <MetricValue size="sm" unit="kcal">
                     <AnimatedMetric value={tdee.tdee} decimals={0} />
                   </MetricValue>
                   <span className="health-energy-window">resting + active</span>
                 </div>
               </div>
-            )}
+            </div>
           </>
         ) : (
           <p className="page-note">
