@@ -53,7 +53,7 @@
   --progress-3: #34c759;  /* Apple green (spectrum mid) — emerald, in the --good family */
   --progress-4: #00c0e8;  /* Apple cyan */
   --progress-5: #0088ff;  /* Apple blue — almost full */
-  --progress-complete: #b8830a; /* deep gold — 100% only, the celebration */
+  --progress-complete: var(--pr); /* same celebration gold as --pr — one gold app-wide */
 
   /* ── Semantic ─────────────────────────────────────────────────────────
      ONLY these three carry a good/bad verdict. Never use on charts,
@@ -287,7 +287,7 @@
   --progress-3: #30d158;  /* Apple green (dark) — spectrum mid */
   --progress-4: #3cd3fe;  /* Apple cyan */
   --progress-5: #0091ff;  /* Apple blue */
-  --progress-complete: #ffcf3a;   /* glowing gold — 100% only */
+  --progress-complete: var(--pr); /* same celebration gold as --pr — one gold app-wide */
   --good: #4ad968;
   --bad: #ff6165;
   --gold: #ff856a;   /* Warning / attention — coral (bright for dark) */
