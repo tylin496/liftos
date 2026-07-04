@@ -3,12 +3,30 @@ import "./macroEditFields.css";
 
 export type MacroField = "calories" | "protein";
 
+// A leading +/- turns the field into a relative adjustment against the
+// original saved value (e.g. "760" + typing "+12" -> 772 on save) instead of
+// a literal overwrite. Only meaningful when editing an existing entry.
+function sanitizeDigits(raw: string, maxDigits: number, allowSign: boolean): string {
+  const sign = allowSign && (raw[0] === "+" || raw[0] === "-") ? raw[0] : "";
+  const digits = raw.slice(sign.length).replace(/\D/g, "").slice(0, maxDigits);
+  return sign + digits;
+}
+
+function resolveValue(raw: string, original: number, hasEntry: boolean): number {
+  if (hasEntry && /^[+-]\d+$/.test(raw)) {
+    return Math.max(0, original + Number(raw));
+  }
+  return Number(raw) || 0;
+}
+
 // Tap-to-edit keypad entry for the daily Calories/Protein pair, shared by
 // Overview's Hero card and Nutrition's Today card (same underlying daily
 // entry). Typing the 4th calorie digit auto-advances to Protein; typing the
 // 3rd protein digit auto-submits — callers just supply current values +
 // setters and get the save call with the freshly-typed digits (not stale
-// state) so the auto-submit doesn't race a pending setState.
+// state) so the auto-submit doesn't race a pending setState. A leading +/-
+// (only offered once an entry exists) opts out of the digit-count shortcuts
+// since the field no longer represents a finished absolute value.
 export function MacroEditFields({
   calories,
   protein,
@@ -21,6 +39,8 @@ export function MacroEditFields({
   onDelete,
   saving,
   hasEntry,
+  originalCalories,
+  originalProtein,
   error,
 }: {
   calories: string;
@@ -34,12 +54,17 @@ export function MacroEditFields({
   onDelete?: () => void;
   saving?: boolean;
   hasEntry: boolean;
+  /** Base values a leading +/- delta is applied against. */
+  originalCalories?: number;
+  originalProtein?: number;
   /** Persists until the next save attempt — a 5s toast alone is easy to miss
       and would otherwise leave the user believing the entry saved. */
   error?: string | null;
 }) {
   const calInputRef = useRef<HTMLInputElement>(null);
   const protInputRef = useRef<HTMLInputElement>(null);
+  const resolvedCalories = () => resolveValue(calories, originalCalories ?? 0, hasEntry);
+  const resolvedProtein = () => resolveValue(protein, originalProtein ?? 0, hasEntry);
 
   useEffect(() => {
     if (activeField === "calories") {
@@ -63,17 +88,16 @@ export function MacroEditFields({
             value={calories}
             placeholder="0"
             onChange={(e) => {
-              let digits = e.target.value.replace(/\D/g, "");
-              if (digits.length > 4) digits = digits.slice(0, 4);
-              onCaloriesChange(digits);
-              if (digits.length === 4) {
+              const next = sanitizeDigits(e.target.value, 4, hasEntry);
+              onCaloriesChange(next);
+              if (/^\d{4}$/.test(next)) {
                 onActiveFieldChange("protein");
               }
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 if (activeField === "calories") onActiveFieldChange("protein");
-                else onSave(Number(calories) || 0, Number(protein) || 0);
+                else onSave(resolvedCalories(), resolvedProtein());
               }
               if (e.key === "Escape") onCancel();
             }}
@@ -91,15 +115,14 @@ export function MacroEditFields({
             value={protein}
             placeholder="0"
             onChange={(e) => {
-              let digits = e.target.value.replace(/\D/g, "");
-              if (digits.length > 3) digits = digits.slice(0, 3);
-              onProteinChange(digits);
-              if (digits.length === 3) {
-                onSave(Number(calories) || 0, Number(digits));
+              const next = sanitizeDigits(e.target.value, 3, hasEntry);
+              onProteinChange(next);
+              if (/^\d{3}$/.test(next)) {
+                onSave(resolvedCalories(), resolveValue(next, originalProtein ?? 0, hasEntry));
               }
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") onSave(Number(calories) || 0, Number(protein) || 0);
+              if (e.key === "Enter") onSave(resolvedCalories(), resolvedProtein());
               if (e.key === "Escape") onCancel();
             }}
           />
@@ -110,7 +133,7 @@ export function MacroEditFields({
         <button
           className="nutri-save"
           type="button"
-          onClick={() => onSave(Number(calories) || 0, Number(protein) || 0)}
+          onClick={() => onSave(resolvedCalories(), resolvedProtein())}
           disabled={saving}
         >
           {saving ? "Saving…" : hasEntry ? "Update entry" : "Save entry"}

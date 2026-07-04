@@ -1100,7 +1100,7 @@
 }
 
 .daily-card.is-drag-hint {
-  animation: day-drag-hint 1.15s var(--ease-enter) both;
+  animation: day-drag-hint 1.15s var(--ease-move) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

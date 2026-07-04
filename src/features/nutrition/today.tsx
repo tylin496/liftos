@@ -252,6 +252,10 @@ export function TodayView({
   const [editField, setEditField] = useState<MacroField | null>(null);
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
+  // Base values a leading +/- edit (e.g. "+12") is applied against — the
+  // last-saved numbers, not the live edit buffer above.
+  const originalCalories = useRef(0);
+  const originalProtein = useRef(0);
   // Whether a *saved* entry exists for this date — distinct from the
   // calories/protein edit buffer above, which changes on every keystroke.
   // Basing "hasEntry" on the buffer would flip it true the moment someone
@@ -304,6 +308,8 @@ export function TodayView({
         clearTimeout(skeletonTimer);
         setCalories(entry?.calories != null ? String(entry.calories) : "");
         setProtein(entry?.protein != null ? String(entry.protein) : "");
+        originalCalories.current = entry?.calories ?? 0;
+        originalProtein.current = entry?.protein ?? 0;
         setEntryExists(entry?.calories != null || entry?.protein != null);
         setLoading(false);
         firstLoad.current = false;
@@ -390,13 +396,24 @@ export function TodayView({
   });
 
   // First visit ever: nudge the card half-open once to show it can be dragged.
+  // Deliberately LATE — let the entrance finish and give the user ~1s to read
+  // the day's numbers first, so the swipe hint lands as a follow-up affordance
+  // rather than competing with the rise-in.
   useEffect(() => {
     if (loading) return;
     if (localStorage.getItem(DAY_SWIPE_HINT_KEY)) return;
-    localStorage.setItem(DAY_SWIPE_HINT_KEY, "1");
-    setDragHint(true);
-    const t = setTimeout(() => setDragHint(false), 1200);
-    return () => clearTimeout(t);
+    const HINT_DELAY_MS = 1000; // entrance (~500ms) + reading time
+    const start = setTimeout(() => {
+      // Spend the one-time flag only once the hint actually plays, so bailing
+      // out of the tab during the delay doesn't burn it unseen.
+      localStorage.setItem(DAY_SWIPE_HINT_KEY, "1");
+      setDragHint(true);
+      // Reset is deliberately NOT tied to effect cleanup: navigating days flips
+      // `loading`, which would otherwise clear it mid-hint and leave is-drag-hint
+      // stuck (suppressing the day-nav slide). This one-shot always fires.
+      setTimeout(() => setDragHint(false), 1200);
+    }, HINT_DELAY_MS);
+    return () => clearTimeout(start);
   }, [loading]);
 
   const targets = useMemo(() => targetsFromConfig(config), [config]);
@@ -432,6 +449,13 @@ export function TodayView({
       haptic("success");
       setEditField(null);
       setEntryExists(true);
+      // Resolve the edit buffer to the saved absolute numbers so a re-opened
+      // edit (or a follow-up "+/-" delta) starts from the real saved value,
+      // not a lingering "+12" string.
+      setCalories(String(calN));
+      setProtein(String(protN));
+      originalCalories.current = calN;
+      originalProtein.current = protN;
       onSaved?.();
 
       const calRes = getCalorieResult(calN, targets.tdee, targets.deficitTarget);
@@ -458,6 +482,8 @@ export function TodayView({
     let undone = false;
     setCalories("");
     setProtein("");
+    originalCalories.current = 0;
+    originalProtein.current = 0;
     setEntryExists(false);
     setEditField(null);
     haptic("warning");
@@ -470,6 +496,8 @@ export function TodayView({
       } catch (e) {
         setCalories(prevCalories);
         setProtein(prevProtein);
+        originalCalories.current = Number(prevCalories) || 0;
+        originalProtein.current = Number(prevProtein) || 0;
         setEntryExists(true);
         haptic("error");
         toast(String((e as Error)?.message ?? e), "error");
@@ -484,6 +512,8 @@ export function TodayView({
         clearTimeout(commit);
         setCalories(prevCalories);
         setProtein(prevProtein);
+        originalCalories.current = Number(prevCalories) || 0;
+        originalProtein.current = Number(prevProtein) || 0;
         setEntryExists(true);
       },
     });
@@ -559,6 +589,8 @@ export function TodayView({
             onDelete={hasEntry ? () => { haptic("warning"); handleDelete(); } : undefined}
             saving={saving}
             hasEntry={hasEntry}
+            originalCalories={originalCalories.current}
+            originalProtein={originalProtein.current}
             error={saveError}
           />
         ) : (

@@ -24,6 +24,8 @@ import {
   useToast,
 } from "./ExerciseCard";
 import { computeStats } from "./logic";
+import { StrengthHealthCard } from "./StrengthHealthCard";
+import { computeStrengthSummary, computeCompoundProgress } from "@features/overview/api";
 import { defaultSetCount, useScrollAboveKeyboard } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
 import { fmtWeightNum } from "./ExprDisplay";
@@ -744,6 +746,22 @@ function TrainingPageInner() {
     setStretches((prev) => ({ ...prev, [split]: items }));
   }
 
+  // Training Health, computed from the logs already in memory (no extra fetch) —
+  // same pure functions Overview uses, so the two surfaces can't disagree. The
+  // compound hero needs the first Pull-split lift and the first "row" lift,
+  // resolved here from the exercise list (Overview resolves them via query).
+  const strengthHealth = useMemo(() => {
+    const pullExercises = (exercises ?? [])
+      .filter((e) => e.split === "pull" && !e.archived)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const pullSlug = pullExercises[0]?.slug ?? null;
+    const rowSlug = pullExercises.find((e) => /row/i.test(e.name))?.slug ?? null;
+    return {
+      strength: computeStrengthSummary(logs),
+      compoundProgress: computeCompoundProgress(logs, pullSlug, rowSlug),
+    };
+  }, [exercises, logs]);
+
   usePageHeader({
     eyebrow: "TRAINING",
     title: SPLITS.find((s) => s.id === split)?.name ?? split,
@@ -885,6 +903,15 @@ function TrainingPageInner() {
         value={timeFilter}
         onChange={(id) => setTimeFilter(id as TimeFilter)}
       />
+
+      {/* ── Training Health (full card) ── */}
+      {exercises && (
+        <StrengthHealthCard
+          variant="full"
+          strength={strengthHealth.strength}
+          compoundProgress={strengthHealth.compoundProgress}
+        />
+      )}
     </div>
   );
 }

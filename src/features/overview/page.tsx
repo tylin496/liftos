@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Ref, type ReactNode } from "react";
+import { useEffect, useState, type Ref, type ReactNode } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
@@ -10,6 +10,7 @@ import { useInView } from "@shared/hooks/useInView";
 import { progressColor } from "@shared/lib/progressColor";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
+import { StrengthHealthCard } from "@features/training/StrengthHealthCard";
 import { ActivityRing } from "@shared/components/ActivityRing";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import "@shared/components/activityRing.css";
@@ -69,10 +70,10 @@ function daysSince(isoDate: string): number {
 // centre so its on-screen position can be measured for the stagger.
 function ActiveTargetRingBody({ shown, target, innerRef }: { shown: number | null; target: number; innerRef?: Ref<HTMLDivElement> }) {
   const ratio = (shown ?? 0) / Math.max(1, target);
-  // Follows the shared red→green progress ramp by fill (progressColor) — the same
-  // spectrum as the Cut Progress bar and top-bar ring. At/over 100% it flips to
-  // the discrete completion gold (--progress-complete), never a ramp stop.
-  const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
+  // Dedicated Apple "Move"-ring colour (--ring) — the active-calorie ring is our
+  // Move ring. A fixed pink-red that FILLS to show progress; the colour never
+  // changes by %. Deliberately NOT the progress spectrum and NOT a gold flip.
+  const ringColor = "var(--ring)";
   return ratio > 1 ? (
     <OverflowRing ratio={ratio} size={96} strokeWidth={9} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
@@ -228,10 +229,10 @@ function ActiveTargetCard({
                 {ratio > 1.05
                   ? `Closed — ${Math.round(ratio * 100)}% of today's target`
                   : position === "behind"
-                    ? <><span className="is-behind">Behind</span> this week — today's up from your {dailyAvg.toLocaleString()}/day average</>
+                    ? <><span className="is-behind">Behind</span> this week — today's target is {view.today.target.toLocaleString()}, up from your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day average</span></>
                     : position === "ahead"
-                      ? <><span className="is-ahead">Ahead</span> this week — today eased below your {dailyAvg.toLocaleString()}/day average</>
-                      : <><span className="is-on">On pace</span> — about your {dailyAvg.toLocaleString()}/day average</>}
+                      ? <><span className="is-ahead">Ahead</span> this week — today's target is {view.today.target.toLocaleString()}, eased below your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day average</span></>
+                      : <><span className="is-on">On pace</span> — about your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day average</span></>}
               </span>
               {!view.today.synced && (
                 <span className="ov-active-target-ring-stale">
@@ -348,12 +349,12 @@ function GoalBarFill({ target }: { target: number }) {
     }, delayMs);
     return () => clearTimeout(timer);
   }, [delayMs, target]);
-  // A SOLID fill whose colour IS the ramp point at the current fill — red when
-  // low, greening as the goal is approached (gold at 100% flips via the
-  // .is-complete CSS override). NOT a gradient smeared across the track: the
-  // whole fill is one colour that shifts WITH progress. Derived from w, so as
-  // the bar grows the colour tweens from red to its final shade alongside the
-  // width (both share COUNT_UP_MS) — matching the % number's own colour count-up.
+  // A SOLID fill whose colour IS the ramp point at the current fill — a warm→cool
+  // Apple spectrum (red→orange→green→cyan→blue) as the goal is approached (gold at
+  // 100% flips via the .is-complete CSS override). NOT a gradient smeared across
+  // the track: the whole fill is one colour that shifts WITH progress. Derived
+  // from w, so as the bar grows the colour tweens along the spectrum toward blue
+  // alongside the width (both share COUNT_UP_MS) — matching the % number's count-up.
   return (
     <div
       ref={ref}
@@ -361,27 +362,12 @@ function GoalBarFill({ target }: { target: number }) {
       style={{
         width: `${w}%`,
         backgroundColor: progressColor(w / 100),
-        // Match the % count-up (COUNT_UP_MS, ease-out quart) so the bar and the
+        // Match the % count-up (COUNT_UP_MS, ease-out quad) so the bar and the
         // number finish together instead of the bar racing ahead.
-        transition: `width ${COUNT_UP_MS}ms cubic-bezier(0.25, 1, 0.5, 1), background-color ${COUNT_UP_MS}ms cubic-bezier(0.25, 1, 0.5, 1)`,
+        transition: `width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1), background-color ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`,
       }}
     />
   );
-}
-
-// Training Health hero %. Counts up because the card carries a (segmented)
-// progress bar — the number and the bar fill together, on the same bottom-up
-// clock as the rest of the page. Blank until its tier delay is known, so it
-// rolls from 0 rather than flashing the final value.
-function RetentionPctRoll({ target, delayMs }: { target: number; delayMs: number }) {
-  const pct = useCountUp(target, COUNT_UP_MS, 0, delayMs);
-  return <>{pct == null ? "" : `${pct}%`}</>;
-}
-
-function RetentionPct({ target }: { target: number }) {
-  const { ref, delayMs } = useBottomUpDelay<HTMLSpanElement>();
-  if (delayMs == null) return <span ref={ref} />;
-  return <RetentionPctRoll target={target} delayMs={delayMs} />;
 }
 
 // Answers one question only: "how far am I from my destination?" A single
@@ -730,216 +716,6 @@ function WeightCard({
   );
 }
 
-/* ── Training Health Card ──────────────────────────────────────────────── */
-
-// On-track rows show "% of all-time PR" (how close to your best). Flagged
-// (watch) rows instead carry a stalled readout counting whole weeks since
-// the last new best — that's what actually earned the flag, and it reads
-// clearer than a % that could look like a contradiction (e.g. "97% · Review").
-function exerciseRetention(ex: import("./api").StrengthExercise): number {
-  return ex.latestE1RM / ex.prE1RM;
-}
-
-function fmtStalledReadout(weeks: number): { value: string; label: string } {
-  if (weeks < 1) return { value: "PR", label: "this wk" };
-  return { value: `${weeks}`, label: weeks === 1 ? "wk stalled" : "wks stalled" };
-}
-
-function AttentionRow({ exercise }: { exercise: import("./api").StrengthExercise }) {
-  const stalled = fmtStalledReadout(exercise.stalledWeeks);
-  return (
-    <div className="ov-th-row">
-      <span className="ov-th-row-dot" aria-hidden />
-      <span className="ov-th-row-name">{exercise.name}</span>
-      <span className="ov-th-row-stalled">
-        <span className="ov-th-row-stalled-val">{stalled.value}</span>{" "}
-        <span className="ov-th-row-stalled-label">{stalled.label}</span>
-      </span>
-    </div>
-  );
-}
-
-function OnTrackRow({ exercise }: { exercise: import("./api").StrengthExercise }) {
-  const retPct = Math.round(exerciseRetention(exercise) * 100);
-  return (
-    <div className="ov-th-row">
-      <span className="ov-th-row-name">{exercise.name}</span>
-      <span className="ov-th-row-pct">{retPct}%</span>
-    </div>
-  );
-}
-
-// Overview is a status snapshot, not the exercise list — even expanded, a
-// section only teases the first few; anyone wanting the full list has
-// Training for that (see onNav on the "+more" row below).
-const EXERCISE_ROW_LIMIT = 5;
-// On-track overflows far more often (most lifts are on track), so it's
-// capped tighter — the fold body stays reassurance-sized, not a full list.
-const ON_TRACK_ROW_LIMIT = 3;
-
-function TrainingHealthCard({
-  strength,
-  compoundProgress,
-  onNav,
-}: {
-  strength: import("./api").StrengthSummary;
-  compoundProgress: import("./api").CompoundProgress | null;
-  onNav: () => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const { ref, inView } = useInView<HTMLDivElement>();
-  const bodyRef = useRef<HTMLDivElement>(null);
-
-  // Expanding drops the detail list below the fold, where the floating tabbar
-  // can clip it. Nudge it into view once the body has rendered.
-  const toggleExpanded = () =>
-    setExpanded((v) => {
-      const next = !v;
-      if (next) {
-        requestAnimationFrame(() =>
-          bodyRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
-        );
-      }
-      return next;
-    });
-  const hasData = strength.total > 0;
-  const retentionPct = compoundProgress ? Math.round(compoundProgress.overall * 100) : null;
-  const attention = strength.watch;
-
-  // Attention always sits above On Track and is ordered worst-first (steepest
-  // recent decline, i.e. lowest trend), so the most urgent exercise reads first.
-  const watchExercises = strength.exercises
-    .filter((e) => e.status === "watch")
-    .sort((a, b) => a.trend - b.trend);
-  // On Track is ordered worst-first (lowest % of PR), so the exercises
-  // closest to needing attention read first.
-  const onTrackExercises = strength.exercises
-    .filter((e) => e.status !== "watch")
-    .sort((a, b) => exerciseRetention(a) - exerciseRetention(b));
-
-  if (!hasData) {
-    return (
-      <button type="button" className="page-card ov-training-health ov-training-health--nav" onClick={onNav}>
-        <span className="ov-th-label">Training Health</span>
-        <p className="ov-no-entry" style={{ textAlign: "left" }}>
-          Log 4+ sessions per exercise to unlock training health
-        </p>
-      </button>
-    );
-  }
-
-  return (
-    <div ref={ref} data-inview={inView} className={`page-card ov-training-health${expanded ? " is-expanded" : ""}`}>
-      {/* Tapping the header navigates to Training (matches Weight·TDEE's
-          whole-card-navigates pattern) — expand/collapse is the dedicated
-          fold trigger below, not this header. */}
-      <button type="button" className="ov-th-summary" onClick={onNav}>
-        <div className="ov-th-top">
-          <span className="ov-th-label">Training Health</span>
-          <span className="ov-th-chevron" aria-hidden>›</span>
-        </div>
-
-        <div className="ov-th-ret-hero">
-          {/* Hero % that HAS a progress bar → takes a semantic verdict colour
-              (v3.7 hero-% rule): coral if any lift needs attention, else green.
-              Neutral only when there's no data ("—"). */}
-          <MetricValue
-            size="lg"
-            style={retentionPct === null ? undefined : { color: attention > 0 ? "var(--gold)" : "var(--good)" }}
-          >
-            {retentionPct !== null ? <RetentionPct target={retentionPct} /> : "—"}
-          </MetricValue>
-          <span className="ov-th-ret-count">
-            {onTrackExercises.length} of {strength.total} lifts on track
-          </span>
-        </div>
-
-        {/* Segmented ratio bar — visual read of on-track vs attention that
-            doesn't depend on expanding the fold below. */}
-        <div
-          className="ov-th-bar"
-          role="img"
-          aria-label={`${onTrackExercises.length} of ${strength.total} lifts on track`}
-        >
-          {strength.exercises.map((ex, i) => (
-            <span
-              key={ex.slug}
-              className={`ov-th-bar-seg${i < onTrackExercises.length ? " is-good" : ""}`}
-              // Exception to the flat entrance: segments still fill one-by-one,
-              // but the whole run is spread across --dur-enter (after --enter-wait)
-              // so it stays inside the 500ms budget regardless of segment count.
-              style={{ animationDelay: `calc(var(--enter-wait) + ${i} * var(--dur-enter) / ${Math.max(1, strength.exercises.length)})` }}
-            />
-          ))}
-        </div>
-      </button>
-
-      {/* Single fold controls both Attention and On Track together, so the
-          collapsed card height never depends on how many lifts are flagged
-          or tracked — this row stands in for the whole detail list. */}
-      <button
-        type="button"
-        className="ov-th-fold"
-        onClick={toggleExpanded}
-        aria-expanded={expanded}
-      >
-        <span className="ov-th-fold-left">
-          {attention > 0 && (
-            <>
-              <span className="ov-th-fold-chip">{attention}</span>
-              <span className="ov-th-fold-text">need attention</span>
-              {!expanded && <span className="ov-th-fold-sep" aria-hidden>·</span>}
-            </>
-          )}
-          {!expanded && (
-            <span className="ov-th-fold-text ov-th-fold-text--muted">
-              {onTrackExercises.length} on track
-            </span>
-          )}
-        </span>
-        <svg
-          className={`ov-th-fold-chevron${expanded ? " is-open" : ""}`}
-          width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"
-        >
-          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-
-      {expanded && (
-        <div className="ov-th-fold-body" ref={bodyRef}>
-          {watchExercises.length > 0 && (
-            <div className="ov-th-section">
-              {watchExercises.slice(0, EXERCISE_ROW_LIMIT).map((ex) => (
-                <AttentionRow key={ex.slug} exercise={ex} />
-              ))}
-              {watchExercises.length > EXERCISE_ROW_LIMIT && (
-                <button type="button" className="ov-th-show-more" onClick={onNav}>
-                  +{watchExercises.length - EXERCISE_ROW_LIMIT} more in Training
-                </button>
-              )}
-            </div>
-          )}
-          {onTrackExercises.length > 0 && (
-            <div className="ov-th-section">
-              <div className="ov-th-sect-head-row">
-                <span className="ov-th-sect-head">On track · {onTrackExercises.length}</span>
-              </div>
-              {onTrackExercises.slice(0, ON_TRACK_ROW_LIMIT).map((ex) => (
-                <OnTrackRow key={ex.slug} exercise={ex} />
-              ))}
-              {onTrackExercises.length > ON_TRACK_ROW_LIMIT && (
-                <button type="button" className="ov-th-show-more" onClick={onNav}>
-                  +{onTrackExercises.length - ON_TRACK_ROW_LIMIT} more in Training
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ── Overview Page ─────────────────────────────────────────────────────── */
 
 export function OverviewPage() {
@@ -1055,7 +831,8 @@ export function OverviewPage() {
       )}
 
       {data && (
-        <TrainingHealthCard
+        <StrengthHealthCard
+          variant="snapshot"
           strength={data.strength}
           compoundProgress={data.compoundProgress}
           onNav={() => nav("training")}

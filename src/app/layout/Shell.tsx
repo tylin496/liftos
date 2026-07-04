@@ -245,6 +245,30 @@ export function Shell({ session }: { session: Session }) {
   const axisLocked = useRef<"h" | "v" | null>(null);
   const dragTo = useRef<TabId | null>(null);
 
+  // Pull-to-refresh: a downward drag from the very top of the page (any tab)
+  // re-bumps the current tab's activity version, which the render below
+  // already keys the page on — same mechanism as a tab re-entry, so it
+  // refetches and replays the entrance for free. `dy` is the damped pull
+  // distance shown by the indicator; `refreshing` holds it pinned open while
+  // the remount plays out.
+  const PULL_THRESHOLD = 64;
+  const [pull, setPull] = useState<{ dy: number; refreshing: boolean } | null>(null);
+  const pullActive = useRef(false);
+  // Mirrors `pull?.refreshing` without a stale closure inside the touch
+  // handlers below (that effect's deps are [tab], not [pull]).
+  const pullRefreshing = useRef(false);
+
+  function refreshTab() {
+    haptic("success");
+    pullRefreshing.current = true;
+    setPull({ dy: PULL_THRESHOLD, refreshing: true });
+    setTabVersions((prev) => ({ ...prev, [tab]: prev[tab] + 1 }));
+    window.setTimeout(() => {
+      pullRefreshing.current = false;
+      setPull(null);
+    }, 500);
+  }
+
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
@@ -261,7 +285,8 @@ export function Shell({ session }: { session: Session }) {
       // could even mis-commit a tab).
       axisLocked.current = null;
       dragTo.current = null;
-      if (slideRef.current?.settling) return; // ignore during a settle animation
+      pullActive.current = false;
+      if (slideRef.current?.settling || pullRefreshing.current) return; // ignore during a settle/refresh animation
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;
       prevX = lastX = e.touches[0].clientX;
@@ -269,7 +294,7 @@ export function Shell({ session }: { session: Session }) {
     }
 
     function onTouchMove(e: TouchEvent) {
-      if (slideRef.current?.settling) return;
+      if (slideRef.current?.settling || pullRefreshing.current) return;
       if (e.touches.length !== 1) return; // ignore multi-touch (pinch/zoom)
       const dx = e.touches[0].clientX - touchStartX.current;
       const dy = e.touches[0].clientY - touchStartY.current;
@@ -282,6 +307,9 @@ export function Shell({ session }: { session: Session }) {
           dragTo.current = to;
         } else if (Math.abs(dy) > 10) {
           axisLocked.current = "v";
+          // Only a downward pull that starts at the very top of the page
+          // counts — otherwise this is just ordinary vertical scrolling.
+          pullActive.current = dy > 0 && window.scrollY <= 0;
         }
       }
       if (axisLocked.current === "h") {
@@ -292,10 +320,35 @@ export function Shell({ session }: { session: Session }) {
         if (!to) return;
         const dir: 1 | -1 = dx < 0 ? 1 : -1;
         setSlide({ to, dir, dx, settling: false });
+      } else if (axisLocked.current === "v" && pullActive.current) {
+        if (dy <= 0) {
+          // Pulled back up past the top — cancel the gesture instead of
+          // letting it dip negative (would read as an upward flick).
+          pullActive.current = false;
+          setPull(null);
+          return;
+        }
+        e.preventDefault();
+        // Rubber-band damping so the indicator eases past the threshold
+        // rather than tracking the finger 1:1.
+        setPull({ dy: Math.min(PULL_THRESHOLD * 1.4, dy * 0.5), refreshing: false });
       }
     }
 
     function onTouchEnd(e: TouchEvent) {
+      if (axisLocked.current === "v") {
+        if (pullActive.current) {
+          pullActive.current = false;
+          setPull((p) => {
+            if (p && p.dy >= PULL_THRESHOLD) {
+              refreshTab();
+              return p;
+            }
+            return null;
+          });
+        }
+        return;
+      }
       if (axisLocked.current !== "h") return;
       const to = dragTo.current;
       const endX = e.changedTouches[0].clientX;
@@ -327,6 +380,10 @@ export function Shell({ session }: { session: Session }) {
       const wasHorizontal = axisLocked.current === "h";
       axisLocked.current = null;
       dragTo.current = null;
+      if (pullActive.current) {
+        pullActive.current = false;
+        setPull(null);
+      }
       if (wasHorizontal && slideRef.current) {
         setSlide((s) => (s ? { ...s, dx: 0, settling: true } : null));
         scheduleFinalize();
@@ -357,6 +414,14 @@ export function Shell({ session }: { session: Session }) {
             <PageTopBar eyebrow={header.eyebrow} title={header.title} onCopy={header.onCopy} note={header.note} />
           </div>
           <main ref={contentRef} className={`shell-content${slide ? " is-sliding" : ""}`}>
+            {pull && (
+              <div
+                className={`pull-refresh${pull.refreshing ? " is-refreshing" : ""}${pull.dy >= PULL_THRESHOLD ? " is-armed" : ""}`}
+                style={{ height: pull.dy }}
+              >
+                <span className="pull-refresh-spinner" />
+              </div>
+            )}
             {TAB_ORDER.map((tabId) => {
               if (!visited.has(tabId)) return null;
               const Page = PAGES[tabId];

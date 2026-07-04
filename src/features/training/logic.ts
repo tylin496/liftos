@@ -165,7 +165,14 @@ export function computeHistDelta(
   if (!Number.isFinite(cKg) || !Number.isFinite(pKg)) return null;
 
   const kgDelta = cKg - pKg;
-  const repsDelta = maxReps(cp.reps) - maxReps(pp.reps); // display only, see `detail` below
+  // Prefer the top-set delta — it's the per-set number the user reads. But when
+  // the top set held and only the lower drop-set volume moved (10/10/10 →
+  // 10/10/8), maxReps is unchanged and would print "0 reps" next to a direction
+  // arrow. Fall back to the total-reps delta — the same quantity cmpStrength
+  // used to pick the direction — so the number never contradicts the arrow.
+  const maxRepsDelta = maxReps(cp.reps) - maxReps(pp.reps);
+  const totalRepsDelta = totalReps(cp.reps, setCount) - totalReps(pp.reps, setCount);
+  const repsDelta = maxRepsDelta !== 0 ? maxRepsDelta : totalRepsDelta;
 
   const cE1 = epley1RM(cKg, cp.reps);
   const pE1 = epley1RM(pKg, pp.reps);

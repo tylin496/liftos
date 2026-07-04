@@ -97,6 +97,109 @@ function compoundPct(slugLogs: Array<{ log_date: string | null; raw: string | nu
   return Math.min(1, currentE1RM / prE1RM);
 }
 
+/** Logs grouped by exercise slug — the only shape the strength/compound
+ *  computations need. Rows may arrive in any date order (sorted internally). */
+type LogsBySlug = Record<string, Array<{ log_date: string | null; raw: string | null }>>;
+
+/**
+ * Per-exercise strength trend — the single source for the Training Health card,
+ * shared by Overview (fetchOverview) and the Training tab (computed from the
+ * logs it already holds). Needs ≥4 sessions per exercise to compare recent-3
+ * vs prior. Pure: pass logs grouped by slug, get the summary back.
+ */
+export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary {
+  const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, total: 0, exercises: [] };
+
+  for (const [slug, slugLogs] of Object.entries(logsBySlug)) {
+    // Performance trend: need ≥4 logs to compare recent 3 vs prior sessions
+    if (slugLogs.length < 4) continue;
+    strength.total++;
+
+    // Group by date (a day = one session), take best e1RM per date
+    const byDate: Record<string, number> = {};
+    for (const l of slugLogs) {
+      if (!l.log_date || !l.raw) continue;
+      const p = parse(l.raw);
+      if (!p) continue;
+      const w = score(p);
+      if (!Number.isFinite(w)) continue;
+      const e = epley1RM(w, p.reps);
+      byDate[l.log_date] = Math.max(byDate[l.log_date] ?? 0, e);
+    }
+    // Sort ascending by date so recent/prior slices are correct regardless of
+    // the caller's row order (Overview queries asc; the Training tab keeps logs
+    // newest-first).
+    const datedBests = Object.entries(byDate)
+      .filter(([, v]) => v > 0)
+      .sort(([a], [b]) => a.localeCompare(b));
+    const sessionBests = datedBests.map(([, v]) => v);
+    if (sessionBests.length < 4) { strength.total--; continue; }
+
+    // recent 3 vs the rest (prior sessions)
+    const recent = sessionBests.slice(-3);
+    const prior = sessionBests.slice(0, -3);
+    const recentAvg = recent.reduce((s, v) => s + v, 0) / recent.length;
+    const priorAvg = prior.reduce((s, v) => s + v, 0) / prior.length;
+
+    const ratio = recentAvg / priorAvg;
+    let status: StrengthStatus;
+    if (ratio >= 1.01) { strength.improving++; status = "improving"; }
+    else if (ratio >= 0.97) { strength.stable++; status = "stable"; }
+    else { strength.watch++; status = "watch"; }
+    const latestE1RM = recent[recent.length - 1];
+    const prE1RM = Math.max(...sessionBests);
+
+    // Weeks stalled: span from the last session that set a new running best to
+    // the most recent session. A rising lift lands its PR on (or near) the last
+    // session → ~0; a stalled one carries weeks of no new best.
+    let runningMax = -Infinity;
+    let prDate = datedBests[0][0];
+    for (const [date, e] of datedBests) {
+      if (e > runningMax) { runningMax = e; prDate = date; }
+    }
+    const lastDate = datedBests[datedBests.length - 1][0];
+    const stalledWeeks = Math.floor(
+      (Date.parse(lastDate) - Date.parse(prDate)) / (7 * 24 * 60 * 60 * 1000),
+    );
+
+    strength.exercises.push({
+      slug,
+      name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      status,
+      latestE1RM,
+      prE1RM,
+      trend: ratio,
+      stalledWeeks,
+    });
+  }
+
+  return strength;
+}
+
+/** Compound-lift progress (% of PR) — the Training Health hero number. Bench,
+ *  the first Pull-split lift, the first "row" lift, then Squat + RDL. Shared by
+ *  both surfaces; the caller resolves pull/row slugs (Overview via query, the
+ *  Training tab from its in-memory exercise list). */
+export function computeCompoundProgress(
+  logsBySlug: LogsBySlug,
+  pullSlug: string | null,
+  rowSlug: string | null,
+): CompoundProgress | null {
+  const compounds: { slug: string; label: string }[] = [
+    FIXED_COMPOUNDS[0],                                        // Bench
+    ...(pullSlug ? [{ slug: pullSlug, label: "Pull" }] : []),
+    ...(rowSlug ? [{ slug: rowSlug, label: "Row" }] : []),
+    ...FIXED_COMPOUNDS.slice(1),                               // Squat, RDL
+  ];
+  const items: CompoundItem[] = compounds.flatMap(({ slug, label }) => {
+    const pct = compoundPct(logsBySlug[slug] ?? []);
+    return pct !== null ? [{ slug, label, pct }] : [];
+  });
+  return items.length
+    ? { overall: items.reduce((s, x) => s + x.pct, 0) / items.length, items }
+    : null;
+}
+
 export async function fetchOverview(): Promise<OverviewData> {
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   if (userErr || !userData.user) throw userErr ?? new Error("Not signed in");
@@ -174,87 +277,11 @@ export async function fetchOverview(): Promise<OverviewData> {
     (bySlug[l.exercise_slug] ??= []).push(l);
   }
 
-  const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, total: 0, exercises: [] };
-
-  for (const slugLogs of Object.values(bySlug)) {
-    // Performance trend: need ≥4 logs to compare recent 3 vs prior sessions
-    if (slugLogs.length < 4) continue;
-    strength.total++;
-
-    // Group by date (a day = one session), take best e1RM per date
-    const byDate: Record<string, number> = {};
-    for (const l of slugLogs) {
-      if (!l.log_date || !l.raw) continue;
-      const p = parse(l.raw);
-      if (!p) continue;
-      const w = score(p);
-      if (!Number.isFinite(w)) continue;
-      const e = epley1RM(w, p.reps);
-      byDate[l.log_date] = Math.max(byDate[l.log_date] ?? 0, e);
-    }
-    // Dates ascending (query is ordered by log_date), each with its session best.
-    const datedBests = Object.entries(byDate).filter(([, v]) => v > 0);
-    const sessionBests = datedBests.map(([, v]) => v);
-    if (sessionBests.length < 4) { strength.total--; continue; }
-
-    // recent 3 vs the rest (prior sessions)
-    const recent = sessionBests.slice(-3);
-    const prior = sessionBests.slice(0, -3);
-    const recentAvg = recent.reduce((s, v) => s + v, 0) / recent.length;
-    const priorAvg = prior.reduce((s, v) => s + v, 0) / prior.length;
-
-    const ratio = recentAvg / priorAvg;
-    let status: StrengthStatus;
-    if (ratio >= 1.01) { strength.improving++; status = "improving"; }
-    else if (ratio >= 0.97) { strength.stable++; status = "stable"; }
-    else { strength.watch++; status = "watch"; }
-    const slug = slugLogs[0].exercise_slug!;
-    const latestE1RM = recent[recent.length - 1];
-    const prE1RM = Math.max(...sessionBests);
-
-    // Weeks stalled: span from the last session that set a new running best to
-    // the most recent session. A rising lift lands its PR on (or near) the last
-    // session → ~0; a stalled one carries weeks of no new best.
-    let runningMax = -Infinity;
-    let prDate = datedBests[0][0];
-    for (const [date, e] of datedBests) {
-      if (e > runningMax) { runningMax = e; prDate = date; }
-    }
-    const lastDate = datedBests[datedBests.length - 1][0];
-    const stalledWeeks = Math.floor(
-      (Date.parse(lastDate) - Date.parse(prDate)) / (7 * 24 * 60 * 60 * 1000),
-    );
-
-    strength.exercises.push({
-      slug,
-      name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-      status,
-      latestE1RM,
-      prE1RM,
-      trend: ratio,
-      stalledWeeks,
-    });
-  }
+  const strength = computeStrengthSummary(bySlug);
 
   const pullSlug = pullFirstRes.data?.slug ?? null;
   const rowSlug  = rowFirstRes.data?.slug  ?? null;
-  const compounds: { slug: string; label: string }[] = [
-    FIXED_COMPOUNDS[0],                                           // Bench
-    ...(pullSlug ? [{ slug: pullSlug, label: "Pull" }] : []),    // first of Pull split
-    ...(rowSlug  ? [{ slug: rowSlug,  label: "Row"  }] : []),    // first "row" exercise in Pull split
-    ...FIXED_COMPOUNDS.slice(1),                                  // Squat, RDL
-  ];
-
-  const compoundItems: CompoundItem[] = compounds.flatMap(({ slug, label }) => {
-    const pct = compoundPct(bySlug[slug] ?? []);
-    return pct !== null ? [{ slug, label, pct }] : [];
-  });
-  const compoundProgress: CompoundProgress | null = compoundItems.length
-    ? {
-        overall: compoundItems.reduce((s, x) => s + x.pct, 0) / compoundItems.length,
-        items: compoundItems,
-      }
-    : null;
+  const compoundProgress = computeCompoundProgress(bySlug, pullSlug, rowSlug);
 
   // Primary Goal — computed entirely upstream in the Provider. The card only
   // renders the finished payload; swapping goal types never touches this call.
