@@ -163,8 +163,12 @@ html.kb-open .tabbar {
    the active tab (mirrors .seg-thumb). */
 .tabbar-thumb {
   position: absolute;
-  top: var(--space-1);
-  bottom: var(--space-1);
+  /* --space-1 (4px) + 1px optical nudge — below the smallest spacing token,
+     an allowed micro-adjustment (≤4px over the token). */
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  top: 5px;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  bottom: 5px;
   left: var(--space-1);
   width: calc((100% - var(--space-1) * 2) / 4);
   transform: translateX(calc(var(--tab-idx, 0) * 100%));
@@ -175,8 +179,14 @@ html.kb-open .tabbar {
 
 .tabbar-thumb-fill {
   display: block;
-  width: 100%;
+  /* Horizontal inset slightly tighter than the wrapper's top/bottom inset —
+     a touch wider than strictly symmetric reads better against the pill's
+     rounded ends. 1px/side is below the smallest spacing token (--space-1,
+     4px) — an allowed optical micro-adjustment (≤4px), not a scale value. */
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  width: calc(100% - 2px);
   height: 100%;
+  margin: 0 auto;
   border-radius: var(--radius-pill);
   /* Completely FLAT fill — no rim, edge, or shadow (inner or outer). A grey
      tint that reads darker than the bar in light mode (lighter in dark).
