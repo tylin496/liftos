@@ -1663,57 +1663,6 @@
   color: var(--ink-3);
 }
 
-/* ── Training-age trophy ─────────────────────────────────────────────────────
-   The "how long I've been at this" signature at the very bottom of the tab. No
-   card, no fill, no border — a quiet gold footer you scroll down to find. Gold
-   is earned here; it's the tab's one celebration mark, kept as a whisper. */
-.tr-trophy {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  /* .page already puts a 12px flex gap above → +8px marks it as a detached
-     footer without a void. Below: .shell-content already reserves 24px + tabbar
-     + safe-area, so it only needs a small breath of its own. */
-  margin-top: var(--space-2);
-  margin-bottom: var(--space-2);
-  text-align: center;
-}
-
-.tr-trophy-badge {
-  display: flex;
-  color: var(--gold);
-}
-
-.tr-trophy-text {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.15;
-}
-
-.tr-trophy-eyebrow {
-  font-size: var(--role-eyebrow-size);
-  font-weight: var(--role-eyebrow-weight);
-  letter-spacing: var(--role-eyebrow-spacing);
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--gold) 72%, var(--ink-3));
-}
-
-.tr-trophy-hero {
-  font-size: var(--metric-md);
-  font-weight: 700;
-  color: var(--gold);
-  margin-top: 2px;
-}
-
-.tr-trophy-sub {
-  font-size: var(--role-caption-size);
-  font-weight: var(--role-caption-weight);
-  color: var(--ink-4);
-  margin-top: 2px;
-}
-
 .tr-top-row {
   display: flex;
   align-items: center;
