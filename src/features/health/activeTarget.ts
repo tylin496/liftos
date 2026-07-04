@@ -23,7 +23,9 @@ export interface ActiveTargetView {
     daysElapsed: number;
     /** Days this week that actually have an active reading. */
     daysWithData: number;
-    /** Average active/day so far (over days with data). */
+    /** Average active/day over COMPLETED days (Mon→yesterday), unsynced days
+     *  counted as 0 — same zero-fill assumption as today's floating target,
+     *  and no dilution from today's partial reading. null on Monday. */
     avgSoFar: number | null;
     /** How far below target the average sits, per day (+ = behind). */
     shortPerDay: number | null;
@@ -31,7 +33,7 @@ export interface ActiveTargetView {
     neededPerRemaining: number | null;
     /** Days left in the week after today. */
     remainingDays: number;
-    /** true once the week's total has already met target × 7. */
+    /** Pace check: completed days have banked at least target × days. */
     onTrack: boolean;
   };
 
@@ -69,7 +71,10 @@ function startOfWeekISO(todayISO: string): { mondayISO: string; weekday: number 
   const weekday = js === 0 ? 7 : js;
   const monday = new Date(d);
   monday.setDate(d.getDate() - (weekday - 1));
-  return { mondayISO: monday.toISOString().slice(0, 10), weekday };
+  // localDateStr, NOT toISOString: the latter converts local midnight to UTC,
+  // which in UTC+ timezones lands on the previous calendar day — the week
+  // filter would silently include last Sunday.
+  return { mondayISO: localDateStr(monday), weekday };
 }
 
 /**
@@ -98,13 +103,20 @@ export function computeActiveTarget(
   );
   const accrued = thisWeek.reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
   const daysWithData = thisWeek.length;
-  const avgSoFar = daysWithData ? Math.round(accrued / daysWithData) : null;
+  const accruedThroughYesterday = thisWeek
+    .filter((m) => m.metric_date < todayISO)
+    .reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
+  // Pace over COMPLETED days only, missing days = 0: today's partial reading
+  // would dilute the average, and skipping unsynced days would tell a rosier
+  // story than the floating target (which treats them as 0) tells the ring.
+  const completedDays = weekday - 1;
+  const avgSoFar = completedDays > 0 ? Math.round(accruedThroughYesterday / completedDays) : null;
   const shortPerDay = avgSoFar != null ? Math.round(activeTargetPerDay - avgSoFar) : null;
 
   const weeklyGoalTotal = activeTargetPerDay * 7;
   const neededPerRemaining =
     remainingDays > 0 ? Math.max(0, Math.round((weeklyGoalTotal - accrued) / remainingDays)) : null;
-  const onTrack = accrued >= weeklyGoalTotal;
+  const onTrack = accruedThroughYesterday >= activeTargetPerDay * completedDays;
 
   // Training-day contribution: average active on trained vs rest days over the
   // recent window. Only meaningful with a couple of each kind on record.
@@ -134,9 +146,6 @@ export function computeActiveTarget(
   // Today's floating target: what's left of the weekly goal, spread across
   // today + the days after it. Banking active on prior days lowers this;
   // falling behind raises it — the number the ring is actually built on.
-  const accruedThroughYesterday = thisWeek
-    .filter((m) => m.metric_date < todayISO)
-    .reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
   const daysRemainingInclToday = 8 - weekday;
   const todayTarget = Math.max(
     0,
@@ -179,5 +188,6 @@ export function computeActiveTarget(
 function localDateStrDaysAgo(days: number, fromISO: string): string {
   const d = new Date(`${fromISO}T00:00:00`);
   d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+  // Same toISOString-vs-local pitfall as startOfWeekISO above.
+  return localDateStr(d);
 }
