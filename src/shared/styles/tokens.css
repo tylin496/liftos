@@ -67,12 +67,13 @@
                         traffic-light amber. Was coral (~10°), too close to
                         --bad's red (~355°); orange sits clear of both --bad
                         and the celebration --gold (~45°). */
-  /* PR / gold-reward celebration — a rich metallic GOLD (not bronze/brown).
+  /* PR / gold-reward celebration — a rich metallic GOLD: warm and desaturated
+     enough to read as metal, not bronze/brown and not flat/pure yellow.
      Reserved exclusively for achievements and personal records — never a
      generic warning (that's the coral --warn) or a progress colour. Identity
      is carried by animation/stars/confetti plus the gold itself. Named --gold
      (was --pr) so the token that IS gold is actually called gold. */
-  --gold: #c89a16;   /* trophy gold */
+  --gold: #d4af37;   /* trophy gold — the classic metallic gold (warm ~46°, luminous, not lemon-yellow) */
   --blue: #007eae;   /* Cyan — neutral series/identity colour, never a status verdict */
 
   /* ── Health chart metric colors (iOS-style; read fine on light + dark) ── */
@@ -296,7 +297,7 @@
   --good: #4ad968;
   --bad: #ff6165;
   --warn: #ff9f0a;   /* Warning / attention — Apple systemOrange (dark), clear of --bad/--gold */
-  --gold: #f2c94c;   /* PR / gold-reward — glowing trophy gold (was --pr) */
+  --gold: #edcb5c;   /* PR / gold-reward — glowing metallic gold, brighter for dark (was --pr) */
   --blue: #6dd9ff;   /* Cyan (IC-dark) */
   /* Health chart colours — Apple increased-contrast (dark) for active (brighter
      on dark); measurement/sleep use Default (dark) instead of IC-dark — the
