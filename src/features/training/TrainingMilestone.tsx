@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useCelebration } from "@shared/components/Celebration";
+import { useToast } from "@shared/components/Toast";
 import { useNutritionConfig } from "@features/nutrition/NutritionConfigContext";
 import { trainingMonthsFromStart } from "@features/nutrition/logic";
 
@@ -25,7 +26,9 @@ export function fmtTenure(months: number): string {
 }
 
 /**
- * Fires a one-time gold celebration when training tenure crosses a milestone.
+ * Fires a one-time reward when training tenure crosses a 3-month milestone.
+ * Two tiers: a whole-year mark (12/24/36…) gets the big sticky gold
+ * celebration; the in-between quarters (3/6/9/15…) get a lightweight toast.
  * Mounted app-wide (Shell) so it evaluates once per launch, regardless of tab.
  *
  * On first ever run it baselines to the already-passed milestone WITHOUT
@@ -35,6 +38,7 @@ export function fmtTenure(months: number): string {
 export function TrainingMilestone() {
   const { config } = useNutritionConfig();
   const { celebrate, node } = useCelebration();
+  const addToast = useToast();
   const evaluated = useRef(false);
 
   useEffect(() => {
@@ -53,9 +57,16 @@ export function TrainingMilestone() {
     }
     if (ms > Number(stored)) {
       localStorage.setItem(SEEN_KEY, String(ms));
-      celebrate({ variant: "milestone", title: fmtTenure(ms), sub: "Training milestone", sticky: true });
+      const label = fmtTenure(ms);
+      if (ms % 12 === 0) {
+        // Whole-year mark — the big sticky moment.
+        celebrate({ variant: "milestone", title: label, sub: "Training milestone", sticky: true });
+      } else {
+        // In-between quarter — a quiet toast, no confetti.
+        addToast(`${label} of training`, "success", 4000);
+      }
     }
-  }, [config, celebrate]);
+  }, [config, celebrate, addToast]);
 
   return node;
 }
