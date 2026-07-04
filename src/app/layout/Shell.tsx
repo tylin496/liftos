@@ -88,6 +88,9 @@ export function Shell({ session }: { session: Session }) {
     return () => { clearTimeout(leaveT); clearTimeout(doneT); };
   }, [splash]);
   const settleTimer = useRef<number | null>(null);
+  // The deferred kickoff of a tap-triggered slide (see switchTab). Tracked so a
+  // rapid second tap can cancel it before it resurrects a slide we just cleared.
+  const kickoffTimer = useRef<number | null>(null);
   // Every tab entry re-fetches and re-renders from a skeleton, so we always
   // land the freshly-loaded page at the top. (Per-tab scroll memory was tried
   // and reverted: the skeleton is 0-height when a restore would fire, so it
@@ -172,8 +175,21 @@ export function Shell({ session }: { session: Session }) {
       // in-flight animation finish instead of snapping it to completion.
       if (slideRef.current.to === next) return;
       if (options?.scrollTo) setPendingScrollTarget(options.scrollTo);
+      // Cancel the in-flight slide's pending finalize and clear the slide state
+      // itself. Otherwise the stale timer fires later and commits the OLD slide
+      // target (its dx is already off-screen), overriding this tap — and the
+      // newly-committed panel renders translated off-screen for the same reason.
+      if (settleTimer.current) {
+        clearTimeout(settleTimer.current);
+        settleTimer.current = null;
+      }
+      if (kickoffTimer.current) {
+        clearTimeout(kickoffTimer.current);
+        kickoffTimer.current = null;
+      }
       enterTab(next);
       commitTab(next);
+      setSlide(null);
       return;
     }
     if (options?.scrollTo) setPendingScrollTarget(options.scrollTo);
@@ -184,7 +200,8 @@ export function Shell({ session }: { session: Session }) {
     // target on a timer so the browser paints the start frame first. setTimeout
     // (not rAF) so the animation still completes if the tab is backgrounded.
     setSlide({ to: next, dir, dx: 0, settling: false });
-    window.setTimeout(() => {
+    kickoffTimer.current = window.setTimeout(() => {
+      kickoffTimer.current = null;
       const width = window.innerWidth || 1;
       setSlide({ to: next, dir, dx: -dir * width, settling: true });
       scheduleFinalize();
