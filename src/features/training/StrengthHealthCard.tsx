@@ -108,7 +108,8 @@ function RetentionPct({ target }: { target: number }) {
 }
 
 export interface StrengthHealthCardProps {
-  strength: StrengthSummary;
+  /** Absent while loading — the card renders its in-place skeleton instead. */
+  strength?: StrengthSummary;
   /** "snapshot" = Overview (hero + bar + one summary line, taps to Training).
    *  "full" = Training tab (same header, detail lists shown inline). */
   variant: "snapshot" | "full";
@@ -117,6 +118,9 @@ export interface StrengthHealthCardProps {
   /** Only meaningful for the full card — lets Overview's nav scroll straight
    *  to it (NavContext's scrollTo target) instead of landing at the tab top. */
   id?: string;
+  /** Cold-load: render the same DOM with placeholder values + shimmer, so the
+   *  card resolves in place instead of unmounting a separate skeleton. */
+  loading?: boolean;
 }
 
 export function StrengthHealthCard({
@@ -124,17 +128,65 @@ export function StrengthHealthCard({
   variant,
   onNav,
   id,
+  loading = false,
 }: StrengthHealthCardProps) {
-  const hasData = strength.total > 0;
-  const attention = strength.watch;
-  // Now is read once per render for the staleness labels. Fine as a plain read —
-  // it only drives a "logged Nw ago" hint, nothing that needs to be reactive.
-  const nowMs = Date.now();
+  // Hooks run unconditionally, before any early return, so the count stays
+  // stable across the loading → loaded transition (same mounted instance).
   // On Track defaults collapsed — it's reassurance, not urgent. Needs Attention
   // is always shown expanded: if something needs attention, that's the whole
   // point of the card, not something to tuck behind a tap.
   const [trackOpen, setTrackOpen] = useState(false);
   const trackSectionRef = useRef<HTMLDivElement>(null);
+
+  // In-place skeleton: same header + hero + bar + fold structure with
+  // placeholder values, tag kept stable per variant (button/div) so the node
+  // isn't replaced when data lands. Same DOM the loaded card uses below.
+  if (loading || !strength) {
+    const skelHeader = (
+      <div className="ov-th-top">
+        <span className="ov-th-label">Training Health</span>
+        {variant === "snapshot" && <span className="ov-th-chevron" aria-hidden>›</span>}
+      </div>
+    );
+    const skelBody = (
+      <>
+        {skelHeader}
+        <div className="ov-th-ret-hero">
+          <MetricValue size="lg">00%</MetricValue>
+          <span className="ov-th-ret-count">0 of 0 tracked lifts on track</span>
+        </div>
+        <div className="ov-th-bar" aria-hidden>
+          {Array.from({ length: 15 }).map((_, i) => (
+            <span key={i} className="ov-th-bar-seg is-good" />
+          ))}
+        </div>
+        <div className="ov-th-fold">
+          <span className="ov-th-fold-left">
+            <span className="ov-th-fold-text ov-th-fold-text--muted">Loading…</span>
+          </span>
+        </div>
+      </>
+    );
+    return variant === "snapshot" ? (
+      <button
+        type="button"
+        className="page-card ov-training-health ov-training-health--nav loading-card"
+        onClick={onNav}
+      >
+        {skelBody}
+      </button>
+    ) : (
+      <div id={id} className="page-card ov-training-health loading-card">
+        {skelBody}
+      </div>
+    );
+  }
+
+  const hasData = strength.total > 0;
+  const attention = strength.watch;
+  // Now is read once per render for the staleness labels. Fine as a plain read —
+  // it only drives a "logged Nw ago" hint, nothing that needs to be reactive.
+  const nowMs = Date.now();
 
   // Expanding On Track drops rows below the fold, where the floating tabbar can
   // clip them — nudge the section into view once the rows have rendered.

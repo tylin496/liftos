@@ -200,8 +200,38 @@ function RecoveryRow({
   );
 }
 
-function RecoveryCard({ snap }: { snap: RecoverySnapshot }) {
-  if (!snap.status) return null;
+function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | null; loading?: boolean }) {
+  // Cold load — same card shell + three rows with placeholder values, resolves
+  // in place. Kept mounted alongside the loaded card (same DOM) so readiness
+  // data landing doesn't unmount a separate skeleton and replay the entrance.
+  if (loading) {
+    return (
+      <section className="page-card health-recovery loading-card">
+        <div className="health-recovery-head">
+          <span className="health-card-eyebrow">Recovery</span>
+          <span className="health-recovery-status">Loading…</span>
+        </div>
+        <div className="health-recovery-rows">
+          {[
+            { label: "Sleep", value: "0.0", unit: "h" },
+            { label: "HRV", value: "00", unit: "ms" },
+            { label: "RHR", value: "00", unit: "bpm" },
+          ].map((r) => (
+            <div key={r.label} className="health-recovery-row">
+              <span className="health-recovery-row-label">{r.label}</span>
+              <div className="health-recovery-row-stat">
+                <MetricValue size="md" unit={r.unit}>{r.value}</MetricValue>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // Loaded but no readiness data — genuinely nothing to show, so the card
+  // collapses (rare; needs sleep/HRV/RHR history).
+  if (!snap || !snap.status) return null;
 
   const sleepDelta = snap.sleepHours != null && snap.sleepBaseline != null
     ? snap.sleepHours - snap.sleepBaseline : null;
@@ -532,118 +562,70 @@ export function HealthPage() {
         )}
       </section>
 
-      {/* 2. Trend card skeleton — same TrendCard component, placeholder values,
-          so height matches the loaded Weight / Body Fat / Lean Mass cards. */}
-      {!data && METRICS.map((spec) => (
-        <TrendCard
-          key={spec.key}
-          loading
-          label={spec.label}
-          avgLabel={spec.avgLabel}
-          value={0}
-          unit={spec.unit}
-          decimals={spec.decimals}
-          points={[]}
-          delta={null}
-          rangeDays={spec.bucket * SPARK_POINTS}
-          color={spec.color}
-        />
-      ))}
-      {!data && (
-        <TrendCard
-          loading
-          label="Lean Mass"
-          avgLabel="14-day average"
-          value={0}
-          unit="kg"
-          decimals={1}
-          points={[]}
-          delta={null}
-          rangeDays={14 * SPARK_POINTS}
-          color="var(--health-measurement)"
-        />
-      )}
+      {/* 2. Trend cards — Weight, then Body Fat (body-composition read). Always
+          mounted; each renders its own skeleton (placeholder values) while
+          loading, then resolves the SAME DOM to real values when data lands —
+          no separate skeleton subtree to unmount, so the entrance plays once. */}
+      {METRICS.map((spec) => {
+        const c = cards.find((x) => x.spec.key === spec.key);
+        return (
+          <TrendCard
+            key={spec.key}
+            loading={!data}
+            label={spec.label}
+            avgLabel={spec.avgLabel}
+            value={c ? c.thisWeek : null}
+            unit={spec.unit}
+            decimals={spec.decimals}
+            points={c ? c.bucketed : []}
+            minSpan={spec.minSpan}
+            rangeDays={spec.bucket * SPARK_POINTS}
+            color={spec.color}
+            delta={
+              // Both Weight and Body Fat are down-good on a cut — this page is the
+              // body-composition trend view, so each carries its own coloured
+              // delta (the smoothed rolling average, not a single noisy day; the
+              // threshold still suppresses changes within noise). Overview's weight
+              // card stays delta-free because its pace/Status read covers it there.
+              c && c.change != null && c.readingCount >= 2 ? (
+                <MetricDelta value={c.change} direction="down-good" decimals={spec.decimals} unit={spec.unit} />
+              ) : null
+            }
+            note={
+              spec.key === "body_fat_pct" && skippedBodyFatCount > 0
+                ? `Skipped ${skippedBodyFatCount} invalid body fat sample${skippedBodyFatCount === 1 ? "" : "s"}`
+                : undefined
+            }
+          />
+        );
+      })}
 
-      {/* Recovery card skeleton — same structure as the loaded RecoveryCard so
-          the tail of the page doesn't jump when readiness data lands. */}
-      {!data && (
-        <section className="page-card health-recovery loading-card">
-          <div className="health-recovery-head">
-            <span className="health-card-eyebrow">Recovery</span>
-            <span className="health-recovery-status">Loading…</span>
-          </div>
-          <div className="health-recovery-rows">
-            {[
-              { label: "Sleep", value: "0.0", unit: "h" },
-              { label: "HRV", value: "00", unit: "ms" },
-              { label: "RHR", value: "00", unit: "bpm" },
-            ].map((r) => (
-              <div key={r.label} className="health-recovery-row">
-                <span className="health-recovery-row-label">{r.label}</span>
-                <div className="health-recovery-row-stat">
-                  <MetricValue size="md" unit={r.unit}>{r.value}</MetricValue>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Lean Mass — derived from weight × (1 − body_fat%). Always mounted so it
+          holds its slot; shows "—" when there's genuinely no body-fat data,
+          same as Weight / Body Fat handle a missing value. */}
+      <TrendCard
+        loading={!data}
+        label="Lean Mass"
+        avgLabel="14-day average"
+        value={lbmCard ? lbmCard.thisWeek : null}
+        unit="kg"
+        decimals={1}
+        points={lbmCard ? lbmCard.bucketed : []}
+        minSpan={2}
+        rangeDays={lbmCard ? lbmCard.rangeDays : 14 * SPARK_POINTS}
+        color="var(--health-measurement)"
+        delta={
+          lbmCard && lbmCard.change != null && lbmCard.readingCount >= 2 ? (
+            <MetricDelta value={lbmCard.change} direction="up-good" decimals={1} unit="kg" />
+          ) : null
+        }
+      />
 
-      {/* Trend cards — Weight, then Body Fat (body-composition read). */}
-      {cards.map(({ spec, bucketed, thisWeek, change, readingCount }) => (
-        <TrendCard
-          key={spec.key}
-          label={spec.label}
-          avgLabel={spec.avgLabel}
-          value={thisWeek}
-          unit={spec.unit}
-          decimals={spec.decimals}
-          points={bucketed}
-          minSpan={spec.minSpan}
-          rangeDays={spec.bucket * SPARK_POINTS}
-          color={spec.color}
-          delta={
-            // Both Weight and Body Fat are down-good on a cut — this page is the
-            // body-composition trend view, so each carries its own coloured
-            // delta (the smoothed rolling average, not a single noisy day; the
-            // threshold still suppresses changes within noise). Overview's weight
-            // card stays delta-free because its pace/Status read covers it there.
-            change != null && readingCount >= 2 ? (
-              <MetricDelta value={change} direction="down-good" decimals={spec.decimals} unit={spec.unit} />
-            ) : null
-          }
-          note={
-            spec.key === "body_fat_pct" && skippedBodyFatCount > 0
-              ? `Skipped ${skippedBodyFatCount} invalid body fat sample${skippedBodyFatCount === 1 ? "" : "s"}`
-              : undefined
-          }
-        />
-      ))}
-
-      {/* Lean Mass card — derived from weight × (1 - body_fat%) */}
-      {lbmCard && (
-        <TrendCard
-          label="Lean Mass"
-          avgLabel="14-day average"
-          value={lbmCard.thisWeek}
-          unit="kg"
-          decimals={1}
-          points={lbmCard.bucketed}
-          minSpan={2}
-          rangeDays={lbmCard.rangeDays}
-          color="var(--health-measurement)"
-          delta={
-            lbmCard.change != null && lbmCard.readingCount >= 2 ? (
-              <MetricDelta value={lbmCard.change} direction="up-good" decimals={1} unit="kg" />
-            ) : null
-          }
-        />
-      )}
-
-      {/* Recovery — sleep / HRV / RHR readiness snapshot. Sits last: it's a
-          day-to-day state read, below the longer-arc body-composition and TDEE
-          cards. */}
-      {recovery && <RecoveryCard snap={recovery} />}
+      {/* Recovery — sleep / HRV / RHR readiness snapshot. Always mounted (own
+          skeleton while loading); collapses only if there's genuinely no
+          readiness data. Sits last: a day-to-day state read below the
+          longer-arc body-composition and TDEE cards. */}
+      <RecoveryCard loading={!data} snap={recovery} />
     </div>
   );
 }

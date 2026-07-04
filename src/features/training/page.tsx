@@ -916,13 +916,16 @@ function TrainingPageInner() {
       )}
 
       {/* ── Training Health (full card) ── */}
-      {exercises && (
-        <StrengthHealthCard
-          id="training-strength-health-card"
-          variant="full"
-          strength={strengthHealth.strength}
-        />
-      )}
+      {/* A stable card, so it renders in place: its own skeleton while logs load,
+          then resolves the same DOM to real values (no separate skeleton to
+          unmount). The exercise list above stays a separate skeleton — a dynamic
+          list can't resolve N different cards from 3 placeholders in place. */}
+      <StrengthHealthCard
+        id="training-strength-health-card"
+        variant="full"
+        loading={!exercises}
+        strength={exercises ? strengthHealth.strength : undefined}
+      />
     </div>
   );
 }
