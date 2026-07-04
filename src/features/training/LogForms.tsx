@@ -285,7 +285,12 @@ export function AddAssistedForm({
   const lastAssist = lastParsed?.assisted?.assist ?? null;
 
   const [assistance, setAssistance] = useState(lastAssist != null ? String(lastAssist) : "");
-  const [bodyweight, setBodyweight] = useState("");
+  // Prefer the latest Health measurement (fetched below); seed from the last
+  // bodyweight entered on a prior assisted set so logging isn't blocked when
+  // Health has no weight yet.
+  const [bodyweight, setBodyweight] = useState(
+    () => localStorage.getItem(LAST_BW_KEY) ?? "",
+  );
   const [repValues, setRepValues] = useState(() => emptyRepValues(n));
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");

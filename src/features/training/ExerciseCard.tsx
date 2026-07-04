@@ -160,6 +160,11 @@ export function ExerciseCard({
   const pendingLogDeletesRef = useRef<
     Map<string, { undone: boolean; timer: ReturnType<typeof setTimeout> }>
   >(new Map());
+  // Latest onLogged, so the unmount-only flush effect below can refresh the
+  // parent without re-subscribing (onLogged is stable, but this stays correct
+  // even if it isn't).
+  const onLoggedRef = useRef(onLogged);
+  onLoggedRef.current = onLogged;
 
 
   useEffect(() => {
@@ -178,11 +183,15 @@ export function ExerciseCard({
   useEffect(() => {
     const timers = pendingLogDeletesRef.current;
     return () => {
+      const flushing: Promise<unknown>[] = [];
       for (const [id, rec] of timers) {
         clearTimeout(rec.timer);
-        if (!rec.undone) deleteLog(id).catch(() => {});
+        if (!rec.undone) flushing.push(deleteLog(id).catch(() => {}));
       }
       timers.clear();
+      // Refresh the (still-mounted) parent once the deletes commit, so the row
+      // doesn't reappear if the user returns to this split before a reload.
+      if (flushing.length) Promise.all(flushing).then(() => onLoggedRef.current());
     };
   }, []);
 
@@ -216,6 +225,14 @@ export function ExerciseCard({
   const filteredDesc = useMemo(() => [...filteredAsc].reverse(), [filteredAsc]);
   const visibleCount = showAll ? filteredDesc.length : Math.min(2, filteredDesc.length);
   const visible = filteredDesc.slice(0, visibleCount);
+
+  // Which log form to show: follow the most recent entry's kind, but for an
+  // exercise with no logs yet honour its declared assisted_mode — otherwise the
+  // "Assisted mode" flag set at creation (incl. the seeded Assisted Pull-up)
+  // would never surface the assisted form until a first entry somehow exists.
+  const addAssisted = effectiveLogs.length
+    ? effectiveLogs[0]?.kind === "assisted"
+    : !!exercise.assisted_mode;
 
 
   async function handleAdd(raw: string, date: string, note: string) {
@@ -783,7 +800,7 @@ export function ExerciseCard({
 
       {/* ── Log set form or button ── */}
       {editingMode === "logset" ? (
-        effectiveLogs[0]?.kind === "assisted" ? (
+        addAssisted ? (
           <AddAssistedForm
             setCount={sc}
             lastLog={effectiveLogs[0] ?? null}
