@@ -334,6 +334,7 @@ export function HistoryView({
                   !hasCal ? "is-missing" : "",
                   doubleHit ? "is-double-hit" : "",
                 ].filter(Boolean).join(" ")}
+                style={{ "--bar-index": i } as React.CSSProperties}
                 type="button"
                 disabled={isFuture}
                 aria-label={
@@ -360,10 +361,7 @@ export function HistoryView({
                 {/* Bars: real → missed (past) or future (grey placeholder) */}
                 <div className="nutri-trend-bars">
                   {hasCal || hasProtein ? (
-                    <div
-                      className="ntb-pair"
-                      style={{ "--bar-index": i } as React.CSSProperties}
-                    >
+                    <div className="ntb-pair">
                       <div
                         className={`ntb-bar ntb-bar-kcal${isSurplus ? " surplus" : ""}`}
                         style={{ height: hasCal ? `${kcalPct}%` : "7px" }}
@@ -375,15 +373,9 @@ export function HistoryView({
                     </div>
                   ) : isFuture ? (
                     // Upcoming days are left completely blank — no placeholder bar.
-                    <div
-                      className="ntb-pair ntb-pair--empty"
-                      style={{ "--bar-index": i } as React.CSSProperties}
-                    />
+                    <div className="ntb-pair ntb-pair--empty" />
                   ) : (
-                    <div
-                      className="ntb-pair ntb-pair--missing"
-                      style={{ "--bar-index": i } as React.CSSProperties}
-                    >
+                    <div className="ntb-pair ntb-pair--missing">
                       <div className="ntb-bar ntb-bar--missing" />
                       <div className="ntb-bar ntb-bar--missing" />
                     </div>

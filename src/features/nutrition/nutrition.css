@@ -949,14 +949,38 @@
   min-height: 28px;
   justify-content: flex-end;
   margin-bottom: 3px;
+}
+
+/* The value block is an entrance GATE: it fades in on the SAME delayed clock as
+   this column's bar (matching the .ntb-pair rules below), so the number renders
+   together with its bar instead of popping first. Plays once on mount and never
+   re-triggers, so day-to-day selection stays instant (handled by the spans). */
+.nutri-trend--intro .ntb-values {
+  animation: nutri-val-in var(--dur-enter) var(--ease-enter) both;
+  animation-delay: calc(var(--enter-wait) + var(--bar-index, 0) * var(--stagger-step));
+}
+.nutri-trend--after-slide .ntb-values {
+  animation: nutri-val-in var(--dur-enter) var(--ease-enter) both;
+  animation-delay: calc(var(--dur-enter) + var(--bar-index, 0) * var(--stagger-step));
+}
+@keyframes nutri-val-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Only the selected / hovered column's numbers show — instant, so tapping a day
+   never lags behind the entrance gate above. */
+.ntb-val-kcal,
+.ntb-val-prot {
   opacity: 0;
   transition: opacity var(--dur-press) var(--ease-move);
 }
-
-.nutri-trend-col.is-selected .ntb-values { opacity: 1; }
+.nutri-trend-col.is-selected .ntb-val-kcal,
+.nutri-trend-col.is-selected .ntb-val-prot { opacity: 1; }
 
 @media (hover: hover) and (pointer: fine) {
-  .nutri-trend-col:hover .ntb-values { opacity: 1; }
+  .nutri-trend-col:hover .ntb-val-kcal,
+  .nutri-trend-col:hover .ntb-val-prot { opacity: 1; }
 }
 
 .ntb-val-kcal {
