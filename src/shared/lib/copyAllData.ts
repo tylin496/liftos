@@ -26,13 +26,12 @@ const MAX_TRAINING_LOGS_PER_EXERCISE = 15;
 
 type MetricKey =
   | "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal"
-  | "steps" | "exercise_minutes" | "sleep_seconds" | "resting_heart_rate" | "hrv_sdnn_ms";
+  | "exercise_minutes" | "sleep_seconds" | "resting_heart_rate" | "hrv_sdnn_ms";
 const METRIC_SPECS: { key: MetricKey; decimals: number }[] = [
   { key: "weight_kg",           decimals: 2 },
   { key: "body_fat_pct",        decimals: 1 },
   { key: "active_energy_kcal",  decimals: 0 },
   { key: "resting_energy_kcal", decimals: 0 },
-  { key: "steps",               decimals: 0 },
   { key: "exercise_minutes",    decimals: 0 },
   { key: "sleep_seconds",       decimals: 0 },
   { key: "resting_heart_rate",  decimals: 0 },
@@ -43,7 +42,6 @@ const COPY_KEY: Record<MetricKey, string> = {
   body_fat_pct:        "bodyFat",
   active_energy_kcal:  "activeEnergy",
   resting_energy_kcal: "restingEnergy",
-  steps:               "steps",
   exercise_minutes:    "exerciseMinutes",
   sleep_seconds:       "sleepSeconds",
   resting_heart_rate:  "restingHeartRate",
@@ -60,7 +58,6 @@ const UNIT: Record<string, string> = {
   leanMass: "kg",
   activeEnergy: "kcal",
   restingEnergy: "kcal",
-  steps: "count",
   exerciseMinutes: "min",
   sleepSeconds: "s",
   restingHeartRate: "bpm",
@@ -159,7 +156,6 @@ function buildHealthTimeline(metrics: BodyMetric[]) {
     bodyFat:          col((m) => m.body_fat_pct),
     activeEnergy:     col((m) => m.active_energy_kcal),
     restingEnergy:    col((m) => m.resting_energy_kcal),
-    steps:            col((m) => m.steps),
     exerciseMinutes:  col((m) => m.exercise_minutes),
     sleepSeconds:     col((m) => m.sleep_seconds),
     restingHeartRate: col((m) => m.resting_heart_rate),

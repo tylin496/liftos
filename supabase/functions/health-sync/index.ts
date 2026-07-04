@@ -8,7 +8,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // POST payload (DO NOT change shape):
 //   { date: "YYYY-MM-DD", weight: number|"", bodyFat: number|"",
 //     activeEnergy: number|"", restingEnergy: number|"",
-//     steps: number|"", exerciseMinutes: number|"",
+//     exerciseMinutes: number|"",
 //     sleepSeconds: number|"", restingHeartRate: number|"", hrvSdnn: number|"" }
 // Also accepts these aliases the iOS Shortcut's auto-generated variable names
 // sometimes use instead of the names above: exercise_minutes / excercises_time
@@ -68,8 +68,6 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   if (active !== null) record.active_energy_kcal = active;
   const resting = intOrNull(body.restingEnergy);
   if (resting !== null) record.resting_energy_kcal = resting;
-  const steps = intOrNull(body.steps);
-  if (steps !== null) record.steps = steps;
   const exerciseMinutes = intOrNull(body.exerciseMinutes ?? body.exercise_minutes ?? body.excercises_time);
   if (exerciseMinutes !== null) record.exercise_minutes = exerciseMinutes;
   const sleepSeconds = intOrNull(body.sleepSeconds ?? body.sleepDuration);
