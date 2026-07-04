@@ -32,25 +32,22 @@ function StaleHint({ isoDate, nowMs }: { isoDate: string; nowMs: number }) {
   return <span className="ov-th-row-stale">· logged {w}w ago</span>;
 }
 
-function fmtStalledReadout(weeks: number): { value: string; label: string } {
-  if (weeks < 1) return { value: "PR", label: "this wk" };
-  // Neutral "weeks since PR" — not "stalled". A gap since the last PR is just a
-  // fact, not a verdict; maintenance days go unlogged, so weeks-since-PR doesn't
-  // mean weeks of no training.
-  return { value: `${weeks}`, label: weeks === 1 ? "wk since PR" : "wks since PR" };
-}
-
+// Bare number only — the "wks since PR" unit lives once in the section header
+// (a column label), so rows stop repeating it four times over. A fresh PR
+// (< 1 wk) is the one row that can't read as a week count, so it keeps a tiny
+// inline word instead of a number.
 function AttentionRow({ exercise, nowMs }: { exercise: StrengthExercise; nowMs: number }) {
-  const stalled = fmtStalledReadout(exercise.stalledWeeks);
+  const weeks = exercise.stalledWeeks;
   return (
     <div className="ov-th-row">
       <span className="ov-th-row-dot" aria-hidden />
       <span className="ov-th-row-name">{exercise.name}</span>
       <StaleHint isoDate={exercise.lastLogDate} nowMs={nowMs} />
-      <span className="ov-th-row-stalled">
-        <span className="ov-th-row-stalled-val">{stalled.value}</span>{" "}
-        <span className="ov-th-row-stalled-label">{stalled.label}</span>
-      </span>
+      {weeks < 1 ? (
+        <span className="ov-th-row-fresh">PR this wk</span>
+      ) : (
+        <span className="ov-th-row-stalled-val">{weeks}</span>
+      )}
     </div>
   );
 }
@@ -281,6 +278,7 @@ export function StrengthHealthCard({
           <div className="ov-th-section">
             <div className="ov-th-sect-head-row ov-th-sect-head-row--static">
               <span className="ov-th-sect-head">Needs attention · {watchExercises.length}</span>
+              <span className="ov-th-sect-unit">wks since PR</span>
             </div>
             {watchExercises.map((ex) => (
               <AttentionRow key={ex.slug} exercise={ex} nowMs={nowMs} />

@@ -202,19 +202,23 @@
   flex-shrink: 0;
 }
 
-/* Detail list — always shown on the full (Training) card. */
+/* Detail list — always shown on the full (Training) card. Sits a full --space-6
+   below the bar so the summary zone (hero + bar) reads as its own block, not a
+   continuous run into the list. */
 .ov-th-fold-body {
   display: flex;
   flex-direction: column;
-  padding: var(--space-4) 0 0;
+  padding: var(--space-6) 0 0;
   gap: 0;
 }
 
+/* Rows self-space via their own padding + hairline, so the section owns no
+   inter-row gap — the head-row's margin-bottom is what caps the block. */
 .ov-th-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding-top: var(--space-3);
+  gap: 0;
+  padding-top: var(--space-5);
   /* Expanding On Track auto-scrolls it into view ({block:"end"}); land it above
      the floating tabbar rather than clipped behind it. */
   scroll-margin-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
@@ -229,8 +233,10 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 12px;
   gap: var(--space-2);
+  /* Breathing room below the section title so it reads as a heading capping the
+     block, not another row jammed against the first entry. */
+  margin-bottom: var(--space-2);
   background: none;
   border: none;
   padding: 0;
@@ -250,6 +256,16 @@
   letter-spacing: var(--role-section-title-spacing);
   text-transform: uppercase;
   color: var(--role-section-title-color);
+}
+
+/* Column label — the "wks since PR" unit shown ONCE at the Needs Attention
+   header, right-aligned so the bare numbers below read as a column under it.
+   Neutral metadata (ink-4), never a verdict; the red lives on the numbers. */
+.ov-th-sect-unit {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-4);
+  white-space: nowrap;
 }
 
 .ov-th-sect-chevron {
@@ -299,25 +315,26 @@
   font-weight: 500;
 }
 
-/* Stall readout — the delta/severity signal, one of the four colorable
-   roles. */
-.ov-th-row-stalled {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
+/* Stall readout — bare number, the delta/severity signal (red), aligned under
+   the "wks since PR" column label in the section header. */
 .ov-th-row-stalled-val {
+  flex-shrink: 0;
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--bad);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.ov-th-row-stalled-label {
+/* Fresh-PR row (< 1 wk) — can't read as a week count under the column, so it
+   keeps a tiny neutral word instead of a number. */
+.ov-th-row-fresh {
+  flex-shrink: 0;
   font-size: var(--text-sm);
   font-weight: 500;
   color: var(--ink-4);
+  white-space: nowrap;
 }
 
 /* Staleness hint — a neutral freshness note ("logged 8w ago"), never a verdict.
