@@ -142,12 +142,9 @@
   animation-delay: inherit;
 }
 
-/* Watch segments (needs attention) tint red instead of sitting neutral grey —
-   matches the red attention chip below, so the bar itself flags which lifts
-   need a look, not just the fold row. */
-.ov-th-bar-seg.is-watch {
-  background: color-mix(in srgb, var(--bad) 50%, transparent);
-}
+/* Watch segments (needs attention) stay on the neutral grey track — only the
+   on-track segments get a fill colour. The attention chip + list below already
+   carry the "needs a look" signal; this avoids a second, more alarming red bar. */
 
 /* Loading skeleton: grey shimmer only — no green/red fill. */
 .loading-card .ov-th-bar-seg::before { display: none; }

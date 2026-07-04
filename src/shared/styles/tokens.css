@@ -63,9 +63,10 @@
      "colour = judgement" contract (see feedback-text-color-rule memory). */
   --bad: #e9152d;    /* Error — Apple red (IC-light) */
   --good: #2fb24d;   /* Success — yellower, less-deep green (~134°) */
-  --warn: #e85f45;   /* Warning / attention — coral. Named --warn (not --gold):
-                        it's coral, not gold — --gold / --progress-complete own
-                        the actual gold, this stays clear of it. */
+  --warn: #ff9500;   /* Warning / attention — Apple systemOrange (~35°), the
+                        traffic-light amber. Was coral (~10°), too close to
+                        --bad's red (~355°); orange sits clear of both --bad
+                        and the celebration --gold (~45°). */
   /* PR / gold-reward celebration — a rich metallic GOLD (not bronze/brown).
      Reserved exclusively for achievements and personal records — never a
      generic warning (that's the coral --warn) or a progress colour. Identity
@@ -294,7 +295,7 @@
   --progress-complete: var(--gold); /* same celebration gold as --gold — one gold app-wide */
   --good: #4ad968;
   --bad: #ff6165;
-  --warn: #ff856a;   /* Warning / attention — coral (bright for dark) */
+  --warn: #ff9f0a;   /* Warning / attention — Apple systemOrange (dark), clear of --bad/--gold */
   --gold: #f2c94c;   /* PR / gold-reward — glowing trophy gold (was --pr) */
   --blue: #6dd9ff;   /* Cyan (IC-dark) */
   /* Health chart colours — Apple increased-contrast (dark), brighter on dark */

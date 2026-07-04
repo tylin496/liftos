@@ -18,15 +18,14 @@ const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
 
 // Bar order tells the adherence story left-to-right: the two states that KEEP
 // the deficit (on-plan + low-intake) sit together on the left, then the two
-// that break it (over + surplus) — a 4-stop severity ramp, green → soft coral
-// → coral → red. low-intake and over-budget are NOT the same severity: low-
-// intake keeps/deepens the deficit (adherent, just imprecise — leans toward
-// on-plan's green), over-budget erodes it (leans toward surplus's red). Direction
-// is still carried by the glyph too (▼ ate under · ▲ ate over / surplus).
+// that break it (over + surplus). Plain semantic tokens, no custom blends —
+// on-plan is good; low-intake is a soft deviation (warn); over-budget and
+// surplus are the same severity (bad) — both erode the deficit, direction is
+// carried by the glyph (▲ over/surplus vs ▼ low-intake), not a 4th colour.
 const DIST_STATES: { key: CalorieState; label: string; glyph: string; color: string }[] = [
   { key: "on-plan", label: "On plan", glyph: "●", color: "var(--good)" },
-  { key: "low-intake", label: "Low intake", glyph: "▼", color: "color-mix(in oklab, var(--good), var(--warn) 55%)" },
-  { key: "over", label: "Over budget", glyph: "▲", color: "var(--warn)" },
+  { key: "low-intake", label: "Low intake", glyph: "▼", color: "var(--warn)" },
+  { key: "over", label: "Over budget", glyph: "▲", color: "var(--bad)" },
   { key: "surplus", label: "Surplus", glyph: "▲", color: "var(--bad)" },
 ];
 
