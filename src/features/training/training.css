@@ -306,14 +306,22 @@
   min-width: 0;
 }
 
+/* Wraps the title + body so it clips the identity image at the divider. Its
+   height is driven by the title/PR content, so the image's aspect-ratio height
+   can't bleed past the bottom edge (= the .ex-history rule) into the log rows. */
+.ex-head {
+  position: relative;
+  overflow: hidden;
+}
+
 .ex-ident-wrap {
-  /* Absolutely positioned against .ex-card (position:relative), so its top
-     aligns with .ex-title-row instead of floating up from the body. Height
-     comes from the 3:2 ratio, so it never bleeds above the card top and needs
-     no magic-number cap. */
+  /* Absolutely positioned against .ex-head, so its top aligns with
+     .ex-title-row and its bottom is clipped at the header's bottom edge — the
+     divider. Height comes from the 3:2 ratio; the clip keeps it from bleeding
+     below without a magic-number cap. */
   position: absolute;
-  top: var(--space-5); /* = card padding-top → aligns with .ex-title-row */
-  right: var(--space-5); /* aligns with the card's content right edge */
+  top: 0; /* = .ex-head top → aligns with .ex-title-row */
+  right: 0; /* aligns with the card's content right edge */
   width: 40%;
   max-width: 180px;
   aspect-ratio: 3 / 2;

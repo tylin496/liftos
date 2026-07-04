@@ -501,6 +501,8 @@ export function ExerciseCard({
         />
       </div>
 
+      {/* ── Header (title + body): clips the identity image at the divider ── */}
+      <div className="ex-head">
       {/* ── Title block ── */}
       <div className="ex-title-block">
         <div className="ex-title-row">
@@ -548,6 +550,7 @@ export function ExerciseCard({
           </div>
         </div>
       )}
+      </div>
 
       {/* ── Edit Exercise Form ── */}
       {editingMode === "meta" && (
