@@ -23,6 +23,7 @@ import {
   useToast,
 } from "./ExerciseCard";
 import { computeStats } from "./logic";
+import { defaultSetCount } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
@@ -454,7 +455,7 @@ function ArchivedSection({
           {exercises.map((ex) => {
             const exLogs = logs[ex.slug] ?? [];
             const logsAsc = [...exLogs].reverse();
-            const stats = computeStats(logsAsc);
+            const stats = computeStats(logsAsc, defaultSetCount(ex));
             const best = stats.best;
             const bestParsed = best?.log.raw ? parse(best.log.raw) : null;
             const prStr = bestParsed

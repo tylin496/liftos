@@ -6,6 +6,7 @@ import { weeklyWeightRate } from "@features/nutrition/evaluation";
 import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
 import { computeStats, computeTrend, epley1RM, buildStagnationView } from "@features/training/logic";
+import { defaultSetCount } from "@features/training/logFormHelpers";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
 import { computeRecovery, sanitizeMetrics } from "@features/health/math";
@@ -295,7 +296,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   for (const ex of exercises) {
     if (ex.archived) continue;
     const asc = (allLogsBySlug[ex.slug] ?? []).map((e) => e.log);
-    const sv = buildStagnationView(asc);
+    const sv = buildStagnationView(asc, defaultSetCount(ex));
     if (!sv) continue;
     if (sv.status === "excellent" || sv.status === "on-track") improvingCount++;
     if (sv.status === "watch" || sv.status === "review") {
@@ -338,7 +339,8 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         const allParsed = allLogsBySlug[ex.slug] ?? [];
         // PR uses all logs; export slice uses the limit
         const allRaw = allParsed.map((e) => e.log);
-        const stats = computeStats(allRaw);
+        const setCount = defaultSetCount(ex);
+        const stats = computeStats(allRaw, setCount);
         const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
 
         // allParsed is ascending (oldest→newest); take the tail for the most
@@ -353,7 +355,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         // Keep chronological order even when an out-of-window PR was appended.
         sliced.sort((a, b) => (a.log.log_date ?? "").localeCompare(b.log.log_date ?? ""));
 
-        const trendResult = computeTrend(allRaw);
+        const trendResult = computeTrend(allRaw, setCount);
         const bestE1RM = stats.best ? +stats.best.e1rm.toFixed(1) : null;
         const currentE1RM = stats.latest ? +stats.latest.e1rm.toFixed(1) : null;
         const sessionDates = [...new Set(allRaw.map((l) => l.log_date).filter(Boolean))].sort();
@@ -627,10 +629,11 @@ export async function buildTrainingJson(): Promise<string> {
     const exerciseData = splitExercises.map((ex) => {
       // fetchLogsBySlug is newest-first; reverse to ascending for stats/trend/logs.
       const ascLogs = [...(logsBySlug[ex.slug] ?? [])].reverse();
-      const stats = computeStats(ascLogs);
+      const setCount = defaultSetCount(ex);
+      const stats = computeStats(ascLogs, setCount);
       const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
-      const trendResult = computeTrend(ascLogs);
-      const sv = buildStagnationView(ascLogs);
+      const trendResult = computeTrend(ascLogs, setCount);
+      const sv = buildStagnationView(ascLogs, setCount);
       const sessionDates = [...new Set(ascLogs.map((l) => l.log_date).filter(Boolean))].sort();
 
       return {

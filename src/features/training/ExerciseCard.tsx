@@ -16,6 +16,8 @@ import {
   timelineDate,
   buildStagnationView,
   epley1RM,
+  cmpStrength,
+  totalReps,
   type TimeFilter,
 } from "./logic";
 import { useToast } from "@shared/components/Toast";
@@ -179,16 +181,17 @@ export function ExerciseCard({
     () => filterByTime(effectiveLogsAsc, timeFilter),
     [effectiveLogsAsc, timeFilter],
   );
+  const sc = defaultSetCount(exercise);
   // Stats use ALL logs (unfiltered, undeleted) so the PR badge/confetti reflect
   // the all-time record, not just what's inside the current time-filter window.
-  const stats = useMemo(() => computeStats(effectiveLogsAsc), [effectiveLogsAsc]);
+  const stats = useMemo(() => computeStats(effectiveLogsAsc, sc), [effectiveLogsAsc, sc]);
   // Index of the all-time-best log within the currently displayed (filtered) window,
   // so the history list can still highlight it when it's visible.
   const prIndexInFiltered = useMemo(
     () => (stats.best ? filteredAsc.indexOf(stats.best.log) : -1),
     [filteredAsc, stats.best],
   );
-  const stagView = useMemo(() => buildStagnationView(effectiveLogsAsc), [effectiveLogsAsc]);
+  const stagView = useMemo(() => buildStagnationView(effectiveLogsAsc, sc), [effectiveLogsAsc, sc]);
 
   // For display: newest first
   const filteredDesc = useMemo(() => [...filteredAsc].reverse(), [filteredAsc]);
@@ -199,7 +202,7 @@ export function ExerciseCard({
   async function handleAdd(raw: string, date: string, note: string) {
     if (submitting) return;
     setSubmitting(true);
-    const oldBestE1RM = stats.best?.e1rm ?? -1;
+    const oldBest = stats.best;
     try {
       const newLog = await addLog({
         slug: exercise.slug,
@@ -215,8 +218,11 @@ export function ExerciseCard({
       });
       const newParsed = parse(raw);
       const newScore = newParsed ? score(newParsed) : 0;
-      const newE1RM = epley1RM(newScore, newParsed?.reps ?? "1");
-      if (newE1RM > oldBestE1RM) {
+      const newReps = newParsed?.reps ?? "1";
+      const newE1RM = epley1RM(newScore, newReps);
+      const isNewPR =
+        !oldBest || cmpStrength({ e1rm: newE1RM, totalReps: totalReps(newReps, sc) }, oldBest) > 0;
+      if (isNewPR) {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);
         haptic("success");
@@ -247,8 +253,10 @@ export function ExerciseCard({
       const parsed = parse(raw);
       if (!parsed || !Number.isFinite(parsed.weight)) throw new Error("Cannot parse");
       const newE1RM = epley1RM(score(parsed), parsed.reps);
-      const oldBestE1RM = stats.best?.e1rm ?? 0;
-      const isNewPR = newE1RM > oldBestE1RM && log.id !== stats.best?.log.id;
+      const oldBest = stats.best;
+      const isNewPR =
+        log.id !== oldBest?.log.id &&
+        (!oldBest || cmpStrength({ e1rm: newE1RM, totalReps: totalReps(parsed.reps, sc) }, oldBest) > 0);
       await updateLog(log.id, {
         raw,
         reps: parsed.reps,
@@ -332,7 +340,6 @@ export function ExerciseCard({
     }
   }
 
-  const sc = defaultSetCount(exercise);
   const best = stats.best;
   const bestParsed = best?.log.raw ? parse(best.log.raw) : null;
   const imgSrc =
@@ -554,7 +561,7 @@ export function ExerciseCard({
             const prevLog = visible[vi + 1] ?? null;
             // Only the newest entry gets a vs-last badge — older rows stay quiet.
             const delta =
-              isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog);
+              isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog, sc);
             const isAssisted = log.kind === "assisted";
             const isExpanded = expandedId === log.id;
             const rowE1RM = logE1RM(log);

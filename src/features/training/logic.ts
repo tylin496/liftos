@@ -10,6 +10,7 @@ export interface LogEntry {
   weightKg: number;
   reps: string;
   e1rm: number;
+  totalReps: number;
 }
 
 // ─── Time filter ─────────────────────────────────────────────────────────────
@@ -39,6 +40,24 @@ export function maxReps(repsStr: string): number {
   return segs.length ? Math.max(...segs) : 0;
 }
 
+/**
+ * Total reps actually performed. Drop-set segments ("8/5/3") sum as-is — each
+ * segment is already one distinct set. A single number ("7") is the log
+ * form's shorthand for the same rep count repeated across the exercise's
+ * configured set count (see repsStringToValues in logFormHelpers.ts), so it
+ * expands to `reps * setCount` — "7" on a ×3 exercise is 3 sets of 7 (21),
+ * not one set of 7.
+ */
+export function totalReps(repsStr: string, setCount: number): number {
+  const segs = String(repsStr || "")
+    .split(/[/\-]/)
+    .map((n) => parseInt(n, 10))
+    .filter((n) => n > 0);
+  if (!segs.length) return 0;
+  if (segs.length === 1) return segs[0] * Math.max(1, setCount);
+  return segs.reduce((sum, n) => sum + n, 0);
+}
+
 export function epley1RM(weightKg: number, repsStr: string): number {
   const maxR = maxReps(repsStr);
   if (!maxR || !weightKg || weightKg <= 0) return 0;
@@ -47,7 +66,7 @@ export function epley1RM(weightKg: number, repsStr: string): number {
 
 // ─── toLogEntry ──────────────────────────────────────────────────────────────
 
-export function toLogEntry(log: TrainingLog): LogEntry | null {
+export function toLogEntry(log: TrainingLog, setCount: number): LogEntry | null {
   if (!log.raw) return null;
   const parsed = parse(log.raw);
   if (!parsed) return null;
@@ -58,6 +77,7 @@ export function toLogEntry(log: TrainingLog): LogEntry | null {
     weightKg,
     reps: parsed.reps,
     e1rm: epley1RM(weightKg, parsed.reps),
+    totalReps: totalReps(parsed.reps, setCount),
   };
 }
 
@@ -65,13 +85,20 @@ export function toLogEntry(log: TrainingLog): LogEntry | null {
  * "Which set is stronger" — the single ordering the whole training tab uses for
  * PRs, status, and history deltas, so the badge and the trend never disagree.
  * Hybrid: estimated 1RM first (Epley folds weight × reps into one number, so a
- * heavier-but-fewer vs lighter-but-more tradeoff resolves cleanly); on an e1RM
- * tie, more max-reps wins; a full tie returns 0 and the caller keeps whoever
- * came first. Returns >0 when `a` beats `b`, <0 when weaker, 0 when equal.
+ * heavier-but-fewer vs lighter-but-more tradeoff resolves cleanly); rounded to
+ * the same 1-decimal precision shown in the UI, so two sets that *display* the
+ * same e1RM always compare as tied instead of one silently winning on a
+ * fractional difference the user never sees. On a tie, more total reps
+ * actually performed wins (see `totalReps` — a single-number reps string
+ * expands across the exercise's set count first); a full tie returns 0 and
+ * the caller keeps whoever came first. Returns >0 when `a` beats `b`, <0
+ * when weaker, 0 when equal.
  */
-export function cmpStrength(a: LogEntry, b: LogEntry): number {
-  if (a.e1rm !== b.e1rm) return a.e1rm - b.e1rm;
-  return maxReps(a.reps) - maxReps(b.reps);
+export function cmpStrength(a: Pick<LogEntry, "e1rm" | "totalReps">, b: Pick<LogEntry, "e1rm" | "totalReps">): number {
+  const ae1 = Math.round(a.e1rm * 10) / 10;
+  const be1 = Math.round(b.e1rm * 10) / 10;
+  if (ae1 !== be1) return ae1 - be1;
+  return a.totalReps - b.totalReps;
 }
 
 // ─── computeStats ────────────────────────────────────────────────────────────
@@ -83,8 +110,8 @@ export interface Stats {
 }
 
 /** logs should be sorted chronological ascending (oldest first). */
-export function computeStats(logs: TrainingLog[]): Stats {
-  const entries = logs.map(toLogEntry).filter((e): e is LogEntry => e !== null);
+export function computeStats(logs: TrainingLog[], setCount: number): Stats {
+  const entries = logs.map((l) => toLogEntry(l, setCount)).filter((e): e is LogEntry => e !== null);
   if (!entries.length) return { best: null, prIndex: -1, latest: null };
 
   // PR = strongest set by cmpStrength (e1RM, then reps). Strict > with the
@@ -108,15 +135,15 @@ export interface HistDelta {
 }
 
 /**
- * Compare curr vs prev entry. Direction follows the same cmpStrength ordering
- * as PRs/status: estimated 1RM first (which folds a heavier-but-fewer vs
- * lighter-but-more tradeoff into one number), then max reps on an e1RM tie.
- * The label still spells out the raw kg / reps change so the user sees what
- * actually moved.
+ * Compare curr vs prev entry. Direction reuses cmpStrength directly — same
+ * ordering as PRs/status — falling back to raw kg only on a genuine
+ * cmpStrength tie (identical rounded e1RM and total reps). The label still
+ * spells out the raw kg / reps change so the user sees what actually moved.
  */
 export function computeHistDelta(
   curr: TrainingLog,
   prev: TrainingLog,
+  setCount: number,
 ): HistDelta | null {
   if (!curr.raw || !prev.raw) return null;
   const cp = parse(curr.raw);
@@ -127,19 +154,18 @@ export function computeHistDelta(
   const pKg = score(pp);
   if (!Number.isFinite(cKg) || !Number.isFinite(pKg)) return null;
 
-  const cReps = maxReps(cp.reps);
-  const pReps = maxReps(pp.reps);
-
   const kgDelta = cKg - pKg;
-  const repsDelta = cReps - pReps;
+  const repsDelta = maxReps(cp.reps) - maxReps(pp.reps); // display only, see `detail` below
 
   const cE1 = epley1RM(cKg, cp.reps);
   const pE1 = epley1RM(pKg, pp.reps);
+  const cmp = cmpStrength(
+    { e1rm: cE1, totalReps: totalReps(cp.reps, setCount) },
+    { e1rm: pE1, totalReps: totalReps(pp.reps, setCount) },
+  );
   let direction: "gain" | "loss";
-  if (cE1 !== pE1) {
-    direction = cE1 > pE1 ? "gain" : "loss";
-  } else if (repsDelta !== 0) {
-    direction = repsDelta > 0 ? "gain" : "loss";
+  if (cmp !== 0) {
+    direction = cmp > 0 ? "gain" : "loss";
   } else if (kgDelta !== 0) {
     direction = kgDelta > 0 ? "gain" : "loss";
   } else {
@@ -199,8 +225,8 @@ export interface StagnationView {
   t: TrendResult | null;
 }
 
-function computeStrengthRetention(logsAsc: TrainingLog[]) {
-  const entries = logsAsc.map(toLogEntry).filter((e): e is LogEntry => e !== null);
+function computeStrengthRetention(logsAsc: TrainingLog[], setCount: number) {
+  const entries = logsAsc.map((l) => toLogEntry(l, setCount)).filter((e): e is LogEntry => e !== null);
   if (!entries.length) return null;
 
   // Same PR metric as computeStats: strongest by cmpStrength (e1RM, then reps),
@@ -237,8 +263,8 @@ function computeStrengthRetention(logsAsc: TrainingLog[]) {
   return { pct, status, prEntry, prRatio };
 }
 
-export function computeTrend(logsAsc: TrainingLog[]): TrendResult | null {
-  const entries = logsAsc.map(toLogEntry).filter((e): e is LogEntry => e !== null);
+export function computeTrend(logsAsc: TrainingLog[], setCount: number): TrendResult | null {
+  const entries = logsAsc.map((l) => toLogEntry(l, setCount)).filter((e): e is LogEntry => e !== null);
   if (entries.length < 2) return null;
 
   const sessionMap = new Map<string, number>();
@@ -355,9 +381,9 @@ const RETENTION_LABELS: Record<string, string> = {
 };
 
 /** Pass ALL logs (not time-filtered) so the badge reflects the all-time PR. */
-export function buildStagnationView(logsAsc: TrainingLog[]): StagnationView | null {
-  const s = computeStrengthRetention(logsAsc);
-  const t = computeTrend(logsAsc);
+export function buildStagnationView(logsAsc: TrainingLog[], setCount: number): StagnationView | null {
+  const s = computeStrengthRetention(logsAsc, setCount);
+  const t = computeTrend(logsAsc, setCount);
   if (!s) return null;
 
   const { pct, status: baseStatus, prEntry, prRatio } = s;
@@ -377,7 +403,7 @@ export function buildStagnationView(logsAsc: TrainingLog[]): StagnationView | nu
   const prFmt = !showPR ? fmtInspectorEntry(prEntry) : null;
   const prDate = !showPR ? fmtInspectorDate(prEntry.log.log_date ?? "") : null;
   const expandable = !!prFmt;
-  const entries = logsAsc.map(toLogEntry).filter((e): e is LogEntry => e !== null);
+  const entries = logsAsc.map((l) => toLogEntry(l, setCount)).filter((e): e is LogEntry => e !== null);
   const reason = buildStatusReason(status, t?.trend, entries, prEntry, pct);
   const needsExplaining =
     status === "review" || status === "watch" || status === "rebuilding";
