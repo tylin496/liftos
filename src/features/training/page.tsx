@@ -516,6 +516,9 @@ function TrainingPageInner() {
   const [logs, setLogs] = useState<Record<string, TrainingLog[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("3mo");
+  // Filter control stays tucked away until asked for — it only matters once
+  // you're digging into full history, not while logging sets.
+  const [timeFilterOpen, setTimeFilterOpen] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
   const [stretches, setStretches] = useState<Record<SplitId, StretchItem[]>>(loadStretches);
   // Slugs currently in an optimistic-delete undo window — a background reloadAll
@@ -887,19 +890,32 @@ function TrainingPageInner() {
       </div>
 
       {/* ── Time filter ── */}
-      <SegmentedControl
-        options={[
-          { id: "3mo", label: "3M" },
-          { id: "year", label: "1Y" },
-          { id: "all", label: "All" },
-        ]}
-        value={timeFilter}
-        onChange={(id) => setTimeFilter(id as TimeFilter)}
-      />
+      {/* Tucked behind a disclosure, not shown by default — it only matters once
+          you're looking at full history, not while just logging sets. */}
+      {timeFilterOpen ? (
+        <SegmentedControl
+          options={[
+            { id: "3mo", label: "3M" },
+            { id: "year", label: "1Y" },
+            { id: "all", label: "All" },
+          ]}
+          value={timeFilter}
+          onChange={(id) => setTimeFilter(id as TimeFilter)}
+        />
+      ) : (
+        <button
+          type="button"
+          className="tr-time-filter-toggle"
+          onClick={() => setTimeFilterOpen(true)}
+        >
+          Filter history…
+        </button>
+      )}
 
       {/* ── Training Health (full card) ── */}
       {exercises && (
         <StrengthHealthCard
+          id="training-strength-health-card"
           variant="full"
           strength={strengthHealth.strength}
         />

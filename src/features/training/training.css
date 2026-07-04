@@ -1217,37 +1217,33 @@
 }
 
 /* ── "Log set" open button ───────────────────────────────────────────────────*/
-/* Training is an Action tab: logging a set is the card's primary job, so this
-   reads as a real (tinted) CTA — not the ghost link it used to be. Kept as a
-   tint rather than a solid accent fill so it isn't shouting once per card. */
 .hist-add {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   width: 100%;
-  margin-top: var(--space-1);
-  padding: var(--space-3) 10px;
+  margin-top: 2px;
+  padding: var(--space-2) 10px;
   border: none;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  color: var(--accent);
+  background: transparent;
+  color: var(--ink-4);
   font: inherit;
-  font-size: var(--text-base);
-  font-weight: 700;
+  font-size: var(--text-sm);
   text-align: center;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: color var(--dur-press), background var(--dur-press), transform var(--dur-press) var(--ease-press);
+  transition: color var(--dur-press), background var(--dur-press);
 }
 
 @media (hover: hover) {
-  .hist-add:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  .hist-add:hover { color: var(--ink-2); background: var(--bg-soft); }
 }
 
 .hist-add:active { transform: scale(var(--tap-scale)); }
 
 .hist-add-plus {
-  font-size: var(--text-lg);
+  font-size: var(--text-base);
   line-height: 1;
   color: var(--accent);
 }
@@ -1284,6 +1280,26 @@
 }
 
 /* ── Page ─────────────────────────────────────────────────────────────────────*/
+/* ── Time filter disclosure ───────────────────────────────────────────────────*/
+.tr-time-filter-toggle {
+  display: block;
+  padding: 4px 10px;
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--ink-4);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+  transition: color var(--dur-press);
+}
+
+@media (hover: hover) {
+  .tr-time-filter-toggle:hover { color: var(--ink-2); }
+}
+
 /* ── Add exercise ────────────────────────────────────────────────────────────*/
 .add-exercise {
   display: flex;

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { MetricValue } from "@shared/components/Metric";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
@@ -54,6 +55,36 @@ function AttentionRow({ exercise, nowMs }: { exercise: StrengthExercise; nowMs: 
   );
 }
 
+// Section header doubles as the fold trigger — defaults collapsed so the full
+// card opens as just the hero + bar; the two lists are opt-in detail, not
+// something you scroll past every time.
+function SectHeadRow({
+  label,
+  open,
+  onToggle,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="ov-th-sect-head-row"
+      onClick={onToggle}
+      aria-expanded={open}
+    >
+      <span className="ov-th-sect-head">{label}</span>
+      <svg
+        className={`ov-th-sect-chevron${open ? " open" : ""}`}
+        width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"
+      >
+        <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+}
+
 function OnTrackRow({ exercise, nowMs }: { exercise: StrengthExercise; nowMs: number }) {
   const retPct = Math.round(exerciseRetention(exercise) * 100);
   return (
@@ -86,18 +117,26 @@ export interface StrengthHealthCardProps {
   variant: "snapshot" | "full";
   /** Only meaningful for the snapshot — taps navigate to Training. */
   onNav?: () => void;
+  /** Only meaningful for the full card — lets Overview's nav scroll straight
+   *  to it (NavContext's scrollTo target) instead of landing at the tab top. */
+  id?: string;
 }
 
 export function StrengthHealthCard({
   strength,
   variant,
   onNav,
+  id,
 }: StrengthHealthCardProps) {
   const hasData = strength.total > 0;
   const attention = strength.watch;
   // Now is read once per render for the staleness labels. Fine as a plain read —
   // it only drives a "logged Nw ago" hint, nothing that needs to be reactive.
   const nowMs = Date.now();
+  // Both sections default collapsed — the full card opens as just the hero +
+  // bar (a status read), and the row-by-row detail is opt-in per section.
+  const [watchOpen, setWatchOpen] = useState(false);
+  const [trackOpen, setTrackOpen] = useState(false);
 
   // Attention always sits above On Track and is ordered worst-first (furthest
   // below PR, i.e. lowest retention), so the most urgent exercise reads first.
@@ -134,7 +173,7 @@ export function StrengthHealthCard({
         <p className="ov-th-empty">{emptyMsg}</p>
       </button>
     ) : (
-      <div className="page-card ov-training-health">
+      <div id={id} className="page-card ov-training-health">
         <span className="ov-th-label">Training Health</span>
         <p className="ov-th-empty">{emptyMsg}</p>
       </div>
@@ -220,29 +259,35 @@ export function StrengthHealthCard({
   // ── Full (Training tab): the complete list, always shown. No "+more" nav —
   //    you're already in Training. ──
   return (
-    <div className="page-card ov-training-health">
+    <div id={id} className="page-card ov-training-health">
       {header}
       {hero}
       {bar}
       <div className="ov-th-fold-body">
         {watchExercises.length > 0 && (
           <div className="ov-th-section">
-            <div className="ov-th-sect-head-row">
-              <span className="ov-th-sect-head">Needs attention · {watchExercises.length}</span>
-            </div>
-            {watchExercises.map((ex) => (
-              <AttentionRow key={ex.slug} exercise={ex} nowMs={nowMs} />
-            ))}
+            <SectHeadRow
+              label={`Needs attention · ${watchExercises.length}`}
+              open={watchOpen}
+              onToggle={() => setWatchOpen((v) => !v)}
+            />
+            {watchOpen &&
+              watchExercises.map((ex) => (
+                <AttentionRow key={ex.slug} exercise={ex} nowMs={nowMs} />
+              ))}
           </div>
         )}
         {onTrackExercises.length > 0 && (
           <div className="ov-th-section">
-            <div className="ov-th-sect-head-row">
-              <span className="ov-th-sect-head">On track · {onTrackExercises.length}</span>
-            </div>
-            {onTrackExercises.map((ex) => (
-              <OnTrackRow key={ex.slug} exercise={ex} nowMs={nowMs} />
-            ))}
+            <SectHeadRow
+              label={`On track · ${onTrackExercises.length}`}
+              open={trackOpen}
+              onToggle={() => setTrackOpen((v) => !v)}
+            />
+            {trackOpen &&
+              onTrackExercises.map((ex) => (
+                <OnTrackRow key={ex.slug} exercise={ex} nowMs={nowMs} />
+              ))}
           </div>
         )}
       </div>

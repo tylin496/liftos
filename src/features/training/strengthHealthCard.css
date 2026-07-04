@@ -118,12 +118,9 @@
   flex: 1;
   height: 6px;
   border-radius: var(--radius-pill);
+  /* Grey track segments are FIXED — always present, no entrance. */
   background: var(--rule-strong);
-  /* Build the bar one segment at a time — each pops from 0 width, staggered by
-     an inline animation-delay (tier + index × --stagger-step). Discrete steps,
-     not a smooth sweep, so it reads segment-by-segment as the % counts up. */
   transform-origin: left center;
-  animation: th-seg-in var(--dur-press) var(--ease-press) both;
 }
 
 @keyframes th-seg-in {
@@ -131,12 +128,17 @@
   to   { transform: scaleX(1); }
 }
 
+/* Only the on-track (green) segments animate: each fills from the left,
+   staggered by the inline animation-delay so the green runs in one segment at a
+   time across the fixed grey track. */
 .ov-th-bar-seg.is-good {
   background: var(--good);
+  animation: th-seg-in var(--dur-press) var(--ease-press) both;
 }
 
-/* Loading skeleton segments are static (they shimmer via .loading-card). */
-.loading-card .ov-th-bar-seg { animation: none; transform: none; }
+/* Loading skeleton segments are static (they shimmer via .loading-card).
+   !important so it still wins now that the animation lives on .is-good. */
+.loading-card .ov-th-bar-seg { animation: none !important; transform: none; }
 
 /* Summary row — snapshot's one-line stand-in for the detail list. Reused as a
    plain div (no fold button / chevron); the border-top gives the same
@@ -218,8 +220,15 @@
 .ov-th-sect-head-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
   height: 12px;
   gap: var(--space-2);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .ov-th-sect-head {
@@ -228,6 +237,16 @@
   letter-spacing: var(--role-section-title-spacing);
   text-transform: uppercase;
   color: var(--role-section-title-color);
+}
+
+.ov-th-sect-chevron {
+  color: var(--ink-4);
+  flex-shrink: 0;
+  transition: transform var(--dur-move) var(--ease-move);
+}
+
+.ov-th-sect-chevron.open {
+  transform: rotate(180deg);
 }
 
 /* Row shell — shared by Attention and On Track rows */

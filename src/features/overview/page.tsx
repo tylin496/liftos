@@ -840,7 +840,7 @@ export function OverviewPage() {
         <StrengthHealthCard
           variant="snapshot"
           strength={data.strength}
-          onNav={() => nav("training")}
+          onNav={() => nav("training", { scrollTo: "training-strength-health-card" })}
         />
       )}
     </div>
