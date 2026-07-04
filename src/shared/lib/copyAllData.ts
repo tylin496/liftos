@@ -402,10 +402,16 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     cutPhase === "Maintenance" ? "Maintenance" :
     cutPhase != null ? "Fat loss" : null;
 
+  // Same as buildTrainingJson: dataSpan must reflect only the active exercises
+  // we actually emit, so an archived lift's log dates don't skew the window.
+  const activeSlugs = new Set(exercises.filter((e) => !e.archived).map((e) => e.slug));
   const overviewWindow = windowOf([
     ...metrics.map((m) => m.metric_date),
     ...sortedEntries.map((e) => e.entry_date),
-    ...Object.values(logsBySlug).flat().map((l) => l.log_date),
+    ...Object.entries(logsBySlug)
+      .filter(([slug]) => activeSlugs.has(slug))
+      .flatMap(([, logs]) => logs)
+      .map((l) => l.log_date),
   ]);
 
   const buildPayload = (logsPerEx: number) => ({
@@ -637,6 +643,11 @@ export async function buildTrainingJson(): Promise<string> {
     ).exercises.map((x) => [x.slug, x]),
   );
 
+  // Slugs of exercises that survive the archived filter — dataSpan below must
+  // measure only the same active exercises we actually emit, otherwise an
+  // archived lift's oldest/newest log would skew the reported window.
+  const activeSlugs = new Set(exercises.filter((e) => !e.archived).map((e) => e.slug));
+
   const splits = SPLITS.map((split) => {
     const splitExercises = exercises.filter((ex) => ex.split === split.id && !ex.archived);
     const exerciseData = splitExercises.map((ex) => {
@@ -694,7 +705,10 @@ export async function buildTrainingJson(): Promise<string> {
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
     dataSpan: windowOf(
-      Object.values(logsBySlug).flat().map((l) => l.log_date),
+      Object.entries(logsBySlug)
+        .filter(([slug]) => activeSlugs.has(slug))
+        .flatMap(([, logs]) => logs)
+        .map((l) => l.log_date),
     ),
     schedule: { split: "PPL", cycle: SPLITS.map((s) => s.name) },
     splits,
