@@ -1,7 +1,11 @@
 // The single source of truth for the CONTINUOUS progress-indicator colour:
-// every "how far toward a goal" element (Cut Progress bar, Active Target ring,
-// top-bar ring) shades along ONE red→green ramp by its fill ratio — red
-// (--bad, "just started") crossing to green (--good, "nearly there") by 99%.
+// the Cut Progress bar/% shades along ONE Apple-system spectrum ramp by its fill
+// ratio — a warm→cool journey red → orange → green → cyan → blue. (The active-
+// calorie rings do NOT use this — they have a dedicated --ring colour.)
+// progressColor() blends
+// only between ADJACENT stops, so the sampled colour is always vivid and never
+// muds. Colours live in tokens.css (--progress-1…5), decoupled from the semantic
+// --good/--bad and the brand --accent.
 //
 // COMPLETION is a SEPARATE, DISCRETE state — not part of this ramp. At exactly
 // 100% an indicator flips to --progress-complete (gold) as a one-off
@@ -14,18 +18,21 @@
 // a gradient smeared across the track (that reads as dirty). A ring and a bar
 // at the same % therefore paint the identical colour.
 
-/** [ratio 0–1, CSS colour] stops for the continuous red→green ramp. Reaches
- *  full green by 99%, leaving the last 1% flat before the discrete 100%
- *  gold flip (handled outside this module). */
+/** [ratio 0–1, CSS colour] stops for the continuous red→…→blue spectrum ramp,
+ *  evenly spaced across the Apple-system stops in tokens.css. The discrete 100%
+ *  gold flip is handled outside this module. */
 export const PROGRESS_STOPS: readonly [number, string][] = [
-  [0, "var(--bad)"],
-  [0.99, "var(--good)"],
+  [0, "var(--progress-1)"],
+  [0.25, "var(--progress-2)"],
+  [0.5, "var(--progress-3)"],
+  [0.75, "var(--progress-4)"],
+  [1, "var(--progress-5)"],
 ];
 
 /** The single spectrum colour at `ratio` (clamped 0–1). Used where only one
  *  colour is shown — an SVG ring stroke, a solid fill. Returns a color-mix()
  *  string interpolating the two surrounding stops in oklab — a straight
- *  perceptual blend (red → green). */
+ *  perceptual blend between adjacent Apple spectrum stops. */
 export function progressColor(ratio: number): string {
   const t = Math.max(0, Math.min(1, ratio));
   for (let i = 1; i < PROGRESS_STOPS.length; i++) {

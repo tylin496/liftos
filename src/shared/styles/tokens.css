@@ -39,28 +39,42 @@
   --accent-glow: rgba(236, 81, 34, 0.16);
 
   /* ── Progress spectrum ────────────────────────────────────────────── */
-  /* The continuous progress ramp is RED→GREEN and lives in progressColor.ts
-     (PROGRESS_STOPS: --bad → --good by 99%) — it reuses the semantic tokens and
-     has NO colour tokens of its own. Only COMPLETION owns a token: at exactly
-     100% an indicator flips to --progress-complete (gold) as a one-off
-     celebration. Gold has no range; it only ever means "done," never a ramp
-     stop. Consumed by the Cut Progress bar/%, Active Target ring, top-bar ring. */
+  /* Apple-system spectrum ramp for progressColor.ts — a warm→cool journey
+     red → orange → green → cyan → blue, sampled at the fill ratio (PROGRESS_STOPS).
+     Vivid Apple "Default (light)" system colours; progressColor() blends only
+     between ADJACENT stops, so the sampled colour is always vivid and never muds.
+     Decoupled from the semantic --good/--bad and from the brand --accent.
+     COMPLETION is a SEPARATE discrete state — at exactly 100% an indicator flips
+     to --progress-complete (gold). Gold has no range; it only ever means "done,"
+     never a ramp stop. Consumed by the Cut Progress bar/% ONLY — the active-
+     calorie rings use their own dedicated --ring (below). */
+  --progress-1: #ff383c;  /* Apple red — just started */
+  --progress-2: #ff8d28;  /* Apple orange */
+  --progress-3: #34c759;  /* Apple green (spectrum mid) — emerald, in the --good family */
+  --progress-4: #00c0e8;  /* Apple cyan */
+  --progress-5: #0088ff;  /* Apple blue — almost full */
   --progress-complete: #b8830a; /* deep gold — 100% only, the celebration */
+
+  /* ── Activity ring ─────────────────────────────────────────────────────
+     DEDICATED to the active-calorie ring (Active Target card + top-bar avatar).
+     Apple "Move"-ring pink-red. Intentionally OUTSIDE every colour rule (not
+     semantic, not the progress ramp, not brand): a ring-only identity colour —
+     the ring FILLS to show progress, its colour never changes by %. */
+  --ring: #f5244f;
 
   /* ── Semantic ─────────────────────────────────────────────────────────
      ONLY these three carry a good/bad verdict. Never use on charts,
      progress, branding, or decoration — that drift is what erodes the
      "colour = judgement" contract (see feedback-text-color-rule memory). */
   --bad: #e9152d;    /* Error — Apple red (IC-light) */
-  --good: #14ad57;   /* Success — brighter green */
+  --good: #2fb24d;   /* Success — yellower, less-deep green (~134°) */
   --gold: #e85f45;   /* Warning / attention — coral (NOT yellow: keeps it clear
                         of the celebration gold --pr / --progress-complete) */
-  /* PR / gold-reward celebration — a darker antique-brass gold, deliberately
-     LESS bright than --gold so achievement reads as "rare metal," not a
-     louder warning. Reserved exclusively for achievements and personal
-     records — never reused as a generic warning or progress color. Identity
-     is carried by animation/stars/confetti, not by being the shiniest gold. */
-  --pr: #956d51;   /* trophy metal — Apple brown (IC-light) */
+  /* PR / gold-reward celebration — a rich metallic GOLD (not bronze/brown).
+     Reserved exclusively for achievements and personal records — never a
+     generic warning (that's the coral --gold) or a progress colour. Identity
+     is carried by animation/stars/confetti plus the gold itself. */
+  --pr: #c89a16;   /* trophy gold */
   --blue: #007eae;   /* Cyan — neutral series/identity colour, never a status verdict */
 
   /* ── Health chart metric colors (iOS-style; read fine on light + dark) ── */
@@ -74,7 +88,7 @@
      Calorie/protein dual-bar chart (History). Identity colors, not
      semantic verdicts — surplus/over-budget states still override with
      --bad. Same vivid value in both themes (already high-contrast). */
-  --nutrition-calorie: #5fe000;
+  --nutrition-calorie: #40c95a;  /* calorie series — vivid green in the --good family (was neon lime #5fe000) */
   --nutrition-protein: #38b6ff;
 
   /* ── Overlay ── decorative, non-signal colors (theme-invariant) ──────── */
@@ -252,7 +266,7 @@
 
   /* ── Layout ───────────────────────────────────────────────────────── */
   --tabbar-h: 56px;
-  --header-h: 52px;
+  --header-h: 68px;
   --content-max: 560px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -273,12 +287,19 @@
   --accent: #ff7a45;
   --accent-strong: #e85f28;   /* deeper ember — solid white-on-accent fills */
   --accent-glow: rgba(255, 122, 69, 0.26);
-  /* Completion gold — see :root. Glows on the dark background. */
+  /* Progress spectrum (dark) — Apple "Default (dark)" system colours; brighter
+     so the fill pops on the dark background. See :root for the ramp contract. */
+  --progress-1: #ff4245;  /* Apple red */
+  --progress-2: #ff9230;  /* Apple orange */
+  --progress-3: #30d158;  /* Apple green (dark) — spectrum mid */
+  --progress-4: #3cd3fe;  /* Apple cyan */
+  --progress-5: #0091ff;  /* Apple blue */
   --progress-complete: #ffcf3a;   /* glowing gold — 100% only */
+  --ring: #ff4c68;   /* Activity ring — brighter Move pink-red for dark bg */
   --good: #4ad968;
   --bad: #ff6165;
   --gold: #ff856a;   /* Warning / attention — coral (bright for dark) */
-  --pr: #dba679;   /* PR / gold-reward — trophy metal (Apple brown) */
+  --pr: #f2c94c;   /* PR / gold-reward — glowing trophy gold */
   --blue: #6dd9ff;   /* Cyan (IC-dark) */
   /* Health chart colours — Apple increased-contrast (dark), brighter on dark */
   --health-active: #ffa056;

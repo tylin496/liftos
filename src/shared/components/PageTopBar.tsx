@@ -35,8 +35,9 @@ export function PageTopBar({
   const noteFade = useCrossfade(note);
   const ring = useActiveTargetRing();
   const ringPct = ring ? ring.today.accrued / Math.max(1, ring.today.target) : null;
-  // Always accent — never take on another colour; grey only when there's no data.
-  const ringColor = ringPct == null ? "var(--rule-strong)" : "var(--accent)";
+  // Dedicated Apple "Move"-ring colour (--ring), matching the Active Target card.
+  // A fixed pink-red that fills to show progress; grey only when there's no data.
+  const ringColor = ringPct == null ? "var(--rule-strong)" : "var(--ring)";
 
   return (
     <div className="page-topbar">
