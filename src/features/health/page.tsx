@@ -363,10 +363,10 @@ export function HealthPage() {
     tdee?.avgActive != null && tdeePrev?.avgActive != null
       ? tdee.avgActive - tdeePrev.avgActive
       : null;
-  const restingChange =
-    tdee?.avgResting != null && tdeePrev?.avgResting != null
-      ? tdee.avgResting - tdeePrev.avgResting
-      : null;
+  // Resting shows no delta on purpose: resting energy drifting down during a cut
+  // is expected metabolic adaptation, not a "bad" move (the Active Target is
+  // built around exactly that drift). A metric with no objective good direction
+  // gets no coloured delta — same stance as Weight Rate.
 
   const cards = useMemo(() => {
     if (!data) return [];
@@ -472,7 +472,9 @@ export function HealthPage() {
             </div>
             <div className="health-trend-foot">
               <MetricCaption>
-                {tdee.activeDays < 14 ? `${tdee.activeDays}-day average` : "14-day average"}
+                {/* Fixed descriptor of the trailing window, not the sample
+                    count — a single missing day shouldn't tick it to "13". */}
+                14-day average
               </MetricCaption>
               <div className="health-trend-range">{ENERGY_BUCKET * SPARK_POINTS}-day trend</div>
             </div>
@@ -487,12 +489,11 @@ export function HealthPage() {
                     <MetricValue size="md" unit="kcal">
                       {tdee.avgResting != null ? <AnimatedMetric value={tdee.avgResting} decimals={0} /> : null}
                     </MetricValue>
-                    {restingChange != null && (
-                      <MetricDelta value={restingChange} direction="up-good" decimals={0} />
-                    )}
                   </div>
                   <span className="health-energy-window">
-                    {tdee.restingDays < 30 ? `${tdee.restingDays}-day average` : "30-day average"}
+                    {/* Fixed descriptor of the trailing window, not the sample
+                        count — a missing day shouldn't tick it to "29". */}
+                    30-day average
                   </span>
                 </div>
                 <div className="health-energy-model-item">
