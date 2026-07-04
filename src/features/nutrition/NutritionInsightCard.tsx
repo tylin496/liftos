@@ -31,6 +31,23 @@ function AnimatedInt({ value }: { value: number; delayMs?: number }) {
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
 
+// The confidence reason ends with a tenure phrase — "today" or "N day(s)".
+// Lift that phrase one tier above the caption so the day count reads as the
+// point of the sentence, not buried in the footnote.
+function renderConfReason(reason: string) {
+  const m = reason.match(/(today|\d+\s+days?)(?=\.?$)/);
+  if (!m) return reason;
+  const start = m.index!;
+  const end = start + m[0].length;
+  return (
+    <>
+      {reason.slice(0, start)}
+      <strong className="ni-conf-day">{m[0]}</strong>
+      {reason.slice(end)}
+    </>
+  );
+}
+
 // Observed rate carries a leading dot coloured by distance from the target
 // band (in-band green / near an edge amber / materially off red) — both too
 // slow and too fast score worse the further they drift, so this isn't a
@@ -261,8 +278,11 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
           onToggle={() => setConfOpen((v) => !v)}
           full
         />
-        {/* Revealed reason spans the card, but reads as part of Confidence. */}
-        {confReason && confOpen && <p className="ni-conf-reason">{confReason}</p>}
+        {/* Revealed reason spans the card, but reads as part of Confidence.
+            The tenure phrase (today / N days) is lifted one tier to carry it. */}
+        {confReason && confOpen && (
+          <p className="ni-conf-reason">{renderConfReason(confReason)}</p>
+        )}
       </div>
     </section>
   );

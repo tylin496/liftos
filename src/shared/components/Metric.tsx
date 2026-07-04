@@ -52,6 +52,7 @@ export function MetricDelta({
   decimals = 0,
   unit,
   threshold = 0,
+  arrowOnly = false,
   className,
 }: {
   value: number | null | undefined;
@@ -64,6 +65,9 @@ export function MetricDelta({
   /** Optional wider noise band: |value| ≤ threshold → treated as flat. Beyond
       this, anything that rounds to zero at `decimals` is already flat. */
   threshold?: number;
+  /** Show only the coloured up/down arrow, no magnitude — direction as a glyph,
+      for when the number already lives next to it (e.g. a signed rate value). */
+  arrowOnly?: boolean;
   className?: string;
 }) {
   if (value == null || direction == null) return null;
@@ -88,9 +92,13 @@ export function MetricDelta({
   return (
     <span className={["metric-delta", toneCls, className ?? ""].filter(Boolean).join(" ")}>
       {arrow}
-      {" "}
-      {absStr}
-      {unit ? ` ${unit}` : ""}
+      {!arrowOnly && (
+        <>
+          {" "}
+          {absStr}
+          {unit ? ` ${unit}` : ""}
+        </>
+      )}
     </span>
   );
 }

@@ -244,18 +244,8 @@
   white-space: nowrap;
 }
 
-.ni-cell-value.status-good {
-  color: var(--good);
-}
-.ni-cell-value.status-gold {
-  color: var(--warn);
-}
-.ni-cell-value.status-bad {
-  color: var(--bad);
-}
-
-/* Leading status dot — glance-only, same good/gold/bad language as the value
-   colour above (Observed rate: in/near/off target band; Confidence: level). */
+/* Leading status dot — colour lives here only, never on the value text beside
+   it (Observed rate: in/near/off target band; Confidence: level). */
 .ni-status-dot {
   width: 6px;
   height: 6px;
@@ -291,6 +281,13 @@
   font-weight: var(--role-caption-weight);
   color: var(--role-caption-color);
   line-height: var(--leading-body);
+}
+
+/* Tenure phrase (today / N days) lifted one tier above the caption —
+   darker ink + heavier weight so the day count carries the sentence. */
+.ni-conf-day {
+  font-weight: 700;
+  color: var(--ink-2);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -52,9 +52,11 @@ function greeting(user: ReturnType<typeof useSessionUser>): string {
   return time === "night" ? `Still up, ${name}` : `Good ${time}, ${name}`;
 }
 
-/** Signed weekly weight change, kg/week (e.g. "−0.46 kg/week"). */
-function fmtTrend(kgPerWeek: number): string {
-  const sign = kgPerWeek < 0 ? "−" : kgPerWeek > 0 ? "+" : "±";
+/** Weekly weight change, kg/week. Signed by default ("−0.46 kg/week"); pass
+   `signed=false` for the bare magnitude when a delta arrow already carries the
+   up/down direction alongside it. */
+function fmtTrend(kgPerWeek: number, signed = true): string {
+  const sign = !signed ? "" : kgPerWeek < 0 ? "−" : kgPerWeek > 0 ? "+" : "±";
   return `${sign}${Math.abs(kgPerWeek).toFixed(2)} kg/week`;
 }
 
@@ -122,13 +124,38 @@ function ActiveTargetCard({
   targetTdee,
   currentTdee,
   onNav,
+  loading = false,
 }: {
   view: ActiveTargetView | null;
   targetTdee: number | null;
   currentTdee: number | null;
   onNav: () => void;
+  loading?: boolean;
 }) {
   const { openSettings } = useSettingsSheet();
+
+  // Cold load — same button shell + ring skeleton, resolves in place. Uses the
+  // configured (button) tag so the common loaded case updates the same node.
+  if (loading) {
+    return (
+      <button type="button" className="page-card ov-active-target loading-card" onClick={onNav}>
+        <div className="ov-active-target-head">
+          <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
+          <span className="ov-active-target-head-right">
+            <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
+            <span className="ov-active-target-chevron" aria-hidden>›</span>
+          </span>
+        </div>
+        <div className="ov-active-target-ring-row">
+          <ActiveTargetRingBody shown={null} target={0} />
+          <div className="ov-active-target-ring-caption">
+            <span className="ov-active-target-ring-title">Today's active target</span>
+            <span className="ov-active-target-ring-sub">Loading…</span>
+          </div>
+        </div>
+      </button>
+    );
+  }
 
   // Not configured yet — a one-tap invitation, no empty scaffolding.
   if (targetTdee == null) {
@@ -314,34 +341,69 @@ function CutProgressCard({
   cutStartDate,
   state,
   onNav,
+  loading = false,
 }: {
-  goal: Goal;
+  goal?: Goal | null;
   cutStartDate: string | null;
   state: NutritionStateFull | null;
   onNav: () => void;
+  loading?: boolean;
 }) {
-  const e = goal.evaluation;
+  // Hooks run unconditionally so the count stays stable across the loading →
+  // loaded transition (same mounted instance). inView drives the % / bar reveal.
+  const { ref, inView } = useInView<HTMLButtonElement>();
+  const e = goal?.evaluation;
+
+  // Celebrate reaching 100% exactly once per cut (keyed by goal weight — a new
+  // baseline produces a new goal weight, so a fresh cut can celebrate again).
+  // Effect-driven, not a useState initializer: this card now mounts during
+  // loading (goal absent), so the initializer would fire once with no data and
+  // never re-arm when the completed cut finally lands. localStorage guards the
+  // once-per-cut semantics; subsequent mounts render completed state statically.
+  const [justCelebrated, setJustCelebrated] = useState(false);
+  useEffect(() => {
+    if (!e || Math.round(e.progressPct) < 100) return;
+    const key = `liftos_cut_celebrated_${e.goalWeight.toFixed(1)}`;
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, "1");
+    setJustCelebrated(true);
+  }, [e]);
+
+  if (loading || !e) {
+    return (
+      <button type="button" ref={ref} className="page-card goal loading-card" onClick={onNav}>
+        <div className="goal-head">
+          <span className="goal-label">Cut Progress</span>
+          <span className="goal-head-right">
+            <span className="goal-pct">00%</span>
+            <span className="goal-chevron" aria-hidden>›</span>
+          </span>
+        </div>
+        <div className="goal-bar">
+          <div className="goal-bar-fill" style={{ width: 0 }} />
+        </div>
+        <div className="goal-detail">
+          <div className="goal-row">
+            <div className="goal-col-label">Goal</div>
+            <MetricValue size="md" unit="kg">00.0</MetricValue>
+            <div className="goal-sub">00% body fat</div>
+          </div>
+          <div className="goal-divider" aria-hidden />
+          <div className="goal-row">
+            <div className="goal-col-label">Remaining</div>
+            <MetricValue size="md" unit="kg">0.0</MetricValue>
+          </div>
+        </div>
+      </button>
+    );
+  }
+
   const pct = Math.round(e.progressPct);
   const eta = state
     ? cutEtaLabel(state.evaluation, state.diagnostics.weightDataPoints, e.remainingWeight)
     : null;
   const isComplete = pct >= 100;
   const cutDay = cutStartDate ? daysSince(cutStartDate) : null;
-  // The % and bar roll/fill from 0 once on first reveal, then settle — see
-  // GoalPctRoll. Honors reduced-motion (snaps).
-  const { ref, inView } = useInView<HTMLButtonElement>();
-
-  // Celebrate reaching 100% exactly once per cut (identified by its goal
-  // weight — a new baseline produces a new goal weight, so a fresh cut can
-  // celebrate again). Subsequent mounts (tab switches) render the completed
-  // state statically, without replaying the animation.
-  const celebrateKey = `liftos_cut_celebrated_${e.goalWeight.toFixed(1)}`;
-  const [justCelebrated] = useState(() => {
-    if (!isComplete) return false;
-    if (localStorage.getItem(celebrateKey)) return false;
-    localStorage.setItem(celebrateKey, "1");
-    return true;
-  });
 
   return (
     <button
@@ -522,12 +584,14 @@ function WeightCard({
   state,
   onNav,
   onNavActivity,
+  loading = false,
 }: {
   weightLatest: number | null;
   metrics: BodyMetric[];
   state: NutritionStateFull | null;
   onNav: () => void;
   onNavActivity: () => void;
+  loading?: boolean;
 }) {
   // observedRate is a real 0-fallback when no trend could be fit (<5 readings in
   // the window). Present that as "—" rather than a fabricated "±0.00 kg/week".
@@ -540,6 +604,34 @@ function WeightCard({
   // Only a conclusive verdict (tone set) carries the cut baseline day count; an
   // inconclusive read ("Forming"/"Calibrating") is just the word, no suffix.
   const { ref, inView } = useInView<HTMLDivElement>();
+
+  // Cold load — same div shell (tag matches the loaded card so the node isn't
+  // replaced), placeholder stat + flat sparkline + Rate/Status row. Resolves in
+  // place when data lands.
+  if (loading) {
+    return (
+      <div ref={ref} className="page-card ov-weight loading-card">
+        <div className="ov-weight-head">
+          <span className="ov-weight-label">Weight</span>
+          <span className="ov-weight-chevron" aria-hidden>›</span>
+        </div>
+        <div className="ov-weight-stat">
+          <MetricValue size="lg" unit="kg">00.0</MetricValue>
+        </div>
+        <WeightSparkline values={[]} tone="flat" />
+        <div className="ov-weight-rows ov-weight-rows--single">
+          <span className="ov-weight-rate">
+            <span className="ov-weight-key">Rate</span>{" "}
+            <span className="ov-weight-val">−0.00 kg/wk</span>
+          </span>
+          <span className="ov-weight-status-pill">
+            <span className="ov-weight-status-dot" />
+            On pace
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   // 7-day average vs the prior 7 days — same signal the Health weight card
   // shows; down = good on a cut. Threshold-suppressed when within noise.
@@ -632,7 +724,9 @@ function WeightCard({
       >
         <span className="ov-weight-rate">
           <span className="ov-weight-key">Rate</span>{" "}
-          <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
+          <span className="ov-weight-val">{trend != null ? fmtTrend(trend, false) : "—"}</span>
+          <MetricDelta value={trend} direction="down-good" decimals={2} arrowOnly />
+
         </span>
         <span className={`ov-weight-status-pill${tone ? ` is-${tone}` : ""}`}>
           <span className="ov-weight-status-dot" />
@@ -661,6 +755,11 @@ export function OverviewPage() {
     void load();
   }, [activity]);
 
+  // Cards render in-place: each is always mounted and shows its own skeleton
+  // while `loading`, then resolves the same DOM to real values when data lands
+  // (no separate skeleton subtree to unmount, so the entrance never replays).
+  const loading = !data;
+
   usePageHeader({ eyebrow: fmtTopbarDate(), title: greeting(user), onCopy: copyAllData });
 
   if (error && !data) {
@@ -671,146 +770,63 @@ export function OverviewPage() {
     );
   }
 
+  // Stable keys on every direct child so React reconciles each card across the
+  // loading → loaded transition (and across SystemCard appearing) by identity,
+  // not by index. Without keys, inserting the banner would shift positions and
+  // remount the cards below it — replaying their entrance, the very flash we're
+  // removing. Each card renders its own skeleton in place while `loading`.
   return (
     <div className="page">
-      {/* Cold-load skeleton — real card structure with placeholder values so
-          the page never shows a blank gap under the header while data loads. */}
-      {!data && (
-        <>
-          {/* Active target — leads the loaded layout, so leads the skeleton. */}
-          <section className="page-card ov-active-target loading-card">
-            <div className="ov-active-target-head">
-              <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
-              <span className="ov-active-target-head-right">
-                <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
-                <span className="ov-active-target-chevron" aria-hidden>›</span>
-              </span>
-            </div>
-            <div className="ov-active-target-ring-row">
-              <ActiveTargetRingBody shown={null} target={0} />
-              <div className="ov-active-target-ring-caption">
-                <span className="ov-active-target-ring-title">Today's active target</span>
-                <span className="ov-active-target-ring-sub">Loading…</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Cut Progress — mirrors CutProgressCard's goal markup. */}
-          <div className="page-card goal loading-card">
-            <div className="goal-head">
-              <span className="goal-label">Cut Progress</span>
-              <span className="goal-head-right">
-                <span className="goal-pct">00%</span>
-                <span className="goal-chevron" aria-hidden>›</span>
-              </span>
-            </div>
-            <div className="goal-bar">
-              <div className="goal-bar-fill" style={{ width: 0 }} />
-            </div>
-            <div className="goal-detail">
-              <div className="goal-row">
-                <div className="goal-col-label">Goal</div>
-                <MetricValue size="md" unit="kg">00.0</MetricValue>
-                <div className="goal-sub">00% body fat</div>
-              </div>
-              <div className="goal-divider" aria-hidden />
-              <div className="goal-row">
-                <div className="goal-col-label">Remaining</div>
-                <MetricValue size="md" unit="kg">0.0</MetricValue>
-              </div>
-            </div>
-          </div>
-
-          {/* Weight — sparkline + single Rate/Status row, matching WeightCard. */}
-          <div className="page-card ov-weight loading-card">
-            <div className="ov-weight-head">
-              <span className="ov-weight-label">Weight</span>
-              <span className="ov-weight-chevron" aria-hidden>›</span>
-            </div>
-            <div className="ov-weight-stat">
-              <MetricValue size="lg" unit="kg">00.0</MetricValue>
-            </div>
-            <WeightSparkline values={[]} tone="flat" />
-            <div className="ov-weight-rows ov-weight-rows--single">
-              <span className="ov-weight-rate">
-                <span className="ov-weight-key">Rate</span>{" "}
-                <span className="ov-weight-val">−0.00 kg/wk</span>
-              </span>
-              <span className="ov-weight-status-pill">
-                <span className="ov-weight-status-dot" />
-                On pace
-              </span>
-            </div>
-          </div>
-
-          {/* Training Health — mirrors StrengthHealthCard variant="snapshot". */}
-          <div className="page-card ov-training-health loading-card">
-            <div className="ov-th-top">
-              <span className="ov-th-label">Training Health</span>
-              <span className="ov-th-chevron" aria-hidden>›</span>
-            </div>
-            <div className="ov-th-ret-hero">
-              <MetricValue size="lg">00%</MetricValue>
-              <span className="ov-th-ret-count">0 of 0 tracked lifts on track</span>
-            </div>
-            <div className="ov-th-bar" aria-hidden>
-              {Array.from({ length: 15 }).map((_, i) => (
-                <span key={i} className="ov-th-bar-seg is-good" />
-              ))}
-            </div>
-            <div className="ov-th-fold">
-              <span className="ov-th-fold-left">
-                <span className="ov-th-fold-text ov-th-fold-text--muted">Loading…</span>
-              </span>
-            </div>
-          </div>
-        </>
-      )}
-
+      {/* System — a conditional actionable banner (usually absent), so it's not
+          skeletonized; it appears only when there's something to act on. */}
       {data?.nutritionState?.recommendation && (
-        <SystemCard rec={data.nutritionState.recommendation} onNav={(tab) => nav(tab)} />
+        <SystemCard key="system" rec={data.nutritionState.recommendation} onNav={(tab) => nav(tab)} />
       )}
 
       {/* Active Target — leads: the actionable "what do I do today" number. */}
-      {data && (
-        <ActiveTargetCard
-          view={data.activeTarget}
-          targetTdee={data.targetTdee}
-          currentTdee={data.currentTdee}
-          onNav={() => nav("health", { scrollTo: "health-energy-card" })}
-        />
-      )}
+      <ActiveTargetCard
+        key="active-target"
+        loading={loading}
+        view={data?.activeTarget ?? null}
+        targetTdee={data?.targetTdee ?? null}
+        currentTdee={data?.currentTdee ?? null}
+        onNav={() => nav("health", { scrollTo: "health-energy-card" })}
+      />
 
+      {/* Cut Progress — the skeleton and the common loaded state are both
+          CutProgress; CutBaseline only appears once data reveals the rare
+          "target set, no baseline yet" state. Same key means the goal case
+          resolves in place instead of remounting. */}
       {data && data.targetBodyFat != null && data.cutStartDate == null ? (
-        <CutBaselineCard metrics={data.metrics} onSaved={() => void load()} />
+        <CutBaselineCard key="cut" metrics={data.metrics} onSaved={() => void load()} />
       ) : (
-        data?.goal && (
-          <CutProgressCard
-            goal={data.goal}
-            cutStartDate={data.cutStartDate}
-            state={data.nutritionState}
-            onNav={() => nav("health")}
-          />
-        )
-      )}
-
-      {data && (
-        <WeightCard
-          weightLatest={data.weightLatest}
-          metrics={data.metrics}
-          state={data.nutritionState}
+        <CutProgressCard
+          key="cut"
+          loading={loading}
+          goal={data?.goal}
+          cutStartDate={data?.cutStartDate ?? null}
+          state={data?.nutritionState ?? null}
           onNav={() => nav("health")}
-          onNavActivity={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />
       )}
 
-      {data && (
-        <StrengthHealthCard
-          variant="snapshot"
-          strength={data.strength}
-          onNav={() => nav("training", { scrollTo: "training-strength-health-card" })}
-        />
-      )}
+      <WeightCard
+        key="weight"
+        loading={loading}
+        weightLatest={data?.weightLatest ?? null}
+        metrics={data?.metrics ?? []}
+        state={data?.nutritionState ?? null}
+        onNav={() => nav("health")}
+        onNavActivity={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
+      />
+
+      <StrengthHealthCard
+        key="strength"
+        variant="snapshot"
+        loading={loading}
+        strength={data?.strength}
+        onNav={() => nav("training", { scrollTo: "training-strength-health-card" })}
+      />
     </div>
   );
 }

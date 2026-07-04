@@ -17,32 +17,6 @@ import {
 } from "./logFormHelpers";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LogTargets — "beat this" reference shown above the weight input: Last is the
-// cut floor to match, PR is the overload ceiling. Sits inside the form so it
-// stays visible with the keyboard up, when the card's PR hero is scrolled off.
-// ─────────────────────────────────────────────────────────────────────────────
-
-function LogTargets({ lastRef, prRef }: { lastRef?: string | null; prRef?: string | null }) {
-  if (!lastRef && !prRef) return null;
-  return (
-    <div className="log-targets">
-      {lastRef && (
-        <span className="log-target">
-          <span className="log-target-label">Last Logged</span>
-          <span className="log-target-val mono">{lastRef}</span>
-        </span>
-      )}
-      {prRef && (
-        <span className="log-target log-target-pr">
-          <span className="log-target-label">PR</span>
-          <span className="log-target-val mono">{prRef}</span>
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // RepsSetInput
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -145,16 +119,12 @@ function EditAdvancedActions({ onDelete }: { onDelete?: () => void }) {
 export function AddEntryForm({
   setCount,
   lastRaw,
-  lastRef,
-  prRef,
   onAdd,
   onCancel,
   submitting = false,
 }: {
   setCount: number;
   lastRaw: string;
-  lastRef?: string | null;
-  prRef?: string | null;
   onAdd: (raw: string, date: string, note: string) => void;
   onCancel: () => void;
   submitting?: boolean;
@@ -212,8 +182,6 @@ export function AddEntryForm({
           style={isToday ? { opacity: 0.45 } : {}}
         />
       </div>
-
-      <LogTargets lastRef={lastRef} prRef={prRef} />
 
       <div className="log-weight-zone">
         <div className="log-hero-row">
@@ -302,16 +270,12 @@ export function AddEntryForm({
 export function AddAssistedForm({
   setCount,
   lastLog,
-  lastRef,
-  prRef,
   onAdd,
   onCancel,
   submitting = false,
 }: {
   setCount: number;
   lastLog: TrainingLog | null;
-  lastRef?: string | null;
-  prRef?: string | null;
   onAdd: (raw: string, date: string, note: string) => void;
   onCancel: () => void;
   submitting?: boolean;
@@ -390,8 +354,6 @@ export function AddAssistedForm({
           style={isToday ? { opacity: 0.45 } : {}}
         />
       </div>
-
-      <LogTargets lastRef={lastRef} prRef={prRef} />
 
       <div className="log-weight-zone">
         <div className="log-assisted-label">Assistance</div>
