@@ -15,8 +15,9 @@ export interface StrengthExercise {
   status: StrengthStatus;
   latestE1RM: number;  // most recent session best
   prE1RM: number;      // all-time best across all sessions
-  trend: number;       // recent-3-avg / prior-avg — the ratio that drives `status`
+  trend: number;       // latestE1RM / prE1RM — distance-from-PR ratio that drives `status`
   stalledWeeks: number; // whole weeks since the last session that set a new best
+  lastLogDate: string;  // ISO date of the most recent session — for staleness labelling
 }
 
 export interface StrengthSummary {
@@ -25,17 +26,6 @@ export interface StrengthSummary {
   watch: number;
   total: number; // exercises with enough data
   exercises: StrengthExercise[];
-}
-
-export interface CompoundItem {
-  slug: string;
-  label: string;
-  pct: number; // 0–1
-}
-
-export interface CompoundProgress {
-  overall: number; // 0–1, average of items
-  items: CompoundItem[];
 }
 
 export interface OverviewData {
@@ -47,7 +37,6 @@ export interface OverviewData {
   /** Active energy change vs the prior 14–28d window — the up-good delta. */
   activeChange: number | null;
   strength: StrengthSummary;
-  compoundProgress: CompoundProgress | null;
   /** Shared nutrition evaluation + recommendation (single source of truth).
    *  Feeds the System, Weight, and Nutrition cards — Overview never recomputes. */
   nutritionState: NutritionStateFull | null;
@@ -71,34 +60,8 @@ export interface OverviewData {
   activeTarget: ActiveTargetView | null;
 }
 
-// Pull is resolved dynamically (first exercise in Pull split by sort_order).
-// The others are stable slug references.
-const FIXED_COMPOUNDS: { slug: string; label: string }[] = [
-  { slug: "bench-press", label: "Bench" },
-  { slug: "squat",       label: "Squat" },
-  { slug: "rdl",         label: "RDL"   },
-];
-
-function compoundPct(slugLogs: Array<{ log_date: string | null; raw: string | null }>): number | null {
-  const byDate: Record<string, number> = {};
-  for (const l of slugLogs) {
-    if (!l.log_date || !l.raw) continue;
-    const p = parse(l.raw);
-    if (!p) continue;
-    const w = score(p);
-    if (!Number.isFinite(w)) continue;
-    const e = epley1RM(w, p.reps);
-    byDate[l.log_date] = Math.max(byDate[l.log_date] ?? 0, e);
-  }
-  const dates = Object.keys(byDate).sort();
-  if (!dates.length) return null;
-  const prE1RM = Math.max(...Object.values(byDate));
-  const currentE1RM = byDate[dates[dates.length - 1]];
-  return Math.min(1, currentE1RM / prE1RM);
-}
-
-/** Logs grouped by exercise slug — the only shape the strength/compound
- *  computations need. Rows may arrive in any date order (sorted internally). */
+/** Logs grouped by exercise slug — the only shape the strength computation
+ *  needs. Rows may arrive in any date order (sorted internally). */
 type LogsBySlug = Record<string, Array<{ log_date: string | null; raw: string | null }>>;
 
 /**
@@ -135,19 +98,20 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
     const sessionBests = datedBests.map(([, v]) => v);
     if (sessionBests.length < 4) { strength.total--; continue; }
 
-    // recent 3 vs the rest (prior sessions)
-    const recent = sessionBests.slice(-3);
-    const prior = sessionBests.slice(0, -3);
-    const recentAvg = recent.reduce((s, v) => s + v, 0) / recent.length;
-    const priorAvg = prior.reduce((s, v) => s + v, 0) / prior.length;
-
-    const ratio = recentAvg / priorAvg;
-    let status: StrengthStatus;
-    if (ratio >= 1.01) { strength.improving++; status = "improving"; }
-    else if (ratio >= 0.97) { strength.stable++; status = "stable"; }
-    else { strength.watch++; status = "watch"; }
-    const latestE1RM = recent[recent.length - 1];
+    const latestE1RM = sessionBests[sessionBests.length - 1];
     const prE1RM = Math.max(...sessionBests);
+
+    // Status = distance from PR, NOT recent-vs-prior slope. This user logs
+    // asymmetrically — they only record a session when strength DROPS (or on a
+    // PR); maintained days are left unlogged. So a recent-vs-prior slope reads
+    // that biased sample as decline even while they're holding. Judging purely
+    // by "how far below PR is the last recorded session" makes maintenance the
+    // healthy default and only flags a genuine, meaningful drop.
+    const pct = prE1RM > 0 ? latestE1RM / prE1RM : 0;
+    let status: StrengthStatus;
+    if (pct >= 0.997) { strength.improving++; status = "improving"; }  // at / new PR
+    else if (pct >= 0.94) { strength.stable++; status = "stable"; }    // holding
+    else { strength.watch++; status = "watch"; }                      // real drop below PR
 
     // Weeks stalled: span from the last session that set a new running best to
     // the most recent session. A rising lift lands its PR on (or near) the last
@@ -168,36 +132,13 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       status,
       latestE1RM,
       prE1RM,
-      trend: ratio,
+      trend: pct,
       stalledWeeks,
+      lastLogDate: lastDate,
     });
   }
 
   return strength;
-}
-
-/** Compound-lift progress (% of PR) — the Training Health hero number. Bench,
- *  the first Pull-split lift, the first "row" lift, then Squat + RDL. Shared by
- *  both surfaces; the caller resolves pull/row slugs (Overview via query, the
- *  Training tab from its in-memory exercise list). */
-export function computeCompoundProgress(
-  logsBySlug: LogsBySlug,
-  pullSlug: string | null,
-  rowSlug: string | null,
-): CompoundProgress | null {
-  const compounds: { slug: string; label: string }[] = [
-    FIXED_COMPOUNDS[0],                                        // Bench
-    ...(pullSlug ? [{ slug: pullSlug, label: "Pull" }] : []),
-    ...(rowSlug ? [{ slug: rowSlug, label: "Row" }] : []),
-    ...FIXED_COMPOUNDS.slice(1),                               // Squat, RDL
-  ];
-  const items: CompoundItem[] = compounds.flatMap(({ slug, label }) => {
-    const pct = compoundPct(logsBySlug[slug] ?? []);
-    return pct !== null ? [{ slug, label, pct }] : [];
-  });
-  return items.length
-    ? { overall: items.reduce((s, x) => s + x.pct, 0) / items.length, items }
-    : null;
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
@@ -205,7 +146,7 @@ export async function fetchOverview(): Promise<OverviewData> {
   if (userErr || !userData.user) throw userErr ?? new Error("Not signed in");
   const userId = userData.user.id;
 
-  const [health, logsRes, pullFirstRes, rowFirstRes, nutritionState, configRes] = await Promise.all([
+  const [health, logsRes, nutritionState, configRes] = await Promise.all([
     // 180 days of body metrics. Recovery's 7/30-day windows anchor to the latest
     // reading, so the wider window doesn't shift its baseline.
     fetchHealthData(180),
@@ -213,23 +154,6 @@ export async function fetchOverview(): Promise<OverviewData> {
       .from("training_logs")
       .select("exercise_slug, raw, log_date")
       .order("log_date", { ascending: true }),
-    supabase
-      .from("exercises")
-      .select("slug")
-      .eq("split", "pull")
-      .eq("archived", false)
-      .order("sort_order", { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("exercises")
-      .select("slug")
-      .eq("split", "pull")
-      .eq("archived", false)
-      .ilike("name", "%row%")
-      .order("sort_order", { ascending: true })
-      .limit(1)
-      .maybeSingle(),
     // Shared nutrition state — a plain read; recompute happens on data change.
     getNutritionState(),
     // Goal Provider config: the target plus the persisted cut baseline
@@ -246,8 +170,6 @@ export async function fetchOverview(): Promise<OverviewData> {
   // rejecting — check explicitly so a transient failure surfaces the real
   // ErrorState instead of silently reading back as "no data".
   if (logsRes.error) throw logsRes.error;
-  if (pullFirstRes.error) throw pullFirstRes.error;
-  if (rowFirstRes.error) throw rowFirstRes.error;
   if (configRes.error) throw configRes.error;
 
   // Weight — latest reading. The trend/status the Weight card shows comes from
@@ -279,10 +201,6 @@ export async function fetchOverview(): Promise<OverviewData> {
 
   const strength = computeStrengthSummary(bySlug);
 
-  const pullSlug = pullFirstRes.data?.slug ?? null;
-  const rowSlug  = rowFirstRes.data?.slug  ?? null;
-  const compoundProgress = computeCompoundProgress(bySlug, pullSlug, rowSlug);
-
   // Primary Goal — computed entirely upstream in the Provider. The card only
   // renders the finished payload; swapping goal types never touches this call.
   // Progress is anchored to the persisted cut baseline body fat.
@@ -297,7 +215,6 @@ export async function fetchOverview(): Promise<OverviewData> {
     activeEnergy,
     activeChange,
     strength,
-    compoundProgress,
     nutritionState,
     goal,
     targetBodyFat: configRes.data?.target_body_fat_pct ?? null,

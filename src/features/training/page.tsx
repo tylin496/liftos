@@ -25,7 +25,7 @@ import {
 } from "./ExerciseCard";
 import { computeStats } from "./logic";
 import { StrengthHealthCard } from "./StrengthHealthCard";
-import { computeStrengthSummary, computeCompoundProgress } from "@features/overview/api";
+import { computeStrengthSummary } from "@features/overview/api";
 import { defaultSetCount, useScrollAboveKeyboard } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
 import { fmtWeightNum } from "./ExprDisplay";
@@ -750,17 +750,10 @@ function TrainingPageInner() {
   // same pure functions Overview uses, so the two surfaces can't disagree. The
   // compound hero needs the first Pull-split lift and the first "row" lift,
   // resolved here from the exercise list (Overview resolves them via query).
-  const strengthHealth = useMemo(() => {
-    const pullExercises = (exercises ?? [])
-      .filter((e) => e.split === "pull" && !e.archived)
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    const pullSlug = pullExercises[0]?.slug ?? null;
-    const rowSlug = pullExercises.find((e) => /row/i.test(e.name))?.slug ?? null;
-    return {
-      strength: computeStrengthSummary(logs),
-      compoundProgress: computeCompoundProgress(logs, pullSlug, rowSlug),
-    };
-  }, [exercises, logs]);
+  const strengthHealth = useMemo(
+    () => ({ strength: computeStrengthSummary(logs) }),
+    [logs],
+  );
 
   usePageHeader({
     eyebrow: "TRAINING",
@@ -909,7 +902,6 @@ function TrainingPageInner() {
         <StrengthHealthCard
           variant="full"
           strength={strengthHealth.strength}
-          compoundProgress={strengthHealth.compoundProgress}
         />
       )}
     </div>

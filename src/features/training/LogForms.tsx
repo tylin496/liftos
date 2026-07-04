@@ -28,7 +28,7 @@ function LogTargets({ lastRef, prRef }: { lastRef?: string | null; prRef?: strin
     <div className="log-targets">
       {lastRef && (
         <span className="log-target">
-          <span className="log-target-label">Last</span>
+          <span className="log-target-label">Last Logged</span>
           <span className="log-target-val mono">{lastRef}</span>
         </span>
       )}

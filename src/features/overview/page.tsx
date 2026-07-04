@@ -1,4 +1,4 @@
-import { useEffect, useState, type Ref, type ReactNode } from "react";
+import { useEffect, useId, useState, type Ref, type ReactNode } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
@@ -68,23 +68,26 @@ function daysSince(isoDate: string): number {
 // Renders the ring at a given accrued value (blank number + empty fill when
 // `shown` is null, i.e. before the roll starts). `innerRef` goes on the ring
 // centre so its on-screen position can be measured for the stagger.
-function ActiveTargetRingBody({ shown, target, innerRef }: { shown: number | null; target: number; innerRef?: Ref<HTMLDivElement> }) {
+function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { shown: number | null; target: number; synced?: boolean; innerRef?: Ref<HTMLDivElement> }) {
   const ratio = (shown ?? 0) / Math.max(1, target);
-  // Dedicated Apple "Move"-ring colour (--ring) — the active-calorie ring is our
-  // Move ring. A fixed pink-red that FILLS to show progress; the colour never
-  // changes by %. Deliberately NOT the progress spectrum and NOT a gold flip.
-  const ringColor = "var(--ring)";
+  // Absence ≠ a measured zero: before today syncs, the centre reads "—", not "0".
+  const numText = shown == null ? "" : !synced ? "—" : shown.toLocaleString();
+  // Follows the shared Apple-spectrum progress ramp by fill (progressColor) —
+  // red→orange→green→cyan→blue, the same as the Cut Progress bar and top-bar
+  // ring. At/over 100% it flips to the discrete completion gold
+  // (--progress-complete), never a ramp stop.
+  const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
   return ratio > 1 ? (
     <OverflowRing ratio={ratio} size={96} strokeWidth={9} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
-        <span className="ov-active-target-ring-num">{shown == null ? "" : shown.toLocaleString()}</span>
+        <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
       </div>
     </OverflowRing>
   ) : (
     <ActivityRing pct={ratio} size={96} strokeWidth={9} color={ringColor} trackColor="var(--bg-soft)" transition="none">
       <div className="ov-active-target-ring-center" ref={innerRef}>
-        <span className="ov-active-target-ring-num">{shown == null ? "" : shown.toLocaleString()}</span>
+        <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
       </div>
     </ActivityRing>
@@ -113,45 +116,63 @@ function OverflowRing({
   const circumference = 2 * Math.PI * r;
   const overflowFrac = Math.min(1, ratio - 1);
   const overflowLength = overflowFrac * circumference;
-  // Tail (leading) end position — the head stays flush at 12 o'clock and the
-  // tail sweeps clockwise. Only the tail carries the round cap + shadow, so it
-  // reads as "stacked on top" while the head connects seamlessly into the ring.
+  const tailClipId = useId();
+  const bandClipId = useId();
+  // Tail = the leading end of the second lap; the shadow is revealed only here.
   const tailAngle = overflowFrac * 2 * Math.PI - Math.PI / 2;
   const tailX = c + r * Math.cos(tailAngle);
   const tailY = c + r * Math.sin(tailAngle);
+  // Annulus matching the ring's own stroke band (outer r+sw/2, inner r−sw/2) as
+  // an even-odd path so the inner circle is a hole. Clips the tail shadow to
+  // land only ON the ring — never past the outer edge nor into the inner hole.
+  const rOut = r + strokeWidth / 2;
+  const rIn = r - strokeWidth / 2;
+  const bandPath =
+    `M ${c - rOut} ${c} a ${rOut} ${rOut} 0 1 0 ${rOut * 2} 0 a ${rOut} ${rOut} 0 1 0 ${-rOut * 2} 0 Z ` +
+    `M ${c - rIn} ${c} a ${rIn} ${rIn} 0 1 0 ${rIn * 2} 0 a ${rIn} ${rIn} 0 1 0 ${-rIn * 2} 0 Z`;
+  // The second lap is ONE arc, drawn twice from the same props: the plain ribbon
+  // on top, and a shadowed copy behind it shown only where the tail window AND
+  // the ring band overlap — so the shadow lifts the ribbon's END, cast onto the
+  // ring beneath, while the head continues seamlessly onto the first lap.
+  const overflowArc = {
+    cx: c, cy: c, r,
+    fill: "none",
+    stroke: color,
+    strokeWidth,
+    strokeLinecap: "round" as const,
+    strokeDasharray: `${overflowLength} ${circumference}`,
+    transform: `rotate(-90 ${c} ${c})`,
+  };
   return (
     <div className="activity-ring" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <defs>
+          <clipPath id={tailClipId}>
+            <circle cx={tailX} cy={tailY} r={strokeWidth * 1.6} />
+          </clipPath>
+          <clipPath id={bandClipId}>
+            <path d={bandPath} clipRule="evenodd" fillRule="evenodd" />
+          </clipPath>
+        </defs>
         <circle cx={c} cy={c} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={strokeWidth} />
         <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} />
-        <circle
-          cx={c}
-          cy={c}
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={`${overflowLength} ${circumference}`}
-          transform={`rotate(-90 ${c} ${c})`}
-        />
         {overflowFrac > 0 && (
-          <circle
-            cx={tailX}
-            cy={tailY}
-            r={strokeWidth / 2}
-            fill={color}
-            style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,.65))" }}
-          />
+          <g clipPath={`url(#${tailClipId})`}>
+            <g clipPath={`url(#${bandClipId})`}>
+              <circle {...overflowArc} style={{ filter: "drop-shadow(0 2.5px 3.5px rgba(0,0,0,.7))" }} />
+            </g>
+          </g>
         )}
+        <circle {...overflowArc} />
       </svg>
       {children && <div className="activity-ring-center">{children}</div>}
     </div>
   );
 }
 
-function ActiveTargetRingRoll({ accrued, target, delayMs }: { accrued: number; target: number; delayMs: number }) {
+function ActiveTargetRingRoll({ accrued, target, synced, delayMs }: { accrued: number; target: number; synced: boolean; delayMs: number }) {
   const shown = useCountUp(accrued, COUNT_UP_MS, 0, delayMs);
-  return <ActiveTargetRingBody shown={shown} target={target} />;
+  return <ActiveTargetRingBody shown={shown} target={target} synced={synced} />;
 }
 
 /* Today's-target ring: the accrued number counts up from 0 and the ring fills in
@@ -159,10 +180,10 @@ function ActiveTargetRingRoll({ accrued, target, delayMs }: { accrued: number; t
    ring's on-screen position. It measures a blank ring first (carrying the ref)
    so the roll only starts once its delay is known. Rolls ONCE on first reveal,
    then settles — a later value change (re-sync) tweens in place, no re-roll. */
-function ActiveTargetRing({ accrued, target }: { accrued: number; target: number }) {
+function ActiveTargetRing({ accrued, target, synced }: { accrued: number; target: number; synced: boolean }) {
   const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
-  if (delayMs == null) return <ActiveTargetRingBody shown={null} target={target} innerRef={ref} />;
-  return <ActiveTargetRingRoll accrued={accrued} target={target} delayMs={delayMs} />;
+  if (delayMs == null) return <ActiveTargetRingBody shown={null} target={target} synced={synced} innerRef={ref} />;
+  return <ActiveTargetRingRoll accrued={accrued} target={target} synced={synced} delayMs={delayMs} />;
 }
 
 /* Active Target — back-solves the daily active-calorie goal from a maintenance
@@ -204,7 +225,6 @@ function ActiveTargetCard({
   const diff = view ? view.today.target - dailyAvg : 0;
   const position = Math.abs(diff) <= 30 ? "on" : diff > 0 ? "behind" : "ahead";
   const ratio = view ? view.today.accrued / Math.max(1, view.today.target) : 0;
-  const isClosed = view ? view.today.accrued >= view.today.target : false;
 
   return (
     <button type="button" className="page-card ov-active-target" onClick={onNav}>
@@ -222,17 +242,18 @@ function ActiveTargetCard({
             <ActiveTargetRing
               accrued={view.today.accrued}
               target={view.today.target}
+              synced={view.today.synced}
             />
             <div className="ov-active-target-ring-caption">
-              <span className="ov-active-target-ring-title">Today's target</span>
+              <span className="ov-active-target-ring-title">Today's active target</span>
               <span className="ov-active-target-ring-sub">
                 {ratio > 1.05
-                  ? `Closed — ${Math.round(ratio * 100)}% of today's target`
+                  ? `Closed — ${Math.round(ratio * 100)}% of target`
                   : position === "behind"
-                    ? <><span className="is-behind">Behind</span> this week — today's target is {view.today.target.toLocaleString()}, up from your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day average</span></>
+                    ? <><span className="is-behind">Behind</span> this week — raised from your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>
                     : position === "ahead"
-                      ? <><span className="is-ahead">Ahead</span> this week — today's target is {view.today.target.toLocaleString()}, eased below your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day average</span></>
-                      : <><span className="is-on">On pace</span> — about your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day average</span></>}
+                      ? <><span className="is-ahead">Ahead</span> this week — eased below your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>
+                      : <><span className="is-on">On pace</span> — about your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>}
               </span>
               {!view.today.synced && (
                 <span className="ov-active-target-ring-stale">
@@ -244,21 +265,6 @@ function ActiveTargetCard({
             </div>
           </div>
 
-          <div className={`ov-active-target-hint${isClosed ? " is-closed" : ""}`}>
-            {isClosed ? (
-              <>
-                <span>Today's ring is closed</span>
-                <span>{view.today.accrued.toLocaleString()} active logged</span>
-              </>
-            ) : (
-              <>
-                <span>{(view.today.target - view.today.accrued).toLocaleString()} kcal to close today's ring</span>
-                {view.session && (
-                  <span>A typical session adds ~{view.session.boost.toLocaleString()} active</span>
-                )}
-              </>
-            )}
-          </div>
         </>
       ) : (
         <p className="page-note">
@@ -834,7 +840,6 @@ export function OverviewPage() {
         <StrengthHealthCard
           variant="snapshot"
           strength={data.strength}
-          compoundProgress={data.compoundProgress}
           onNav={() => nav("training")}
         />
       )}

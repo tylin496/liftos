@@ -106,26 +106,6 @@
   color: var(--gold);
 }
 
-.ov-active-target-hint {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  min-height: 56px;
-  margin-top: var(--space-4);
-  padding: 10px var(--space-3);
-  background: var(--accent-soft);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  color: var(--accent-strong);
-  line-height: var(--leading-body);
-}
-
-.ov-active-target-hint.is-closed {
-  background: color-mix(in oklab, var(--good) 16%, transparent);
-  color: var(--good);
-}
-
 .ov-no-entry {
   font-size: var(--text-sm);
   color: var(--ink-4);

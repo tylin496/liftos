@@ -5,7 +5,8 @@ import { getNutritionState } from "@features/nutrition/evaluationApi";
 import { weeklyWeightRate } from "@features/nutrition/evaluation";
 import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
-import { computeStats, computeTrend, epley1RM, buildStagnationView } from "@features/training/logic";
+import { computeStats, epley1RM } from "@features/training/logic";
+import { computeStrengthSummary, type StrengthExercise } from "@features/overview/api";
 import { defaultSetCount } from "@features/training/logFormHelpers";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
@@ -284,31 +285,31 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     })),
   );
 
-  // Training: flag exercises that are plateauing or declining, with the reason.
-  const trainingAttention: {
-    name: string;
-    status: string;
-    retentionPct: number;
-    trendPct: number | null;
-    reason: string | null;
-  }[] = [];
-  let improvingCount = 0;
-  for (const ex of exercises) {
-    if (ex.archived) continue;
-    const asc = (allLogsBySlug[ex.slug] ?? []).map((e) => e.log);
-    const sv = buildStagnationView(asc, defaultSetCount(ex));
-    if (!sv) continue;
-    if (sv.status === "excellent" || sv.status === "on-track") improvingCount++;
-    if (sv.status === "watch" || sv.status === "review") {
-      trainingAttention.push({
-        name: ex.name,
-        status: sv.status,
-        retentionPct: +(sv.pct * 100).toFixed(1),
-        trendPct: sv.t ? +(sv.t.change * 100).toFixed(1) : null,
-        reason: sv.reason ?? null,
-      });
-    }
-  }
+  // Training: flag exercises sitting below PR ("watch"), with weeks-since-PR.
+  // Status is PR-distance (latest ÷ PR), the SAME model the Training Health card
+  // uses — this user logs asymmetrically (only drops/PRs, maintenance goes
+  // unrecorded), so a session-to-session slope reads that biased sample as
+  // decline. Judging distance-from-PR keeps the export in step with the UI.
+  const strengthBySlug = new Map<string, StrengthExercise>(
+    computeStrengthSummary(
+      Object.fromEntries(
+        exercises
+          .filter((e) => !e.archived)
+          .map((e) => [e.slug, (allLogsBySlug[e.slug] ?? []).map((x) => x.log)]),
+      ),
+    ).exercises.map((x) => [x.slug, x]),
+  );
+  const nameBySlug = new Map(exercises.map((e) => [e.slug, e.name]));
+  const trainingAttention = [...strengthBySlug.values()]
+    .filter((x) => x.status === "watch")
+    .sort((a, b) => a.trend - b.trend) // worst (furthest below PR) first
+    .map((x) => ({
+      name: nameBySlug.get(x.slug) ?? x.name,
+      status: x.status,
+      retentionPct: +(x.trend * 100).toFixed(1),
+      weeksSincePR: x.stalledWeeks,
+    }));
+  const improvingCount = [...strengthBySlug.values()].filter((x) => x.status !== "watch").length;
 
   const insights = {
     weight: weightTrend,
@@ -355,7 +356,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         // Keep chronological order even when an out-of-window PR was appended.
         sliced.sort((a, b) => (a.log.log_date ?? "").localeCompare(b.log.log_date ?? ""));
 
-        const trendResult = computeTrend(allRaw, setCount);
+        const se = strengthBySlug.get(ex.slug);
         const bestE1RM = stats.best ? +stats.best.e1rm.toFixed(1) : null;
         const currentE1RM = stats.latest ? +stats.latest.e1rm.toFixed(1) : null;
         const sessionDates = [...new Set(allRaw.map((l) => l.log_date).filter(Boolean))].sort();
@@ -368,8 +369,11 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
             sessions: sessionDates.length,
             bestE1RM,
             currentE1RM,
-            trend: trendResult?.trend ?? null,
-            trendPct: trendResult ? +((trendResult.change * 100).toFixed(1)) : null,
+            // PR-distance model (see strengthBySlug above): retention = latest ÷ PR,
+            // weeksSincePR = whole weeks since the last new best. Null when the
+            // exercise has too few sessions to qualify.
+            retentionPct: se ? +(se.trend * 100).toFixed(1) : null,
+            weeksSincePR: se ? se.stalledWeeks : null,
             lastSession,
           },
           pr: pr
@@ -406,7 +410,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 2.3,
+    schema: 2.4,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
     dataSpan: overviewWindow, // total span of ALL data (see windowOf); distinct from per-section windowDays
     summary: {
@@ -509,7 +513,7 @@ export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> 
 
   const payload = {
     source: "LiftOS",
-    schema: 2.3,
+    schema: 2.4,
     tab: "health",
     units: unitsFor(HEALTH_UNIT_KEYS),
     dataSpan: windowOf(metrics.map((m) => m.metric_date)),
@@ -574,7 +578,7 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
 
   const payload = {
     source: "LiftOS",
-    schema: 2.3,
+    schema: 2.4,
     tab: "nutrition",
     units: unitsFor(NUTRITION_UNIT_KEYS),
     dataSpan: windowOf(sorted.map((e) => e.entry_date)),
@@ -624,16 +628,24 @@ export async function buildTrainingJson(): Promise<string> {
     ),
   ]);
 
+  // PR-distance status per exercise (same model as the Training Health card).
+  const strengthBySlug = new Map<string, StrengthExercise>(
+    computeStrengthSummary(
+      Object.fromEntries(
+        exercises.filter((e) => !e.archived).map((e) => [e.slug, logsBySlug[e.slug] ?? []]),
+      ),
+    ).exercises.map((x) => [x.slug, x]),
+  );
+
   const splits = SPLITS.map((split) => {
     const splitExercises = exercises.filter((ex) => ex.split === split.id && !ex.archived);
     const exerciseData = splitExercises.map((ex) => {
-      // fetchLogsBySlug is newest-first; reverse to ascending for stats/trend/logs.
+      // fetchLogsBySlug is newest-first; reverse to ascending for stats/logs.
       const ascLogs = [...(logsBySlug[ex.slug] ?? [])].reverse();
       const setCount = defaultSetCount(ex);
       const stats = computeStats(ascLogs, setCount);
       const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
-      const trendResult = computeTrend(ascLogs, setCount);
-      const sv = buildStagnationView(ascLogs, setCount);
+      const se = strengthBySlug.get(ex.slug);
       const sessionDates = [...new Set(ascLogs.map((l) => l.log_date).filter(Boolean))].sort();
 
       return {
@@ -643,8 +655,8 @@ export async function buildTrainingJson(): Promise<string> {
           sessions: sessionDates.length,
           bestE1RM: stats.best ? +stats.best.e1rm.toFixed(1) : null,
           currentE1RM: stats.latest ? +stats.latest.e1rm.toFixed(1) : null,
-          trend: trendResult?.trend ?? null,
-          trendPct: trendResult ? +(trendResult.change * 100).toFixed(1) : null,
+          retentionPct: se ? +(se.trend * 100).toFixed(1) : null,
+          weeksSincePR: se ? se.stalledWeeks : null,
           lastSession: sessionDates.at(-1) ?? null,
         },
         pr: pr
@@ -653,11 +665,11 @@ export async function buildTrainingJson(): Promise<string> {
               bestSet: stats.best?.log.raw ?? null,
             }
           : null,
-        stagnation: sv
+        strength: se
           ? {
-              status: sv.status,
-              retentionPct: +(sv.pct * 100).toFixed(1),
-              reason: sv.reason ?? null,
+              status: se.status,
+              retentionPct: +(se.trend * 100).toFixed(1),
+              weeksSincePR: se.stalledWeeks,
             }
           : null,
         logs: ascLogs.map((l) => {
@@ -678,7 +690,7 @@ export async function buildTrainingJson(): Promise<string> {
 
   const payload = {
     source: "LiftOS",
-    schema: 2.3,
+    schema: 2.4,
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
     dataSpan: windowOf(

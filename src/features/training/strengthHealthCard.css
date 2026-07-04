@@ -288,6 +288,16 @@
   color: var(--ink-4);
 }
 
+/* Staleness hint — a neutral freshness note ("logged 8w ago"), never a verdict.
+   ink-4 so it reads as metadata beside the name, not a status signal. */
+.ov-th-row-stale {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+
 /* On-track percent stays neutral ink-3 — a ratio, not a judgeable delta,
    even though it visually resembles the hero %. */
 .ov-th-row-pct {
