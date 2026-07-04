@@ -1,3 +1,5 @@
+import { localDateStrDaysAgo } from "@shared/lib/date";
+
 export interface TdeeEstimate {
   tdee: number | null;
   avgActive: number | null;
@@ -57,12 +59,6 @@ export interface TdeeMetricRow {
   active_energy_kcal: number | null;
 }
 
-function daysAgoISO(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
 /**
  * Current + previous-period TDEE from a list of body metrics (any order).
  * Resting window = 30 days, active window = 14 days. The previous period shifts
@@ -75,10 +71,10 @@ export function computeTdeeWindows(metrics: TdeeMetricRow[]): {
   tdee: TdeeEstimate;
   tdeePrev: TdeeEstimate;
 } {
-  const cutoff14 = daysAgoISO(14);
-  const cutoff28 = daysAgoISO(28);
-  const cutoff30 = daysAgoISO(30);
-  const cutoff60 = daysAgoISO(60);
+  const cutoff14 = localDateStrDaysAgo(14);
+  const cutoff28 = localDateStrDaysAgo(28);
+  const cutoff30 = localDateStrDaysAgo(30);
+  const cutoff60 = localDateStrDaysAgo(60);
 
   const tdee = estimateTdee(
     metrics.filter((m) => m.metric_date >= cutoff30).map((m) => ({ resting: m.resting_energy_kcal })),
