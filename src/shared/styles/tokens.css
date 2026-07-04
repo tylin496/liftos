@@ -297,7 +297,7 @@
   --good: #4ad968;
   --bad: #ff6165;
   --warn: #ff9f0a;   /* Warning / attention — Apple systemOrange (dark), clear of --bad/--gold */
-  --gold: #edcb5c;   /* PR / gold-reward — glowing metallic gold, brighter for dark (was --pr) */
+  --gold: #ffd970;   /* PR / gold-reward — vivid warm gold, glows on dark (was --pr) */
   --blue: #6dd9ff;   /* Cyan (IC-dark) */
   /* Health chart colours — Apple increased-contrast (dark) for active (brighter
      on dark); measurement/sleep use Default (dark) instead of IC-dark — the

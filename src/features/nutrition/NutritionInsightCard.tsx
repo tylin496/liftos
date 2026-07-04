@@ -31,21 +31,11 @@ function AnimatedInt({ value }: { value: number; delayMs?: number }) {
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
 
-function fmtRate(kgPerWeek: number): string {
-  const sign = kgPerWeek < 0 ? "−" : kgPerWeek > 0 ? "+" : "±";
-  return `${sign}${Math.abs(kgPerWeek).toFixed(2)} kg/wk`;
-}
-
-// Observed rate carries colour based on distance from the target band (in-band
-// green / near an edge gold / materially off red) — both too slow and too fast
-// score worse the further they drift, so this isn't a simple low=bad/high=good
-// read. Confidence describes how sure the estimate is — not good/bad — so it
-// stays neutral.
-const RATE_STATUS: Record<"good" | "warn" | "bad", string> = {
-  good: "status-good",
-  warn: "status-gold",
-  bad: "status-bad",
-};
+// Observed rate carries a leading dot coloured by distance from the target
+// band (in-band green / near an edge amber / materially off red) — both too
+// slow and too fast score worse the further they drift, so this isn't a
+// simple low=bad/high=good read. The rate value stays neutral ink — colour
+// lives on the dot only, not doubled onto the number.
 
 // Leading status dot before Observed rate / Confidence values — same
 // good/gold/bad language as the text colour above, just a glance-only mark.
@@ -63,7 +53,6 @@ const CONFIDENCE_DOT: Record<string, "good" | "gold" | "bad"> = {
 function EvidenceCell({
   label,
   value,
-  status,
   dot,
   full,
   expandable,
@@ -72,7 +61,6 @@ function EvidenceCell({
 }: {
   label: string;
   value: string;
-  status?: string;
   dot?: "good" | "gold" | "bad";
   full?: boolean;
   expandable?: boolean;
@@ -98,7 +86,7 @@ function EvidenceCell({
       }
     >
       <span className="ni-cell-label">{label}</span>
-      <span className={`ni-cell-value${status ? ` ${status}` : ""}`}>
+      <span className="ni-cell-value">
         {dot && <span className={`ni-status-dot status-${dot}`} aria-hidden="true" />}
         {value}
         {expandable && <span className="ni-cell-caret" aria-hidden="true">›</span>}
@@ -226,14 +214,10 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
           <div className="ni-grid">
             <EvidenceCell
               label="Observed rate · 21d"
-              value={!noData && !loading && hasTrend ? fmtRate(e!.observedRate) : "—"}
-              status={
-                !noData && !loading && hasTrend && e
-                  ? (() => {
-                      const t = rateTone(e);
-                      return t ? RATE_STATUS[t] : undefined;
-                    })()
-                  : undefined
+              value={
+                !noData && !loading && hasTrend
+                  ? `${e!.observedRate < 0 ? "−" : e!.observedRate > 0 ? "+" : "±"}${Math.abs(e!.observedRate).toFixed(2)} kg/wk`
+                  : "—"
               }
               dot={
                 !noData && !loading && hasTrend && e
