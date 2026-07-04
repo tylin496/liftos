@@ -353,7 +353,7 @@
 }
 
 .ex-pr-inline.pr-just-set {
-  background: color-mix(in srgb, var(--pr) 12%, transparent);
+  background: color-mix(in srgb, var(--gold) 12%, transparent);
   animation: pr-pop var(--dur-pop) var(--ease-pop);
   position: relative;
   overflow: hidden;
@@ -366,7 +366,7 @@
   background: linear-gradient(
     105deg,
     transparent 40%,
-    color-mix(in srgb, var(--pr) 35%, transparent) 50%,
+    color-mix(in srgb, var(--gold) 35%, transparent) 50%,
     transparent 60%
   );
   background-size: 200% 100%;
@@ -386,7 +386,7 @@
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--pr);
+  color: var(--gold);
   opacity: 0.85;
   align-self: center;
 }
@@ -466,7 +466,7 @@
 }
 
 .hist-row.is-pr {
-  border-left: 3px solid var(--pr);
+  border-left: 3px solid var(--gold);
   /* Subtract the 3px border from the padding so border + padding == space-2,
      cancelling the negative margin exactly — otherwise the border shifts the
      whole row's content 3px right and it misaligns with non-PR rows. */
@@ -580,8 +580,8 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--pr);
-  background: color-mix(in srgb, var(--pr) 18%, transparent);
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
   padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   position: relative;
@@ -865,7 +865,7 @@
 /* PR = the overload ceiling — tint it so the ceiling reads distinct from the
    neutral Last floor. */
 .log-target-pr .log-target-val {
-  color: var(--pr);
+  color: var(--gold);
 }
 
 /* ── Weight zone ─────────────────────────────────────────────────────────────*/
@@ -1492,7 +1492,7 @@
 
 .archived-pr.mono {
   font-size: var(--text-sm);
-  color: var(--pr);
+  color: var(--gold);
 }
 
 .archived-entries.mono {
@@ -1762,11 +1762,11 @@
 /* On Track is a Good-tier state → green, same as Excellent. --blue is reserved
    for identity (Weight, chart series), never a status verdict. */
 .stagnation-on-track .stagnation-label  { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
-.stagnation-watch .stagnation-label     { background: transparent; border: 1.5px solid color-mix(in srgb, var(--gold) 55%, transparent); color: var(--gold); }
+.stagnation-watch .stagnation-label     { background: transparent; border: 1.5px solid color-mix(in srgb, var(--warn) 55%, transparent); color: var(--warn); }
 .stagnation-review .stagnation-label    { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
-.stagnation-rebuilding .stagnation-label { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); }
+.stagnation-rebuilding .stagnation-label { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
 
-:root[data-theme="dark"] .stagnation-watch .stagnation-label { background: color-mix(in srgb, var(--gold) 18%, transparent); border: none; color: var(--gold); }
+:root[data-theme="dark"] .stagnation-watch .stagnation-label { background: color-mix(in srgb, var(--warn) 18%, transparent); border: none; color: var(--warn); }
 
 .stagnation-trend {
   display: inline-flex;
@@ -1780,7 +1780,7 @@
 .stagnation-trend-recovering { color: var(--ink-3); }
 .stagnation-trend-stable     { color: var(--ink-4); }
 .stagnation-trend-declining  { color: var(--bad); }
-.stagnation-trend-uncertain  { color: var(--gold); }
+.stagnation-trend-uncertain  { color: var(--warn); }
 
 /* Detail block (expandable) — no background box, just spacing */
 .stagnation-detail {
@@ -1864,7 +1864,7 @@
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--warn);
 }
 .data-check-row {
   display: flex;
@@ -1872,7 +1872,7 @@
   gap: 6px;
 }
 .data-check-dates { font-size: var(--text-sm); font-weight: 600; color: var(--ink-2); }
-.data-check-pct   { font-size: var(--text-2xs); color: var(--gold); font-weight: 600; }
+.data-check-pct   { font-size: var(--text-2xs); color: var(--warn); font-weight: 600; }
 
 /* Upload error */
 .upload-error {

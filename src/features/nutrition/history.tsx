@@ -25,8 +25,8 @@ const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
 // is still carried by the glyph too (▼ ate under · ▲ ate over / surplus).
 const DIST_STATES: { key: CalorieState; label: string; glyph: string; color: string }[] = [
   { key: "on-plan", label: "On plan", glyph: "●", color: "var(--good)" },
-  { key: "low-intake", label: "Low intake", glyph: "▼", color: "color-mix(in oklab, var(--good), var(--gold) 55%)" },
-  { key: "over", label: "Over budget", glyph: "▲", color: "var(--gold)" },
+  { key: "low-intake", label: "Low intake", glyph: "▼", color: "color-mix(in oklab, var(--good), var(--warn) 55%)" },
+  { key: "over", label: "Over budget", glyph: "▲", color: "var(--warn)" },
   { key: "surplus", label: "Surplus", glyph: "▲", color: "var(--bad)" },
 ];
 

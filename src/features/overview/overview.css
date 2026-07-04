@@ -95,7 +95,7 @@
   line-height: var(--leading-body);
 }
 
-.ov-active-target-ring-sub .is-behind { color: var(--gold); }
+.ov-active-target-ring-sub .is-behind { color: var(--warn); }
 .ov-active-target-ring-sub .is-ahead,
 .ov-active-target-ring-sub .is-on { color: var(--good); }
 
@@ -103,7 +103,7 @@
 
 .ov-active-target-ring-stale {
   font-size: var(--text-2xs);
-  color: var(--gold);
+  color: var(--warn);
 }
 
 .ov-no-entry {
@@ -218,7 +218,7 @@
    lives on the change/verdict). Trend is a plain rate number and stays
    neutral ink, matching the latest-weight number above. */
 .ov-weight-val.is-good { color: var(--good); }
-.ov-weight-val.is-warn { color: var(--gold); }
+.ov-weight-val.is-warn { color: var(--warn); }
 .ov-weight-val.is-bad  { color: var(--bad); }
 
 /* 14-day trend line — the card's dominant element. Fixed 64px height so the
@@ -281,8 +281,8 @@
    other badges). Inconclusive states (Forming / Calibrating) stay neutral. */
 .ov-weight-status-pill.is-good { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
 .ov-weight-status-pill.is-good .ov-weight-status-dot { background: var(--good); }
-.ov-weight-status-pill.is-warn { background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold); }
-.ov-weight-status-pill.is-warn .ov-weight-status-dot { background: var(--gold); }
+.ov-weight-status-pill.is-warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.ov-weight-status-pill.is-warn .ov-weight-status-dot { background: var(--warn); }
 .ov-weight-status-pill.is-bad { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
 .ov-weight-status-pill.is-bad .ov-weight-status-dot { background: var(--bad); }
 

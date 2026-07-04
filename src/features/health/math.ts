@@ -131,7 +131,7 @@ const MIN_VALID_SLEEP_SECONDS = 3 * 60 * 60;
 export const RECOVERY_STATUS_COLOR: Record<RecoveryStatus, string> = {
   Ready:              "var(--good)",
   Good:               "var(--good)",
-  Fair:               "var(--gold)",
+  Fair:               "var(--warn)",
   "Needs Recovery":   "var(--bad)",
 };
 

@@ -215,7 +215,7 @@
   color: var(--good);
 }
 .ni-cell-value.status-gold {
-  color: var(--gold);
+  color: var(--warn);
 }
 .ni-cell-value.status-bad {
   color: var(--bad);
@@ -284,7 +284,7 @@
   color: var(--good);
 }
 .hist-status-moderate {
-  color: var(--gold);
+  color: var(--warn);
 }
 .hist-status-variable {
   color: var(--bad);
