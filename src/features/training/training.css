@@ -60,7 +60,7 @@
 
 /* ── Exercise card ───────────────────────────────────────────────────────────*/
 @keyframes card-enter {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(var(--enter-rise, 12px)); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -74,19 +74,10 @@
   -webkit-backdrop-filter: var(--card-blur);
   padding: var(--space-5);
   overflow: visible;
-  animation: card-enter var(--motion-slow) var(--reveal-ease) both;
+  /* Flat entrance, unified with every other card (--enter-wait + --enter-dur). */
+  animation: card-enter var(--enter-dur) var(--reveal-ease) both;
+  animation-delay: var(--enter-wait);
 }
-
-/* Stagger each card by 45ms */
-.ex-card:nth-child(1)  { animation-delay: calc(var(--stagger-step) * 0); }
-.ex-card:nth-child(2)  { animation-delay: calc(var(--stagger-step) * 1); }
-.ex-card:nth-child(3)  { animation-delay: calc(var(--stagger-step) * 2); }
-.ex-card:nth-child(4)  { animation-delay: calc(var(--stagger-step) * 3); }
-.ex-card:nth-child(5)  { animation-delay: calc(var(--stagger-step) * 4); }
-.ex-card:nth-child(6)  { animation-delay: calc(var(--stagger-step) * 5); }
-.ex-card:nth-child(7)  { animation-delay: calc(var(--stagger-step) * 6); }
-.ex-card:nth-child(8)  { animation-delay: calc(var(--stagger-step) * 7); }
-.ex-card:nth-child(n+9){ animation-delay: calc(var(--stagger-step) * 8); }
 
 /* ── Card menu ───────────────────────────────────────────────────────────────*/
 .ex-card-menu {
@@ -482,8 +473,8 @@
   animation: hist-perf-in var(--motion-base) var(--reveal-ease) both;
 }
 
-.hist-perf-row:nth-child(2) { animation-delay: 40ms; }
-.hist-perf-row:nth-child(3) { animation-delay: 80ms; }
+.hist-perf-row:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.hist-perf-row:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
 
 .hist-perf-label {
   font-size: var(--text-sm);
@@ -748,6 +739,14 @@
   display: inline-flex;
   align-items: baseline;
   gap: 2px;
+}
+
+/* Badge sits between the primary weight and the converted-kg detail so that
+   when space runs out, the conversion wraps to its own line and the badge
+   stays glued to the primary weight instead of wrapping away from it. */
+.expr-wrap-badge {
+  flex-wrap: wrap;
+  row-gap: 2px;
 }
 
 .expr-kg-hint {
@@ -1278,15 +1277,6 @@
 }
 
 /* ── Page ─────────────────────────────────────────────────────────────────────*/
-/* Compound with .page: equal specificity vs bare `.page { gap: var(--space-5) }`
-   in layout.css means whichever loads later wins the cascade — silently
-   dropping this override. Compounding beats it deterministically. */
-.page.tr-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 /* ── Add exercise ────────────────────────────────────────────────────────────*/
 .add-exercise {
   display: flex;
@@ -1688,18 +1678,19 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   column-gap: var(--space-2);
-  row-gap: 3px;
   margin-bottom: 0;
   margin-top: 4px;
   user-select: none;
+  width: max-content;
 }
 
 .stagnation-head {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .stagnation-label {
@@ -1709,10 +1700,11 @@
   text-transform: uppercase;
   padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
+  white-space: nowrap;
 }
 
 .pr-pct {
-  margin-left: 1em;
+  margin-left: var(--space-2);
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--pr);

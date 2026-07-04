@@ -382,5 +382,8 @@ export function buildStagnationView(logsAsc: TrainingLog[]): StagnationView | nu
   const needsExplaining =
     status === "review" || status === "watch" || status === "rebuilding";
 
-  return { pct, status, showPR, prLabel, label, prFmt, prDate, expandable, reason, needsExplaining, t: t ?? null };
+  // A new PR is a checkpoint: it already answers "improving or not?" for this
+  // session, so don't also show a trend chip (e.g. "Recovering") next to it.
+  // Trend resumes fresh from the next session.
+  return { pct, status, showPR, prLabel, label, prFmt, prDate, expandable, reason, needsExplaining, t: showPR ? null : (t ?? null) };
 }

@@ -7,10 +7,11 @@ import { series, rollingAvg } from "@features/health/math";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useInView } from "@shared/hooks/useInView";
-import { progressColor, progressGradient } from "@shared/lib/progressColor";
+import { progressColor } from "@shared/lib/progressColor";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
 import { ActivityRing } from "@shared/components/ActivityRing";
+import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import "@shared/components/activityRing.css";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
@@ -61,15 +62,6 @@ function daysSince(isoDate: string): number {
   return Math.round((Date.now() - start.getTime()) / 86400000);
 }
 
-/** Days since the current cut began, as "(141 d)" — appended after a *conclusive*
- *  pace word (On/Below/Above pace) so Weight answers "how long have I held this
- *  rate?" without a separate row. Mirrors Cut Progress's baseline. An
- *  inconclusive read ("Forming"/"Calibrating") carries no day count — just the
- *  word itself. */
-function fmtDaysSince(isoDate: string): string {
-  return `(${daysSince(isoDate)} d)`;
-}
-
 /* ── Active Target Card ────────────────────────────────────────────────── */
 
 // Renders the ring at a given accrued value (blank number + empty fill when
@@ -77,10 +69,10 @@ function fmtDaysSince(isoDate: string): string {
 // centre so its on-screen position can be measured for the stagger.
 function ActiveTargetRingBody({ shown, target, innerRef }: { shown: number | null; target: number; innerRef?: Ref<HTMLDivElement> }) {
   const ratio = (shown ?? 0) / Math.max(1, target);
-  // Fixed accent while open — this card is near-binary (a training day closes
-  // it, a rest day doesn't), so a continuous ramp just flickers without
-  // signaling anything. Flips once to --good on close, a discrete celebration.
-  const ringColor = ratio >= 1 ? "var(--good)" : "var(--accent)";
+  // Always accent — the ring never takes on another colour. This card is
+  // near-binary (a training day closes it, a rest day doesn't), so a continuous
+  // ramp or an on-close flip just adds colour without signalling anything.
+  const ringColor = "var(--accent)";
   return ratio > 1 ? (
     <OverflowRing ratio={ratio} size={96} strokeWidth={9}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
@@ -116,24 +108,38 @@ function OverflowRing({
   const r = (size - strokeWidth) / 2;
   const c = size / 2;
   const circumference = 2 * Math.PI * r;
-  const overflowLength = Math.min(1, ratio - 1) * circumference;
+  const overflowFrac = Math.min(1, ratio - 1);
+  const overflowLength = overflowFrac * circumference;
+  // Tail (leading) end position — the head stays flush at 12 o'clock and the
+  // tail sweeps clockwise. Only the tail carries the round cap + shadow, so it
+  // reads as "stacked on top" while the head connects seamlessly into the ring.
+  const tailAngle = overflowFrac * 2 * Math.PI - Math.PI / 2;
+  const tailX = c + r * Math.cos(tailAngle);
+  const tailY = c + r * Math.sin(tailAngle);
   return (
     <div className="activity-ring" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <circle cx={c} cy={c} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={strokeWidth} />
-        <circle cx={c} cy={c} r={r} fill="none" stroke="var(--good)" strokeWidth={strokeWidth} />
+        <circle cx={c} cy={c} r={r} fill="none" stroke="var(--accent)" strokeWidth={strokeWidth} />
         <circle
           cx={c}
           cy={c}
           r={r}
           fill="none"
-          stroke="var(--good)"
+          stroke="var(--accent)"
           strokeWidth={strokeWidth}
-          strokeLinecap="round"
           strokeDasharray={`${overflowLength} ${circumference}`}
           transform={`rotate(-90 ${c} ${c})`}
-          style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,.65))" }}
         />
+        {overflowFrac > 0 && (
+          <circle
+            cx={tailX}
+            cy={tailY}
+            r={strokeWidth / 2}
+            fill="var(--accent)"
+            style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,.65))" }}
+          />
+        )}
       </svg>
       {children && <div className="activity-ring-center">{children}</div>}
     </div>
@@ -148,8 +154,8 @@ function ActiveTargetRingRoll({ accrued, target, delayMs }: { accrued: number; t
 /* Today's-target ring: the accrued number counts up from 0 and the ring fills in
    step with it (both derive from the same tween), staggered bottom-up by the
    ring's on-screen position. It measures a blank ring first (carrying the ref)
-   so the roll only starts once its delay is known. Remounted on tab-enter via an
-   activity key so it replays each time you return to Overview. */
+   so the roll only starts once its delay is known. Rolls ONCE on first reveal,
+   then settles — a later value change (re-sync) tweens in place, no re-roll. */
 function ActiveTargetRing({ accrued, target }: { accrued: number; target: number }) {
   const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
   if (delayMs == null) return <ActiveTargetRingBody shown={null} target={target} innerRef={ref} />;
@@ -175,9 +181,6 @@ function ActiveTargetCard({
   onNav: () => void;
 }) {
   const { openSettings } = useSettingsSheet();
-  // Overview's first card: the ring re-rolls on every tab-enter (activity key),
-  // while every card below animates only on first load.
-  const activity = useTabActivity();
 
   // Not configured yet — a one-tap invitation, no empty scaffolding.
   if (targetTdee == null) {
@@ -214,7 +217,6 @@ function ActiveTargetCard({
         <>
           <div className="ov-active-target-ring-row">
             <ActiveTargetRing
-              key={activity}
               accrued={view.today.accrued}
               target={view.today.target}
             />
@@ -302,9 +304,10 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
 
 /* ── Cut Progress Card ─────────────────────────────────────────────────── */
 
-// The % and the bar are split into their own leaves so they can be keyed by
-// activity and re-roll on tab-enter WITHOUT remounting the card (which would
-// re-fire its rise-in entrance and read as a jump). They roll from 0 each time.
+// The % and the bar are split into their own leaves so the roll/fill logic is
+// isolated from the card. They roll from 0 ONCE on first reveal, then settle —
+// a later value change (re-sync) tweens in place, matching every other number
+// in the app (no per-tab-enter re-roll).
 function GoalPctRoll({ target, delayMs }: { target: number; delayMs: number }) {
   const pct = useCountUp(target, COUNT_UP_MS, 0, delayMs);
   // The % is a hero number that HAS a progress bar, so it takes the bar's
@@ -330,7 +333,7 @@ function GoalPct({ target }: { target: number }) {
   return <GoalPctRoll target={target} delayMs={delayMs} />;
 }
 
-function GoalBarFill({ target, gradient }: { target: number; gradient: string }) {
+function GoalBarFill({ target }: { target: number }) {
   // Sit at 0 until the bottom-up delay elapses, then grow to target so the CSS
   // width transition fires. The delay overlaps the tab slide-in, so the bar
   // starts filling from empty as the card lands (not already part-way).
@@ -343,26 +346,40 @@ function GoalBarFill({ target, gradient }: { target: number; gradient: string })
     }, delayMs);
     return () => clearTimeout(timer);
   }, [delayMs, target]);
-  // Anchor the ember→green spectrum to the full track (not to the fill itself),
-  // so the fill's leading edge always shows the spectrum colour at the current
-  // %: low progress reads ember, and it greens as the goal is approached. The
-  // fill is w% of the track, so sizing its background to (100/w) of its own
-  // width = 100% of the track. Guard w→0 (fill is invisible then).
-  const barFillSize = w > 0 ? `${(10000 / w).toFixed(1)}% 100%` : "100% 100%";
+  // A SOLID fill whose colour IS the ramp point at the current fill — ember when
+  // low, greening as the goal is approached (gold at 100% flips via the
+  // .is-complete CSS override). NOT a gradient smeared across the track: the
+  // whole fill is one colour that shifts WITH progress. Derived from w, so as
+  // the bar grows the colour tweens from ember to its final shade alongside the
+  // width (both share COUNT_UP_MS) — matching the % number's own colour count-up.
   return (
     <div
       ref={ref}
       className="goal-bar-fill"
       style={{
         width: `${w}%`,
-        backgroundImage: gradient,
-        backgroundSize: barFillSize,
+        backgroundColor: progressColor(w / 100),
         // Match the % count-up (COUNT_UP_MS, ease-out quart) so the bar and the
         // number finish together instead of the bar racing ahead.
-        transition: `width ${COUNT_UP_MS}ms cubic-bezier(0.25, 1, 0.5, 1)`,
+        transition: `width ${COUNT_UP_MS}ms cubic-bezier(0.25, 1, 0.5, 1), background-color ${COUNT_UP_MS}ms cubic-bezier(0.25, 1, 0.5, 1)`,
       }}
     />
   );
+}
+
+// Training Health hero %. Counts up because the card carries a (segmented)
+// progress bar — the number and the bar fill together, on the same bottom-up
+// clock as the rest of the page. Blank until its tier delay is known, so it
+// rolls from 0 rather than flashing the final value.
+function RetentionPctRoll({ target, delayMs }: { target: number; delayMs: number }) {
+  const pct = useCountUp(target, COUNT_UP_MS, 0, delayMs);
+  return <>{pct == null ? "" : `${pct}%`}</>;
+}
+
+function RetentionPct({ target }: { target: number }) {
+  const { ref, delayMs } = useBottomUpDelay<HTMLSpanElement>();
+  if (delayMs == null) return <span ref={ref} />;
+  return <RetentionPctRoll target={target} delayMs={delayMs} />;
 }
 
 // Answers one question only: "how far am I from my destination?" A single
@@ -393,11 +410,9 @@ function CutProgressCard({
   // target (0 = became active today), so +1 makes today read as "Day 1".
   const phaseDay = state ? state.diagnostics.daysOnTarget + 1 : null;
   const showPhase = phaseDay != null;
-  // Overview's first card: the % and bar re-roll from 0 on every tab-enter
-  // (the leaves are keyed by activity, so only they remount — not the card, so
-  // its rise-in entrance never re-fires). Honors reduced-motion (snaps).
+  // The % and bar roll/fill from 0 once on first reveal, then settle — see
+  // GoalPctRoll. Honors reduced-motion (snaps).
   const { ref, inView } = useInView<HTMLButtonElement>();
-  const activity = useTabActivity();
 
   // Celebrate reaching 100% exactly once per cut (identified by its goal
   // weight — a new baseline produces a new goal weight, so a fresh cut can
@@ -433,10 +448,10 @@ function CutProgressCard({
             </span>
           )}
         </span>
-        <GoalPct key={activity} target={pct} />
+        <GoalPct target={pct} />
       </div>
       <div className="goal-bar">
-        <GoalBarFill key={activity} target={pct} gradient={progressGradient()} />
+        <GoalBarFill target={pct} />
       </div>
       <div className="goal-detail">
         <div className="goal-row">
@@ -520,18 +535,82 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 // AND the pace read (Trend rate + Status), which answers the deeper "am I losing
 // at the *right rate*". They can differ — down but slow reads green delta + gold
 // "Below pace" — and that pairing is the point, not a contradiction.
+// Full-width 14-day weight trend line. Line-only (no beads/labels) to keep the
+// Health-tab minimalism, but stretched edge-to-edge as the card's dominant
+// element. Smoothing stays honest — raw daily readings from `series`, same
+// source the Health weight card uses; no new interpolation (bucketSeries stays
+// pure). preserveAspectRatio="none" stretches the 100×64 viewBox to fill the
+// card width while non-scaling-stroke keeps the line a constant 2px.
+const WEIGHT_SPARK_MIN_SPAN = 1; // kg — floor so a flat week doesn't fill height
+
+function WeightSparkline({ values, tone }: { values: number[]; tone: "good" | "bad" | "flat" }) {
+  const stroke = tone === "good" ? "var(--good)" : tone === "bad" ? "var(--bad)" : "var(--ink-4)";
+  const gradId = `ov-spark-grad-${tone}`;
+  const W = 100, H = 64, pad = 4;
+
+  // Not enough data: hold the 64px height with a flat dashed placeholder so the
+  // card never changes height between loading / empty / loaded (layout stability).
+  if (values.length < 2) {
+    const y = (H / 2).toFixed(1);
+    return (
+      <svg className="ov-weight-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
+        <line
+          x1={pad} y1={y} x2={W - pad} y2={y}
+          stroke="var(--ink-4)" strokeWidth="1.75" strokeLinecap="round"
+          strokeDasharray="2 4" vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    );
+  }
+
+  const min = Math.min(...values), max = Math.max(...values);
+  const center = (min + max) / 2;
+  const half = Math.max(max - min, WEIGHT_SPARK_MIN_SPAN) / 2;
+  const lo = center - half;
+  const span = half * 2 || 1;
+  const coords = values.map((v, i) => {
+    const x = pad + (i / (values.length - 1)) * (W - pad * 2);
+    const y = H - pad - ((v - lo) / span) * (H - pad * 2);
+    return { x, y };
+  });
+  const pts = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+  // Area under the line, fading down to transparent — the line's tone tints the
+  // fill. Closed along the bottom edge so the gradient reads as depth, not a band.
+  const first = coords[0], last = coords[coords.length - 1];
+  const area = `${pts} ${last.x.toFixed(1)},${H} ${first.x.toFixed(1)},${H}`;
+
+  return (
+    <svg className="ov-weight-spark ov-weight-spark--draw" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={area} fill={`url(#${gradId})`} stroke="none" />
+      <polyline
+        points={pts}
+        fill="none"
+        stroke={stroke}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+}
+
 function WeightCard({
   weightLatest,
   metrics,
   state,
-  cutStartDate,
   onNav,
   onNavActivity,
 }: {
   weightLatest: number | null;
   metrics: BodyMetric[];
   state: NutritionStateFull | null;
-  cutStartDate: string | null;
   onNav: () => void;
   onNavActivity: () => void;
 }) {
@@ -553,6 +632,14 @@ function WeightCard({
   const thisWeek = rollingAvg(weightPts, 7, 0);
   const prevWeek = rollingAvg(weightPts, 7, 7);
   const weightDelta = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
+
+  // Last 14 daily readings — the trend shape under the number. Line tone is
+  // driven by the SAME weightDelta sign as MetricDelta below (down = good on a
+  // cut): direction from the number's sign, colour from the tone — kept
+  // independent, matching the delta-arrow rule.
+  const sparkValues = weightPts.map((p) => p.value).slice(-14);
+  const sparkTone: "good" | "bad" | "flat" =
+    weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
 
   if (weightLatest == null) {
     return (
@@ -609,31 +696,33 @@ function WeightCard({
       </div>
       <div className="ov-weight-stat">
         <MetricValue size="lg" unit="kg">
-          {weightLatest}
+          <AnimatedNumber
+            value={weightLatest}
+            decimals={1}
+            format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+          />
         </MetricValue>
         <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
       </div>
+
+      <WeightSparkline values={sparkValues} tone={sparkTone} />
+
       <button
         type="button"
-        className="ov-weight-rows ov-weight-rows--nav"
+        className="ov-weight-rows ov-weight-rows--nav ov-weight-rows--single"
         onClick={(e) => {
           e.stopPropagation();
           onNavActivity();
         }}
       >
-        <div className="ov-weight-row">
-          <span className="ov-weight-key">Rate</span>
-          <span className="ov-weight-val">
-            {trend != null ? fmtTrend(trend) : "—"}
-          </span>
-        </div>
-        <div className="ov-weight-row">
-          <span className="ov-weight-key">Status</span>
-          <span className={`ov-weight-val${tone ? ` is-${tone}` : ""}`}>
-            {status ?? "—"}
-            {tone && cutStartDate && ` ${fmtDaysSince(cutStartDate)}`}
-          </span>
-        </div>
+        <span className="ov-weight-rate">
+          <span className="ov-weight-key">Rate</span>{" "}
+          <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
+        </span>
+        <span className={`ov-weight-status-pill${tone ? ` is-${tone}` : ""}`}>
+          <span className="ov-weight-status-dot" />
+          {status ?? "—"}
+        </span>
       </button>
     </div>
   );
@@ -699,7 +788,6 @@ function TrainingHealthCard({
   const { ref, inView } = useInView<HTMLDivElement>();
   const hasData = strength.total > 0;
   const retentionPct = compoundProgress ? Math.round(compoundProgress.overall * 100) : null;
-  const retCount = useCountUp(inView ? (retentionPct ?? 0) : 0);
   const attention = strength.watch;
 
   // Attention always sits above On Track and is ordered worst-first (steepest
@@ -738,8 +826,8 @@ function TrainingHealthCard({
         <div className="ov-th-ret-hero">
           {/* Hero % is a ratio, not an identity metric/delta/verdict — stays
               neutral ink, no good/bad coloring (color law). */}
-          <MetricValue size="xl">
-            {retentionPct !== null ? (retCount == null ? "" : `${retCount}%`) : "—"}
+          <MetricValue size="lg">
+            {retentionPct !== null ? <RetentionPct target={retentionPct} /> : "—"}
           </MetricValue>
           <span className="ov-th-ret-count">
             {onTrackExercises.length} of {strength.total} lifts on track
@@ -757,6 +845,10 @@ function TrainingHealthCard({
             <span
               key={ex.slug}
               className={`ov-th-bar-seg${i < onTrackExercises.length ? " is-good" : ""}`}
+              // Exception to the flat entrance: segments still fill one-by-one,
+              // but the whole run is spread across --enter-dur (after --enter-wait)
+              // so it stays inside the 500ms budget regardless of segment count.
+              style={{ animationDelay: `calc(var(--enter-wait) + ${i} * var(--enter-dur) / ${Math.max(1, strength.exercises.length)})` }}
             />
           ))}
         </div>
@@ -797,10 +889,6 @@ function TrainingHealthCard({
         <div className="ov-th-fold-body">
           {watchExercises.length > 0 && (
             <div className="ov-th-section">
-              <div className="ov-th-sect-head-row">
-                <span className="ov-th-sect-head">Attention</span>
-                <span className="ov-th-count-chip">{watchExercises.length}</span>
-              </div>
               {watchExercises.slice(0, EXERCISE_ROW_LIMIT).map((ex) => (
                 <AttentionRow key={ex.slug} exercise={ex} />
               ))}
@@ -891,7 +979,7 @@ export function OverviewPage() {
                 <span className="ov-th-chevron" aria-hidden>›</span>
               </div>
               <div className="ov-th-ret-hero">
-                <MetricValue size="xl">00%</MetricValue>
+                <MetricValue size="lg">00%</MetricValue>
                 <MetricCaption>of tracked lifts on track</MetricCaption>
               </div>
               <div className="ov-th-bar" aria-hidden>
@@ -941,7 +1029,6 @@ export function OverviewPage() {
           weightLatest={data.weightLatest}
           metrics={data.metrics}
           state={data.nutritionState}
-          cutStartDate={data.cutStartDate}
           onNav={() => nav("health")}
           onNavActivity={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />

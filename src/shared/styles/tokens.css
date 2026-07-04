@@ -207,6 +207,9 @@
   --glass-highlight: rgba(255, 255, 255, 0.72);
   --glass-shadow: rgba(17, 24, 39, 0.16);
   --glass-edge: rgba(255, 255, 255, 0.8);
+  /* Lens — the active-tab pill: a flat grey tint, darker than the bar in
+     light mode, lighter in dark. No specular/edge/shadow. */
+  --glass-lens-bg: rgba(120, 120, 128, 0.22);
 
   /* Modal scrim: one dim + blur for every full-screen backdrop, so every
      overlay darkens its background by the same amount. */
@@ -222,7 +225,15 @@
   --press-ease: cubic-bezier(0.2, 0.8, 0.2, 1);  /* tap scale-down / return */
   --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);  /* reveals — slight overshoot */
   --move-ease: cubic-bezier(0.4, 0, 0.2, 1);     /* slides / positional */
-  --stagger-step: 45ms;
+  --stagger-step: 50ms;   /* entrance cascade: delay between adjacent tiers (top → bottom) */
+  --enter-rise: 12px;     /* entrance travel — shared by rise-in / card-enter so every reveal lifts the same distance */
+  /* Unified entrance budget: everything waits --enter-wait, then animates for
+     --enter-dur → 500ms total. Page-level reveals are FLAT (all start together at
+     --enter-wait, no bottom-up wave). Only within-element detail (Training-Health
+     bar segments, Nutrition week bars) keeps an internal stagger, bounded to
+     --enter-dur. */
+  --enter-wait: 100ms;
+  --enter-dur: 400ms;
   --tap-scale: 0.97;
 
   /* Expressive tier — celebration / ambient / loading, longer than UI transitions */
@@ -274,6 +285,7 @@
   --glass-highlight: rgba(255, 255, 255, 0.22);
   --glass-shadow: rgba(0, 0, 0, 0.55);
   --glass-edge: rgba(255, 255, 255, 0.24);
+  --glass-lens-bg: rgba(255, 255, 255, 0.13);
   --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.4), 0 8px 22px -6px rgba(0, 0, 0, 0.42), 0 22px 50px -18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --shadow-md: 0 18px 42px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --focus-ring: 0 0 0 3px rgba(255, 122, 69, 0.32);

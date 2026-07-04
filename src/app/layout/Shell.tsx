@@ -128,12 +128,13 @@ export function Shell({ session }: { session: Session }) {
     }, SLIDE_MS + 20);
   }
 
-  // Bump a tab's activity version — this remounts its count-ups (blank → roll)
-  // and triggers its refetch. Fire it when the tab STARTS coming into view, not
-  // when the slide finalizes: otherwise the panel slides in showing its old
-  // settled numbers for the whole slide, then blanks and re-animates once it's
-  // already on screen (reads as "rendered → disappears → animates"). Bumping at
-  // slide-start means the roll happens as/while it slides in.
+  // Bump a tab's activity version — the page is keyed by it (see render), so
+  // this REMOUNTS the whole page: its entire entrance replays (card cascade,
+  // count-ups, sparklines), and it refetches. Fire it when the tab STARTS coming
+  // into view, not when the slide finalizes: otherwise the panel slides in
+  // showing its old settled state for the whole slide, then blanks and
+  // re-animates once it's already on screen (reads as "rendered → disappears →
+  // animates"). Bumping at slide-start means the replay happens as it slides in.
   function enterTab(next: TabId) {
     setVisited((prev) => new Set([...prev, next]));
     setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
@@ -367,7 +368,10 @@ export function Shell({ session }: { session: Session }) {
                 <TabActivityContext.Provider key={tabId} value={tabVersions[tabId]}>
                   <IsActiveTabContext.Provider value={tabId === highlight}>
                     <div className="tab-panel" style={style}>
-                      <Page />
+                      {/* Key the page by its activity version so every tab-enter
+                          REMOUNTS it — the whole entrance replays (card cascade,
+                          count-ups, sparklines), not just the first visit. */}
+                      <Page key={tabVersions[tabId]} />
                     </div>
                   </IsActiveTabContext.Provider>
                 </TabActivityContext.Provider>

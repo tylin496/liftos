@@ -8,11 +8,11 @@
 // celebration; gold has no range, it only ever means "done." That flip lives
 // in the component/CSS (e.g. .goal.is-complete), never in these stops.
 //
-// PROGRESS_STOPS is shared by two renderers:
-//  • a linear-gradient (the bar) reveals the whole spectrum along the track;
-//  • progressColor(ratio) samples a single point (a ring's one arc colour).
-// Both consume the same stops, so the bar's leading edge and a ring at the
-// same % are the same colour.
+// progressColor(ratio) samples a single point on the ramp — the ONE colour an
+// element shows at its current fill (a bar's solid fill, a ring's arc stroke).
+// The whole progress bar is one such colour that shifts as it fills; it is NOT
+// a gradient smeared across the track (that reads as dirty). A ring and a bar
+// at the same % therefore paint the identical colour.
 
 /** [ratio 0–1, CSS colour] stops for the continuous red→green ramp. Reaches
  *  full green by 99%, leaving the last 1% flat before the discrete 100%
@@ -21,12 +21,6 @@ export const PROGRESS_STOPS: readonly [number, string][] = [
   [0, "var(--bad)"],
   [0.99, "var(--good)"],
 ];
-
-/** The spectrum as a horizontal CSS gradient (left = 0%, right = 100%). */
-export function progressGradient(angle = "90deg"): string {
-  const stops = PROGRESS_STOPS.map(([r, c]) => `${c} ${Math.round(r * 100)}%`).join(", ");
-  return `linear-gradient(${angle} in oklab, ${stops})`;
-}
 
 /** The single spectrum colour at `ratio` (clamped 0–1). Used where only one
  *  colour is shown — an SVG ring stroke, a solid fill. Returns a color-mix()

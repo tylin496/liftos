@@ -136,11 +136,10 @@ html.kb-open .tabbar {
   width: 100%;
   height: 100%;
   border-radius: var(--radius-pill);
-  /* A plain block that reads DARKER than the bar — no gradient, edge, or
-     specular. --glass-shadow is a translucent dark tint (in both themes), so it
-     deepens this patch of the glass while the background still shows through.
-     Identity colour is also carried by the accent label. */
-  background: var(--glass-shadow);
+  /* Completely FLAT fill — no rim, edge, or shadow (inner or outer). A grey
+     tint that reads darker than the bar in light mode (lighter in dark).
+     Identity colour is still carried by the accent label. */
+  background: var(--glass-lens-bg);
 }
 
 /* Gel squash on arrival — retriggered from TabBar.tsx by toggling .is-morphing.
@@ -179,8 +178,11 @@ html.kb-open .tabbar {
   opacity: 0.5;
 }
 
+/* Brighter, more saturated ember than the brand --accent so the selected glyph
+   pops off the translucent glass. Scoped to the tab bar — does not touch the
+   global brand accent. */
 .tabbar-item.is-active {
-  color: var(--accent);
+  color: #ff6b3d;
 }
 
 .tabbar-icon svg {
@@ -199,16 +201,34 @@ html.kb-open .tabbar {
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  /* Card spacing, unified across all four tabs (adopted from Health). */
+  gap: var(--space-3);
 }
 
-/* Staggered card entry when a tab mounts */
-.page > *:nth-child(1) { animation: rise-in var(--motion-slow) var(--reveal-ease) both; animation-delay: 0ms; }
-.page > *:nth-child(2) { animation: rise-in var(--motion-slow) var(--reveal-ease) both; animation-delay: calc(var(--stagger-step) * 1); }
-.page > *:nth-child(3) { animation: rise-in var(--motion-slow) var(--reveal-ease) both; animation-delay: calc(var(--stagger-step) * 2); }
-.page > *:nth-child(4) { animation: rise-in var(--motion-slow) var(--reveal-ease) both; animation-delay: calc(var(--stagger-step) * 3); }
-.page > *:nth-child(5) { animation: rise-in var(--motion-slow) var(--reveal-ease) both; animation-delay: calc(var(--stagger-step) * 4); }
-.page > *:nth-child(n+6) { animation: rise-in var(--motion-slow) var(--reveal-ease) both; animation-delay: calc(var(--stagger-step) * 4); }
+/* ── Tab entrance: one flat, uniform reveal ──────────────────────────────────
+   When a tab mounts, every top-level card rises together — same --enter-wait
+   delay, same --enter-dur duration (500ms total). Deliberately FLAT: no
+   bottom-up wave. Card numbers (useBottomUpDelay → flat --enter-wait) and
+   sparklines start on the same beat, so the whole page reads as one clean
+   entrance. Only within-element detail (Training-Health bar segments, Nutrition
+   week bars) keeps an internal stagger — see those components. Reduced-motion
+   collapses rise-in to its end-state via the global reduce rule. */
+.page > * {
+  animation: rise-in var(--enter-dur) var(--reveal-ease) both;
+  animation-delay: var(--enter-wait);
+}
+/* Per-card bottom-up tier (counted from the bottom). The flat rule above does
+   NOT use it — cards all rise together. It exists only for the ONE exception
+   that keeps a bottom-up wave: the Health sparklines (health.css), which read it
+   (inherited) and are deliberately NOT bounded to the 500ms budget. */
+.page > *:nth-last-child(1) { --enter-tier: 0; }
+.page > *:nth-last-child(2) { --enter-tier: 1; }
+.page > *:nth-last-child(3) { --enter-tier: 2; }
+.page > *:nth-last-child(4) { --enter-tier: 3; }
+.page > *:nth-last-child(5) { --enter-tier: 4; }
+.page > *:nth-last-child(6) { --enter-tier: 5; }
+.page > *:nth-last-child(7) { --enter-tier: 6; }
+.page > *:nth-last-child(n+8) { --enter-tier: 7; }
 
 .page-card {
   background: var(--bg-card);
@@ -218,23 +238,6 @@ html.kb-open .tabbar {
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
   padding: var(--space-5);
-  animation: rise-in var(--motion-slow) var(--reveal-ease) both;
-}
-
-/* Scroll-triggered entrance (opt-in via useInView → data-inview). Overrides the
-   mount-time stagger/rise above for cards that gate themselves: they stay hidden
-   until they enter the viewport, then rise in — so cards below the fold don't
-   play their reveal before the user reaches them. Reduced-motion resolves
-   data-inview to "true" immediately and the global reduce rule snaps the
-   animation, so nothing is ever left hidden. */
-.page > [data-inview="false"] {
-  opacity: 0;
-  transform: translateY(8px);
-  animation: none;
-}
-
-.page > [data-inview="true"] {
-  animation: rise-in var(--motion-slow) var(--reveal-ease) both;
 }
 
 .page-eyebrow {

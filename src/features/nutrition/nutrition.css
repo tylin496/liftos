@@ -947,10 +947,10 @@
 }
 
 .nutri-trend--intro .ntb-pair {
-  animation: bar-rise var(--motion-slow) var(--reveal-ease) both;
-  /* Second phase of the nutrition reveal: the bars wait out the hero number's
-     count-up (~300ms lead) before rising, so it reads hero → bars → KPIs. */
-  animation-delay: calc(300ms + var(--bar-index, 0) * var(--stagger-step));
+  animation: bar-rise var(--enter-dur) var(--reveal-ease) both;
+  /* Unified entrance: bars start on the flat --enter-wait beat (no long lead),
+     keeping only their own left→right stagger (exception — internal detail). */
+  animation-delay: calc(var(--enter-wait) + var(--bar-index, 0) * var(--stagger-step));
 }
 
 /* On a week change the whole card slides in first; the bars stay flat (scaleY 0

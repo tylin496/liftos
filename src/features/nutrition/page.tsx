@@ -53,8 +53,11 @@ export function NutritionPage() {
       {/* Cold-load skeleton — real card structure with placeholder values so
           the page never sits blank under the header while config loads. */}
       {!config && (
-        <div className="nutri-page-skeleton">
-          <section className="page-card daily-card loading-card">
+        <>
+          {/* Each skeleton card is a DIRECT .page child (not wrapped) so it joins
+              the bottom-up entrance cascade instead of collapsing to one tier.
+              nutri-page-skeleton stays on each card to keep scoping the shimmer. */}
+          <section className="page-card daily-card loading-card nutri-page-skeleton">
             <div className="daily-card-top">
               <p className="page-eyebrow">Intake</p>
             </div>
@@ -72,7 +75,7 @@ export function NutritionPage() {
             </div>
           </section>
 
-          <section className="page-card loading-card">
+          <section className="page-card loading-card nutri-page-skeleton">
             <p className="page-eyebrow" style={{ margin: 0 }}>THIS WEEK</p>
             <div className="nutri-kpi-row">
               <div className="nutri-kpi">
@@ -86,12 +89,12 @@ export function NutritionPage() {
             </div>
           </section>
 
-          <section className="page-card nutri-month-card loading-card">
+          <section className="page-card nutri-month-card loading-card nutri-page-skeleton">
             <p className="page-eyebrow" style={{ margin: 0 }}>LAST 30 DAYS</p>
             <span className="metric-val">00%</span>
             <MetricCaption>adherence</MetricCaption>
           </section>
-        </div>
+        </>
       )}
 
       {config && (

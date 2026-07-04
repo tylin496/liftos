@@ -2,6 +2,9 @@
 // Implements the subset of the Supabase query builder used by this app,
 // backed by an in-memory store so write operations work across the session.
 
+import { REAL_HEALTH_METRICS } from "./mock-health-data";
+import { REAL_TRAINING_LOGS } from "./mock-training-data";
+
 const DEV_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 function daysAgo(n: number): string {
@@ -48,109 +51,13 @@ const EXERCISES: MockExercise[] = [
 ];
 
 // ── Training logs ──────────────────────────────────────────────────────────────
-// 6 sessions per split (push/pull/legs), oldest → newest.
-// Session dates — within last 7 days = "this week" for overview.
-// Push: ...28, Pull: ...27, Legs: ...26 → 3 sessions this week.
+// Real training log export (training_logs_rows.csv), stamped with the dev user id.
 
-const PUSH_DATES = [daysAgo(37), daysAgo(30), daysAgo(23), daysAgo(16), daysAgo(9), daysAgo(2)];
-const PULL_DATES = [daysAgo(38), daysAgo(31), daysAgo(24), daysAgo(17), daysAgo(10), daysAgo(3)];
-const LEGS_DATES = [daysAgo(39), daysAgo(32), daysAgo(25), daysAgo(18), daysAgo(11), daysAgo(4)];
-
-interface MockLog {
-  id: string; user_id: string; exercise_slug: string;
-  log_date: string; raw: string; reps: string; weight_kg: number;
-  unit: string; note: string | null; kind: string;
-  assistance: number | null; bodyweight: number | null;
-  created_at: string; updated_at: string;
-}
-
-function makeLogs(slug: string, dates: string[], raws: string[]): MockLog[] {
-  return dates.map((d, i) => {
-    const raw = raws[i];
-    const m = raw.match(/^([\d.]+)\*([\d]+)/);
-    const w = m ? parseFloat(m[1]) : 50;
-    const r = m ? m[2] : "8";
-    return {
-      id: `log-${slug}-${i}`,
-      user_id: DEV_USER_ID,
-      exercise_slug: slug,
-      log_date: d,
-      raw,
-      reps: r,
-      weight_kg: w,
-      unit: "kg",
-      note: null,
-      kind: "normal",
-      assistance: null,
-      bodyweight: null,
-      created_at: d + "T10:00:00Z",
-      updated_at: d + "T10:00:00Z",
-    };
-  });
-}
-
-// Assisted pullup — use normal format with net weight for simplicity
-function makePullupLogs(dates: string[], raws: string[]): MockLog[] {
-  return dates.map((d, i) => {
-    const raw = raws[i];
-    const m = raw.match(/^97\.19-\(([\d.]+)\)\*([\d]+)/);
-    const assist = m ? parseFloat(m[1]) : 25;
-    const r = m ? m[2] : "6";
-    return {
-      id: `log-pullup-${i}`,
-      user_id: DEV_USER_ID,
-      exercise_slug: "assisted-pullup",
-      log_date: d,
-      raw,
-      reps: r,
-      weight_kg: 97.19 - assist,
-      unit: "kg",
-      note: null,
-      kind: "assisted",
-      assistance: assist,
-      bodyweight: 97.19,
-      created_at: d + "T10:00:00Z",
-      updated_at: d + "T10:00:00Z",
-    };
-  });
-}
-
-const TRAINING_LOGS: MockLog[] = [
-  // Push – bench press improving (recent 3 > prior 3 by ~7%)
-  ...makeLogs("bench-press", PUSH_DATES, ["70*5", "70*6", "72.5*5", "75*5", "75*6", "77.5*5"]),
-  // Push – pec deck stable
-  ...makeLogs("pec-deck", PUSH_DATES, ["55*10", "55*11", "57.5*10", "57.5*11", "57.5*12", "57.5*12"]),
-  // Push – cable fly improving
-  ...makeLogs("cable-fly", PUSH_DATES, ["22.5*10", "22.5*12", "25*10", "25*11", "25*12", "27.5*10"]),
-  // Push – incline laterals stable
-  ...makeLogs("incline-laterals", PUSH_DATES, ["10*12", "10*12", "12*12", "12*12", "12*12", "12*12"]),
-  // Push – overhead triceps improving
-  ...makeLogs("overhead-triceps-extension", PUSH_DATES, ["27.5*12", "30*10", "30*12", "32.5*10", "32.5*12", "32.5*12"]),
-
-  // Pull – assisted pullup improving (less assistance = stronger)
-  ...makePullupLogs(PULL_DATES, ["97.19-(30)*6", "97.19-(30)*7", "97.19-(27.5)*6", "97.19-(25)*6", "97.19-(25)*7", "97.19-(25)*8"]),
-  // Pull – plate lat pulldown stable
-  ...makeLogs("plate-lat-pulldown", PULL_DATES, ["70*10", "70*11", "72.5*10", "72.5*10", "72.5*11", "72.5*12"]),
-  // Pull – cable lat pulldown stable
-  ...makeLogs("cable-lat-pulldown", PULL_DATES, ["60*10", "60*12", "62.5*10", "62.5*10", "62.5*11", "62.5*12"]),
-  // Pull – low row stable
-  ...makeLogs("low-row", PULL_DATES, ["60*10", "60*11", "62.5*10", "62.5*11", "62.5*12", "62.5*12"]),
-  // Pull – pull-around stable
-  ...makeLogs("pull-around", PULL_DATES, ["27.5*10", "27.5*12", "30*10", "30*10", "30*12", "30*12"]),
-  // Pull – reverse cable flyes stable
-  ...makeLogs("reverse-cable-flyes", PULL_DATES, ["12*12", "12*12", "12*12", "15*10", "15*10", "15*12"]),
-  // Pull – preacher curl improving
-  ...makeLogs("preacher-curl", PULL_DATES, ["30*10", "30*12", "32.5*10", "32.5*12", "35*8", "35*10"]),
-
-  // Legs – leg curl stable
-  ...makeLogs("leg-curl", LEGS_DATES, ["45*12", "45*12", "47.5*10", "47.5*12", "47.5*12", "50*10"]),
-  // Legs – RDL improving (PR this month)
-  ...makeLogs("rdl", LEGS_DATES, ["85*6", "85*7", "87.5*6", "90*6", "90*7", "92.5*6"]),
-  // Legs – squat improving (PR this month)
-  ...makeLogs("squat", LEGS_DATES, ["80*6", "80*7", "82.5*6", "85*6", "85*7", "87.5*5"]),
-  // Legs – leg extension stable
-  ...makeLogs("leg-extension", LEGS_DATES, ["55*12", "55*12", "57.5*10", "57.5*12", "60*10", "60*10"]),
-];
+const TRAINING_LOGS = REAL_TRAINING_LOGS.map((r) => ({
+  ...r,
+  user_id: DEV_USER_ID,
+  updated_at: r.created_at,
+}));
 
 // ── Nutrition config ───────────────────────────────────────────────────────────
 // phase_deficits: [p0, p1, p2, p3, activeIdx] → active = idx 1 = 655 deficit
@@ -202,47 +109,11 @@ function buildNutritionEntries() {
 const NUTRITION_ENTRIES = buildNutritionEntries();
 
 // ── Body metrics ───────────────────────────────────────────────────────────────
-// 180 days of Apple Health data so the 6-month chart fills its window.
-// Weight trending down from 99.0 → 96.8 over the half-year.
-
-const BODY_METRIC_DAYS = 180;
+// Real Apple Health export (health_metrics_rows.csv) — last ~186 days, stamped
+// with the dev user id. Nulls are genuine gaps in the export, left as-is.
 
 function buildBodyMetrics() {
-  const metrics = [];
-  const last = BODY_METRIC_DAYS - 1;
-  for (let i = 0; i < BODY_METRIC_DAYS; i++) {
-    const date = daysAgo(last - i);
-    const weightBase = 99.0 - (i / last) * 2.2; // 99.0 → 96.8
-    const weight = Math.round((weightBase + fakeRand(i, -0.3, 0.3)) * 10) / 10;
-    const resting = Math.round(fakeRand(i * 2, 1860, 1940));
-    // Every 3rd day is a rest day (low exercise + active); the rest are training
-    // days — so the active-target card has a real training-vs-rest boost signal.
-    const isRest = i % 3 === 0;
-    const active = isRest
-      ? Math.round(fakeRand(i * 5, 300, 430))
-      : Math.round(fakeRand(i * 5, 560, 760));
-    const steps = Math.round(fakeRand(i * 11, 5800, 10500));
-    const exercise = isRest
-      ? Math.round(fakeRand(i * 13, 0, 8))
-      : Math.round(fakeRand(i * 13, 35, 80));
-    metrics.push({
-      id: `bm-${i}`,
-      user_id: DEV_USER_ID,
-      metric_date: date,
-      weight_kg: weight,
-      resting_energy_kcal: resting,
-      active_energy_kcal: active,
-      steps,
-      exercise_minutes: exercise,
-      sleep_seconds: Math.round(fakeRand(i * 17, 23400, 28800)), // ~6.5–8 h
-      hrv_sdnn_ms: Math.round(fakeRand(i * 19, 48, 68)),
-      resting_heart_rate: Math.round(fakeRand(i * 23, 50, 58)),
-      body_fat_pct: Math.round((22.0 - (i / last) * 2.0 + fakeRand(i * 7, -0.3, 0.3)) * 10) / 10,
-      created_at: date + "T06:00:00Z",
-      updated_at: date + "T06:00:00Z",
-    });
-  }
-  return metrics;
+  return REAL_HEALTH_METRICS.map((r) => ({ ...r, user_id: DEV_USER_ID }));
 }
 
 const BODY_METRICS = buildBodyMetrics();

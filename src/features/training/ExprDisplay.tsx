@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { parse, score, formatRepsDisplay } from "./parser";
 
 export function fmtWeightNum(n: number): string {
@@ -17,9 +18,12 @@ interface ExprDisplayProps {
   resultOnly?: boolean;
   detail?: boolean;
   histMode?: boolean;
+  /** Rendered right after the primary weight so it wraps with it — the
+   * converted-kg detail wraps away to its own line first, not the badge. */
+  badge?: ReactNode;
 }
 
-export function ExprDisplay({ raw, resultOnly, detail, histMode }: ExprDisplayProps) {
+export function ExprDisplay({ raw, resultOnly, detail, histMode, badge }: ExprDisplayProps) {
   if (!raw) return <span className="expr-bad">—</span>;
   const parsed = parse(raw);
   if (!parsed) return <span className="expr-bad">{raw}</span>;
@@ -72,8 +76,9 @@ export function ExprDisplay({ raw, resultOnly, detail, histMode }: ExprDisplayPr
       );
     }
     return (
-      <span className="expr expr-result-only">
+      <span className="expr expr-result-only expr-wrap-badge">
         <span className="expr-weight-primary">{weightExpr}</span>
+        {badge}
         <span className="expr-unit-tag"> = {fmtWeightNum(weight)} kg</span>
         <span className="expr-star">×</span>
         <span className="expr-reps">{formatRepsDisplay(reps)}</span>

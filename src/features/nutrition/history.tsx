@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorState } from "@shared/components/ErrorState";
 import { MetricValue } from "@shared/components/Metric";
-import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { haptic } from "@shared/lib/haptics";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { getEntries, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
@@ -38,12 +37,11 @@ const DIST_STATES: { key: CalorieState; label: string; glyph: string; color: str
 const DIST_LEGEND: { keys: CalorieState[]; label: string; glyph: string; color: string }[] =
   DIST_STATES.map((s) => ({ keys: [s.key], label: s.label, glyph: s.glyph, color: s.color }));
 
-/* Integer count-up (blank until it starts rolling, never a parked 0). The KPI
-   row is the last phase of the nutrition reveal — it waves in after the hero
-   number and the trend bars, via delayMs during the intro only. */
-function AnimatedInt({ value, delayMs = 0 }: { value: number; delayMs?: number }) {
-  const n = useCountUp(value, COUNT_UP_MS, 0, delayMs);
-  return <>{n == null ? "" : n.toLocaleString()}</>;
+/* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
+   cards animate their number). The week KPIs have neither, so they just show.
+   `delayMs` kept on props for callers. */
+function AnimatedInt({ value }: { value: number; delayMs?: number }) {
+  return <>{value.toLocaleString()}</>;
 }
 
 
@@ -375,6 +373,12 @@ export function HistoryView({
                         style={{ height: hasProtein ? `${protPct}%` : "7px" }}
                       />
                     </div>
+                  ) : isFuture ? (
+                    // Upcoming days are left completely blank — no placeholder bar.
+                    <div
+                      className="ntb-pair ntb-pair--empty"
+                      style={{ "--bar-index": i } as React.CSSProperties}
+                    />
                   ) : (
                     <div
                       className="ntb-pair ntb-pair--missing"

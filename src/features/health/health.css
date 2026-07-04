@@ -1,9 +1,3 @@
-/* Compound with .page: equal specificity vs bare `.page { gap: var(--space-5) }`
-   in layout.css means whichever loads later wins the cascade — silently
-   dropping this override. Compounding beats it deterministically. */
-.page.health {
-  gap: var(--space-3);
-}
 
 /* ── Shared card-title eyebrow — "RECOVERY" / "WEIGHT" / "TDEE" ─────── */
 .health-card-eyebrow {
@@ -59,7 +53,14 @@
 .health-spark-line {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: health-spark-draw var(--spark-dur, 900ms) linear forwards;
+  animation: health-spark-draw var(--spark-dur, 450ms) linear forwards;
+  /* EXCEPTION to the flat 500ms entrance: the Health trend lines keep a bottom-up
+     cascade — each card's line trails the one below by tier × --stagger-step × 3
+     (~150ms, big enough to read against the draw), after the shared --enter-wait.
+     Deliberately NOT bounded to 500ms; the wave is the point here. --enter-tier is
+     inherited from the .page > * card (layout.css). Beads trail their own line
+     (inline). Base dashoffset:1 keeps the line hidden through the delay. */
+  animation-delay: calc(var(--stagger-step) * var(--enter-tier, 0) * 3 + var(--enter-wait));
 }
 
 @keyframes health-spark-draw {
@@ -193,24 +194,44 @@
 }
 
 /* ── Energy card ───────────────────────────────────────────────────────────
-   Active leads with a sparkline (behaviour-driven, trend-worthy); Resting +
-   TDEE sit below as the model context, so Resting + Active = TDEE still adds
-   up visibly. */
+   Active leads with a sparkline (behaviour-driven, trend-worthy). The eyebrow +
+   chevron get their own row (.health-tdee-head) so the tappable chevron clears
+   the sparkline. The number then sits directly under the eyebrow — same tight
+   rhythm as the trend cards — with the sparkline overlaid and vertically centred
+   on the number rather than adding its own 40px row (which is what pushed the
+   number down and left the gap). */
 .health-energy .health-trend-head {
-  margin-top: 6px;
+  position: relative;
+  margin-top: 4px;
 }
 
-.health-energy-metric-label {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  color: var(--ink-3);
+/* Nudged just below the number's centre line so the rising "you are here" bead
+   clears the chevron above it (there's ample room before the foot rule). */
+.health-energy .health-sparkline {
+  position: absolute;
+  right: 0;
+  top: calc(50% + 6px);
+  transform: translateY(-50%);
 }
 
-.health-energy-window {
-  font-size: var(--text-sm);
-  color: var(--ink-3);
+/* Only the chevron toggles the model — tapping elsewhere on the card does
+   nothing. Button reset + padding/negative-margin gives a comfortable hit area
+   without shifting the glyph. Points right when collapsed, rotates down to open. */
+.health-energy-toggle {
+  padding: var(--space-2);
+  margin: calc(var(--space-2) * -1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--motion-base) var(--move-ease);
 }
 
+.health-energy-toggle.is-open {
+  transform: rotate(90deg);
+}
+
+/* Resting + TDEE — the model behind the ring, revealed on tapping the chevron. */
 .health-energy-model {
   display: flex;
   gap: var(--space-6);
@@ -225,37 +246,15 @@
   gap: 6px;
 }
 
-.health-energy-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-  width: 100%;
-  font-size: var(--text-sm);
+.health-energy-metric-label {
+  font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--ink-3);
-  background: none;
-  border: none;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: color var(--motion-base);
 }
 
-@media (hover: hover) {
-  .health-energy-toggle:hover {
-    color: var(--ink);
-  }
-}
-
-.health-energy-toggle-chevron {
-  color: var(--ink-4);
-  flex-shrink: 0;
-  transition: transform var(--motion-base) var(--move-ease);
-}
-
-.health-energy-toggle-chevron.is-open {
-  transform: rotate(180deg);
+.health-energy-window {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
 }
 
 /* ── Recovery card ───────────────────────────────────────────────────── */

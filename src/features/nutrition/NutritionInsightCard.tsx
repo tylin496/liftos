@@ -12,15 +12,13 @@ import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS, confidenceReason } from "./evaluation";
 import { nutritionDecision, rateTone } from "./recommendation";
-import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import "./nutrition.css";
 
-/* Integer count-up (blank until it starts rolling, never a parked 0). Leads the
-   nutrition reveal: the hero number rolls first, then the trend bars rise, then
-   the This-Week KPIs. */
-function AnimatedInt({ value, delayMs = 0 }: { value: number; delayMs?: number }) {
-  const n = useCountUp(value, COUNT_UP_MS, 0, delayMs);
-  return <>{n == null ? "" : n.toLocaleString()}</>;
+/* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
+   cards animate their number). This card has neither, so the target just shows.
+   `delayMs` kept on props for callers. */
+function AnimatedInt({ value }: { value: number; delayMs?: number }) {
+  return <>{value.toLocaleString()}</>;
 }
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };

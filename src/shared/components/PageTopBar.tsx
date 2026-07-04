@@ -5,7 +5,6 @@ import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCrossfade } from "@shared/hooks/useCrossfade";
 import { useActiveTargetRing } from "@shared/hooks/useActiveTargetRing";
 import { ActivityRing } from "@shared/components/ActivityRing";
-import { progressColor } from "@shared/lib/progressColor";
 import "./pageTopBar.css";
 import "@shared/components/activityRing.css";
 
@@ -36,9 +35,8 @@ export function PageTopBar({
   const noteFade = useCrossfade(note);
   const ring = useActiveTargetRing();
   const ringPct = ring ? ring.today.accrued / Math.max(1, ring.today.target) : null;
-  // Shade the ring along the shared ember→green progress spectrum by today's
-  // ratio (same rule as the Cut Progress bar); grey when there's no data.
-  const ringColor = ringPct == null ? "var(--rule-strong)" : progressColor(ringPct);
+  // Always accent — never take on another colour; grey only when there's no data.
+  const ringColor = ringPct == null ? "var(--rule-strong)" : "var(--accent)";
 
   return (
     <div className="page-topbar">

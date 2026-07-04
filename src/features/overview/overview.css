@@ -239,6 +239,71 @@
 .ov-weight-val.is-warn { color: var(--gold); }
 .ov-weight-val.is-bad  { color: var(--bad); }
 
+/* 14-day trend line — the card's dominant element. Fixed 64px height so the
+   card never reflows between loading / empty / loaded (the SVG holds this space
+   with a flat placeholder when data is thin). */
+.ov-weight-spark {
+  display: block;
+  width: 100%;
+  height: 64px;
+  margin-top: var(--space-4);
+}
+
+/* Reveal the whole spark (line + area together) in one left→right wipe, on the
+   flat unified entrance (--enter-wait + --enter-dur, same as everything else).
+   One wipe avoids the line-draw / area-fade desync that read as broken. Base
+   clip hides it through the wait, so nothing flashes. */
+.ov-weight-spark--draw {
+  clip-path: inset(0 100% 0 0);
+  animation: ov-spark-wipe var(--enter-dur) var(--reveal-ease) forwards;
+  animation-delay: var(--enter-wait);
+}
+@keyframes ov-spark-wipe { to { clip-path: inset(0 0 0 0); } }
+
+/* Rate + Status collapse from two stacked rows into a single baseline row. */
+.ov-weight-rows--single {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.ov-weight-rate {
+  font-size: var(--text-sm);
+}
+
+.ov-weight-status-pill {
+  display: inline-flex;
+  align-items: center;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  gap: 5px;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  padding: 3px 10px 3px 8px; /* chip micro-spacing */
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.ov-weight-status-dot {
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  width: 6px;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-4);
+}
+
+/* Only a conclusive pace verdict recolours the whole pill (12–16% tint, like
+   other badges). Inconclusive states (Forming / Calibrating) stay neutral. */
+.ov-weight-status-pill.is-good { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+.ov-weight-status-pill.is-good .ov-weight-status-dot { background: var(--good); }
+.ov-weight-status-pill.is-warn { background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold); }
+.ov-weight-status-pill.is-warn .ov-weight-status-dot { background: var(--gold); }
+.ov-weight-status-pill.is-bad { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
+.ov-weight-status-pill.is-bad .ov-weight-status-dot { background: var(--bad); }
+
 /* ─── System Card (top-priority recommendation) ──────────────────────────── */
 
 .ov-system-banner {
@@ -418,10 +483,10 @@
 .goal.is-complete .goal-label { color: var(--progress-complete); }
 .goal.is-complete .goal-pct { color: var(--progress-complete); }
 /* At exactly 100% the whole bar flips to solid GOLD — the discrete "goal
-   reached" celebration, not a point on the blue progress ramp and not a green
-   good/bad verdict. !important beats the inline gradient. */
+   reached" celebration, not a point on the ramp and not a green good/bad
+   verdict. A flat fill (no gradient); !important beats the inline ramp colour. */
 .goal.is-complete .goal-bar-fill {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--progress-complete) 82%, #000), var(--progress-complete)) !important;
+  background: var(--progress-complete) !important;
 }
 
 .goal.is-celebrating .goal-pct {
@@ -632,11 +697,24 @@
   height: 6px;
   border-radius: var(--radius-pill);
   background: var(--rule-strong);
+  /* Build the bar one segment at a time — each pops from 0 width, staggered by
+     an inline animation-delay (tier + index × --stagger-step). Discrete steps,
+     not a smooth sweep, so it reads segment-by-segment as the % counts up. */
+  transform-origin: left center;
+  animation: th-seg-in var(--motion-fast) var(--reveal-ease) both;
+}
+
+@keyframes th-seg-in {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
 }
 
 .ov-th-bar-seg.is-good {
   background: var(--good);
 }
+
+/* Loading skeleton segments are static (they shimmer via .loading-card). */
+.loading-card .ov-th-bar-seg { animation: none; transform: none; }
 
 /* Fold trigger — single toggle for both Attention and On Track; this one
    row stands in for the whole detail list so collapsed card height never
@@ -711,9 +789,7 @@
 .ov-th-fold-body {
   display: flex;
   flex-direction: column;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value -- pulls the body up closer to the fold trigger; not on the --space scale */
-  margin-top: -9px;
-  padding-top: 2px;
+  padding-top: var(--space-3);
   gap: 0;
 }
 
@@ -741,22 +817,6 @@
   letter-spacing: var(--role-section-title-spacing);
   text-transform: uppercase;
   color: var(--role-section-title-color);
-}
-
-/* Attention label stays neutral — red lives on the count chip and the
-   stall readout, not the section header (only badges/deltas carry colour). */
-.ov-th-count-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 4px;
-  border-radius: var(--radius-pill);
-  background: var(--bad);
-  color: #fff;
-  font-size: var(--text-2xs);
-  font-weight: 700;
 }
 
 /* Row shell — shared by Attention and On Track rows */
@@ -872,6 +932,23 @@
 
 .loading-card .ov-th-bar-seg {
   background: color-mix(in srgb, var(--ink-4) 12%, transparent);
+}
+
+/* Sparkline shimmers as one block during cold load — hide the placeholder line
+   and shimmer the whole 64px region, matching the other skeleton fields. */
+.loading-card .ov-weight-spark {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
+    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
+  );
+  background-size: 300% 100%;
+  animation: skel-fade var(--motion-shimmer) ease-in-out infinite;
+}
+.loading-card .ov-weight-spark > * {
+  visibility: hidden;
 }
 
 /* unit spans live inside an already-shimmered .metric-val — text-transparent

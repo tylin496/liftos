@@ -28,25 +28,6 @@ const INITIAL_HISTORY_MONTHS = 6;
 const HISTORY_CHUNK_MONTHS = 3;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-// ── Count-up animation ────────────────────────────────────────────────────────
-function animateCountUp(el: HTMLElement, target: number, signal: { cancelled: boolean }) {
-  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-    el.textContent = Math.round(target).toLocaleString();
-    return;
-  }
-  const DURATION = 500;
-  const start = performance.now();
-  function step(now: number) {
-    if (signal.cancelled) return;
-    const t = Math.min(1, (now - start) / DURATION);
-    const eased = 1 - Math.pow(1 - t, 3);
-    el.textContent = Math.round(target * eased).toLocaleString();
-    if (t < 1) requestAnimationFrame(step);
-    else el.textContent = Math.round(target).toLocaleString();
-  }
-  requestAnimationFrame(step);
-}
-
 // ── Calendar ──────────────────────────────────────────────────────────────────
 function buildCalendarWeeks(
   todayStr: string,
@@ -290,8 +271,6 @@ export function TodayView({
   // place (numbers swap) instead of the whole card re-rendering.
   const [navSeq, setNavSeq] = useState(0);
 
-  const calNumRef = useRef<HTMLElement>(null);
-  const protNumRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // The card itself (inside containerRef) is what follows the drag, so the
   // calendar overlay — a sibling under containerRef — never moves with it.
@@ -301,9 +280,7 @@ export function TodayView({
   const swipeCommitted = useRef(false);
   // First-ever visit plays a half-drag on the card to reveal it's swipeable.
   const [dragHint, setDragHint] = useState(false);
-  const pendingCountUp = useRef(false);
   const isNavigating = useRef(false);
-  const countUpSignal = useRef<{ cancelled: boolean }>({ cancelled: false });
   // Skeleton belongs to the very first load only. Later date switches keep the
   // previous day's numbers on screen and swap in place — no full-card shimmer.
   const firstLoad = useRef(true);
@@ -329,10 +306,6 @@ export function TodayView({
         setProtein(entry?.protein != null ? String(entry.protein) : "");
         setEntryExists(entry?.calories != null || entry?.protein != null);
         setLoading(false);
-        // Count-up is a first-appearance reveal only. Every later day switch —
-        // arrows, swipe, tapping a week bar, or the calendar — swaps the numbers
-        // in place, so changing days never re-animates the whole card.
-        if (firstLoad.current) pendingCountUp.current = true;
         firstLoad.current = false;
         isNavigating.current = false;
       })
@@ -354,17 +327,6 @@ export function TodayView({
     return () => clearTimeout(t);
   }, [navDir, date]);
 
-  // Count-up animation after load
-  useEffect(() => {
-    if (loading || !pendingCountUp.current) return;
-    pendingCountUp.current = false;
-    const calN = Number(calories);
-    const protN = Number(protein);
-    const sig = { cancelled: false };
-    countUpSignal.current = sig;
-    if (calNumRef.current && calN > 0) animateCountUp(calNumRef.current, calN, sig);
-    if (protNumRef.current && protN > 0) animateCountUp(protNumRef.current, protN, sig);
-  }, [loading]);
 
   // Keyboard arrow navigation
   useEffect(() => {
@@ -447,8 +409,6 @@ export function TodayView({
 
   function navigate(to: string) {
     const dir = to > date ? "forward" : "backward";
-    countUpSignal.current.cancelled = true;
-    countUpSignal.current = { cancelled: false };
     isNavigating.current = true;
     setNavDir(dir);
     setNavSeq((n) => n + 1); // remount to replay the slide (arrow/swipe only)
@@ -472,7 +432,6 @@ export function TodayView({
       haptic("success");
       setEditField(null);
       setEntryExists(true);
-      pendingCountUp.current = true;
       onSaved?.();
 
       const calRes = getCalorieResult(calN, targets.tdee, targets.deficitTarget);
@@ -608,7 +567,7 @@ export function TodayView({
             <button type="button" className="nutri-col" aria-label="Edit calories" onClick={() => openEdit("calories")}>
               <span className="nutri-label">Calories</span>
               {hasEntry ? (
-                <span ref={calNumRef} className="metric-val metric-val--lg">
+                <span className="metric-val metric-val--lg">
                   {calNum.toLocaleString()}
                 </span>
               ) : (
@@ -620,7 +579,7 @@ export function TodayView({
             <button type="button" className="nutri-col" aria-label="Edit protein" onClick={() => openEdit("protein")}>
               <span className="nutri-label">Protein</span>
               {hasEntry ? (
-                <span ref={protNumRef} className="metric-val metric-val--lg">
+                <span className="metric-val metric-val--lg">
                   {protNum}
                 </span>
               ) : (

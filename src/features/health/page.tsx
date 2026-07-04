@@ -111,7 +111,12 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
   // line strokes left→right and each bead pops the moment the line reaches it.
   // A background re-fetch updates points in place (same element, no remount), so
   // the draw never restarts — and tab switches don't replay it.
-  const dur = 900; // ms — line-draw duration; bead delays are fractions of it
+  const dur = 450; // ms — line-draw duration; bead delays are fractions of it.
+  // EXCEPTION to the flat entrance: these lines keep a bottom-up cascade (see
+  // .health-spark-line), each trailing the card below by tier × --stagger-step × 3
+  // after --enter-wait. The line-delay lives in CSS; the beads reuse the SAME
+  // expression inline so they stay locked to their line, then trail it left→right.
+  const tierDelay = "calc(var(--stagger-step) * var(--enter-tier, 0) * 3 + var(--enter-wait))";
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
       <g>
@@ -136,7 +141,7 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
             fill="var(--bg-card)"
             stroke="var(--ink-4)"
             strokeWidth="2"
-            style={{ animationDelay: `${((i / (n - 1)) * dur).toFixed(0)}ms` }}
+            style={{ animationDelay: `calc(${tierDelay} + ${((i / (n - 1)) * dur).toFixed(0)}ms)` }}
           />
         ))}
         <circle
@@ -147,7 +152,7 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
           fill="var(--bg-card)"
           stroke={color}
           strokeWidth="2"
-          style={{ animationDelay: `${dur}ms` }}
+          style={{ animationDelay: `calc(${tierDelay} + ${dur}ms)` }}
         />
       </g>
     </svg>
@@ -352,9 +357,8 @@ export function HealthPage() {
 
   const tdee = data?.tdee;
   const tdeePrev = data?.tdeePrev;
-  // Component-level change vs the previous window (active 14→28d, resting 30→60d).
-  // Both carry a coloured up-good delta: more Active energy = you moved more, and
-  // a higher Resting rate = less metabolic adaptation — both read as up = good.
+  // Component-level change vs the previous window (active 14→28d). More Active
+  // energy = you moved more, so it reads as up = good.
   const activeChange =
     tdee?.avgActive != null && tdeePrev?.avgActive != null
       ? tdee.avgActive - tdeePrev.avgActive
@@ -425,6 +429,15 @@ export function HealthPage() {
       <section id="health-energy-card" className={`page-card health-energy${!data ? " loading-card" : ""}`}>
         <div className="health-tdee-head">
           <span className="health-card-eyebrow">Active</span>
+          <button
+            type="button"
+            className={`ov-weight-chevron health-energy-toggle${energyExpanded ? " is-open" : ""}`}
+            onClick={() => setEnergyExpanded((v) => !v)}
+            aria-expanded={energyExpanded}
+            aria-label="Toggle resting and TDEE breakdown"
+          >
+            ›
+          </button>
         </div>
         {!data ? (
           <>
@@ -464,22 +477,8 @@ export function HealthPage() {
               <div className="health-trend-range">{ENERGY_BUCKET * SPARK_POINTS}-day trend</div>
             </div>
 
-            <button
-              type="button"
-              className="health-energy-toggle"
-              onClick={() => setEnergyExpanded((v) => !v)}
-            >
-              {energyExpanded ? "Show less" : "Resting + TDEE model"}
-              <svg
-                className={`health-energy-toggle-chevron${energyExpanded ? " is-open" : ""}`}
-                width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"
-              >
-                <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-
-            {/* Resting + TDEE — the model behind the ring, so Resting+Active=TDEE
-                still visibly adds up. */}
+            {/* Resting + TDEE — the model behind the ring, revealed on tapping the
+                chevron, so Resting + Active = TDEE still visibly adds up. */}
             {energyExpanded && (
               <div className="health-energy-model">
                 <div className="health-energy-model-item">
