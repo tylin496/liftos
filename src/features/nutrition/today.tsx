@@ -252,10 +252,6 @@ export function TodayView({
   const [editField, setEditField] = useState<MacroField | null>(null);
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
-  // Base values a leading +/- edit (e.g. "+12") is applied against — the
-  // last-saved numbers, not the live edit buffer above.
-  const originalCalories = useRef(0);
-  const originalProtein = useRef(0);
   // Whether a *saved* entry exists for this date — distinct from the
   // calories/protein edit buffer above, which changes on every keystroke.
   // Basing "hasEntry" on the buffer would flip it true the moment someone
@@ -308,8 +304,6 @@ export function TodayView({
         clearTimeout(skeletonTimer);
         setCalories(entry?.calories != null ? String(entry.calories) : "");
         setProtein(entry?.protein != null ? String(entry.protein) : "");
-        originalCalories.current = entry?.calories ?? 0;
-        originalProtein.current = entry?.protein ?? 0;
         setEntryExists(entry?.calories != null || entry?.protein != null);
         setLoading(false);
         firstLoad.current = false;
@@ -450,12 +444,9 @@ export function TodayView({
       setEditField(null);
       setEntryExists(true);
       // Resolve the edit buffer to the saved absolute numbers so a re-opened
-      // edit (or a follow-up "+/-" delta) starts from the real saved value,
-      // not a lingering "+12" string.
+      // edit starts from the real saved value, not a lingering expression string.
       setCalories(String(calN));
       setProtein(String(protN));
-      originalCalories.current = calN;
-      originalProtein.current = protN;
       onSaved?.();
 
       const calRes = getCalorieResult(calN, targets.tdee, targets.deficitTarget);
@@ -482,8 +473,6 @@ export function TodayView({
     let undone = false;
     setCalories("");
     setProtein("");
-    originalCalories.current = 0;
-    originalProtein.current = 0;
     setEntryExists(false);
     setEditField(null);
     haptic("warning");
@@ -496,8 +485,6 @@ export function TodayView({
       } catch (e) {
         setCalories(prevCalories);
         setProtein(prevProtein);
-        originalCalories.current = Number(prevCalories) || 0;
-        originalProtein.current = Number(prevProtein) || 0;
         setEntryExists(true);
         haptic("error");
         toast(String((e as Error)?.message ?? e), "error");
@@ -512,8 +499,6 @@ export function TodayView({
         clearTimeout(commit);
         setCalories(prevCalories);
         setProtein(prevProtein);
-        originalCalories.current = Number(prevCalories) || 0;
-        originalProtein.current = Number(prevProtein) || 0;
         setEntryExists(true);
       },
     });
@@ -589,8 +574,6 @@ export function TodayView({
             onDelete={hasEntry ? () => { haptic("warning"); handleDelete(); } : undefined}
             saving={saving}
             hasEntry={hasEntry}
-            originalCalories={originalCalories.current}
-            originalProtein={originalProtein.current}
             error={saveError}
           />
         ) : (

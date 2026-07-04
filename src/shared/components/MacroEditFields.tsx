@@ -3,20 +3,35 @@ import "./macroEditFields.css";
 
 export type MacroField = "calories" | "protein";
 
-// A leading +/- turns the field into a relative adjustment against the
-// original saved value (e.g. "760" + typing "+12" -> 772 on save) instead of
-// a literal overwrite. Only meaningful when editing an existing entry.
-function sanitizeDigits(raw: string, maxDigits: number, allowSign: boolean): string {
-  const sign = allowSign && (raw[0] === "+" || raw[0] === "-") ? raw[0] : "";
-  const digits = raw.slice(sign.length).replace(/\D/g, "").slice(0, maxDigits);
-  return sign + digits;
+// +/- anywhere in the string is plain arithmetic (e.g. "2312+12" -> 2324 on
+// save), not a special delta shortcut — a leading-sign-only delta against the
+// original value never actually triggered, since editing an existing entry
+// always starts with the old digits already in the field. Each +/- resets
+// the per-term digit cap so "2312+12" isn't truncated as if it were one
+// 4-digit run.
+function sanitizeDigits(raw: string, maxDigits: number): string {
+  let out = "";
+  let termDigits = 0;
+  for (const ch of raw) {
+    if (ch >= "0" && ch <= "9") {
+      if (termDigits >= maxDigits) continue;
+      out += ch;
+      termDigits++;
+    } else if (ch === "+" || ch === "-") {
+      const prev = out[out.length - 1];
+      if (out.length === 0 || (prev !== "+" && prev !== "-")) {
+        out += ch;
+        termDigits = 0;
+      }
+    }
+  }
+  return out;
 }
 
-function resolveValue(raw: string, original: number, hasEntry: boolean): number {
-  if (hasEntry && /^[+-]\d+$/.test(raw)) {
-    return Math.max(0, original + Number(raw));
-  }
-  return Number(raw) || 0;
+function resolveValue(raw: string): number {
+  const terms = raw.match(/[+-]?\d+/g);
+  if (!terms) return 0;
+  return Math.max(0, terms.reduce((sum, term) => sum + Number(term), 0));
 }
 
 // Tap-to-edit keypad entry for the daily Calories/Protein pair, shared by
@@ -24,9 +39,9 @@ function resolveValue(raw: string, original: number, hasEntry: boolean): number 
 // entry). Typing the 4th calorie digit auto-advances to Protein; typing the
 // 3rd protein digit auto-submits — callers just supply current values +
 // setters and get the save call with the freshly-typed digits (not stale
-// state) so the auto-submit doesn't race a pending setState. A leading +/-
-// (only offered once an entry exists) opts out of the digit-count shortcuts
-// since the field no longer represents a finished absolute value.
+// state) so the auto-submit doesn't race a pending setState. Those digit-count
+// shortcuts only match a pure digit run, so typing an arithmetic expression
+// (e.g. "2312+12") falls through to Enter / the Save button instead.
 export function MacroEditFields({
   calories,
   protein,
@@ -39,8 +54,6 @@ export function MacroEditFields({
   onDelete,
   saving,
   hasEntry,
-  originalCalories,
-  originalProtein,
   error,
 }: {
   calories: string;
@@ -54,17 +67,14 @@ export function MacroEditFields({
   onDelete?: () => void;
   saving?: boolean;
   hasEntry: boolean;
-  /** Base values a leading +/- delta is applied against. */
-  originalCalories?: number;
-  originalProtein?: number;
   /** Persists until the next save attempt — a 5s toast alone is easy to miss
       and would otherwise leave the user believing the entry saved. */
   error?: string | null;
 }) {
   const calInputRef = useRef<HTMLInputElement>(null);
   const protInputRef = useRef<HTMLInputElement>(null);
-  const resolvedCalories = () => resolveValue(calories, originalCalories ?? 0, hasEntry);
-  const resolvedProtein = () => resolveValue(protein, originalProtein ?? 0, hasEntry);
+  const resolvedCalories = () => resolveValue(calories);
+  const resolvedProtein = () => resolveValue(protein);
 
   useEffect(() => {
     if (activeField === "calories") {
@@ -83,12 +93,11 @@ export function MacroEditFields({
         <div className="sf-row">
           <input
             ref={calInputRef}
-            type="number"
-            inputMode="numeric"
+            inputMode="text"
             value={calories}
             placeholder="0"
             onChange={(e) => {
-              const next = sanitizeDigits(e.target.value, 4, hasEntry);
+              const next = sanitizeDigits(e.target.value, 4);
               onCaloriesChange(next);
               if (/^\d{4}$/.test(next)) {
                 onActiveFieldChange("protein");
@@ -110,15 +119,14 @@ export function MacroEditFields({
         <div className="sf-row">
           <input
             ref={protInputRef}
-            type="number"
-            inputMode="numeric"
+            inputMode="text"
             value={protein}
             placeholder="0"
             onChange={(e) => {
-              const next = sanitizeDigits(e.target.value, 3, hasEntry);
+              const next = sanitizeDigits(e.target.value, 3);
               onProteinChange(next);
               if (/^\d{3}$/.test(next)) {
-                onSave(resolvedCalories(), resolveValue(next, originalProtein ?? 0, hasEntry));
+                onSave(resolvedCalories(), resolveValue(next));
               }
             }}
             onKeyDown={(e) => {
