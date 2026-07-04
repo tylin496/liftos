@@ -29,7 +29,7 @@ function weeksAgo(isoDate: string, nowMs: number): number {
 function StaleHint({ isoDate, nowMs }: { isoDate: string; nowMs: number }) {
   const w = weeksAgo(isoDate, nowMs);
   if (w < STALE_WEEKS) return null;
-  return <span className="ov-th-row-stale">· logged {w}w ago</span>;
+  return <span className="ov-th-row-stale">logged {w}w ago</span>;
 }
 
 // Bare number only — the "wks since PR" unit lives once in the section header

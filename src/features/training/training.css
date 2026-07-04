@@ -18,7 +18,7 @@
      L806  Live preview / note
      L834  Log buttons
      L897  Assisted form specifics
-     L946  Advanced delete
+     L946  Delete entry
      L991  "Log set" open button
      L1020 Show more
      L1040 History reveal animation
@@ -307,26 +307,23 @@
 }
 
 .ex-ident-wrap {
-  flex-shrink: 0;
+  /* Absolutely positioned against .ex-card (position:relative), so its top
+     aligns with .ex-title-row instead of floating up from the body. Height
+     comes from the 3:2 ratio, so it never bleeds above the card top and needs
+     no magic-number cap. */
+  position: absolute;
+  top: var(--space-5); /* = card padding-top → aligns with .ex-title-row */
+  right: var(--space-5); /* aligns with the card's content right edge */
   width: 40%;
   max-width: 180px;
-  height: 0;
-  align-self: flex-end;
-  position: relative;
+  aspect-ratio: 3 / 2;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .ex-ident {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  /* Anchored to the bottom of the (zero-height) body, the image grows upward.
-     Cap its height so it can't bleed above the card's top edge — .ex-card is
-     overflow:visible (for the ⋯ menu popup), so nothing else clips it.
-     width:auto keeps the 3:2 ratio off the height cap, so no cropping. */
-  height: 100px;
-  width: auto;
-  max-width: 100%;
-  aspect-ratio: 3 / 2;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
 }
@@ -405,6 +402,15 @@
   text-transform: none;
   color: var(--ink-3);
   opacity: 1;
+}
+
+/* Keep the weight and its ×reps together as one flex item so they never
+   wrap apart when the row runs tight. */
+.pr-weight-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  white-space: nowrap;
 }
 
 .pr-weight {
@@ -1140,49 +1146,28 @@
   font-size: var(--text-sm);
 }
 
-/* ── Advanced delete ─────────────────────────────────────────────────────────*/
-.log-edit-advanced {
+/* ── Delete entry ────────────────────────────────────────────────────────────
+   Plain red-text action, tucked bottom-left and low-emphasis so it stays clear
+   of the primary Save. Delete is optimistic + Undo toast (handleDelete). */
+.log-edit-delete {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  justify-content: flex-start;
 }
 
-.log-edit-advanced-toggle {
+.log-edit-delete-btn {
   background: transparent;
   border: none;
-  color: var(--ink-4);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  text-align: left;
   padding: 0;
-}
-
-.log-edit-advanced-toggle .caret {
-  display: inline-block;
-  transition: transform var(--dur-press);
-}
-
-.log-edit-advanced-toggle .caret.open {
-  transform: rotate(180deg);
-}
-
-.inline-edit-delete-btn {
-  width: 100%;
-  padding: var(--space-2);
-  border: 1px solid var(--bad);
-  border-radius: var(--radius-sm);
-  background: transparent;
   color: var(--bad);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--dur-press);
+  text-align: left;
 }
 
-.inline-edit-delete-btn:hover {
-  background: color-mix(in srgb, var(--bad) 8%, transparent);
+.log-edit-delete-btn:hover {
+  text-decoration: underline;
 }
 
 /* ── "Log set" open button ───────────────────────────────────────────────────*/

@@ -87,27 +87,16 @@ function RepsSetInput({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EditAdvancedActions
+// EditDeleteAction — plain red-text delete (delete is optimistic + Undo toast)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function EditAdvancedActions({ onDelete }: { onDelete?: () => void }) {
-  const [open, setOpen] = useState(false);
+function EditDeleteAction({ onDelete }: { onDelete?: () => void }) {
   if (!onDelete) return null;
   return (
-    <div className="log-edit-advanced">
-      <button
-        type="button"
-        className="log-edit-advanced-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        Advanced <span className={`caret${open ? " open" : ""}`}>▾</span>
+    <div className="log-edit-delete">
+      <button type="button" className="log-edit-delete-btn" onClick={onDelete}>
+        Delete entry
       </button>
-      {open && (
-        <button type="button" className="inline-edit-delete-btn" onClick={onDelete}>
-          Delete entry
-        </button>
-      )}
     </div>
   );
 }
@@ -579,7 +568,7 @@ export function InlineEditEntry({
           ✕
         </button>
       </div>
-      <EditAdvancedActions onDelete={onDelete} />
+      <EditDeleteAction onDelete={onDelete} />
     </form>
   );
 }
@@ -718,7 +707,7 @@ export function InlineEditAssistedEntry({
           ✕
         </button>
       </div>
-      <EditAdvancedActions onDelete={onDelete} />
+      <EditDeleteAction onDelete={onDelete} />
     </form>
   );
 }
