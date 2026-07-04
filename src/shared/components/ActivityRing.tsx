@@ -27,14 +27,19 @@ export function ActivityRing({
   const clamped = Math.max(0, Math.min(1, pct));
   const offset = circumference * (1 - clamped);
   const maskId = useId();
-  // The fill lightens along the arc via a conic gradient (varies by angle, unlike
-  // a linear gradient which fades along a straight chord). The ramp is FIXED base
-  // 0° → light 360°, so the tail always stays the saturated base colour and the
-  // tip's paleness scales with fill — a small fill reads as saturated base (not
-  // washed out), only a near-full ring reaches the palest tint at its tip. The arc
-  // shape (rounded caps + dashoffset fill/animation) is a white mask the gradient
-  // shows through.
-  const light = `color-mix(in srgb, ${color}, white 55%)`;
+  // The fill stays the saturated base colour and only lightens over a fixed window
+  // (FADE_DEG) right at the leading tip — not the whole arc, so most of the ring
+  // reads solid. The tip's paleness also grows with fill (k), so a small fill stays
+  // saturated instead of washing out. A conic gradient drives it (angle-based, so
+  // the fade tracks arc length); base is repeated at 360° so there's no base↔light
+  // seam under the start cap. The arc shape (rounded caps + dashoffset fill/
+  // animation) is a white mask the gradient shows through.
+  const tipDeg = clamped * 360;
+  const FADE_DEG = 120;
+  const k = Math.min(1, tipDeg / FADE_DEG); // ramp the tint in over the first FADE_DEG
+  const fadeStart = Math.max(0, tipDeg - FADE_DEG);
+  const tipLight = `color-mix(in srgb, ${color}, white ${Math.round(k * 38)}%)`;
+  const fill = `conic-gradient(from -90deg, ${color} 0deg, ${color} ${fadeStart}deg, ${tipLight} ${tipDeg}deg, ${color} 360deg)`;
 
   return (
     <div className="activity-ring" style={{ width: size, height: size }}>
@@ -63,7 +68,7 @@ export function ActivityRing({
             style={{
               width: "100%",
               height: "100%",
-              background: `conic-gradient(from -90deg, ${color} 0deg, ${light} 360deg)`,
+              background: fill,
             }}
           />
         </foreignObject>

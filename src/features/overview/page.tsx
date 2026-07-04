@@ -78,14 +78,14 @@ function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { show
   // (--progress-complete), never a ramp stop.
   const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
   return ratio > 1 ? (
-    <OverflowRing ratio={ratio} size={108} strokeWidth={13} color={ringColor}>
+    <OverflowRing ratio={ratio} size={108} strokeWidth={11} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
       </div>
     </OverflowRing>
   ) : (
-    <ActivityRing pct={ratio} size={108} strokeWidth={13} color={ringColor} transition="none">
+    <ActivityRing pct={ratio} size={108} strokeWidth={11} color={ringColor} transition="none">
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
@@ -231,7 +231,7 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
       <span className="ov-system-body">
         <span className="ov-system-label">System</span>
         <span className="ov-system-title">{rec.title}</span>
-        <span className="ov-system-sub">{rec.subtitle}</span>
+        <span className="ov-system-sub">{rec.subtitle.replace(/\.$/, "")}</span>
       </span>
       <span className="ov-system-chevron" aria-hidden>›</span>
     </button>
