@@ -5,6 +5,7 @@ import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCrossfade } from "@shared/hooks/useCrossfade";
 import { useActiveTargetRing } from "@shared/hooks/useActiveTargetRing";
 import { ActivityRing } from "@shared/components/ActivityRing";
+import { progressColor } from "@shared/lib/progressColor";
 import "./pageTopBar.css";
 import "@shared/components/activityRing.css";
 
@@ -35,9 +36,12 @@ export function PageTopBar({
   const noteFade = useCrossfade(note);
   const ring = useActiveTargetRing();
   const ringPct = ring ? ring.today.accrued / Math.max(1, ring.today.target) : null;
-  // Dedicated Apple "Move"-ring colour (--ring), matching the Active Target card.
-  // A fixed pink-red that fills to show progress; grey only when there's no data.
-  const ringColor = ringPct == null ? "var(--rule-strong)" : "var(--ring)";
+  // Follows the shared Apple-spectrum progress ramp by fill (progressColor),
+  // matching the Active Target card; grey when there's no data, gold at/over 100%.
+  const ringColor =
+    ringPct == null ? "var(--rule-strong)"
+    : ringPct >= 1 ? "var(--progress-complete)"
+    : progressColor(ringPct);
 
   return (
     <div className="page-topbar">

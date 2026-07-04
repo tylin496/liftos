@@ -1,8 +1,7 @@
 // The single source of truth for the CONTINUOUS progress-indicator colour:
-// the Cut Progress bar/% shades along ONE Apple-system spectrum ramp by its fill
-// ratio — a warm→cool journey red → orange → green → cyan → blue. (The active-
-// calorie rings do NOT use this — they have a dedicated --ring colour.)
-// progressColor() blends
+// every "how far toward a goal" element (Cut Progress bar, Active Target ring,
+// top-bar ring) shades along ONE Apple-system spectrum ramp by its fill ratio —
+// a warm→cool journey red → orange → green → cyan → blue. progressColor() blends
 // only between ADJACENT stops, so the sampled colour is always vivid and never
 // muds. Colours live in tokens.css (--progress-1…5), decoupled from the semantic
 // --good/--bad and the brand --accent.

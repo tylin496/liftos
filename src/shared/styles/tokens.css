@@ -46,21 +46,14 @@
      Decoupled from the semantic --good/--bad and from the brand --accent.
      COMPLETION is a SEPARATE discrete state — at exactly 100% an indicator flips
      to --progress-complete (gold). Gold has no range; it only ever means "done,"
-     never a ramp stop. Consumed by the Cut Progress bar/% ONLY — the active-
-     calorie rings use their own dedicated --ring (below). */
+     never a ramp stop. Consumed by the Cut Progress bar/%, Active Target ring,
+     top-bar ring. */
   --progress-1: #ff383c;  /* Apple red — just started */
   --progress-2: #ff8d28;  /* Apple orange */
   --progress-3: #34c759;  /* Apple green (spectrum mid) — emerald, in the --good family */
   --progress-4: #00c0e8;  /* Apple cyan */
   --progress-5: #0088ff;  /* Apple blue — almost full */
   --progress-complete: #b8830a; /* deep gold — 100% only, the celebration */
-
-  /* ── Activity ring ─────────────────────────────────────────────────────
-     DEDICATED to the active-calorie ring (Active Target card + top-bar avatar).
-     Apple "Move"-ring pink-red. Intentionally OUTSIDE every colour rule (not
-     semantic, not the progress ramp, not brand): a ring-only identity colour —
-     the ring FILLS to show progress, its colour never changes by %. */
-  --ring: #f5244f;
 
   /* ── Semantic ─────────────────────────────────────────────────────────
      ONLY these three carry a good/bad verdict. Never use on charts,
@@ -295,7 +288,6 @@
   --progress-4: #3cd3fe;  /* Apple cyan */
   --progress-5: #0091ff;  /* Apple blue */
   --progress-complete: #ffcf3a;   /* glowing gold — 100% only */
-  --ring: #ff4c68;   /* Activity ring — brighter Move pink-red for dark bg */
   --good: #4ad968;
   --bad: #ff6165;
   --gold: #ff856a;   /* Warning / attention — coral (bright for dark) */
