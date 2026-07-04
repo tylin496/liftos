@@ -79,6 +79,24 @@
   animation-delay: var(--enter-wait);
 }
 
+/* ── Tab-entrance cascade ─────────────────────────────────────────────────────
+   Entering the tab (first list mount → .tr-enter, set in page.tsx), the exercise
+   cards rise in top→bottom. Tightly staggered and capped at tier 5 so the wave
+   still reads as one entrance, not a slow drip. Switching splits keeps the
+   horizontal pager slide above instead (cards ride the list as a block). The
+   list container itself stays put — only its cards animate — so there's no
+   double lift. */
+.tr-list.tr-enter { animation: none; }
+.tr-enter .ex-card {
+  --enter-tier: 0;
+  animation-delay: calc(var(--enter-wait) + var(--stagger-step) * var(--enter-tier));
+}
+.tr-enter .ex-card:nth-child(2) { --enter-tier: 1; }
+.tr-enter .ex-card:nth-child(3) { --enter-tier: 2; }
+.tr-enter .ex-card:nth-child(4) { --enter-tier: 3; }
+.tr-enter .ex-card:nth-child(5) { --enter-tier: 4; }
+.tr-enter .ex-card:nth-child(n+6) { --enter-tier: 5; }
+
 /* ── Card menu ───────────────────────────────────────────────────────────────*/
 .ex-card-menu {
   position: absolute;
@@ -223,13 +241,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.ex-name:hover {
-  color: var(--accent);
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
-  text-underline-offset: 3px;
 }
 
 .rename-input {
@@ -1448,6 +1459,8 @@
 
 .archived-list {
   border-top: 1px solid var(--rule);
+  /* Auto-scroll target on expand: land above the floating tabbar. */
+  scroll-margin-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
 }
 
 .archived-row {
@@ -2008,7 +2021,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  animation: form-in var(--motion-base) var(--reveal-ease);
+  animation: add-form-in var(--motion-base) var(--reveal-ease) both;
 }
 
 .edit-exercise-topbar {
@@ -2167,78 +2180,6 @@
 .note-display {
   font-size: var(--text-sm);
   color: var(--ink-4);
-}
-
-/* ── Add Exercise Card ───────────────────────────────────────────────────────*/
-
-.add-exercise-card {
-  animation: card-enter var(--motion-slow) var(--reveal-ease) both;
-}
-
-.add-exercise-card form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.add-exercise-split-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.split-seg {
-  display: flex;
-  gap: var(--space-1);
-  background: var(--bg-soft);
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-}
-
-.seg-btn {
-  flex: 1;
-  padding: 6px var(--space-2);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--ink-3);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast);
-}
-
-.seg-btn:hover:not(:disabled) {
-  background: var(--bg-card);
-}
-
-.seg-btn.on {
-  background: var(--bg-card);
-  color: var(--ink);
-  border: 1px solid var(--rule);
-}
-
-.seg-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.assisted-mode-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  color: var(--ink);
-  user-select: none;
-}
-
-.assisted-mode-label input[type="checkbox"] {
-  cursor: pointer;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent-strong);
 }
 
 /* ── Add Exercise Ghost Button ───────────────────────────────────────────────*/

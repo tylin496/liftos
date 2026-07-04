@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ImageWell } from "./ImageWell";
+import { useScrollAboveKeyboard } from "./logFormHelpers";
 import type { Exercise } from "./api";
 
 export interface EditExerciseFormProps {
@@ -29,6 +30,11 @@ export function EditExerciseForm({
   const [target, setTarget] = useState(exercise.target ?? "");
   const [note, setNote] = useState(exercise.note ?? "");
   const [saving, setSaving] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Auto-focuses the name field on open — keep the Save button above the
+  // keyboard, consistent with the log/add forms.
+  useScrollAboveKeyboard(formRef);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,7 +54,7 @@ export function EditExerciseForm({
   }
 
   return (
-    <form className="edit-exercise-form" onSubmit={handleSubmit}>
+    <form className="edit-exercise-form" ref={formRef} onSubmit={handleSubmit}>
       <div className="edit-exercise-topbar">
         <button
           type="button"

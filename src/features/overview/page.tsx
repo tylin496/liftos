@@ -1,4 +1,4 @@
-import { useEffect, useState, type Ref, type ReactNode } from "react";
+import { useEffect, useRef, useState, type Ref, type ReactNode } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
@@ -786,6 +786,20 @@ function TrainingHealthCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { ref, inView } = useInView<HTMLDivElement>();
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Expanding drops the detail list below the fold, where the floating tabbar
+  // can clip it. Nudge it into view once the body has rendered.
+  const toggleExpanded = () =>
+    setExpanded((v) => {
+      const next = !v;
+      if (next) {
+        requestAnimationFrame(() =>
+          bodyRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
+        );
+      }
+      return next;
+    });
   const hasData = strength.total > 0;
   const retentionPct = compoundProgress ? Math.round(compoundProgress.overall * 100) : null;
   const attention = strength.watch;
@@ -860,7 +874,7 @@ function TrainingHealthCard({
       <button
         type="button"
         className="ov-th-fold"
-        onClick={() => setExpanded((v) => !v)}
+        onClick={toggleExpanded}
         aria-expanded={expanded}
       >
         <span className="ov-th-fold-left">
@@ -886,7 +900,7 @@ function TrainingHealthCard({
       </button>
 
       {expanded && (
-        <div className="ov-th-fold-body">
+        <div className="ov-th-fold-body" ref={bodyRef}>
           {watchExercises.length > 0 && (
             <div className="ov-th-section">
               {watchExercises.slice(0, EXERCISE_ROW_LIMIT).map((ex) => (

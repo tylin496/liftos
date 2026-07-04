@@ -456,10 +456,6 @@
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
-/* Shared overlay fades — reused by every nutrition backdrop. */
-@keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
-@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
-
 @keyframes ncal-out {
   to { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
 }

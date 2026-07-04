@@ -23,7 +23,7 @@ import {
   useToast,
 } from "./ExerciseCard";
 import { computeStats } from "./logic";
-import { defaultSetCount } from "./logFormHelpers";
+import { defaultSetCount, useScrollAboveKeyboard } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
@@ -245,6 +245,10 @@ function StretchList({
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newNote, setNewNote] = useState("");
+  const addFormRef = useRef<HTMLDivElement>(null);
+
+  // Same keyboard-aware scroll as the other add/edit forms.
+  useScrollAboveKeyboard(addFormRef);
 
   function addStretch() {
     if (!newName.trim()) return;
@@ -277,7 +281,7 @@ function StretchList({
       </div>
 
       {adding && (
-        <div className="add-ex-form" style={{ padding: "var(--space-3)" }}>
+        <div className="add-ex-form" ref={addFormRef} style={{ padding: "var(--space-3)" }}>
           <input
             className="ex-input"
             autoFocus
@@ -343,6 +347,11 @@ function AddExerciseForm({
   const [target, setTarget] = useState("");
   const [note, setNote] = useState("");
   const [assisted, setAssisted] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // Opens at the bottom of the page with an auto-focused field — keep its
+  // primary button above the keyboard, same as the log forms.
+  useScrollAboveKeyboard(formRef);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -355,7 +364,7 @@ function AddExerciseForm({
   }
 
   return (
-    <div className="add-ex-form">
+    <div className="add-ex-form" ref={formRef}>
       <div className="add-ex-head">
         <span className="add-ex-title">New exercise</span>
         <button type="button" className="add-ex-close" onClick={onCancel}>✕</button>
@@ -431,14 +440,28 @@ function ArchivedSection({
   onDelete: (slug: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
   if (!exercises.length) return null;
+
+  // Archived sits at the bottom of the page, so expanding it grows the list
+  // under the floating tabbar. Nudge it into view once rendered.
+  const toggle = () =>
+    setOpen((v) => {
+      const next = !v;
+      if (next) {
+        requestAnimationFrame(() =>
+          listRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
+        );
+      }
+      return next;
+    });
 
   return (
     <div className="archived-section">
       <button
         type="button"
         className="archived-toggle"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-expanded={open}
       >
         <span className="archived-label">Archived</span>
@@ -451,7 +474,7 @@ function ArchivedSection({
         </svg>
       </button>
       {open && (
-        <div className="archived-list">
+        <div className="archived-list" ref={listRef}>
           {exercises.map((ex) => {
             const exLogs = logs[ex.slug] ?? [];
             const logsAsc = [...exLogs].reverse();
@@ -499,6 +522,10 @@ function TrainingPageInner() {
     return (saved && SPLITS.some((s) => s.id === saved) ? saved : "push") as SplitId;
   });
   const prevSplitIdx = useRef(0);
+  // First list mount is the tab entrance (cards cascade in); once the user taps a
+  // different split, every later mount is a pager slide instead. Resets on page
+  // remount (tab switch), so the cascade replays each time the tab is entered.
+  const didSwitchRef = useRef(false);
   const splitIds = useMemo(() => SPLITS.map((s) => s.id), []);
   const [exercises, setExercises] = useState<Exercise[] | null>(null);
   const [logs, setLogs] = useState<Record<string, TrainingLog[]>>({});
@@ -516,6 +543,7 @@ function TrainingPageInner() {
   // because those have no equivalent control.
   function changeSplit(id: SplitId) {
     prevSplitIdx.current = splitIds.indexOf(split);
+    didSwitchRef.current = true;
     setSplit(id);
     sessionStorage.setItem("tr-split", id);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -759,7 +787,11 @@ function TrainingPageInner() {
       {/* ── Exercise cards ── */}
       <div
         key={split}
-        className={`tr-list tr-slide-${splitIds.indexOf(split) > prevSplitIdx.current ? "left" : "right"}`}
+        className={`tr-list ${
+          didSwitchRef.current
+            ? `tr-slide-${splitIds.indexOf(split) > prevSplitIdx.current ? "left" : "right"}`
+            : "tr-enter"
+        }`}
       >
         {activeExercises.map((ex, idx) => (
           <ExerciseCard

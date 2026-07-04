@@ -119,6 +119,9 @@ button {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+
 @keyframes save-pulse {
   0%   { box-shadow: var(--shadow-sm); }
   35%  { box-shadow: 0 0 0 5px color-mix(in srgb, var(--good) 22%, transparent), var(--shadow-sm); }
@@ -128,10 +131,6 @@ button {
 @keyframes skel-fade {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
-}
-
-@keyframes progress-fill {
-  from { width: 0%; }
 }
 
 .toast-icon {
@@ -256,7 +255,7 @@ button {
   inset: -10px;
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, var(--pr) 38%, transparent);
-  animation: gold-ring 900ms ease-out both;
+  animation: gold-ring var(--motion-celebrate) ease-out both;
 }
 
 @keyframes gold-ring {

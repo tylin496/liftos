@@ -101,6 +101,14 @@ export function cmpStrength(a: Pick<LogEntry, "e1rm" | "totalReps">, b: Pick<Log
   return a.totalReps - b.totalReps;
 }
 
+/** Does `a` set a new record over `best`? No existing best always counts as new. */
+export function beatsBest(
+  a: Pick<LogEntry, "e1rm" | "totalReps">,
+  best: Pick<LogEntry, "e1rm" | "totalReps"> | null,
+): boolean {
+  return !best || cmpStrength(a, best) > 0;
+}
+
 // ─── computeStats ────────────────────────────────────────────────────────────
 
 export interface Stats {
@@ -253,6 +261,12 @@ function computeStrengthRetention(logsAsc: TrainingLog[], setCount: number) {
     if (!prevBest || cmpStrength(e, prevBest) > 0) prevBest = e;
   }
   const prRatio = prevBest?.e1rm ? currentE1RM / prevBest.e1rm : null;
+  // Same strict ordering as the history list's PR badge (cmpStrength, not a
+  // rounded %) — a hair's-breadth e1RM gain can round to 100% and fail a
+  // `prBoost > 100` check even though it's a genuine new PR by total reps.
+  // No-prevBest (first-ever session) is handled separately via isFirstPR, so
+  // this only counts a strict beat of an actual prior session.
+  const beatsPrevBest = prevBest != null && beatsBest(current, prevBest);
 
   let status: RetentionStatus;
   if (pct >= 0.97) status = "excellent";
@@ -260,7 +274,7 @@ function computeStrengthRetention(logsAsc: TrainingLog[], setCount: number) {
   else if (pct >= 0.90) status = "watch";
   else status = "review";
 
-  return { pct, status, prEntry, prRatio };
+  return { pct, status, prEntry, prRatio, beatsPrevBest };
 }
 
 export function computeTrend(logsAsc: TrainingLog[], setCount: number): TrendResult | null {
@@ -386,7 +400,7 @@ export function buildStagnationView(logsAsc: TrainingLog[], setCount: number): S
   const t = computeTrend(logsAsc, setCount);
   if (!s) return null;
 
-  const { pct, status: baseStatus, prEntry, prRatio } = s;
+  const { pct, status: baseStatus, prEntry, prRatio, beatsPrevBest } = s;
   // Direction beats distance-from-PR: if you're below PR but the latest session
   // is clearly climbing back, surface "Rebuilding" instead of a red "Review".
   const status =
@@ -395,10 +409,10 @@ export function buildStagnationView(logsAsc: TrainingLog[], setCount: number): S
       : baseStatus;
   const isAtPR = parseFloat((pct * 100).toFixed(1)) >= 100;
   const prBoost = prRatio ? Math.round(prRatio * 100) : 0;
-  const isNewPR = prBoost > 100;
+  const isNewPR = beatsPrevBest;
   const isFirstPR = isAtPR && prRatio == null;
   const showPR = isNewPR || isFirstPR;
-  const prLabel = isNewPR ? `${prBoost}%` : "NEW";
+  const prLabel = isNewPR && prBoost > 100 ? `${prBoost}%` : "NEW";
   const label = RETENTION_LABELS[status] ?? status;
   const prFmt = !showPR ? fmtInspectorEntry(prEntry) : null;
   const prDate = !showPR ? fmtInspectorDate(prEntry.log.log_date ?? "") : null;

@@ -793,6 +793,9 @@
   flex-direction: column;
   padding: var(--space-3) 6px 0;
   gap: 0;
+  /* Auto-scroll target on expand: keep the bottom clear of the floating
+     tabbar so scrollIntoView({ block: "end" }) lands above it, not under. */
+  scroll-margin-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
 }
 
 .ov-th-section {

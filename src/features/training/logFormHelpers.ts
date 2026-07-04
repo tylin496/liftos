@@ -97,7 +97,7 @@ export function useAssistAdjuster(
   return { assistRef, adjustAssist };
 }
 
-export function useScrollAboveKeyboard(formRef: RefObject<HTMLFormElement | null>) {
+export function useScrollAboveKeyboard<T extends HTMLElement>(formRef: RefObject<T | null>) {
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;

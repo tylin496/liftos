@@ -145,7 +145,7 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
           />
         ))}
         <circle
-          className="health-spark-bead"
+          className="health-spark-bead health-spark-bead--anchor"
           cx={last.x.toFixed(1)}
           cy={last.y.toFixed(1)}
           r={dot}

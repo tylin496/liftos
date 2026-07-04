@@ -73,15 +73,39 @@
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
-  animation: health-spark-bead 200ms ease-out forwards;
+  /* Grey history beads resolve quietly — they just settle onto the line as the
+     draw reaches them. No overshoot; the pop is reserved for the anchor. */
+  animation: health-spark-bead 180ms ease-out forwards;
 }
 
 @keyframes health-spark-bead {
   from {
     opacity: 0;
-    transform: scale(0.4);
+    transform: scale(0.5);
   }
   to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* The coloured "you are here" endpoint is the one bead that carries meaning, so
+   it gets the pop: springs from nothing, overshoots, then settles — the finale
+   that lands the instant the line finishes drawing. */
+.health-spark-bead--anchor {
+  animation: health-spark-anchor 320ms ease-out forwards;
+}
+
+@keyframes health-spark-anchor {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  100% {
     opacity: 1;
     transform: scale(1);
   }

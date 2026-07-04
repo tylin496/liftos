@@ -16,7 +16,7 @@ import {
   timelineDate,
   buildStagnationView,
   epley1RM,
-  cmpStrength,
+  beatsBest,
   totalReps,
   type TimeFilter,
 } from "./logic";
@@ -220,8 +220,7 @@ export function ExerciseCard({
       const newScore = newParsed ? score(newParsed) : 0;
       const newReps = newParsed?.reps ?? "1";
       const newE1RM = epley1RM(newScore, newReps);
-      const isNewPR =
-        !oldBest || cmpStrength({ e1rm: newE1RM, totalReps: totalReps(newReps, sc) }, oldBest) > 0;
+      const isNewPR = beatsBest({ e1rm: newE1RM, totalReps: totalReps(newReps, sc) }, oldBest);
       if (isNewPR) {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);
@@ -256,7 +255,7 @@ export function ExerciseCard({
       const oldBest = stats.best;
       const isNewPR =
         log.id !== oldBest?.log.id &&
-        (!oldBest || cmpStrength({ e1rm: newE1RM, totalReps: totalReps(parsed.reps, sc) }, oldBest) > 0);
+        beatsBest({ e1rm: newE1RM, totalReps: totalReps(parsed.reps, sc) }, oldBest);
       await updateLog(log.id, {
         raw,
         reps: parsed.reps,
