@@ -16,6 +16,7 @@ import { PageHeaderContext, IsActiveTabContext, type PageHeader } from "./PageHe
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { ToastProvider } from "@shared/components/Toast";
 import { NutritionConfigProvider } from "@features/nutrition/NutritionConfigContext";
+import { TrainingMilestone } from "@features/training/TrainingMilestone";
 import "./layout.css";
 
 const PAGES: Record<TabId, () => JSX.Element> = {
@@ -463,6 +464,7 @@ export function Shell({ session }: { session: Session }) {
           <TabBar active={highlight} onChange={switchTab} />
         </div>
         <GlobalSettingsSheet />
+        <TrainingMilestone />
         {splash && <Splash variant="overlay" leaving={splashLeaving} />}
       </PageHeaderContext.Provider>
       </NavContext.Provider>

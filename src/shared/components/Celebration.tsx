@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 
-export type CelebVariant = "logged" | "double-hit" | "pr";
+export type CelebVariant = "logged" | "double-hit" | "pr" | "milestone";
 
 export interface CelebPayload {
   variant: CelebVariant;
@@ -24,6 +24,7 @@ const DEFAULTS: Record<
   "logged": { title: "Logged", sub: "Entry saved", gold: false, tone: "var(--good)", count: 20, pal: ACCENT_PAL },
   "double-hit": { title: "Double Hit!", sub: "Under budget & protein floor cleared", gold: true, tone: "var(--gold)", count: 34, pal: GOLD_PAL },
   "pr": { title: "New PR!", sub: "Personal record", gold: true, tone: "var(--gold)", count: 34, pal: GOLD_PAL },
+  "milestone": { title: "Milestone", sub: "Training milestone", gold: true, tone: "var(--gold)", count: 34, pal: GOLD_PAL },
 };
 
 // Crafted SVG badge glyphs (draw-on check / bullseye / trophy) — colored by --tone.
@@ -49,6 +50,15 @@ const GLYPHS: Record<CelebVariant, React.ReactNode> = {
         d="M25 18 h16 v9 a8 8 0 0 1 -16 0 z M25 20 h-5 a4 4 0 0 0 0 8 h5 M41 20 h5 a4 4 0 0 1 0 8 h-5 M31 34 h4 v6 h-4 z M26 40 h14 v3 h-14 z M28 43 h10 l1.5 5 h-13 z"
       />
       <rect className="celeb-shine" x="22" y="14" width="6" height="34" rx="3" transform="rotate(16 33 33)" />
+    </svg>
+  ),
+  "milestone": (
+    <svg viewBox="0 0 66 66" aria-hidden>
+      <path
+        className="celeb-glyph-fill"
+        d="M33 15 l5.3 11.4 12.5 1.6 -9.2 8.6 2.4 12.4 -11-6.1 -11 6.1 2.4-12.4 -9.2-8.6 12.5-1.6z"
+      />
+      <rect className="celeb-shine" x="20" y="14" width="6" height="38" rx="3" transform="rotate(18 33 33)" />
     </svg>
   ),
 };
