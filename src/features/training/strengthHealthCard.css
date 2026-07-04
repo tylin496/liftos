@@ -158,7 +158,6 @@
   width: 100%;
   background: none;
   border: none;
-  border-top: 1px solid var(--rule);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -207,7 +206,7 @@
 .ov-th-fold-body {
   display: flex;
   flex-direction: column;
-  padding: var(--space-3) 0 0;
+  padding: var(--space-4) 0 0;
   gap: 0;
 }
 
@@ -216,6 +215,9 @@
   flex-direction: column;
   gap: var(--space-1);
   padding-top: var(--space-3);
+  /* Expanding On Track auto-scrolls it into view ({block:"end"}); land it above
+     the floating tabbar rather than clipped behind it. */
+  scroll-margin-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
 }
 
 .ov-th-section:first-child {

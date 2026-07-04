@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MetricValue } from "@shared/components/Metric";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
@@ -137,6 +137,20 @@ export function StrengthHealthCard({
   // is always shown expanded: if something needs attention, that's the whole
   // point of the card, not something to tuck behind a tap.
   const [trackOpen, setTrackOpen] = useState(false);
+  const trackSectionRef = useRef<HTMLDivElement>(null);
+
+  // Expanding On Track drops rows below the fold, where the floating tabbar can
+  // clip them — nudge the section into view once the rows have rendered.
+  const toggleTrack = () =>
+    setTrackOpen((v) => {
+      const next = !v;
+      if (next) {
+        requestAnimationFrame(() =>
+          trackSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
+        );
+      }
+      return next;
+    });
 
   // Attention always sits above On Track and is ordered worst-first (furthest
   // below PR, i.e. lowest retention), so the most urgent exercise reads first.
@@ -216,10 +230,10 @@ export function StrengthHealthCard({
         <span
           key={ex.slug}
           className={`ov-th-bar-seg${i < onTrackExercises.length ? " is-good" : ""}`}
-          // Exception to the flat entrance: segments still fill one-by-one, but
-          // the whole run is spread across --dur-enter (after --enter-wait) so it
-          // stays inside the 500ms budget regardless of segment count.
-          style={{ animationDelay: `calc(var(--enter-wait) + ${i} * var(--dur-enter) / ${Math.max(1, strength.exercises.length)})` }}
+          // Green cells snap in one at a time on a fixed --stagger-step tick
+          // (NOT divided by count) so the one-by-one rhythm stays legible — a
+          // discrete cascade, intentionally past the flat-entrance budget.
+          style={{ animationDelay: `calc(var(--enter-wait) + ${i} * var(--stagger-step))` }}
         />
       ))}
     </div>
@@ -274,11 +288,11 @@ export function StrengthHealthCard({
           </div>
         )}
         {onTrackExercises.length > 0 && (
-          <div className="ov-th-section">
+          <div className="ov-th-section" ref={trackSectionRef}>
             <SectHeadRow
               label={`On track · ${onTrackExercises.length}`}
               open={trackOpen}
-              onToggle={() => setTrackOpen((v) => !v)}
+              onToggle={toggleTrack}
             />
             {trackOpen &&
               onTrackExercises.map((ex) => (

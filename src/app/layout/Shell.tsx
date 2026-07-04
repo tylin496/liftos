@@ -25,7 +25,7 @@ const PAGES: Record<TabId, () => JSX.Element> = {
   health: HealthPage,
 };
 
-const TAB_ORDER: TabId[] = ["overview", "nutrition", "training", "health"];
+const TAB_ORDER: TabId[] = ["overview", "training", "nutrition", "health"];
 
 const SLIDE_MS = 320;
 
