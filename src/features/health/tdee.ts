@@ -1,5 +1,3 @@
-import { localDateStrDaysAgo } from "@shared/lib/date";
-
 export interface TdeeEstimate {
   tdee: number | null;
   avgActive: number | null;
@@ -59,35 +57,43 @@ export interface TdeeMetricRow {
   active_energy_kcal: number | null;
 }
 
+/** Resting changes slowly → average more readings; active fluctuates → fewer. */
+const RESTING_READINGS = 30;
+const ACTIVE_READINGS = 14;
+
 /**
  * Current + previous-period TDEE from a list of body metrics (any order).
- * Resting window = 30 days, active window = 14 days. The previous period shifts
- * both back (resting 30–60d ago, active 14–28d ago) for an apples-to-apples
- * trend arrow. This is the single source of truth for TDEE windowing — both the
- * Health card and the Overview summary call it so the two never diverge.
- * Caller must supply ≥60 days of metrics for tdeePrev to be meaningful.
+ *
+ * Windows are counted by READINGS, not calendar days: the current resting
+ * average is the most recent 30 days that actually have a resting value, active
+ * the most recent 14. Reaching past gaps this way means a missed sync (or a
+ * not-yet-synced today) doesn't shrink the sample to "29 of 30" — the average
+ * always uses a full window once enough history exists, so the "30-day average"
+ * label stays put instead of ticking down on a single missing day. The previous
+ * period is the block of readings immediately before the current one, for an
+ * apples-to-apples trend arrow. Trade-off: a gappy stretch spans slightly more
+ * calendar days — fine for these slow / among-noise averages. Single source of
+ * truth for TDEE windowing — Health card + Overview both call it.
  */
 export function computeTdeeWindows(metrics: TdeeMetricRow[]): {
   tdee: TdeeEstimate;
   tdeePrev: TdeeEstimate;
 } {
-  const cutoff14 = localDateStrDaysAgo(14);
-  const cutoff28 = localDateStrDaysAgo(28);
-  const cutoff30 = localDateStrDaysAgo(30);
-  const cutoff60 = localDateStrDaysAgo(60);
+  const sorted = [...metrics].sort((a, b) => a.metric_date.localeCompare(b.metric_date));
+  const resting = sorted
+    .filter((m) => m.resting_energy_kcal != null)
+    .map((m) => ({ resting: m.resting_energy_kcal }));
+  const active = sorted
+    .filter((m) => m.active_energy_kcal != null)
+    .map((m) => ({ active: m.active_energy_kcal }));
 
   const tdee = estimateTdee(
-    metrics.filter((m) => m.metric_date >= cutoff30).map((m) => ({ resting: m.resting_energy_kcal })),
-    metrics.filter((m) => m.metric_date >= cutoff14).map((m) => ({ active: m.active_energy_kcal })),
+    resting.slice(-RESTING_READINGS),
+    active.slice(-ACTIVE_READINGS),
   );
-
   const tdeePrev = estimateTdee(
-    metrics
-      .filter((m) => m.metric_date >= cutoff60 && m.metric_date < cutoff30)
-      .map((m) => ({ resting: m.resting_energy_kcal })),
-    metrics
-      .filter((m) => m.metric_date >= cutoff28 && m.metric_date < cutoff14)
-      .map((m) => ({ active: m.active_energy_kcal })),
+    resting.slice(-2 * RESTING_READINGS, -RESTING_READINGS),
+    active.slice(-2 * ACTIVE_READINGS, -ACTIVE_READINGS),
   );
 
   return { tdee, tdeePrev };
