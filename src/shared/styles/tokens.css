@@ -78,7 +78,7 @@
      Calorie/protein dual-bar chart (History). Identity colors, not
      semantic verdicts — surplus/over-budget states still override with
      --bad. Same vivid value in both themes (already high-contrast). */
-  --nutrition-calorie: #a7ff00;
+  --nutrition-calorie: #5fe000;
   --nutrition-protein: #38b6ff;
 
   /* ── Overlay ── decorative, non-signal colors (theme-invariant) ──────── */
