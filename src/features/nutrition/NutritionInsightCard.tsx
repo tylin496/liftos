@@ -214,7 +214,11 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
           />
           <EvidenceCell
             label="Estimated actual intake"
-            value={!noData && !loading ? `≈${d!.estimatedIntake.toLocaleString()} kcal/day` : "—"}
+            value={
+              !noData && !loading && hasTrend
+                ? `≈${d!.estimatedIntake.toLocaleString()} kcal/day`
+                : "—"
+            }
           />
           <EvidenceCell
             label="Confidence"

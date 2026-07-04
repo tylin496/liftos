@@ -1,3 +1,5 @@
+import { localDateStrDaysAgo } from "@shared/lib/date";
+
 export interface TdeeEstimate {
   tdee: number | null;
   avgActive: number | null;
@@ -57,43 +59,40 @@ export interface TdeeMetricRow {
   active_energy_kcal: number | null;
 }
 
-/** Resting changes slowly → average more readings; active fluctuates → fewer. */
-const RESTING_READINGS = 30;
-const ACTIVE_READINGS = 14;
-
 /**
  * Current + previous-period TDEE from a list of body metrics (any order).
  *
- * Windows are counted by READINGS, not calendar days: the current resting
- * average is the most recent 30 days that actually have a resting value, active
- * the most recent 14. Reaching past gaps this way means a missed sync (or a
- * not-yet-synced today) doesn't shrink the sample to "29 of 30" — the average
- * always uses a full window once enough history exists, so the "30-day average"
- * label stays put instead of ticking down on a single missing day. The previous
- * period is the block of readings immediately before the current one, for an
- * apples-to-apples trend arrow. Trade-off: a gappy stretch spans slightly more
- * calendar days — fine for these slow / among-noise averages. Single source of
- * truth for TDEE windowing — Health card + Overview both call it.
+ * Windows are TRAILING CALENDAR DAYS, not a reading count: resting = last 30
+ * days, active = last 14. This must stay time-bounded — the cut math reads TDEE
+ * as the *recent* metabolic rate, and resting drifts down over a cut, so a
+ * count-based window that reached back over gaps would pull in older, higher
+ * pre-cut readings and bias TDEE high (deficit under-counted). A missing day
+ * just means the window averages fewer readings, never older ones. The previous
+ * period shifts both back (resting 30–60d, active 14–28d) for an apples-to-
+ * apples trend arrow. Single source of truth for TDEE windowing — Health card +
+ * Overview both call it. Caller must supply ≥60 days for tdeePrev to be full.
  */
 export function computeTdeeWindows(metrics: TdeeMetricRow[]): {
   tdee: TdeeEstimate;
   tdeePrev: TdeeEstimate;
 } {
-  const sorted = [...metrics].sort((a, b) => a.metric_date.localeCompare(b.metric_date));
-  const resting = sorted
-    .filter((m) => m.resting_energy_kcal != null)
-    .map((m) => ({ resting: m.resting_energy_kcal }));
-  const active = sorted
-    .filter((m) => m.active_energy_kcal != null)
-    .map((m) => ({ active: m.active_energy_kcal }));
+  const cutoff14 = localDateStrDaysAgo(14);
+  const cutoff28 = localDateStrDaysAgo(28);
+  const cutoff30 = localDateStrDaysAgo(30);
+  const cutoff60 = localDateStrDaysAgo(60);
 
   const tdee = estimateTdee(
-    resting.slice(-RESTING_READINGS),
-    active.slice(-ACTIVE_READINGS),
+    metrics.filter((m) => m.metric_date >= cutoff30).map((m) => ({ resting: m.resting_energy_kcal })),
+    metrics.filter((m) => m.metric_date >= cutoff14).map((m) => ({ active: m.active_energy_kcal })),
   );
+
   const tdeePrev = estimateTdee(
-    resting.slice(-2 * RESTING_READINGS, -RESTING_READINGS),
-    active.slice(-2 * ACTIVE_READINGS, -ACTIVE_READINGS),
+    metrics
+      .filter((m) => m.metric_date >= cutoff60 && m.metric_date < cutoff30)
+      .map((m) => ({ resting: m.resting_energy_kcal })),
+    metrics
+      .filter((m) => m.metric_date >= cutoff28 && m.metric_date < cutoff14)
+      .map((m) => ({ active: m.active_energy_kcal })),
   );
 
   return { tdee, tdeePrev };
