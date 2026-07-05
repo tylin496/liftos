@@ -233,14 +233,48 @@
   font-weight: var(--role-card-title-weight);
   letter-spacing: -0.01em;
   color: var(--role-card-title-color);
-  cursor: pointer;
   line-height: 1.2;
   margin: 0;
   flex: 0 1 auto;
   min-width: 0;
+}
+
+/* The title is the tap target for the trend sheet — an unstyled button that
+   inherits the h3's type, with the text truncating and the chart glyph pinned
+   beside it. */
+.ex-name-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ex-name-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ex-name-trend {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--ink-4);
+  transition: color var(--dur-press) ease;
+}
+
+.ex-name-btn:active .ex-name-trend {
+  color: var(--accent);
 }
 
 .rename-input {
@@ -2167,4 +2201,125 @@
 
 .add-exercise-btn:active {
   transform: scale(var(--tap-scale));
+}
+
+/* ── Exercise trend sheet ────────────────────────────────────────────────────
+   Reuses the Settings sheet chrome (.settings-sheet / -backdrop / -header /
+   -close); only the body below is training-specific. */
+.trend-sheet-body {
+  gap: var(--space-4);
+  padding-bottom: var(--space-6);
+}
+
+.trend-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}
+
+.trend-window {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.trend-count {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+}
+
+.trend-chart {
+  width: 100%;
+  height: 130px;
+  display: block;
+  overflow: visible;
+}
+
+/* Draw the line in once on open, left→right; the fill fades up behind it.
+   A tab switch never remounts the sheet, so this plays only per-open. */
+.trend-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: trend-draw 620ms var(--ease-enter) forwards;
+}
+
+.trend-area {
+  opacity: 0;
+  animation: fade-in 500ms var(--ease-enter) 200ms forwards;
+}
+
+@keyframes trend-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.trend-dot--peak {
+  fill: var(--bg-card);
+  stroke: var(--gold);
+  stroke-width: 2.4;
+}
+
+.trend-dot--last {
+  fill: var(--bg-card);
+  stroke: var(--accent);
+  stroke-width: 2.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trend-line { animation: none; stroke-dashoffset: 0; }
+  .trend-area { animation: none; opacity: 1; }
+}
+
+.trend-stats {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.trend-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.trend-stat-k {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+}
+
+.trend-stat-v {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.trend-stat-v--peak {
+  color: var(--gold);
+}
+
+.trend-stat-u {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-4);
+}
+
+.trend-stat-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.trend-delta--gain { color: var(--good); }
+.trend-delta--loss { color: var(--bad); }
+.trend-delta--flat { color: var(--ink-3); }
+
+.trend-empty {
+  font-size: var(--text-base);
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin: var(--space-4) 0;
 }

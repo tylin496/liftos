@@ -137,6 +137,66 @@ export function computeStats(logs: TrainingLog[], setCount: number): Stats {
   return { best, prIndex, latest };
 }
 
+// ─── Trend series (for the exercise sparkline) ───────────────────────────────
+
+export interface TrendPoint {
+  date: string; // YYYY-MM-DD
+  e1rm: number; // Epley 1RM in kg — the app's canonical strength number
+  weightKg: number;
+  reps: string;
+}
+
+/**
+ * Chronological (ascending) est-1RM series for the exercise trend chart — one
+ * point per logged day (the app already enforces one entry per exercise per
+ * day). Entries with no finite positive e1RM (bodyweight-only or unparseable
+ * sets) are dropped: they carry no strength value to plot.
+ */
+export function buildTrendSeries(logsAsc: TrainingLog[], setCount: number): TrendPoint[] {
+  const pts: TrendPoint[] = [];
+  for (const log of logsAsc) {
+    if (!log.log_date) continue;
+    const e = toLogEntry(log, setCount);
+    if (!e || !(e.e1rm > 0)) continue;
+    pts.push({ date: log.log_date, e1rm: e.e1rm, weightKg: e.weightKg, reps: e.reps });
+  }
+  // logsAsc arrives chronological, but an edited log_date can reorder it — a
+  // defensive sort keeps the line reading left→right in real time order.
+  pts.sort((a, b) => a.date.localeCompare(b.date));
+  return pts;
+}
+
+const DAY_MS = 86400000;
+function daysBetween(a: string, b: string): number {
+  return Math.abs(
+    new Date(b + "T12:00:00").getTime() - new Date(a + "T12:00:00").getTime(),
+  ) / DAY_MS;
+}
+
+export interface TrendWindow {
+  points: TrendPoint[];
+  /** true when the full history spanned >1 year and was clipped to 365 days. */
+  clipped: boolean;
+}
+
+/**
+ * The chart's time window: under a year of history shows everything; a year or
+ * more shows only the most recent 365 days. The window is anchored to the
+ * latest entry (not "today"), so a lapse in logging still lands the window on
+ * real recent training instead of an empty stretch.
+ */
+export function windowTrend(points: TrendPoint[]): TrendWindow {
+  if (points.length < 2) return { points, clipped: false };
+  const first = points[0].date;
+  const last = points[points.length - 1].date;
+  if (daysBetween(first, last) <= 365) return { points, clipped: false };
+  const cutoff = new Date(last + "T12:00:00").getTime() - 365 * DAY_MS;
+  const windowed = points.filter(
+    (p) => new Date(p.date + "T12:00:00").getTime() >= cutoff,
+  );
+  return { points: windowed, clipped: true };
+}
+
 // ─── computeHistDelta ────────────────────────────────────────────────────────
 
 export interface HistDelta {

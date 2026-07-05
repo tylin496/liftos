@@ -27,6 +27,7 @@ import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
 import { haptic } from "@shared/lib/haptics";
 import { EditExerciseForm } from "./EditExerciseForm";
+import { TrendSheet } from "./TrendSheet";
 import { EditIcon, PenLineIcon, ArrowUpIcon, ArrowDownIcon, ArchiveIcon } from "./EditIcon";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import { useIsReadOnly } from "@app/layout/SessionContext";
@@ -42,6 +43,16 @@ function AnimatedWeight({ value }: { value: number }) {
   return <AnimatedNumber value={value} decimals={decimals} format={fmtWeightNum} />;
 }
 
+
+/* Tiny rising-bars glyph next to the exercise name — signals the title opens a
+   trend chart without spending a full row on the affordance. */
+function ChartGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden focusable="false">
+      <path d="M1.5 11.5V7.5M5 11.5V4M8.5 11.5V6M12 11.5V2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 function SmartImage({
   src,
@@ -132,6 +143,7 @@ export function ExerciseCard({
   const [localImageUrl, setLocalImageUrl] = useState<string>();
   const [savedRowId, setSavedRowId] = useState<string | null>(null);
   const [isMoving, setIsMoving] = useState(false);
+  const [trendOpen, setTrendOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -510,7 +522,17 @@ export function ExerciseCard({
       {/* ── Title block ── */}
       <div className="ex-title-block">
         <div className="ex-title-row">
-          <h3 className="ex-name">{exercise.name}</h3>
+          <h3 className="ex-name">
+            <button
+              type="button"
+              className="ex-name-btn"
+              onClick={() => setTrendOpen(true)}
+              aria-label={`${exercise.name} — view strength trend`}
+            >
+              <span className="ex-name-text">{exercise.name}</span>
+              <ChartGlyph className="ex-name-trend" />
+            </button>
+          </h3>
           {exercise.target && (
             <span className="target-display mono">{exercise.target}</span>
           )}
@@ -771,6 +793,13 @@ export function ExerciseCard({
             : `View all ${filteredDesc.length} entries`}
         </button>
       )}
+
+      <TrendSheet
+        exercise={exercise}
+        logs={effectiveLogs}
+        open={trendOpen}
+        onClose={() => setTrendOpen(false)}
+      />
     </article>
   );
 }
