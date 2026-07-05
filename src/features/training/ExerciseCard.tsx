@@ -14,6 +14,7 @@ import {
   computeHistDelta,
   filterByTime,
   timelineDate,
+  toLogEntry,
   epley1RM,
   beatsBest,
   totalReps,
@@ -132,6 +133,7 @@ export function ExerciseCard({
 
   const [editingMode, setEditingMode] = useState<EditingMode>("view");
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [justExpanded, setJustExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

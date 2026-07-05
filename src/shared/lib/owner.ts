@@ -1,19 +1,33 @@
 import { supabase } from "./supabase";
 
-// The one account with full read/write. Everyone else on the Supabase
-// `shared_viewers` allowlist gets a read-only view of this account's data.
-// Keep in sync with `owner_id()` / `is_owner()` in
-// supabase/migrations/0002_shared_read_access.sql and with OWNER_EMAIL in
-// src/app/layout/SessionContext.tsx.
-const OWNER_EMAIL = "tylin496@gmail.com";
+// ─────────────────────────────────────────────────────────────────────────────
+// Single client-side source of truth for "who owns the data".
+//
+// The one account with full read/write is the OWNER. Everyone else on the
+// Supabase `shared_viewers` allowlist gets a read-only view of the owner's data.
+// Correctness lives in the database — the RLS CASE policy in
+// supabase/migrations/0002 is the sole authority on visibility. This module only
+// mirrors the owner identity for two client concerns: hiding write UI
+// (useIsReadOnly) and skipping the couple of auto-writes that fire on load.
+//
+// Changing the owner means editing this constant AND the SQL helpers (owner_id /
+// is_owner) in 0002 — those are separate systems and can't share a constant.
+// ─────────────────────────────────────────────────────────────────────────────
 
-/** True when the signed-in account is a shared viewer (not the owner, not the
- *  local dev-bypass session). Viewers read the owner's data (via RLS) and never
- *  write — this guards the handful of auto-writes that otherwise fire on load. */
+export const OWNER_EMAIL = "tylin496@gmail.com";
+
+/** The viewer/owner rule in one place. `dev@local` (dev-bypass) counts as the
+ *  owner so local dev stays fully writable. */
+export function emailIsViewer(email: string | null | undefined): boolean {
+  const e = (email ?? "").toLowerCase();
+  if (!e || e === "dev@local") return false;
+  return e !== OWNER_EMAIL.toLowerCase();
+}
+
+/** Async form for the data layer (no React context). Guards the auto-writes
+ *  that would otherwise fire on load for a viewer. */
 export async function isViewer(): Promise<boolean> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return false;
-  const email = (data.user.email ?? "").toLowerCase();
-  if (!email || email === "dev@local") return false;
-  return email !== OWNER_EMAIL.toLowerCase();
+  return emailIsViewer(data.user.email);
 }
