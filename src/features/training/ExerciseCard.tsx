@@ -104,6 +104,9 @@ export interface ExerciseCardProps {
   exercise: Exercise;
   logs: TrainingLog[]; // newest-first (as returned by fetchLogsBySlug)
   timeFilter: TimeFilter;
+  // Lifted to the page so only one row's detail is open across all cards.
+  expandedLogId: string | null;
+  setExpandedLogId: (id: string | null | ((cur: string | null) => string | null)) => void;
   onLogged: () => void;
   onLogAdded: (log: TrainingLog) => void;
   onUpdate: (patch: Partial<Exercise>) => void;
@@ -117,6 +120,8 @@ export function ExerciseCard({
   exercise,
   logs,
   timeFilter,
+  expandedLogId,
+  setExpandedLogId,
   onLogged,
   onLogAdded,
   onUpdate,
@@ -133,7 +138,6 @@ export function ExerciseCard({
 
   const [editingMode, setEditingMode] = useState<EditingMode>("view");
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [justExpanded, setJustExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -637,13 +641,21 @@ export function ExerciseCard({
                 : null;
 
             return (
-              <div key={log.id}>
+              <div
+                key={log.id}
+                className={[
+                  "hist-entry",
+                  isExpanded ? "is-open" : "",
+                  isPR ? "is-pr" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 <div
                   className={[
                     "hist-row",
                     isPR ? "is-pr" : "",
                     isEditing ? "is-editing" : "",
-                    isExpanded ? "is-expanded" : "",
                     isNew ? "hist-row-new" : "",
                     savedRowId === log.id ? "hist-row-saved" : "",
                     revealing ? "hist-row-reveal" : "",

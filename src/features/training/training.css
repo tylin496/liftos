@@ -522,10 +522,27 @@
   border-radius: var(--radius-sm);
 }
 
-/* Open row keeps a faint tint so the detail strip below reads as attached. */
-.hist-row.is-expanded {
+/* When a row's detail is open, the wrapper (row + detail) carries the ONE
+   tinted background for both together — a single element, so there's no
+   two-layer transparency overlap or seam between row and strip. */
+.hist-entry.is-open {
   background: color-mix(in srgb, var(--accent) 6%, transparent);
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-radius: var(--radius-sm);
+}
+
+/* PR: the gold left bar + card-edge bleed move to the wrapper so the bar runs
+   unbroken down the whole block; the row inside sheds its own bleed below. */
+.hist-entry.is-open.is-pr {
+  margin-left: calc(-1 * var(--space-2));
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding-left: calc(var(--space-2) - 3px);
+}
+
+.hist-entry.is-open .hist-row.is-pr {
+  margin-left: 0;
+  border-left: 0;
+  padding-left: 0;
 }
 
 .hist-row:hover .hist-actions button {
@@ -816,13 +833,13 @@
    to the card edge like the editor drawer, but its content aligns under the
    expr column (past the 40px date gutter) so the numbers sit below the set. */
 .hist-detail-drawer {
-  margin: 0 calc(-1 * var(--space-5)) var(--space-1);
-  padding: var(--space-2) var(--space-5) var(--space-3)
-    calc(var(--space-5) + 40px + var(--space-2));
+  /* Content only — the wrapper (.hist-entry.is-open) draws the background. The
+     tint is one static element behind both, so only these numbers animate in
+     over it; nothing can seam. Content lines up under the expr column (past the
+     40px date gutter + grid gap). */
+  padding: 0 var(--space-2) var(--space-3) calc(40px + var(--space-2));
   display: flex;
   gap: var(--space-6);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   animation: log-zone-in var(--dur-enter) var(--ease-enter) both;
 }
 

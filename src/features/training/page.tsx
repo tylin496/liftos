@@ -529,6 +529,11 @@ function TrainingPageInner() {
   const [timeFilterOpen, setTimeFilterOpen] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
   const [stretches, setStretches] = useState<Record<SplitId, StretchItem[]>>(loadStretches);
+  // The single history row whose est-1RM / %-of-PR detail is open. Lifted here
+  // (not per-card) so opening one row's detail closes any other across all
+  // cards — only one is ever expanded at a time. Log ids are globally unique,
+  // so a single id targets exactly the right card.
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   // Slugs currently in an optimistic-delete undo window — a background reloadAll
   // must not resurrect them, since the server row hasn't committed the delete yet.
   const pendingDeleteSlugsRef = useRef<Set<string>>(new Set());
@@ -846,6 +851,8 @@ function TrainingPageInner() {
             exercise={ex}
             logs={logs[ex.slug] ?? []}
             timeFilter={timeFilter}
+            expandedLogId={expandedLogId}
+            setExpandedLogId={setExpandedLogId}
             onLogged={reloadLogs}
             onLogAdded={onLogAdded}
             onUpdate={(patch) =>
