@@ -158,17 +158,27 @@ export function Shell({ session }: { session: Session }) {
     };
     alignRef.current = { cancel };
 
+    let lastHeight = 0;
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (cancelled) return;
-        align();
+        // Deliberately DON'T align yet. The page is still a skeleton; scrolling
+        // now would instant-jump to the (short-page) target, then the data-load
+        // reflow throws it back to the top — the double motion we're avoiding.
+        // Instead wait for the first real height change (skeleton → data) and
+        // let that single (CSS-smooth) scroll carry us to the target.
+        lastHeight = document.body.scrollHeight;
         // User intent — a real scroll, tap, or key — hands control back.
         window.addEventListener("wheel", cancel, { passive: true });
         window.addEventListener("touchstart", cancel, { passive: true });
         window.addEventListener("pointerdown", cancel, { passive: true });
         window.addEventListener("keydown", cancel);
         ro = new ResizeObserver(() => {
-          if (!cancelled) align();
+          if (cancelled) return;
+          const h = document.body.scrollHeight;
+          if (h === lastHeight) return; // ignore the initial no-op fire
+          lastHeight = h;
+          align();
         });
         ro.observe(document.body);
       });
