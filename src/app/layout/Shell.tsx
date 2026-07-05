@@ -53,10 +53,38 @@ export function Shell({ session }: { session: Session }) {
   const [highlight, setHighlight] = useState<TabId>(tab);
   // Pages that have been visited at least once — we keep them mounted
   const [visited, setVisited] = useState<Set<TabId>>(new Set([tab]));
-  // Incremented each time the user navigates TO a tab — pages re-fetch on change
+  // Drives each page's `key` — bumping it REMOUNTS the page (full entrance
+  // replay + skeleton + land-at-top). Only bumped on a "fresh" entry: first
+  // visit, a deep-link, or a return after the tab sat idle past REPLAY_IDLE_MS.
+  // A quick back-and-forth keeps the same key, so the page stays mounted and
+  // its scroll position is preserved (see scrollMemory).
   const [tabVersions, setTabVersions] = useState<Record<TabId, number>>(
     { overview: 0, training: 0, nutrition: 0, health: 0 },
   );
+  // Drives each page's TabActivityContext — bumped on EVERY entry (fresh or
+  // resume) so pages refetch in the background without remounting. Split from
+  // tabVersions so a resume refetches-in-place instead of flashing a skeleton.
+  const [tabActivity, setTabActivity] = useState<Record<TabId, number>>(
+    { overview: 0, training: 0, nutrition: 0, health: 0 },
+  );
+  // Last window.scrollY for each tab, captured when we start leaving it (at the
+  // gesture start — a slide collapses the document to one viewport, zeroing
+  // scrollY, so we can't read it at commit time). Restored on a resume entry.
+  const scrollMemory = useRef<Record<TabId, number>>(
+    { overview: 0, training: 0, nutrition: 0, health: 0 },
+  );
+  // Wall-clock ms when we last left each tab. `now − leftAt[next]` is how long
+  // the target sat idle, which decides resume (keep position) vs fresh (replay).
+  const leftAt = useRef<Record<TabId, number>>(
+    { overview: 0, training: 0, nutrition: 0, health: 0 },
+  );
+  // A resume entry stashes the scroll offset to restore here; null means the
+  // commit-time scroll should go to the top (a fresh entry).
+  const pendingScrollRestoreRef = useRef<number | null>(null);
+  // How long a tab must sit unvisited before a return replays its entrance and
+  // lands at the top instead of resuming where you left off. Under this, a
+  // back-and-forth is treated as "still reading" and keeps its place.
+  const REPLAY_IDLE_MS = 3 * 60_000;
   // Header content (eyebrow/title/onCopy), pushed up by whichever page is
   // active via usePageHeader. Rendered once, outside the sliding tab panels,
   // so the avatar/copy button stay anchored during a tab swipe — only this
@@ -116,8 +144,13 @@ export function Shell({ session }: { session: Session }) {
     alignRef.current?.cancel();
 
     if (!pendingScrollTarget) {
+      // Resume entries restore the remembered offset; fresh entries go to top.
+      // The page is already fully mounted (a resume never remounts), so there's
+      // no skeleton to clamp against — the restore lands correctly, no jump.
+      const restoreY = pendingScrollRestoreRef.current ?? 0;
+      pendingScrollRestoreRef.current = null;
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "instant" }));
+        requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "instant" }));
       });
       return;
     }
@@ -198,16 +231,33 @@ export function Shell({ session }: { session: Session }) {
     }, SLIDE_MS + 20);
   }
 
-  // Bump a tab's activity version — the page is keyed by it (see render), so
-  // this REMOUNTS the whole page: its entire entrance replays (card cascade,
-  // count-ups, sparklines), and it refetches. Fire it when the tab STARTS coming
-  // into view, not when the slide finalizes: otherwise the panel slides in
-  // showing its old settled state for the whole slide, then blanks and
-  // re-animates once it's already on screen (reads as "rendered → disappears →
-  // animates"). Bumping at slide-start means the replay happens as it slides in.
-  function enterTab(next: TabId) {
+  // Record the current tab's scroll position + leave time. Called at the START
+  // of a leaving gesture (tap/swipe), because once the slide begins the document
+  // collapses to one viewport and window.scrollY reads 0.
+  function noteLeaving() {
+    scrollMemory.current[tab] = window.scrollY;
+    leftAt.current[tab] = Date.now();
+  }
+
+  // Begin entering `next`. Always bumps activity (background refetch). Whether it
+  // ALSO remounts (full entrance replay + land at top) vs resumes in place
+  // (keep the mounted page + restore scroll) depends on how long the target sat
+  // idle — a quick back-and-forth resumes; a stale/first/deep-link entry replays.
+  // Runs at slide-start so a replay animates as the panel slides in (bumping at
+  // finalize would show the old state for the whole slide, then blank + animate).
+  function enterTab(next: TabId, forceReplay = false) {
+    const firstVisit = !visited.has(next);
+    const idle = Date.now() - leftAt.current[next];
+    const replay = forceReplay || firstVisit || idle >= REPLAY_IDLE_MS;
+
     setVisited((prev) => new Set([...prev, next]));
-    setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
+    setTabActivity((prev) => ({ ...prev, [next]: prev[next] + 1 }));
+    if (replay) {
+      setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
+      pendingScrollRestoreRef.current = null; // land at top
+    } else {
+      pendingScrollRestoreRef.current = scrollMemory.current[next] ?? 0;
+    }
   }
 
   function commitTab(next: TabId) {
@@ -264,7 +314,9 @@ export function Shell({ session }: { session: Session }) {
         clearTimeout(kickoffTimer.current);
         kickoffTimer.current = null;
       }
-      enterTab(next);
+      // The outgoing tab's scroll was already captured when the in-flight slide
+      // began, so don't re-note here (the slide has zeroed scrollY).
+      enterTab(next, !!options?.scrollTo);
       commitTab(next);
       setSlide(null);
       return;
@@ -276,7 +328,10 @@ export function Shell({ session }: { session: Session }) {
     if (options?.scrollTo && options.expand) setPendingExpand(options.scrollTo);
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
-    enterTab(next);
+    // A deep-link forces a replay so its target re-reads the expand signal at
+    // mount and lands via the alignment observer, not a stale scroll restore.
+    noteLeaving();
+    enterTab(next, !!options?.scrollTo);
     // Place the incoming panel off-screen with no transition, then flip to the
     // target on a timer so the browser paints the start frame first. setTimeout
     // (not rAF) so the animation still completes if the tab is backgrounded.
@@ -382,6 +437,9 @@ export function Shell({ session }: { session: Session }) {
       if (axisLocked.current === null) {
         if (Math.abs(dx) > Math.abs(dy) * 1.25 && Math.abs(dx) > 10) {
           axisLocked.current = "h";
+          // Capture the outgoing scroll now, before the slide collapses the
+          // document and zeroes scrollY (so a resume can restore it).
+          noteLeaving();
           const idx = TAB_ORDER.indexOf(tab);
           const dir: 1 | -1 = dx < 0 ? 1 : -1;
           const to = TAB_ORDER[wrapIndex(idx + dir)];
@@ -529,7 +587,7 @@ export function Shell({ session }: { session: Session }) {
               }
 
               return (
-                <TabActivityContext.Provider key={tabId} value={tabVersions[tabId]}>
+                <TabActivityContext.Provider key={tabId} value={tabActivity[tabId]}>
                   <IsActiveTabContext.Provider value={tabId === highlight}>
                     <div className="tab-panel" style={style}>
                       {/* Key the page by its activity version so every tab-enter
