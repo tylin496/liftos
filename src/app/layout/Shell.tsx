@@ -125,11 +125,17 @@ export function Shell({ session }: { session: Session }) {
     // Deep-link alignment. The target scroll fires while the tab is still a
     // skeleton; once the cards above resolve to their real height the target
     // shifts, so a single early scroll lands in the wrong place (or needs a
-    // per-card re-pin hack that reads as a visible jump). Instead: scroll once,
-    // then keep the target pinned to the top through the layout settling —
-    // re-align on every below-fold resize until the page stops changing (250ms
-    // quiet), the user takes over scrolling, or a hard ceiling is hit. scrollIntoView
-    // honours each target's scroll-margin-top so it lands with a breath.
+    // per-card re-pin hack that reads as a visible jump).
+    //
+    // Instead we keep the named target pinned to the top by RE-ALIGNING on
+    // every layout change, and we stop ONLY when the user takes over (any
+    // scroll/tap/key) or a superseding nav fires — never on a timer. That's
+    // what makes it robust to any future card content/layout: it assumes no
+    // height and never gives up early, so a slow load or a late shift (lazy
+    // image, font swap, delayed async) still lands correctly. Re-aligning is
+    // safe against a feedback loop because scrolling doesn't change element
+    // sizes, so scrollIntoView never re-triggers the ResizeObserver.
+    // scrollIntoView honours each target's scroll-margin-top (a breath).
     const targetId = pendingScrollTarget;
     setPendingScrollTarget(null);
     // The target card reads pendingExpand at mount (already captured into its
@@ -137,8 +143,6 @@ export function Shell({ session }: { session: Session }) {
     setPendingExpand(null);
 
     let cancelled = false;
-    let settleTimer = 0;
-    let ceilingTimer = 0;
     let ro: ResizeObserver | null = null;
     const align = () =>
       document.getElementById(targetId)?.scrollIntoView({ block: "start" });
@@ -146,10 +150,10 @@ export function Shell({ session }: { session: Session }) {
       if (cancelled) return;
       cancelled = true;
       ro?.disconnect();
-      clearTimeout(settleTimer);
-      clearTimeout(ceilingTimer);
       window.removeEventListener("wheel", cancel);
       window.removeEventListener("touchstart", cancel);
+      window.removeEventListener("pointerdown", cancel);
+      window.removeEventListener("keydown", cancel);
       if (alignRef.current?.cancel === cancel) alignRef.current = null;
     };
     alignRef.current = { cancel };
@@ -158,17 +162,15 @@ export function Shell({ session }: { session: Session }) {
       requestAnimationFrame(() => {
         if (cancelled) return;
         align();
+        // User intent — a real scroll, tap, or key — hands control back.
         window.addEventListener("wheel", cancel, { passive: true });
         window.addEventListener("touchstart", cancel, { passive: true });
+        window.addEventListener("pointerdown", cancel, { passive: true });
+        window.addEventListener("keydown", cancel);
         ro = new ResizeObserver(() => {
-          if (cancelled) return;
-          align();
-          clearTimeout(settleTimer);
-          settleTimer = window.setTimeout(cancel, 250);
+          if (!cancelled) align();
         });
         ro.observe(document.body);
-        // Never observe forever — cold loads settle well within this.
-        ceilingTimer = window.setTimeout(cancel, 3000);
       });
     });
   }, [tab, pendingScrollTarget]);
