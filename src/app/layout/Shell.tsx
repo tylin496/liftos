@@ -11,6 +11,7 @@ import { SettingsSheet } from "./SettingsSheet";
 import { Splash } from "./Splash";
 import { SessionUserProvider } from "./SessionContext";
 import { NavContext, NavExpandContext, type NavOptions } from "./NavContext";
+import { setActiveScroller } from "./activeScroller";
 import { TabActivityContext } from "./TabActivityContext";
 import { PageHeaderContext, IsActiveTabContext, type PageHeader } from "./PageHeaderContext";
 import { PageTopBar } from "@shared/components/PageTopBar";
@@ -67,9 +68,15 @@ export function Shell({ session }: { session: Session }) {
   const [tabActivity, setTabActivity] = useState<Record<TabId, number>>(
     { overview: 0, training: 0, nutrition: 0, health: 0 },
   );
-  // Last window.scrollY for each tab, captured when we start leaving it (at the
-  // gesture start — a slide collapses the document to one viewport, zeroing
-  // scrollY, so we can't read it at commit time). Restored on a resume entry.
+  // Each tab panel's scroll container element (the .tab-panel div is stable per
+  // tab — only its Page child remounts on a replay — so its scrollTop persists
+  // natively across display:none). Used to drive/read per-tab scroll directly.
+  const panelRefs = useRef<Record<TabId, HTMLDivElement | null>>(
+    { overview: null, training: null, nutrition: null, health: null },
+  );
+  // Each tab's scrollTop, captured when we start leaving it — restored onto the
+  // panel the moment it becomes visible again (belt-and-suspenders over native
+  // retention; also the source for landing after a replay resets it).
   const scrollMemory = useRef<Record<TabId, number>>(
     { overview: 0, training: 0, nutrition: 0, health: 0 },
   );
@@ -91,6 +98,10 @@ export function Shell({ session }: { session: Session }) {
     | { kind: "element"; id: string }
     | null
   >(null);
+  // False while a landing is pending — the layout effect applies it to the
+  // panel the moment that panel is on screen (slide-start or direct commit),
+  // then flips this true so it isn't re-applied and doesn't fight user scroll.
+  const landingAppliedRef = useRef(true);
   // How long a tab must sit unvisited before a return replays its entrance and
   // lands at the top instead of resuming where you left off. Under this, a
   // back-and-forth is treated as "still reading" and keeps its place.
@@ -136,36 +147,57 @@ export function Shell({ session }: { session: Session }) {
   // observer explicitly rather than a state change tearing it down mid-flight.
   const alignRef = useRef<{ cancel: () => void } | null>(null);
 
-  // The ONE place the viewport is positioned after a tab commits. Runs
-  // synchronously before paint, so a top/restore lands without a one-frame
-  // flash: the slide collapses the document to a single viewport while it
-  // animates, so a deferred (rAF) scroll would paint the revealed page at 0
-  // first, then jump. An element (deep-link) landing is inherently async and
-  // hands off to the alignment observer.
+  // Position a tab's own scroll container the moment it's on screen. Because
+  // each panel scrolls independently, there's nothing to restore for a plain
+  // resume — the panel kept its scrollTop natively. This runs only to apply a
+  // deliberate landing: reset to top on a fresh entry (the panel element is
+  // reused across a Page remount, so its old scrollTop would otherwise linger),
+  // restore a captured offset defensively, or hand a deep-link to the observer.
+  // Applied at slide-start (panel already absolute/visible) so it's in place
+  // before it slides in — never a commit-time jump. Registers the active
+  // scroller for the imperative scrollers in feature code (see activeScroller).
   useLayoutEffect(() => {
+    if (landingAppliedRef.current) return;
     const landing = landingRef.current;
-    landingRef.current = null;
-    alignRef.current?.cancel(); // a new commit supersedes any in-flight align
-    if (!landing) return;
+    if (!landing) { landingAppliedRef.current = true; return; }
+    // The panel that will show this landing: mid-slide it's the incoming one
+    // (already rendered visible), otherwise the freshly-active tab.
+    const targetTab = slide ? slide.to : tab;
+    const el = panelRefs.current[targetTab];
+    if (!el) return; // not mounted yet — a later render will catch it
     if (landing.kind === "element") {
-      startAlign(landing.id);
-    } else {
-      window.scrollTo({ top: landing.kind === "restore" ? landing.y : 0, behavior: "instant" });
+      // The observer needs the committed skeleton and the panel as the active
+      // scroller, so wait until the slide has finished.
+      if (slide) return;
+      landingAppliedRef.current = true;
+      landingRef.current = null;
+      alignRef.current?.cancel();
+      el.scrollTop = 0;
+      startAlign(landing.id, el);
+      return;
     }
-    // Keyed on `tab` alone — it only fires at a commit, reading landingRef (a
-    // ref, deliberately not a dep) that commitTab set for this exact entry.
+    landingAppliedRef.current = true;
+    landingRef.current = null;
+    alignRef.current?.cancel();
+    el.scrollTop = landing.kind === "restore" ? landing.y : 0;
+  }, [slide, tab]);
+
+  // Keep the imperative-scroller registry pointed at the active panel.
+  useEffect(() => {
+    setActiveScroller(panelRefs.current[tab]);
   }, [tab]);
 
-  // Deep-link alignment. The page has just remounted to a skeleton; the target
-  // card sits at short-page height now and shifts once the data lands. So DON'T
-  // scroll yet — wait for the first real height change (skeleton → data) and let
-  // that single scroll carry us to the target, then RE-ALIGN on every later
-  // shift. Stops only when the user takes over (scroll/tap/key) or a superseding
-  // nav fires — never on a timer, so it stays correct through any future card
-  // content/layout (slow load, lazy image, font swap). No feedback loop:
-  // scrolling doesn't resize elements, so scrollIntoView never re-fires the
-  // observer. scrollIntoView honours each target's scroll-margin-top (a breath).
-  function startAlign(targetId: string) {
+  // Deep-link alignment within the target panel. The Page has just remounted to
+  // a skeleton; the target card sits at short-page height now and shifts once
+  // data lands. So DON'T scroll yet — wait for the first real height change
+  // (skeleton → data) and let that single scroll carry us to the target, then
+  // RE-ALIGN on every later shift. Stops only when the user takes over
+  // (scroll/tap/key) or a superseding nav fires — never on a timer, so it stays
+  // correct through any future card content/layout (slow load, lazy image, font
+  // swap). No feedback loop: scrolling doesn't resize elements, so scrollIntoView
+  // never re-fires the observer. scrollIntoView honours the card's
+  // scroll-margin-top (a breath) and auto-scrolls this panel (nearest scroller).
+  function startAlign(targetId: string, scroller: HTMLElement) {
     // The target read pendingExpand at mount; clear it so a later plain re-enter
     // doesn't re-open the section.
     setPendingExpand(null);
@@ -188,19 +220,19 @@ export function Shell({ session }: { session: Session }) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (cancelled) return;
-        lastHeight = document.body.scrollHeight;
+        lastHeight = scroller.scrollHeight;
         window.addEventListener("wheel", cancel, { passive: true });
         window.addEventListener("touchstart", cancel, { passive: true });
         window.addEventListener("pointerdown", cancel, { passive: true });
         window.addEventListener("keydown", cancel);
         ro = new ResizeObserver(() => {
           if (cancelled) return;
-          const h = document.body.scrollHeight;
+          const h = scroller.scrollHeight;
           if (h === lastHeight) return; // ignore the initial no-op fire
           lastHeight = h;
           align();
         });
-        ro.observe(document.body);
+        ro.observe(scroller);
       });
     });
   }
@@ -218,22 +250,21 @@ export function Shell({ session }: { session: Session }) {
     }, SLIDE_MS + 20);
   }
 
-  // Record the current tab's scroll position + leave time. Called at the START
-  // of a leaving gesture (tap/swipe), because once the slide begins the document
-  // collapses to one viewport and window.scrollY reads 0.
+  // Record the leaving tab's scroll position + leave time. The panel keeps its
+  // scrollTop natively, but we snapshot it too so a landing after a replay (or a
+  // browser that drops scrollTop on display:none) can restore it deterministically.
   function noteLeaving() {
-    scrollMemory.current[tab] = window.scrollY;
+    scrollMemory.current[tab] = panelRefs.current[tab]?.scrollTop ?? 0;
     leftAt.current[tab] = Date.now();
   }
 
   // Begin entering `next`. Always bumps activity (background refetch), then
-  // decides this entry's single landing intent (consumed by the layout effect
-  // at commit). A deep-link (targetId set) always replays: the target must
-  // re-read its expand signal at mount and be positioned by the observer.
-  // Otherwise a stale/first entry replays (remount + land at top); a quick
-  // back-and-forth resumes (keep the mounted page + restore its scroll).
-  // Runs at slide-start so a replay animates as the panel slides in (deciding at
-  // finalize would show the old state for the whole slide, then blank + animate).
+  // decides this entry's single landing intent (applied to the panel by the
+  // layout effect the moment it's on screen). A deep-link (targetId set) always
+  // replays: the target must re-read its expand signal at mount and be
+  // positioned by the observer. Otherwise a stale/first entry replays (remount +
+  // land at top); a quick back-and-forth resumes (keep the mounted panel at its
+  // scroll). Runs at slide-start so a replay animates as the panel slides in.
   function enterTab(next: TabId, targetId?: string) {
     const firstVisit = !visited.has(next);
     const idle = Date.now() - leftAt.current[next];
@@ -248,6 +279,7 @@ export function Shell({ session }: { session: Session }) {
       : replay
         ? { kind: "top" }
         : { kind: "restore", y: scrollMemory.current[next] ?? 0 };
+    landingAppliedRef.current = false;
   }
 
   function commitTab(next: TabId) {
@@ -268,11 +300,11 @@ export function Shell({ session }: { session: Session }) {
       // top. A caller asking for a specific target (e.g. Weight → Nutrition's
       // insight card) still jumps there.
       if (options?.scrollTo) {
-        const el = document.getElementById(options.scrollTo);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          window.scrollTo({ top: window.scrollY + rect.top, behavior: "smooth" });
-        }
+        // Auto-scrolls the active panel (its nearest scrollable ancestor).
+        document.getElementById(options.scrollTo)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
       }
       return;
     }
@@ -421,7 +453,7 @@ export function Shell({ session }: { session: Session }) {
           axisLocked.current = "v";
           // Only a downward pull that starts at the very top of the page
           // counts — otherwise this is just ordinary vertical scrolling.
-          pullActive.current = dy > 0 && window.scrollY <= 0;
+          pullActive.current = dy > 0 && (panelRefs.current[tab]?.scrollTop ?? 0) <= 0;
         }
       }
       if (axisLocked.current === "h") {
@@ -535,43 +567,53 @@ export function Shell({ session }: { session: Session }) {
                 <span className="pull-refresh-spinner" />
               </div>
             )}
-            {TAB_ORDER.map((tabId) => {
-              if (!visited.has(tabId)) return null;
-              const Page = PAGES[tabId];
+            {/* Each panel is its own overflow-y:auto scroller (layout.css), so a
+                tab keeps its scroll position natively while another is on screen —
+                no shared window scroll to collapse and restore. */}
+            <div className="tab-viewport">
+              {TAB_ORDER.map((tabId) => {
+                if (!visited.has(tabId)) return null;
+                const Page = PAGES[tabId];
 
-              let style: CSSProperties | undefined;
-              if (slide) {
-                const width = window.innerWidth || 1;
-                const ease = slide.settling
-                  ? `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
-                  : "none";
-                if (tabId === tab) {
-                  style = { transform: `translateX(${slide.dx}px)`, transition: ease };
-                } else if (tabId === slide.to) {
-                  style = {
-                    transform: `translateX(${slide.dx + slide.dir * width}px)`,
-                    transition: ease,
-                  };
-                } else {
+                let style: CSSProperties | undefined;
+                if (slide) {
+                  const width = window.innerWidth || 1;
+                  const ease = slide.settling
+                    ? `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
+                    : "none";
+                  if (tabId === tab) {
+                    style = { transform: `translateX(${slide.dx}px)`, transition: ease };
+                  } else if (tabId === slide.to) {
+                    style = {
+                      transform: `translateX(${slide.dx + slide.dir * width}px)`,
+                      transition: ease,
+                    };
+                  } else {
+                    style = { display: "none" };
+                  }
+                } else if (tabId !== tab) {
                   style = { display: "none" };
                 }
-              } else if (tabId !== tab) {
-                style = { display: "none" };
-              }
 
-              return (
-                <TabActivityContext.Provider key={tabId} value={tabActivity[tabId]}>
-                  <IsActiveTabContext.Provider value={tabId === highlight}>
-                    <div className="tab-panel" style={style}>
-                      {/* Key the page by its activity version so every tab-enter
-                          REMOUNTS it — the whole entrance replays (card cascade,
-                          count-ups, sparklines), not just the first visit. */}
-                      <Page key={tabVersions[tabId]} />
-                    </div>
-                  </IsActiveTabContext.Provider>
-                </TabActivityContext.Provider>
-              );
-            })}
+                return (
+                  <TabActivityContext.Provider key={tabId} value={tabActivity[tabId]}>
+                    <IsActiveTabContext.Provider value={tabId === highlight}>
+                      <div
+                        className="tab-panel"
+                        style={style}
+                        ref={(el) => { panelRefs.current[tabId] = el; }}
+                      >
+                        {/* Key the page by its activity version so every FRESH
+                            tab-enter REMOUNTS it — the entrance replays and the
+                            scroller resets to top. A resume keeps the key, so the
+                            panel stays mounted at its scroll position. */}
+                        <Page key={tabVersions[tabId]} />
+                      </div>
+                    </IsActiveTabContext.Provider>
+                  </TabActivityContext.Provider>
+                );
+              })}
+            </div>
           </main>
           <TabBar active={highlight} onChange={switchTab} />
         </div>

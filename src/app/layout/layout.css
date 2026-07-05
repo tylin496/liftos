@@ -1,7 +1,11 @@
 .shell {
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  /* The window no longer scrolls — each tab panel is its own scroller (below),
+     so a tab keeps its scroll position while another is on screen. The header
+     and tab bar stay put; only panel content scrolls. */
+  overflow: hidden;
 }
 
 /* ── Dev-only phone frame ───────────────────────────────────────────────
@@ -48,31 +52,47 @@
 }
 
 /* ── Content ────────────────────────────────────────────────────────── */
+/* A fixed-height column holding the pull indicator and the tab viewport. It
+   does not scroll — the active panel does. */
 .shell-content {
   flex: 1;
+  min-height: 0;
   width: 100%;
   max-width: var(--content-max);
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The clip + positioning box for the panels. During a slide both panels are
+   absolute here and translated; otherwise the active one fills it and scrolls. */
+.tab-viewport {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Each tab is its own scroll container, so its scrollTop persists natively while
+   another tab is on screen — no shared window scroll to collapse and restore.
+   Carries the padding that used to sit on .shell-content. */
+.tab-panel {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: var(--space-4) var(--space-4)
     calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
 }
 
 /* While a horizontal tab slide is in flight, both panels are stacked and
-   translated independently. Clip the overflow so the incoming/outgoing pages
-   don't spill sideways, and hold a viewport height so the layout doesn't
-   collapse for the ~300ms the animation runs. */
+   translated independently. Each keeps its own scroll position throughout. */
 .shell-content.is-sliding {
-  position: relative;
-  overflow: hidden;
-  min-height: calc(100dvh - var(--header-h) - var(--safe-top) - var(--tabbar-h) - var(--safe-bottom));
   touch-action: pan-y;
 }
 
 .shell-content.is-sliding .tab-panel {
   position: absolute;
-  top: var(--space-4);
-  left: var(--space-4);
-  right: var(--space-4);
+  inset: 0;
   will-change: transform;
 }
 
@@ -81,6 +101,7 @@
    distance (Shell.tsx), so it grows/shrinks with the finger and pushes the
    tab content down as it opens — no absolute positioning needed. */
 .pull-refresh {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;

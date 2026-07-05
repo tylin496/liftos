@@ -32,6 +32,7 @@ import { TrendSheet } from "./TrendSheet";
 import { EditIcon, PenLineIcon, ArrowUpIcon, ArrowDownIcon, ArchiveIcon } from "./EditIcon";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import { useIsReadOnly } from "@app/layout/SessionContext";
+import { getActiveScroller } from "@app/layout/activeScroller";
 
 export { useToast };
 
@@ -81,12 +82,16 @@ function SmartImage({
 
 function scrollIntoViewInterruptible(el: Element) {
   el.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Freeze the smooth scroll on the panel it runs in (its nearest scroller).
+  const scroller = getActiveScroller();
   const stop = () => {
-    const y = window.scrollY;
-    const prev = document.documentElement.style.scrollBehavior;
-    document.documentElement.style.scrollBehavior = "auto";
-    window.scrollTo(window.scrollX, y);
-    document.documentElement.style.scrollBehavior = prev;
+    if (scroller) {
+      const y = scroller.scrollTop;
+      const prev = scroller.style.scrollBehavior;
+      scroller.style.scrollBehavior = "auto";
+      scroller.scrollTop = y;
+      scroller.style.scrollBehavior = prev;
+    }
     cleanup();
   };
   const cleanup = () => {

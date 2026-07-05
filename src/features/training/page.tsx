@@ -33,6 +33,7 @@ import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
 import { useIsReadOnly } from "@app/layout/SessionContext";
+import { getActiveScroller } from "@app/layout/activeScroller";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
 import { EditIcon } from "./EditIcon";
 import "./training.css";
@@ -553,7 +554,7 @@ function TrainingPageInner() {
     didSwitchRef.current = true;
     setSplit(id);
     sessionStorage.setItem("tr-split", id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    getActiveScroller()?.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const reloadAll = useCallback(async () => {

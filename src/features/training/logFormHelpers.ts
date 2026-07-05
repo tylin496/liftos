@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { CSSProperties, Dispatch, RefObject, SetStateAction } from "react";
 import type { Exercise } from "./api";
 import { localDateStr } from "@shared/lib/date";
+import { getActiveScroller } from "@app/layout/activeScroller";
 
 export const MIN_SET_COUNT = 1;
 export const MAX_SET_COUNT = 5;
@@ -112,7 +113,8 @@ export function useScrollAboveKeyboard<T extends HTMLElement>(formRef: RefObject
       const btnBottom = btn.getBoundingClientRect().bottom;
       const viewBottom = vv!.offsetTop + vv!.height;
       if (btnBottom > viewBottom - 8) {
-        window.scrollBy({ top: btnBottom - viewBottom + 16, behavior: "smooth" });
+        // The active tab panel scrolls, not the window.
+        getActiveScroller()?.scrollBy({ top: btnBottom - viewBottom + 16, behavior: "smooth" });
       }
     }
     vv.addEventListener("resize", adjust);
