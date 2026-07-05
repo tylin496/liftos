@@ -3,12 +3,14 @@ import { supabase } from "./supabase";
 // ─────────────────────────────────────────────────────────────────────────────
 // Single client-side source of truth for "who owns the data".
 //
-// The one account with full read/write is the OWNER. Everyone else on the
-// Supabase `shared_viewers` allowlist gets a read-only view of the owner's data.
-// Correctness lives in the database — the RLS CASE policy in
-// supabase/migrations/0002 is the sole authority on visibility. This module only
-// mirrors the owner identity for two client concerns: hiding write UI
-// (useIsReadOnly) and skipping the couple of auto-writes that fire on load.
+// The one account with full read/write is the OWNER. Who can sign in at all is
+// gated at Google (OAuth consent screen in Testing mode → only listed test
+// users), so every authenticated non-owner is an approved viewer. Correctness
+// lives in the database — the RLS policy in supabase/migrations/0002 is the sole
+// authority on visibility (owner sees own rows, everyone else sees the owner's).
+// This module only mirrors the owner identity for two client concerns: hiding
+// write UI (useIsReadOnly) and skipping the couple of auto-writes that fire on
+// load.
 //
 // Changing the owner means editing this constant AND the SQL helpers (owner_id /
 // is_owner) in 0002 — those are separate systems and can't share a constant.

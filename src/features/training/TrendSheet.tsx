@@ -59,10 +59,23 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
         pathLength={1}
       />
-      <circle className="trend-dot trend-dot--peak" cx={peak.x.toFixed(1)} cy={peak.y.toFixed(1)} r="4" />
-      <circle className="trend-dot trend-dot--last" cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r="3.4" />
+      <circle
+        className="trend-dot trend-dot--peak"
+        cx={peak.x.toFixed(1)}
+        cy={peak.y.toFixed(1)}
+        r="4"
+        vectorEffect="non-scaling-stroke"
+      />
+      <circle
+        className="trend-dot trend-dot--last"
+        cx={last.x.toFixed(1)}
+        cy={last.y.toFixed(1)}
+        r="3.4"
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   );
 }
