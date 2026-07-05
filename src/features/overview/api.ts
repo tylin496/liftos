@@ -142,10 +142,6 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
-  const { data: userData, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userData.user) throw userErr ?? new Error("Not signed in");
-  const userId = userData.user.id;
-
   const [health, logsRes, archivedRes, nutritionState, configRes] = await Promise.all([
     // 180 days of body metrics. Recovery's 7/30-day windows anchor to the latest
     // reading, so the wider window doesn't shift its baseline.
@@ -165,7 +161,6 @@ export async function fetchOverview(): Promise<OverviewData> {
     supabase
       .from("nutrition_config")
       .select("target_body_fat_pct, cut_start_date, cut_start_body_fat_pct")
-      .eq("user_id", userId)
       .maybeSingle(),
   ]);
 

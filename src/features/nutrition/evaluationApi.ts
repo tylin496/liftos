@@ -8,6 +8,7 @@
 // allowed to hold this business logic.
 
 import { supabase } from "@shared/lib/supabase";
+import { isViewer } from "@shared/lib/owner";
 import type { Database } from "@shared/lib/database.types";
 import { localDateStrDaysAgo } from "@shared/lib/date";
 import { series } from "@features/health/math";
@@ -184,6 +185,10 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
   // Recommendation is derived from the Evaluation — the single source of truth.
   const recommendation = topRecommendation({ nutrition: { evaluation, diagnostics } });
   const state: NutritionStateFull = { evaluation, diagnostics, recommendation };
+
+  // A shared viewer computes from the owner's data (RLS) but must not persist —
+  // the row belongs to the owner and the write would be rejected anyway.
+  if (await isViewer()) return state;
 
   const { error } = await supabase
     .from("nutrition_evaluations")

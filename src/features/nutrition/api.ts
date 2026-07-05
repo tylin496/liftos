@@ -1,4 +1,5 @@
 import { supabase } from "@shared/lib/supabase";
+import { isViewer } from "@shared/lib/owner";
 import type { Database } from "@shared/lib/database.types";
 import { DEFAULTS, phaseFromDeficit } from "./logic";
 
@@ -13,26 +14,30 @@ async function currentUserId(): Promise<string> {
   return data.user.id;
 }
 
-/** Fetch the user's config, creating a default row on first use. */
+/** Fetch the config, creating a default row on first use. A shared viewer reads
+ *  the owner's config (via RLS) and never creates a row of their own. */
 export async function getConfig(): Promise<NutritionConfig> {
-  const userId = await currentUserId();
-  const { error: upErr } = await supabase
-    .from("nutrition_config")
-    .upsert(
-      {
-        user_id: userId,
-        tdee: DEFAULTS.tdee,
-        protein_target: DEFAULTS.proteinTarget,
-        phase_deficits: [DEFAULTS.deficitTarget],
-      },
-      { onConflict: "user_id", ignoreDuplicates: true },
-    );
-  if (upErr) throw upErr;
+  if (!(await isViewer())) {
+    const userId = await currentUserId();
+    const { error: upErr } = await supabase
+      .from("nutrition_config")
+      .upsert(
+        {
+          user_id: userId,
+          tdee: DEFAULTS.tdee,
+          protein_target: DEFAULTS.proteinTarget,
+          phase_deficits: [DEFAULTS.deficitTarget],
+        },
+        { onConflict: "user_id", ignoreDuplicates: true },
+      );
+    if (upErr) throw upErr;
+  }
 
+  // No user_id filter: RLS returns the caller's own row (owner) or the owner's
+  // row (viewer), so this is exactly one row either way.
   const { data, error } = await supabase
     .from("nutrition_config")
     .select("*")
-    .eq("user_id", userId)
     .single();
   if (error) throw error;
   return data;

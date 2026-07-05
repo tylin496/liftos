@@ -60,8 +60,12 @@ as $$
   )
 $$;
 
--- ──────────────── widen SELECT: own rows OR owner's rows (if viewer) ────────
--- insert / update / delete policies from 0001 are intentionally left as-is.
+-- ──────────────── widen SELECT: viewers read the owner's rows ───────────────
+-- A viewer sees ONLY the owner's rows (never their own leftover rows) so that
+-- .single()/.maybeSingle() reads return exactly one dataset — the owner's. The
+-- owner (and any non-viewer) sees only their own rows, unchanged. insert /
+-- update / delete policies from 0001 are intentionally left as-is, so a viewer
+-- can never write the owner's data.
 do $$
 declare t text;
 begin
@@ -75,8 +79,10 @@ begin
     execute format($p$
       create policy "read - own or shared" on public.%I
         for select using (
-          auth.uid() = user_id
-          or (user_id = public.owner_id() and public.is_shared_viewer())
+          case
+            when public.is_shared_viewer() then user_id = public.owner_id()
+            else auth.uid() = user_id
+          end
         );
     $p$, t);
   end loop;
