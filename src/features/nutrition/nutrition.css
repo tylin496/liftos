@@ -50,6 +50,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  /* Deep-link target (Overview → Nutrition): land with a breath. Shell owns
+     the scroll and pins it through the skeleton→data shift. */
+  scroll-margin-top: var(--space-4);
 }
 
 /* Decision — leads the card, the focal point. */

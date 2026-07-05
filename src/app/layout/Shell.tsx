@@ -104,28 +104,71 @@ export function Shell({ session }: { session: Session }) {
   // auto-scroll-to-top (commitTab fires ~1 slide later than the target scroll,
   // so it would yank the page back to the top right after landing on the card).
   const suppressTopScrollRef = useRef(false);
+  // Handle for an in-flight deep-link alignment (see below). Kept in a ref, not
+  // tied to the effect's cleanup, so clearing pendingScrollTarget mid-flight
+  // doesn't tear the observer down — a fresh nav cancels the prior one instead.
+  const alignRef = useRef<{ cancel: () => void } | null>(null);
 
   useEffect(() => {
     if (!pendingScrollTopRef.current && !pendingScrollTarget) return;
     pendingScrollTopRef.current = false;
+    // Any new scroll intent supersedes an in-flight alignment.
+    alignRef.current?.cancel();
+
+    if (!pendingScrollTarget) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "instant" }));
+      });
+      return;
+    }
+
+    // Deep-link alignment. The target scroll fires while the tab is still a
+    // skeleton; once the cards above resolve to their real height the target
+    // shifts, so a single early scroll lands in the wrong place (or needs a
+    // per-card re-pin hack that reads as a visible jump). Instead: scroll once,
+    // then keep the target pinned to the top through the layout settling —
+    // re-align on every below-fold resize until the page stops changing (250ms
+    // quiet), the user takes over scrolling, or a hard ceiling is hit. scrollIntoView
+    // honours each target's scroll-margin-top so it lands with a breath.
+    const targetId = pendingScrollTarget;
+    setPendingScrollTarget(null);
+    // The target card reads pendingExpand at mount (already captured into its
+    // initial state); clear it so a later plain tab re-enter doesn't re-open it.
+    setPendingExpand(null);
+
+    let cancelled = false;
+    let settleTimer = 0;
+    let ceilingTimer = 0;
+    let ro: ResizeObserver | null = null;
+    const align = () =>
+      document.getElementById(targetId)?.scrollIntoView({ block: "start" });
+    const cancel = () => {
+      if (cancelled) return;
+      cancelled = true;
+      ro?.disconnect();
+      clearTimeout(settleTimer);
+      clearTimeout(ceilingTimer);
+      window.removeEventListener("wheel", cancel);
+      window.removeEventListener("touchstart", cancel);
+      if (alignRef.current?.cancel === cancel) alignRef.current = null;
+    };
+    alignRef.current = { cancel };
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        if (pendingScrollTarget) {
-          // Scroll to a specific element
-          const el = document.getElementById(pendingScrollTarget);
-          if (el) {
-            const rect = el.getBoundingClientRect();
-            window.scrollTo({ top: window.scrollY + rect.top, behavior: "instant" });
-          }
-          setPendingScrollTarget(null);
-          // The target card reads pendingExpand at mount (already captured into
-          // its initial state); clear it so a later plain tab re-enter doesn't
-          // re-open the section.
-          setPendingExpand(null);
-        } else {
-          // Scroll to top
-          window.scrollTo({ top: 0, behavior: "instant" });
-        }
+        if (cancelled) return;
+        align();
+        window.addEventListener("wheel", cancel, { passive: true });
+        window.addEventListener("touchstart", cancel, { passive: true });
+        ro = new ResizeObserver(() => {
+          if (cancelled) return;
+          align();
+          clearTimeout(settleTimer);
+          settleTimer = window.setTimeout(cancel, 250);
+        });
+        ro.observe(document.body);
+        // Never observe forever — cold loads settle well within this.
+        ceilingTimer = window.setTimeout(cancel, 3000);
       });
     });
   }, [tab, pendingScrollTarget]);

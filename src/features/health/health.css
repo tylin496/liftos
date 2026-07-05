@@ -233,6 +233,9 @@
 .health-energy {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  /* Deep-link target (Overview → Health): land with a breath, not jammed to
+     the edge. Shell owns the scroll; this just sets where it settles. */
+  scroll-margin-top: var(--space-4);
 }
 
 .health-energy-chevron {
