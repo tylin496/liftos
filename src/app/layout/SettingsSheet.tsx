@@ -7,6 +7,7 @@ import { useNutritionConfig } from "@features/nutrition/NutritionConfigContext";
 import { saveConfig, targetsFromConfig, phaseDefsFromConfig } from "@features/nutrition/api";
 import { phaseFromDeficit, trainingMonthsFromStart } from "@features/nutrition/logic";
 import { useTheme, type ThemePreference } from "@shared/lib/theme";
+import { useIsReadOnly } from "./SessionContext";
 import logoUrl from "@shared/assets/logo.png";
 import { version as APP_VERSION } from "../../../package.json";
 
@@ -93,6 +94,7 @@ function Stepper({
 function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => void }) {
   const { config, setConfig } = useNutritionConfig();
   const toast = useToast();
+  const readOnly = useIsReadOnly();
 
   const [protein, setProtein] = useState("");
   const [currentIntake, setCurrentIntake] = useState("");
@@ -235,6 +237,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   const livePhaseName = phaseFromDeficit(liveDeficit);
 
   function editRow(row: RowKey) {
+    if (readOnly) return; // viewers see config values but can't edit them
     setEditingRow((cur) => (cur === row ? null : row));
   }
 
@@ -268,7 +271,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
       <div className={`settings-backdrop${closing ? " is-closing" : ""}`} onClick={onClose} />
       <div
         ref={sheetRef}
-        className={`settings-sheet${closing ? " is-closing" : ""}`}
+        className={`settings-sheet${closing ? " is-closing" : ""}${readOnly ? " is-readonly" : ""}`}
         role="dialog"
         aria-modal
         aria-label="Settings"
@@ -475,9 +478,11 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
           </div>
           {liveTrainingMonths !== null && <p className="settings-hint">= {liveTrainingMonths} months of training</p>}
 
-          <button className="nutri-save" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save changes"}
-          </button>
+          {!readOnly && (
+            <button className="nutri-save" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+          )}
 
           {error && <p className="auth-error">{error}</p>}
 

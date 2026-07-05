@@ -614,6 +614,16 @@ html.kb-open .tabbar {
   font-weight: 500;
 }
 
+/* Read-only viewer: config rows display the owner's values but aren't
+   editable, so drop the tap affordance and the "edit" chevron. */
+.settings-sheet.is-readonly .settings-row-val-btn {
+  pointer-events: none;
+  cursor: default;
+}
+.settings-sheet.is-readonly .settings-row-val .chev {
+  display: none;
+}
+
 .settings-row.is-editing {
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }

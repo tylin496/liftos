@@ -32,6 +32,7 @@ import { fmtWeightNum } from "./ExprDisplay";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { usePageHeader } from "@app/layout/PageHeaderContext";
+import { useIsReadOnly } from "@app/layout/SessionContext";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
 import { EditIcon } from "./EditIcon";
 import "./training.css";
@@ -72,6 +73,7 @@ function StretchCard({
   onSave: (patch: Partial<StretchItem>) => void;
   onRemove: () => void;
 }) {
+  const readOnly = useIsReadOnly();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(stretch.name);
@@ -157,6 +159,7 @@ function StretchCard({
             <div className="stretch-name">{stretch.name}</div>
             {stretch.note && <div className="stretch-note">{stretch.note}</div>}
           </div>
+          {!readOnly && (
           <div className="stretch-menu" ref={menuRef}>
             <button
               type="button"
@@ -203,6 +206,7 @@ function StretchCard({
               </div>
             )}
           </div>
+          )}
         </>
       )}
       <input
@@ -229,6 +233,7 @@ function StretchList({
   stretches: StretchItem[];
   onChange: (items: StretchItem[]) => void;
 }) {
+  const readOnly = useIsReadOnly();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newNote, setNewNote] = useState("");
@@ -262,12 +267,14 @@ function StretchList({
     <div className="stretches">
       <div className="section-head">
         <h2>Mobility / Stretches</h2>
-        <button type="button" onClick={() => setAdding((v) => !v)}>
-          {adding ? "Cancel" : "+ Add"}
-        </button>
+        {!readOnly && (
+          <button type="button" onClick={() => setAdding((v) => !v)}>
+            {adding ? "Cancel" : "+ Add"}
+          </button>
+        )}
       </div>
 
-      {adding && (
+      {!readOnly && adding && (
         <div className="add-ex-form" ref={addFormRef} style={{ padding: "var(--space-3)" }}>
           <input
             className="ex-input"
@@ -501,6 +508,7 @@ function ArchivedSection({
 function TrainingPageInner() {
   const toast = useToast();
   const activity = useTabActivity();
+  const readOnly = useIsReadOnly();
 
   const [split, setSplit] = useState<SplitId>(() => {
     const saved = sessionStorage.getItem("tr-split");
@@ -866,31 +874,35 @@ function TrainingPageInner() {
         onChange={handleStretchChange}
       />
 
-      {/* ── Archived ── */}
-      <ArchivedSection
-        exercises={archivedExercises}
-        logs={logs}
-        onRestore={handleRestore}
-        onDelete={handleDeleteArchived}
-      />
+      {/* ── Archived (owner only) ── */}
+      {!readOnly && (
+        <ArchivedSection
+          exercises={archivedExercises}
+          logs={logs}
+          onRestore={handleRestore}
+          onDelete={handleDeleteArchived}
+        />
+      )}
 
-      {/* ── Add exercise ── */}
-      <div className="add-exercise">
-        {addingExercise ? (
-          <AddExerciseForm
-            onAdd={handleAddExercise}
-            onCancel={() => setAddingExercise(false)}
-          />
-        ) : (
-          <button
-            type="button"
-            className="add-exercise-btn"
-            onClick={() => setAddingExercise(true)}
-          >
-            + Add exercise
-          </button>
-        )}
-      </div>
+      {/* ── Add exercise (owner only) ── */}
+      {!readOnly && (
+        <div className="add-exercise">
+          {addingExercise ? (
+            <AddExerciseForm
+              onAdd={handleAddExercise}
+              onCancel={() => setAddingExercise(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              className="add-exercise-btn"
+              onClick={() => setAddingExercise(true)}
+            >
+              + Add exercise
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Time filter ── */}
       {/* Tucked behind a disclosure, not shown by default — it only matters once

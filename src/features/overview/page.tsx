@@ -19,7 +19,7 @@ import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
-import { useSessionUser } from "@app/layout/SessionContext";
+import { useSessionUser, useIsReadOnly } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
 import { paceLabel, paceTone, cutEtaLabel } from "@features/nutrition/recommendation";
@@ -745,6 +745,7 @@ export function OverviewPage() {
   const activity = useTabActivity();
   const nav = useNav();
   const user = useSessionUser();
+  const readOnly = useIsReadOnly();
 
   const load = () =>
     fetchOverview()
@@ -797,7 +798,7 @@ export function OverviewPage() {
           CutProgress; CutBaseline only appears once data reveals the rare
           "target set, no baseline yet" state. Same key means the goal case
           resolves in place instead of remounting. */}
-      {data && data.targetBodyFat != null && data.cutStartDate == null ? (
+      {data && !readOnly && data.targetBodyFat != null && data.cutStartDate == null ? (
         <CutBaselineCard key="cut" metrics={data.metrics} onSaved={() => void load()} />
       ) : (
         <CutProgressCard

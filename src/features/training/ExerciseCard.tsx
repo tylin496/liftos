@@ -29,6 +29,7 @@ import { haptic } from "@shared/lib/haptics";
 import { EditExerciseForm } from "./EditExerciseForm";
 import { EditIcon, PenLineIcon, ArrowUpIcon, ArrowDownIcon, ArchiveIcon } from "./EditIcon";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
+import { useIsReadOnly } from "@app/layout/SessionContext";
 
 export { useToast };
 
@@ -114,6 +115,7 @@ export function ExerciseCard({
 }: ExerciseCardProps) {
   const toast = useToast();
   const celebration = useCelebration();
+  const readOnly = useIsReadOnly();
 
   type EditingMode = "view" | "meta" | "logset" | "edithist";
 
@@ -406,7 +408,8 @@ export function ExerciseCard({
   return (
     <article className="ex-card" ref={cardRef}>
       {celebration.node}
-      {/* ── Card menu ── */}
+      {/* ── Card menu (owner only) ── */}
+      {!readOnly && (
       <div className="ex-card-menu" ref={menuRef}>
         <button
           type="button"
@@ -500,6 +503,7 @@ export function ExerciseCard({
           }}
         />
       </div>
+      )}
 
       {/* ── Header (title + body): clips the identity image at the divider ── */}
       <div className="ex-head">
@@ -667,18 +671,20 @@ export function ExerciseCard({
 
                   <div className="hist-row-end">
                     <div className="hist-actions">
-                      <button
-                        type="button"
-                        title="Edit entry"
-                        disabled={deletedLogIds.size > 0}
-                        onClick={() => {
-                          setEditingMode("view");
-                          setEditingLogId(isEditing ? null : log.id);
-                        }}
-                        className="hist-edit-btn"
-                      >
-                        <PenLineIcon />
-                      </button>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          title="Edit entry"
+                          disabled={deletedLogIds.size > 0}
+                          onClick={() => {
+                            setEditingMode("view");
+                            setEditingLogId(isEditing ? null : log.id);
+                          }}
+                          className="hist-edit-btn"
+                        >
+                          <PenLineIcon />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -715,8 +721,8 @@ export function ExerciseCard({
         </div>
       )}
 
-      {/* ── Log set form or button ── */}
-      {editingMode === "logset" ? (
+      {/* ── Log set form or button (owner only) ── */}
+      {!readOnly && (editingMode === "logset" ? (
         addAssisted ? (
           <AddAssistedForm
             setCount={sc}
@@ -745,7 +751,7 @@ export function ExerciseCard({
           <span className="hist-add-plus">＋</span>
           <span className="hist-add-text">Log set</span>
         </button>
-      ) : null}
+      ) : null)}
 
       {/* ── Show more ── */}
       {editingMode !== "meta" && filteredDesc.length > 2 && editingMode !== "logset" && (

@@ -19,6 +19,7 @@ import { Badge } from "@shared/components/Badge";
 import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
 import { haptic } from "@shared/lib/haptics";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
+import { useIsReadOnly } from "@app/layout/SessionContext";
 import "@shared/components/nutriGrid.css";
 
 const MIN_DATE = "2026-02-09";
@@ -249,6 +250,7 @@ export function TodayView({
   onCalendarOpenChange: (open: boolean) => void;
 }) {
   const toast = useToast();
+  const readOnly = useIsReadOnly();
   const [editField, setEditField] = useState<MacroField | null>(null);
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
@@ -427,6 +429,7 @@ export function TodayView({
   }
 
   function openEdit(field: "calories" | "protein") {
+    if (readOnly) return; // viewers can see the numbers but not edit them
     haptic("tap");
     setSaveError(null);
     setEditField(field);
@@ -579,7 +582,14 @@ export function TodayView({
         ) : (
           /* ── Stat grid — same layout/copy as Overview's Hero card ── */
           <div className="nutri-grid">
-            <button type="button" className="nutri-col" aria-label="Edit calories" onClick={() => openEdit("calories")}>
+            <button
+              type="button"
+              className="nutri-col"
+              aria-label={readOnly ? undefined : "Edit calories"}
+              onClick={readOnly ? undefined : () => openEdit("calories")}
+              tabIndex={readOnly ? -1 : undefined}
+              style={readOnly ? { cursor: "default" } : undefined}
+            >
               <span className="nutri-label">Calories</span>
               {hasEntry ? (
                 <span className="metric-val metric-val--lg">
@@ -591,7 +601,14 @@ export function TodayView({
               {targets.calorieTarget > 0 && <MetricCaption>of {targets.calorieTarget.toLocaleString()} kcal</MetricCaption>}
               <span className={`nutri-delta ${calToneVal ?? "neutral"}`}>{calNote || "\u00A0"}</span>
             </button>
-            <button type="button" className="nutri-col" aria-label="Edit protein" onClick={() => openEdit("protein")}>
+            <button
+              type="button"
+              className="nutri-col"
+              aria-label={readOnly ? undefined : "Edit protein"}
+              onClick={readOnly ? undefined : () => openEdit("protein")}
+              tabIndex={readOnly ? -1 : undefined}
+              style={readOnly ? { cursor: "default" } : undefined}
+            >
               <span className="nutri-label">Protein</span>
               {hasEntry ? (
                 <span className="metric-val metric-val--lg">
