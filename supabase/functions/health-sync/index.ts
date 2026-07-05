@@ -20,7 +20,10 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // weight/bodyFat/restingHeartRate/hrvSdnn additionally require a plausible
 // positive value, and sleepSeconds must exceed 1 hour — Shortcuts sometimes
 // emits 0 instead of "" when a Health sample is missing, and these are never
-// real readings.
+// real readings. restingEnergy is additionally dropped when it falls far below
+// the user's recent median (see the anomaly guard below) — a HealthKit data
+// gap rather than a real ~1300 kcal resting day. A dropped value is reported
+// back as `droppedResting` in the response.
 //
 // Required secrets (`supabase secrets set ...`):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HEALTH_SYNC_USER_ID
@@ -46,6 +49,41 @@ const intOrNull = (v: unknown) => {
   const n = num(v);
   return n === null ? null : Math.round(n);
 };
+
+// --- Resting-energy anomaly guard --------------------------------------------
+// Apple sometimes reports a Resting Energy value far below the real daily
+// figure (watch unworn all day, HealthKit not finished computing, sync
+// interrupted, query straddling midnight). These are data gaps, not a real
+// ~1300 kcal resting day, and they poison the 30-day rolling average in
+// tdee.ts. Static floors don't work — a plausible resting value differs a lot
+// between people — so judge each reading against the user's OWN recent median.
+
+/** Days of prior readings to compare a new resting-energy value against. */
+const RESTING_GUARD_WINDOW = 30;
+/** Need at least this many prior readings before the guard can judge. */
+const RESTING_GUARD_MIN_SAMPLES = 7;
+/** Drop a reading below this fraction of the recent median. */
+const RESTING_GUARD_FLOOR = 0.8;
+
+export function median(values: number[]): number | null {
+  const xs = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
+  if (xs.length === 0) return null;
+  const mid = Math.floor(xs.length / 2);
+  return xs.length % 2 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2;
+}
+
+/**
+ * True to keep a resting-energy reading, false to drop it as a HealthKit data
+ * gap. Passes (keeps) when there isn't enough history to judge — the guard only
+ * rejects a value that is far below an established personal median.
+ */
+export function isPlausibleResting(value: number, priorReadings: number[]): boolean {
+  const recent = priorReadings.slice(0, RESTING_GUARD_WINDOW);
+  if (recent.length < RESTING_GUARD_MIN_SAMPLES) return true;
+  const med = median(recent);
+  if (med === null || med <= 0) return true;
+  return value >= med * RESTING_GUARD_FLOOR;
+}
 
 /** Validate + normalize the Shortcut payload into a health_metrics row. */
 export function buildRecord(body: any): { record?: Record<string, unknown>; error?: string } {
@@ -156,6 +194,29 @@ Deno.serve(async (req) => {
   const { record, error } = buildRecord(body);
   if (error) return json({ error }, 400);
 
+  // Anomaly guard: a resting-energy value far below the recent personal median
+  // is a HealthKit data gap, not a real reading. Drop it (don't write) so it
+  // never overwrites a good value or pollutes the rolling average. Compare
+  // against prior days only — never the row we're about to upsert.
+  let droppedResting: number | null = null;
+  if (record.resting_energy_kcal != null) {
+    const { data: hist } = await supabase
+      .from("health_metrics")
+      .select("resting_energy_kcal")
+      .eq("user_id", userId)
+      .neq("metric_date", record.metric_date)
+      .not("resting_energy_kcal", "is", null)
+      .order("metric_date", { ascending: false })
+      .limit(RESTING_GUARD_WINDOW);
+    const prior = (hist ?? [])
+      .map((r) => r.resting_energy_kcal as number)
+      .filter((n) => Number.isFinite(n));
+    if (!isPlausibleResting(record.resting_energy_kcal as number, prior)) {
+      droppedResting = record.resting_energy_kcal as number;
+      delete record.resting_energy_kcal;
+    }
+  }
+
   const { data, error: dbErr } = await supabase
     .from("health_metrics")
     .upsert({ user_id: userId, ...record }, { onConflict: "user_id,metric_date" })
@@ -163,5 +224,5 @@ Deno.serve(async (req) => {
     .single();
 
   if (dbErr) return json({ error: dbErr.message }, 500);
-  return json({ ok: true, record: data });
+  return json({ ok: true, record: data, droppedResting });
 });
