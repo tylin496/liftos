@@ -513,6 +513,19 @@
   border-bottom: 1px solid transparent;
   transition: background var(--dur-press), opacity var(--dur-press);
   -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.hist-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Open row keeps a faint tint so the detail strip below reads as attached. */
+.hist-row.is-expanded {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
 .hist-row:hover .hist-actions button {
@@ -796,6 +809,46 @@
   margin: 0 calc(-1 * var(--space-5));
   padding: var(--space-3) var(--space-5);
   background: transparent;
+}
+
+/* ── History row detail (tap to reveal) ──────────────────────────────────────
+   Est. 1RM for the tapped set + how much of the all-time PR it holds. Bleeds
+   to the card edge like the editor drawer, but its content aligns under the
+   expr column (past the 40px date gutter) so the numbers sit below the set. */
+.hist-detail-drawer {
+  margin: 0 calc(-1 * var(--space-5)) var(--space-1);
+  padding: var(--space-2) var(--space-5) var(--space-3)
+    calc(var(--space-5) + 40px + var(--space-2));
+  display: flex;
+  gap: var(--space-6);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  animation: log-zone-in var(--dur-enter) var(--ease-enter) both;
+}
+
+.hist-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hist-detail-k {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.hist-detail-v {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.hist-detail-v.is-pr {
+  color: var(--gold);
 }
 
 /* ── Log form ────────────────────────────────────────────────────────────────*/

@@ -625,6 +625,16 @@ export function ExerciseCard({
             const delta =
               isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog, sc);
             const isAssisted = log.kind === "assisted";
+            const isExpanded = expandedLogId === log.id && !isEditing;
+            // Tap-to-reveal: this set's estimated 1RM and how much of the
+            // all-time PR (best e1RM) it holds. Compared against stats.best —
+            // the same all-time record the PR badge marks — so "of PR" and the
+            // gold row never disagree.
+            const entry = toLogEntry(log, sc);
+            const retention =
+              entry && entry.e1rm > 0 && stats.best && stats.best.e1rm > 0
+                ? Math.round((entry.e1rm / stats.best.e1rm) * 100)
+                : null;
 
             return (
               <div key={log.id}>
@@ -633,6 +643,7 @@ export function ExerciseCard({
                     "hist-row",
                     isPR ? "is-pr" : "",
                     isEditing ? "is-editing" : "",
+                    isExpanded ? "is-expanded" : "",
                     isNew ? "hist-row-new" : "",
                     savedRowId === log.id ? "hist-row-saved" : "",
                     revealing ? "hist-row-reveal" : "",
@@ -642,6 +653,20 @@ export function ExerciseCard({
                   style={
                     revealing ? { animationDelay: `${(vi - 3) * 32}ms` } : undefined
                   }
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
+                  onClick={() => {
+                    if (isEditing) return;
+                    setExpandedLogId((cur) => (cur === log.id ? null : log.id));
+                  }}
+                  onKeyDown={(e) => {
+                    if (isEditing) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setExpandedLogId((cur) => (cur === log.id ? null : log.id));
+                    }
+                  }}
                 >
                   <span className="hist-date" title={log.log_date ?? ""}>
                     <span className="hist-date-mon">{td.mon}</span>
@@ -700,8 +725,10 @@ export function ExerciseCard({
                           type="button"
                           title="Edit entry"
                           disabled={deletedLogIds.size > 0}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setEditingMode("view");
+                            setExpandedLogId(null);
                             setEditingLogId(isEditing ? null : log.id);
                           }}
                           className="hist-edit-btn"
@@ -712,6 +739,29 @@ export function ExerciseCard({
                     </div>
                   </div>
                 </div>
+
+                {isExpanded && (
+                  <div className="hist-detail-drawer">
+                    <div className="hist-detail">
+                      <span className="hist-detail-k">Est. 1RM</span>
+                      <span className="hist-detail-v mono">
+                        {entry && entry.e1rm > 0
+                          ? `${fmtWeightNum(Math.round(entry.e1rm * 10) / 10)} kg`
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="hist-detail">
+                      <span className="hist-detail-k">of PR</span>
+                      <span
+                        className={`hist-detail-v mono${
+                          retention != null && retention >= 100 ? " is-pr" : ""
+                        }`}
+                      >
+                        {retention != null ? `${retention}%` : "—"}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {isEditing && (
                   <div className="ex-editor-drawer">
