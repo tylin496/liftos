@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavExpand } from "@app/layout/NavContext";
 import { MetricValue } from "@shared/components/Metric";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
@@ -140,10 +140,27 @@ export function StrengthHealthCard({
   // expand: true), open On Track on arrival — coming from Overview means you
   // want the full detail, not the summary. Captured once at mount.
   const navExpandTarget = useNavExpand();
-  const [trackOpen, setTrackOpen] = useState(
-    variant === "full" && id != null && navExpandTarget === id,
-  );
+  const isNavTarget = variant === "full" && id != null && navExpandTarget === id;
+  const [trackOpen, setTrackOpen] = useState(isNavTarget);
   const trackSectionRef = useRef<HTMLDivElement>(null);
+
+  // Deep-link alignment. Shell scrolls to this card the moment the tab commits,
+  // but that fires while the page is still a skeleton — once the exercise list
+  // above resolves to its real height, this card (the page's last element)
+  // shifts and the earlier scroll no longer lands. So re-pin the card to the top
+  // ourselves once our data is in. Captured in a ref because Shell clears the
+  // nav-expand signal right after mount, long before the async load finishes.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const isNavTargetRef = useRef(isNavTarget);
+  const didAlignRef = useRef(false);
+  useEffect(() => {
+    if (didAlignRef.current || !isNavTargetRef.current) return;
+    if (loading || !strength) return;
+    didAlignRef.current = true;
+    requestAnimationFrame(() => {
+      rootRef.current?.scrollIntoView({ block: "start" });
+    });
+  }, [loading, strength]);
 
   // In-place skeleton: same header + hero + bar + fold structure with
   // placeholder values, tag kept stable per variant (button/div) so the node
@@ -328,7 +345,7 @@ export function StrengthHealthCard({
   // ── Full (Training tab): the complete list, always shown. No "+more" nav —
   //    you're already in Training. ──
   return (
-    <div id={id} className="page-card ov-training-health">
+    <div ref={rootRef} id={id} className="page-card ov-training-health">
       {header}
       {hero}
       {bar}

@@ -100,6 +100,10 @@ export function Shell({ session }: { session: Session }) {
   // and reverted: the skeleton is 0-height when a restore would fire, so it
   // clamps to 0 anyway — or worse, jumps down once data loads a second later.)
   const pendingScrollTopRef = useRef(false);
+  // A nav that asked for a scrollTo target must NOT also get the commit-time
+  // auto-scroll-to-top (commitTab fires ~1 slide later than the target scroll,
+  // so it would yank the page back to the top right after landing on the card).
+  const suppressTopScrollRef = useRef(false);
 
   useEffect(() => {
     if (!pendingScrollTopRef.current && !pendingScrollTarget) return;
@@ -158,7 +162,13 @@ export function Shell({ session }: { session: Session }) {
       setVisited((prev) => new Set([...prev, next]));
     }
     localStorage.setItem("active-tab", next);
-    pendingScrollTopRef.current = true;
+    // Skip the auto-top-scroll for a deep-link nav — its own target scroll
+    // already positioned the page (see suppressTopScrollRef).
+    if (suppressTopScrollRef.current) {
+      suppressTopScrollRef.current = false;
+    } else {
+      pendingScrollTopRef.current = true;
+    }
     setTab(next);
   }
 
@@ -182,7 +192,10 @@ export function Shell({ session }: { session: Session }) {
       // A tap on the tab we're already animating toward is a no-op — let the
       // in-flight animation finish instead of snapping it to completion.
       if (slideRef.current.to === next) return;
-      if (options?.scrollTo) setPendingScrollTarget(options.scrollTo);
+      if (options?.scrollTo) {
+        setPendingScrollTarget(options.scrollTo);
+        suppressTopScrollRef.current = true;
+      }
       if (options?.scrollTo && options.expand) setPendingExpand(options.scrollTo);
       // Cancel the in-flight slide's pending finalize and clear the slide state
       // itself. Otherwise the stale timer fires later and commits the OLD slide
@@ -201,7 +214,10 @@ export function Shell({ session }: { session: Session }) {
       setSlide(null);
       return;
     }
-    if (options?.scrollTo) setPendingScrollTarget(options.scrollTo);
+    if (options?.scrollTo) {
+      setPendingScrollTarget(options.scrollTo);
+      suppressTopScrollRef.current = true;
+    }
     if (options?.scrollTo && options.expand) setPendingExpand(options.scrollTo);
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;

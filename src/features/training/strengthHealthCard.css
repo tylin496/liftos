@@ -12,6 +12,9 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  /* Deep-linked from Overview: land with a small breath above the card top
+     instead of jammed against the viewport edge (scrollIntoView honours this). */
+  scroll-margin-top: var(--space-4);
 }
 
 /* When used as a plain nav button (no data state) */
