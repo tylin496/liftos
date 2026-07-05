@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useSessionUser } from "@app/layout/SessionContext";
+import { useSessionUser, useIsReadOnly } from "@app/layout/SessionContext";
 import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCrossfade } from "@shared/hooks/useCrossfade";
@@ -24,6 +24,7 @@ export function PageTopBar({
   note?: ReactNode;
 }) {
   const user = useSessionUser();
+  const readOnly = useIsReadOnly();
   const { openSettings } = useSettingsSheet();
   const avatar = user?.user_metadata?.avatar_url as string | undefined;
   const initial = (user?.email ?? "?")[0]?.toUpperCase();
@@ -61,6 +62,29 @@ export function PageTopBar({
         </div>
       </div>
       <div className="page-topbar-actions">
+        {readOnly && (
+          <span
+            className="page-topbar-viewonly"
+            title="Read-only — you're viewing shared data"
+          >
+            <svg
+              width={12}
+              height={12}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            View only
+          </span>
+        )}
         {onCopy && (
           <button
             type="button"
