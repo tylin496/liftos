@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { Session } from "@shared/lib/auth";
 import { haptic } from "@shared/lib/haptics";
 import { OverviewPage } from "@features/overview/page";
@@ -78,9 +78,19 @@ export function Shell({ session }: { session: Session }) {
   const leftAt = useRef<Record<TabId, number>>(
     { overview: 0, training: 0, nutrition: 0, health: 0 },
   );
-  // A resume entry stashes the scroll offset to restore here; null means the
-  // commit-time scroll should go to the top (a fresh entry).
-  const pendingScrollRestoreRef = useRef<number | null>(null);
+  // The SINGLE landing intent for the next tab commit, computed once in
+  // enterTab and consumed once by the layout effect below. Collapses what used
+  // to be four racing flags (top / restore / suppress-top / scrollTo-target)
+  // into one decision, so exactly one scroll strategy runs per entry.
+  //   top     — fresh entry: land at the top
+  //   restore — resume: restore the remembered offset (synchronous, no flash)
+  //   element — deep-link: hand off to the async alignment observer
+  const landingRef = useRef<
+    | { kind: "top" }
+    | { kind: "restore"; y: number }
+    | { kind: "element"; id: string }
+    | null
+  >(null);
   // How long a tab must sit unvisited before a return replays its entrance and
   // lands at the top instead of resuming where you left off. Under this, a
   // back-and-forth is treated as "still reading" and keeps its place.
@@ -100,8 +110,6 @@ export function Shell({ session }: { session: Session }) {
   >(null);
   const slideRef = useRef(slide);
   slideRef.current = slide;
-  // Pending scroll target (element ID to scroll to within the next tab)
-  const [pendingScrollTarget, setPendingScrollTarget] = useState<string | null>(null);
   // The scrollTo id whose detail should auto-expand on this tab entry — set when
   // a nav passes `expand: true`, read via NavExpandContext by the target card.
   const [pendingExpand, setPendingExpand] = useState<string | null>(null);
@@ -123,60 +131,47 @@ export function Shell({ session }: { session: Session }) {
   // The deferred kickoff of a tap-triggered slide (see switchTab). Tracked so a
   // rapid second tap can cancel it before it resurrects a slide we just cleared.
   const kickoffTimer = useRef<number | null>(null);
-  // Every tab entry re-fetches and re-renders from a skeleton, so we always
-  // land the freshly-loaded page at the top. (Per-tab scroll memory was tried
-  // and reverted: the skeleton is 0-height when a restore would fire, so it
-  // clamps to 0 anyway — or worse, jumps down once data loads a second later.)
-  const pendingScrollTopRef = useRef(false);
-  // A nav that asked for a scrollTo target must NOT also get the commit-time
-  // auto-scroll-to-top (commitTab fires ~1 slide later than the target scroll,
-  // so it would yank the page back to the top right after landing on the card).
-  const suppressTopScrollRef = useRef(false);
-  // Handle for an in-flight deep-link alignment (see below). Kept in a ref, not
-  // tied to the effect's cleanup, so clearing pendingScrollTarget mid-flight
-  // doesn't tear the observer down — a fresh nav cancels the prior one instead.
+  // Handle for an in-flight deep-link alignment (see startAlign). Kept in a ref,
+  // not tied to an effect's cleanup, so a superseding nav cancels the prior
+  // observer explicitly rather than a state change tearing it down mid-flight.
   const alignRef = useRef<{ cancel: () => void } | null>(null);
 
-  useEffect(() => {
-    if (!pendingScrollTopRef.current && !pendingScrollTarget) return;
-    pendingScrollTopRef.current = false;
-    // Any new scroll intent supersedes an in-flight alignment.
-    alignRef.current?.cancel();
-
-    if (!pendingScrollTarget) {
-      // Resume entries restore the remembered offset; fresh entries go to top.
-      // The page is already fully mounted (a resume never remounts), so there's
-      // no skeleton to clamp against — the restore lands correctly, no jump.
-      const restoreY = pendingScrollRestoreRef.current ?? 0;
-      pendingScrollRestoreRef.current = null;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "instant" }));
-      });
-      return;
+  // The ONE place the viewport is positioned after a tab commits. Runs
+  // synchronously before paint, so a top/restore lands without a one-frame
+  // flash: the slide collapses the document to a single viewport while it
+  // animates, so a deferred (rAF) scroll would paint the revealed page at 0
+  // first, then jump. An element (deep-link) landing is inherently async and
+  // hands off to the alignment observer.
+  useLayoutEffect(() => {
+    const landing = landingRef.current;
+    landingRef.current = null;
+    alignRef.current?.cancel(); // a new commit supersedes any in-flight align
+    if (!landing) return;
+    if (landing.kind === "element") {
+      startAlign(landing.id);
+    } else {
+      window.scrollTo({ top: landing.kind === "restore" ? landing.y : 0, behavior: "instant" });
     }
+    // Keyed on `tab` alone — it only fires at a commit, reading landingRef (a
+    // ref, deliberately not a dep) that commitTab set for this exact entry.
+  }, [tab]);
 
-    // Deep-link alignment. The target scroll fires while the tab is still a
-    // skeleton; once the cards above resolve to their real height the target
-    // shifts, so a single early scroll lands in the wrong place (or needs a
-    // per-card re-pin hack that reads as a visible jump).
-    //
-    // Instead we keep the named target pinned to the top by RE-ALIGNING on
-    // every layout change, and we stop ONLY when the user takes over (any
-    // scroll/tap/key) or a superseding nav fires — never on a timer. That's
-    // what makes it robust to any future card content/layout: it assumes no
-    // height and never gives up early, so a slow load or a late shift (lazy
-    // image, font swap, delayed async) still lands correctly. Re-aligning is
-    // safe against a feedback loop because scrolling doesn't change element
-    // sizes, so scrollIntoView never re-triggers the ResizeObserver.
-    // scrollIntoView honours each target's scroll-margin-top (a breath).
-    const targetId = pendingScrollTarget;
-    setPendingScrollTarget(null);
-    // The target card reads pendingExpand at mount (already captured into its
-    // initial state); clear it so a later plain tab re-enter doesn't re-open it.
+  // Deep-link alignment. The page has just remounted to a skeleton; the target
+  // card sits at short-page height now and shifts once the data lands. So DON'T
+  // scroll yet — wait for the first real height change (skeleton → data) and let
+  // that single scroll carry us to the target, then RE-ALIGN on every later
+  // shift. Stops only when the user takes over (scroll/tap/key) or a superseding
+  // nav fires — never on a timer, so it stays correct through any future card
+  // content/layout (slow load, lazy image, font swap). No feedback loop:
+  // scrolling doesn't resize elements, so scrollIntoView never re-fires the
+  // observer. scrollIntoView honours each target's scroll-margin-top (a breath).
+  function startAlign(targetId: string) {
+    // The target read pendingExpand at mount; clear it so a later plain re-enter
+    // doesn't re-open the section.
     setPendingExpand(null);
-
     let cancelled = false;
     let ro: ResizeObserver | null = null;
+    let lastHeight = 0;
     const align = () =>
       document.getElementById(targetId)?.scrollIntoView({ block: "start" });
     const cancel = () => {
@@ -190,18 +185,10 @@ export function Shell({ session }: { session: Session }) {
       if (alignRef.current?.cancel === cancel) alignRef.current = null;
     };
     alignRef.current = { cancel };
-
-    let lastHeight = 0;
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (cancelled) return;
-        // Deliberately DON'T align yet. The page is still a skeleton; scrolling
-        // now would instant-jump to the (short-page) target, then the data-load
-        // reflow throws it back to the top — the double motion we're avoiding.
-        // Instead wait for the first real height change (skeleton → data) and
-        // let that single (CSS-smooth) scroll carry us to the target.
         lastHeight = document.body.scrollHeight;
-        // User intent — a real scroll, tap, or key — hands control back.
         window.addEventListener("wheel", cancel, { passive: true });
         window.addEventListener("touchstart", cancel, { passive: true });
         window.addEventListener("pointerdown", cancel, { passive: true });
@@ -216,7 +203,7 @@ export function Shell({ session }: { session: Session }) {
         ro.observe(document.body);
       });
     });
-  }, [tab, pendingScrollTarget]);
+  }
 
   // Finalize a settle animation deterministically after it plays. We use a
   // timer rather than transitionend because descendant transform transitions
@@ -239,25 +226,28 @@ export function Shell({ session }: { session: Session }) {
     leftAt.current[tab] = Date.now();
   }
 
-  // Begin entering `next`. Always bumps activity (background refetch). Whether it
-  // ALSO remounts (full entrance replay + land at top) vs resumes in place
-  // (keep the mounted page + restore scroll) depends on how long the target sat
-  // idle — a quick back-and-forth resumes; a stale/first/deep-link entry replays.
-  // Runs at slide-start so a replay animates as the panel slides in (bumping at
+  // Begin entering `next`. Always bumps activity (background refetch), then
+  // decides this entry's single landing intent (consumed by the layout effect
+  // at commit). A deep-link (targetId set) always replays: the target must
+  // re-read its expand signal at mount and be positioned by the observer.
+  // Otherwise a stale/first entry replays (remount + land at top); a quick
+  // back-and-forth resumes (keep the mounted page + restore its scroll).
+  // Runs at slide-start so a replay animates as the panel slides in (deciding at
   // finalize would show the old state for the whole slide, then blank + animate).
-  function enterTab(next: TabId, forceReplay = false) {
+  function enterTab(next: TabId, targetId?: string) {
     const firstVisit = !visited.has(next);
     const idle = Date.now() - leftAt.current[next];
-    const replay = forceReplay || firstVisit || idle >= REPLAY_IDLE_MS;
+    const replay = targetId != null || firstVisit || idle >= REPLAY_IDLE_MS;
 
     setVisited((prev) => new Set([...prev, next]));
     setTabActivity((prev) => ({ ...prev, [next]: prev[next] + 1 }));
-    if (replay) {
-      setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
-      pendingScrollRestoreRef.current = null; // land at top
-    } else {
-      pendingScrollRestoreRef.current = scrollMemory.current[next] ?? 0;
-    }
+    if (replay) setTabVersions((prev) => ({ ...prev, [next]: prev[next] + 1 }));
+
+    landingRef.current = targetId
+      ? { kind: "element", id: targetId }
+      : replay
+        ? { kind: "top" }
+        : { kind: "restore", y: scrollMemory.current[next] ?? 0 };
   }
 
   function commitTab(next: TabId) {
@@ -267,14 +257,7 @@ export function Shell({ session }: { session: Session }) {
       setVisited((prev) => new Set([...prev, next]));
     }
     localStorage.setItem("active-tab", next);
-    // Skip the auto-top-scroll for a deep-link nav — its own target scroll
-    // already positioned the page (see suppressTopScrollRef).
-    if (suppressTopScrollRef.current) {
-      suppressTopScrollRef.current = false;
-    } else {
-      pendingScrollTopRef.current = true;
-    }
-    setTab(next);
+    setTab(next); // the layout effect above positions the viewport
   }
 
   // Programmatic (tab-bar tap) navigation — plays the same slide animation as a
@@ -297,10 +280,6 @@ export function Shell({ session }: { session: Session }) {
       // A tap on the tab we're already animating toward is a no-op — let the
       // in-flight animation finish instead of snapping it to completion.
       if (slideRef.current.to === next) return;
-      if (options?.scrollTo) {
-        setPendingScrollTarget(options.scrollTo);
-        suppressTopScrollRef.current = true;
-      }
       if (options?.scrollTo && options.expand) setPendingExpand(options.scrollTo);
       // Cancel the in-flight slide's pending finalize and clear the slide state
       // itself. Otherwise the stale timer fires later and commits the OLD slide
@@ -316,22 +295,16 @@ export function Shell({ session }: { session: Session }) {
       }
       // The outgoing tab's scroll was already captured when the in-flight slide
       // began, so don't re-note here (the slide has zeroed scrollY).
-      enterTab(next, !!options?.scrollTo);
+      enterTab(next, options?.scrollTo);
       commitTab(next);
       setSlide(null);
       return;
     }
-    if (options?.scrollTo) {
-      setPendingScrollTarget(options.scrollTo);
-      suppressTopScrollRef.current = true;
-    }
     if (options?.scrollTo && options.expand) setPendingExpand(options.scrollTo);
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
-    // A deep-link forces a replay so its target re-reads the expand signal at
-    // mount and lands via the alignment observer, not a stale scroll restore.
     noteLeaving();
-    enterTab(next, !!options?.scrollTo);
+    enterTab(next, options?.scrollTo);
     // Place the incoming panel off-screen with no transition, then flip to the
     // target on a timer so the browser paints the start frame first. setTimeout
     // (not rAF) so the animation still completes if the tab is backgrounded.
