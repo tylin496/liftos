@@ -826,7 +826,7 @@ export function OverviewPage() {
         variant="snapshot"
         loading={loading}
         strength={data?.strength}
-        onNav={() => nav("training", { scrollTo: "training-strength-health-card" })}
+        onNav={() => nav("training", { scrollTo: "training-strength-health-card", expand: true })}
       />
     </div>
   );

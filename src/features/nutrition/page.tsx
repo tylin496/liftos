@@ -19,6 +19,14 @@ export function NutritionPage() {
   const [date, setDate] = useState(defaultLogDate());
   const [entryVersion, setEntryVersion] = useState(0);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  // Tapping a weekday column in the trend bar should slide the Today card
+  // left/right, same as the arrow/swipe nav — this signal carries the direction
+  // down; TodayView bumps its own navSeq/navDir off of it (see today.tsx).
+  const [daySelectNav, setDaySelectNav] = useState<{ seq: number; dir: "forward" | "backward" } | null>(null);
+  function selectDay(d: string) {
+    setDaySelectNav((prev) => ({ seq: (prev?.seq ?? 0) + 1, dir: d > date ? "forward" : "backward" }));
+    setDate(d);
+  }
 
   // Header title tracks the viewed day: "Today" on today, otherwise the date
   // ("Thu, Jul 2"). The daily card no longer repeats it — the header is the
@@ -103,6 +111,7 @@ export function NutritionPage() {
             config={config}
             date={date}
             onDateChange={setDate}
+            daySelectNav={daySelectNav}
             onSaved={handleSaved}
             calendarOpen={calendarOpen}
             onCalendarOpenChange={setCalendarOpen}
@@ -111,6 +120,7 @@ export function NutritionPage() {
             config={config}
             date={date}
             onDateChange={setDate}
+            onSelectDay={selectDay}
             entryVersion={entryVersion}
             onOpenCalendar={() => setCalendarOpen(true)}
           />

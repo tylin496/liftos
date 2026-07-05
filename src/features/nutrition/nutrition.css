@@ -344,6 +344,13 @@
   margin-top: var(--space-5);
 }
 
+/* Per-segment widths are rounded independently, so they rarely sum to exactly
+   100% — the last segment grows to swallow the remainder and reach the pill's
+   rounded right corner (otherwise it ends flat with a sliver of gap). */
+.nutri-dist-track > span:last-child {
+  flex-grow: 1;
+}
+
 .nutri-dist-legend {
   display: flex;
   flex-wrap: wrap;

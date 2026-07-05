@@ -238,6 +238,7 @@ export function TodayView({
   config,
   date,
   onDateChange,
+  daySelectNav,
   onSaved,
   calendarOpen,
   onCalendarOpenChange,
@@ -245,6 +246,10 @@ export function TodayView({
   config: NutritionConfig;
   date: string;
   onDateChange: (date: string) => void;
+  /** Bumped by the trend bar's weekday-column tap (page.tsx) — replays the same
+   *  day-nav slide as the arrow/swipe path below, just without re-calling
+   *  onDateChange (the parent already changed `date`). */
+  daySelectNav: { seq: number; dir: "forward" | "backward" } | null;
   onSaved?: () => void;
   calendarOpen: boolean;
   onCalendarOpenChange: (open: boolean) => void;
@@ -267,11 +272,18 @@ export function TodayView({
   const [savedPulse, setSavedPulse] = useState(false);
   const celebration = useCelebration();
   const [navDir, setNavDir] = useState<"forward" | "backward" | null>(null);
-  // Bumped only by navigate() (arrow / swipe). It keys the card so a swipe/arrow
-  // remounts it to replay the slide animation — but tapping a week bar or picking
-  // a calendar date changes `date` WITHOUT bumping this, so the card updates in
-  // place (numbers swap) instead of the whole card re-rendering.
+  // Bumped by navigate() (arrow / swipe) and by daySelectNav below (trend-bar
+  // weekday tap). It keys the card so those paths remount it to replay the
+  // slide animation — but picking a calendar date still changes `date` WITHOUT
+  // bumping this, so the card updates in place (numbers swap), no slide.
   const [navSeq, setNavSeq] = useState(0);
+  const lastDaySelectSeq = useRef(daySelectNav?.seq ?? 0);
+  useEffect(() => {
+    if (!daySelectNav || daySelectNav.seq === lastDaySelectSeq.current) return;
+    lastDaySelectSeq.current = daySelectNav.seq;
+    setNavDir(daySelectNav.dir);
+    setNavSeq((n) => n + 1);
+  }, [daySelectNav]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   // The card itself (inside containerRef) is what follows the drag, so the

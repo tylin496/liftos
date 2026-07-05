@@ -10,7 +10,7 @@ import { SettingsSheetProvider, useSettingsSheet } from "./SettingsSheetContext"
 import { SettingsSheet } from "./SettingsSheet";
 import { Splash } from "./Splash";
 import { SessionUserProvider } from "./SessionContext";
-import { NavContext, type NavOptions } from "./NavContext";
+import { NavContext, NavExpandContext, type NavOptions } from "./NavContext";
 import { TabActivityContext } from "./TabActivityContext";
 import { PageHeaderContext, IsActiveTabContext, type PageHeader } from "./PageHeaderContext";
 import { PageTopBar } from "@shared/components/PageTopBar";
@@ -74,6 +74,9 @@ export function Shell({ session }: { session: Session }) {
   slideRef.current = slide;
   // Pending scroll target (element ID to scroll to within the next tab)
   const [pendingScrollTarget, setPendingScrollTarget] = useState<string | null>(null);
+  // The scrollTo id whose detail should auto-expand on this tab entry — set when
+  // a nav passes `expand: true`, read via NavExpandContext by the target card.
+  const [pendingExpand, setPendingExpand] = useState<string | null>(null);
 
   // Cold-start splash: shown once on first mount, then fades out into Overview.
   // `splash` keeps it mounted; `splashLeaving` triggers the fade-out class just
@@ -111,6 +114,10 @@ export function Shell({ session }: { session: Session }) {
             window.scrollTo({ top: window.scrollY + rect.top, behavior: "instant" });
           }
           setPendingScrollTarget(null);
+          // The target card reads pendingExpand at mount (already captured into
+          // its initial state); clear it so a later plain tab re-enter doesn't
+          // re-open the section.
+          setPendingExpand(null);
         } else {
           // Scroll to top
           window.scrollTo({ top: 0, behavior: "instant" });
@@ -176,6 +183,7 @@ export function Shell({ session }: { session: Session }) {
       // in-flight animation finish instead of snapping it to completion.
       if (slideRef.current.to === next) return;
       if (options?.scrollTo) setPendingScrollTarget(options.scrollTo);
+      if (options?.scrollTo && options.expand) setPendingExpand(options.scrollTo);
       // Cancel the in-flight slide's pending finalize and clear the slide state
       // itself. Otherwise the stale timer fires later and commits the OLD slide
       // target (its dx is already off-screen), overriding this tap — and the
@@ -194,6 +202,7 @@ export function Shell({ session }: { session: Session }) {
       return;
     }
     if (options?.scrollTo) setPendingScrollTarget(options.scrollTo);
+    if (options?.scrollTo && options.expand) setPendingExpand(options.scrollTo);
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
     enterTab(next);
@@ -409,6 +418,7 @@ export function Shell({ session }: { session: Session }) {
     <NutritionConfigProvider>
     <SettingsSheetProvider>
       <NavContext.Provider value={switchTab}>
+      <NavExpandContext.Provider value={pendingExpand}>
       <PageHeaderContext.Provider value={setHeader}>
         <div className="shell">
           <div className="shell-header">
@@ -467,6 +477,7 @@ export function Shell({ session }: { session: Session }) {
         <TrainingMilestone />
         {splash && <Splash variant="overlay" leaving={splashLeaving} />}
       </PageHeaderContext.Provider>
+      </NavExpandContext.Provider>
       </NavContext.Provider>
     </SettingsSheetProvider>
     </NutritionConfigProvider>

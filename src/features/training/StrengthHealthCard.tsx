@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useNavExpand } from "@app/layout/NavContext";
 import { MetricValue } from "@shared/components/Metric";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
@@ -135,7 +136,13 @@ export function StrengthHealthCard({
   // On Track defaults collapsed — it's reassurance, not urgent. Needs Attention
   // is always shown expanded: if something needs attention, that's the whole
   // point of the card, not something to tuck behind a tap.
-  const [trackOpen, setTrackOpen] = useState(false);
+  // Exception: when deep-linked from Overview's snapshot (nav passes
+  // expand: true), open On Track on arrival — coming from Overview means you
+  // want the full detail, not the summary. Captured once at mount.
+  const navExpandTarget = useNavExpand();
+  const [trackOpen, setTrackOpen] = useState(
+    variant === "full" && id != null && navExpandTarget === id,
+  );
   const trackSectionRef = useRef<HTMLDivElement>(null);
 
   // In-place skeleton: same header + hero + bar + fold structure with

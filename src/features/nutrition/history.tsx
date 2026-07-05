@@ -76,12 +76,17 @@ export function HistoryView({
   config,
   date,
   onDateChange,
+  onSelectDay,
   entryVersion,
   onOpenCalendar,
 }: {
   config: NutritionConfig;
   date: string;
   onDateChange: (date: string) => void;
+  /** Tapping a single weekday column in the trend bar — distinct from
+   *  onDateChange (used by the ‹ › week-nav, which slides the WEEK card, not
+   *  this) so the Today card can play its own left/right day-nav slide. */
+  onSelectDay: (date: string) => void;
   entryVersion: number;
   onOpenCalendar: () => void;
 }) {
@@ -344,7 +349,7 @@ export function HistoryView({
                 onClick={() => {
                   if (isFuture) return;
                   haptic("select");
-                  onDateChange(d.date);
+                  onSelectDay(d.date);
                 }}
               >
                 {/* Value labels */}
