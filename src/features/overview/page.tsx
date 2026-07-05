@@ -807,7 +807,7 @@ export function OverviewPage() {
           goal={data?.goal}
           cutStartDate={data?.cutStartDate ?? null}
           state={data?.nutritionState ?? null}
-          onNav={() => nav("health")}
+          onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />
       )}
 
