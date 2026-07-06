@@ -535,6 +535,9 @@ function TrainingPageInner() {
   // cards — only one is ever expanded at a time. Log ids are globally unique,
   // so a single id targets exactly the right card.
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  // A Training Health row tap: jump to that lift's card and open its Trend. The
+  // nonce makes each tap distinct so re-tapping the same lift re-fires.
+  const [jumpTarget, setJumpTarget] = useState<{ slug: string; nonce: number } | null>(null);
   // Slugs currently in an optimistic-delete undo window — a background reloadAll
   // must not resurrect them, since the server row hasn't committed the delete yet.
   const pendingDeleteSlugsRef = useRef<Set<string>>(new Set());
@@ -556,6 +559,34 @@ function TrainingPageInner() {
     sessionStorage.setItem("tr-split", id);
     getActiveScroller()?.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  // Training Health row → jump to that lift's card and open its Trend. Switch to
+  // the lift's split first if it lives in another one, then bump jumpTarget: the
+  // effect below scrolls to the card, and the card opens its own Trend from the
+  // matching openTrendSignal.
+  function jumpToExercise(slug: string) {
+    const ex = (exercises ?? []).find((e) => e.slug === slug);
+    if (!ex) return;
+    const nextSplit = SPLITS.find((s) => s.id === ex.split)?.id;
+    if (nextSplit && nextSplit !== split) {
+      prevSplitIdx.current = splitIds.indexOf(split);
+      didSwitchRef.current = true;
+      setSplit(nextSplit);
+      sessionStorage.setItem("tr-split", nextSplit);
+    }
+    setJumpTarget((prev) => ({ slug, nonce: (prev?.nonce ?? 0) + 1 }));
+  }
+
+  useEffect(() => {
+    if (!jumpTarget) return;
+    // Wait a frame so a just-switched split's card is in the DOM before scrolling.
+    const raf = requestAnimationFrame(() => {
+      document
+        .getElementById(`ex-card-${jumpTarget.slug}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [jumpTarget]);
 
   const reloadAll = useCallback(async () => {
     try {
@@ -872,6 +903,7 @@ function TrainingPageInner() {
             }
             isFirst={idx === 0}
             isLast={idx === activeExercises.length - 1}
+            openTrendSignal={jumpTarget?.slug === ex.slug ? jumpTarget.nonce : null}
           />
         ))}
       </div>
@@ -946,6 +978,7 @@ function TrainingPageInner() {
         variant="full"
         loading={!exercises}
         strength={exercises ? strengthHealth.strength : undefined}
+        onJumpToExercise={jumpToExercise}
       />
     </div>
   );

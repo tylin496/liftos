@@ -73,10 +73,18 @@ function StaleHint({ isoDate, nowMs }: { isoDate: string; nowMs: number }) {
 // (a column label), so rows stop repeating it four times over. A fresh PR
 // (< 1 wk) is the one row that can't read as a week count, so it keeps a tiny
 // inline word instead of a number.
-function AttentionRow({ exercise, nowMs }: { exercise: StrengthExercise; nowMs: number }) {
+function AttentionRow({
+  exercise,
+  nowMs,
+  onJump,
+}: {
+  exercise: StrengthExercise;
+  nowMs: number;
+  onJump?: (slug: string) => void;
+}) {
   const weeks = exercise.stalledWeeks;
-  return (
-    <div className="ov-th-row">
+  const body = (
+    <>
       <span className="ov-th-row-dot" aria-hidden />
       <span className="ov-th-row-name">{exercise.name}</span>
       <StaleHint isoDate={exercise.lastLogDate} nowMs={nowMs} />
@@ -85,7 +93,14 @@ function AttentionRow({ exercise, nowMs }: { exercise: StrengthExercise; nowMs: 
       ) : (
         <span className="ov-th-row-stalled-val">{weeks}</span>
       )}
-    </div>
+    </>
+  );
+  return onJump ? (
+    <button type="button" className="ov-th-row ov-th-row--tap" onClick={() => onJump(exercise.slug)}>
+      {body}
+    </button>
+  ) : (
+    <div className="ov-th-row">{body}</div>
   );
 }
 
@@ -119,14 +134,29 @@ function SectHeadRow({
   );
 }
 
-function OnTrackRow({ exercise, nowMs }: { exercise: StrengthExercise; nowMs: number }) {
+function OnTrackRow({
+  exercise,
+  nowMs,
+  onJump,
+}: {
+  exercise: StrengthExercise;
+  nowMs: number;
+  onJump?: (slug: string) => void;
+}) {
   const retPct = Math.round(exerciseRetention(exercise) * 100);
-  return (
-    <div className="ov-th-row">
+  const body = (
+    <>
       <span className="ov-th-row-name">{exercise.name}</span>
       <StaleHint isoDate={exercise.lastLogDate} nowMs={nowMs} />
       <span className="ov-th-row-pct">{retPct}%</span>
-    </div>
+    </>
+  );
+  return onJump ? (
+    <button type="button" className="ov-th-row ov-th-row--tap" onClick={() => onJump(exercise.slug)}>
+      {body}
+    </button>
+  ) : (
+    <div className="ov-th-row">{body}</div>
   );
 }
 
@@ -158,6 +188,9 @@ export interface StrengthHealthCardProps {
   /** Cold-load: render the same DOM with placeholder values + shimmer, so the
    *  card resolves in place instead of unmounting a separate skeleton. */
   loading?: boolean;
+  /** Full variant only — tapping a lift row jumps to its card in the list and
+   *  opens its Trend. Wired by the Training page; absent = rows aren't tappable. */
+  onJumpToExercise?: (slug: string) => void;
 }
 
 export function StrengthHealthCard({
@@ -166,6 +199,7 @@ export function StrengthHealthCard({
   onNav,
   id,
   loading = false,
+  onJumpToExercise,
 }: StrengthHealthCardProps) {
   // Hooks run unconditionally, before any early return, so the count stays
   // stable across the loading → loaded transition (same mounted instance).
@@ -397,7 +431,7 @@ export function StrengthHealthCard({
               <span className="ov-th-sect-unit">wks since PR</span>
             </div>
             {watchExercises.map((ex) => (
-              <AttentionRow key={ex.slug} exercise={ex} nowMs={nowMs} />
+              <AttentionRow key={ex.slug} exercise={ex} nowMs={nowMs} onJump={onJumpToExercise} />
             ))}
           </div>
         )}
@@ -410,7 +444,7 @@ export function StrengthHealthCard({
             />
             {trackOpen &&
               onTrackExercises.map((ex) => (
-                <OnTrackRow key={ex.slug} exercise={ex} nowMs={nowMs} />
+                <OnTrackRow key={ex.slug} exercise={ex} nowMs={nowMs} onJump={onJumpToExercise} />
               ))}
           </div>
         )}

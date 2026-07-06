@@ -16,7 +16,8 @@ import {
   timelineDate,
   toLogEntry,
   epley1RM,
-  beatsBest,
+  computePRBests,
+  classifyPR,
   totalReps,
   type TimeFilter,
 } from "./logic";
@@ -119,6 +120,9 @@ export interface ExerciseCardProps {
   onMoveDown?: () => Promise<void>;
   isFirst?: boolean;
   isLast?: boolean;
+  // A one-shot nonce (from a Training Health row tap) that opens this card's
+  // Trend sheet on arrival. Each distinct value re-triggers; null does nothing.
+  openTrendSignal?: number | null;
 }
 
 export function ExerciseCard({
@@ -134,6 +138,7 @@ export function ExerciseCard({
   onMoveDown,
   isFirst,
   isLast,
+  openTrendSignal,
 }: ExerciseCardProps) {
   const toast = useToast();
   const celebration = useCelebration();
@@ -155,6 +160,12 @@ export function ExerciseCard({
   const [savedRowId, setSavedRowId] = useState<string | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   const [trendOpen, setTrendOpen] = useState(false);
+  // Open Trend when jumped here from a Training Health row (Shell scrolls the
+  // card into view; this pops its sheet). One-shot per nonce so re-jumping the
+  // same card re-opens it, but a manual close isn't undone by a re-render.
+  useEffect(() => {
+    if (openTrendSignal != null) setTrendOpen(true);
+  }, [openTrendSignal]);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -270,13 +281,20 @@ export function ExerciseCard({
       const newScore = newParsed ? score(newParsed) : 0;
       const newReps = newParsed?.reps ?? "1";
       const newE1RM = epley1RM(newScore, newReps);
-      const isNewPR = beatsBest({ e1rm: newE1RM, totalReps: totalReps(newReps, sc) }, oldBest);
-      if (isNewPR) {
+      const prKind = classifyPR(
+        { e1rm: newE1RM, weightKg: newScore, totalReps: totalReps(newReps, sc) },
+        computePRBests(effectiveLogsAsc, sc),
+        oldBest,
+      );
+      const wStr = newParsed ? `${fmtWeightNum(newScore)} kg` : "";
+      if (prKind === "strength") {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);
         haptic("success");
-        const wStr = newParsed ? `${fmtWeightNum(score(newParsed))} kg` : "";
-        celebration.celebrate({ variant: "pr", sub: wStr || "Personal record" });
+        celebration.celebrate({ variant: "pr", title: "Strength PR", sub: wStr || "New estimated 1RM" });
+      } else if (prKind === "performance") {
+        haptic("success");
+        toast(wStr ? `Performance PR · heaviest yet at ${wStr}` : "Performance PR · heaviest yet", "success");
       } else {
         haptic("tap");
         toast("Set logged", "success");
@@ -306,11 +324,20 @@ export function ExerciseCard({
       if (effectiveLogs.some((l) => l.id !== log.id && l.log_date === date)) {
         throw new Error("Another entry already exists on that day");
       }
-      const newE1RM = epley1RM(score(parsed), parsed.reps);
-      const oldBest = stats.best;
-      const isNewPR =
-        log.id !== oldBest?.log.id &&
-        beatsBest({ e1rm: newE1RM, totalReps: totalReps(parsed.reps, sc) }, oldBest);
+      const editScore = score(parsed);
+      const newE1RM = epley1RM(editScore, parsed.reps);
+      // Measure against every OTHER log (self excluded), so re-saving the record
+      // row doesn't read as beating itself. Editing the reigning best is never a
+      // fresh PR — same guard the old `log.id !== oldBest` check gave.
+      const priorAsc = effectiveLogsAsc.filter((l) => l.id !== log.id);
+      const prKind =
+        log.id === stats.best?.log.id
+          ? null
+          : classifyPR(
+              { e1rm: newE1RM, weightKg: editScore, totalReps: totalReps(parsed.reps, sc) },
+              computePRBests(priorAsc, sc),
+              computeStats(priorAsc, sc).best,
+            );
       await updateLog(log.id, {
         raw,
         reps: parsed.reps,
@@ -325,11 +352,14 @@ export function ExerciseCard({
       setSavedRowId(log.id);
       setTimeout(() => setSavedRowId(null), 1200);
       haptic("tap");
-      if (isNewPR) {
+      if (prKind === "strength") {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);
         haptic("success");
-        celebration.celebrate({ variant: "pr", sub: `${fmtWeightNum(score(parsed))} kg` });
+        celebration.celebrate({ variant: "pr", title: "Strength PR", sub: `${fmtWeightNum(editScore)} kg` });
+      } else if (prKind === "performance") {
+        haptic("success");
+        toast(`Performance PR · heaviest yet at ${fmtWeightNum(editScore)} kg`, "success");
       } else {
         toast("Entry updated", "success");
       }
@@ -429,7 +459,7 @@ export function ExerciseCard({
   }
 
   return (
-    <article className="ex-card" ref={cardRef}>
+    <article id={`ex-card-${exercise.slug}`} className="ex-card" ref={cardRef}>
       {celebration.node}
       {/* ── Card menu (owner only) ── */}
       {!readOnly && (

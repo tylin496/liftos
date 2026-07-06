@@ -302,6 +302,25 @@
   border-bottom: none;
 }
 
+/* Tappable row — a full-width button that jumps to the lift's card and opens
+   its Trend. Reset the button chrome so it reads exactly like a static row; a
+   quiet press state is the only added affordance. */
+.ov-th-row--tap {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ov-th-row--tap:active {
+  opacity: 0.55;
+}
+
 .ov-th-row-dot {
   width: 6px;
   height: 6px;

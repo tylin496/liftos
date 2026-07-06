@@ -74,6 +74,9 @@
   -webkit-backdrop-filter: var(--card-blur);
   padding: var(--space-5);
   overflow: visible;
+  /* Jumped-to from a Training Health row — land with a breath, not jammed to
+     the top edge. */
+  scroll-margin-top: var(--space-4);
   /* Flat entrance, unified with every other card (--enter-wait + --dur-enter). */
   animation: card-enter var(--dur-enter) var(--ease-enter) both;
   animation-delay: var(--enter-wait);
