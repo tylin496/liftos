@@ -6,21 +6,22 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 //          (LiftOS nutrition_entries → Apple Health Dietary Energy/Protein).
 //
 // POST payload (DO NOT change shape):
-//   { date: "YYYY-MM-DD", weight: number|"", bodyFat: number|"",
-//     activeEnergy: number|"", restingEnergy: number|"",
-//     exerciseMinutes: number|"",
-//     sleepSeconds: number|"", restingHeartRate: number|"", hrvSdnn: number|"" }
-// Also accepts these aliases the iOS Shortcut's auto-generated variable names
-// sometimes use instead of the names above: exercise_minutes / excercises_time
-// (exerciseMinutes), sleepDuration (sleepSeconds), heartRateVariability (hrvSdnn).
+//   { date: "YYYY-MM-DD", weight_kg: number|"", body_fat: number|"",
+//     active_energy: number|"", resting_energy: number|"",
+//     exercise_time: number|"",
+//     sleep_seconds: number|"", resting_heart_rate: number|"", hrv: number|"" }
+// Also accepts these camelCase aliases the iOS Shortcut's auto-generated variable names
+// sometimes use instead of the snake_case names above: exerciseMinutes / exercise_minutes / excercises_time
+// (exercise_time), sleepDuration (sleep_seconds), restingHeartRate (resting_heart_rate),
+// heartRateVariability / hrvSdnn (hrv).
 // Upserts one row per date into Supabase health_metrics. Empty/non-numeric
 // fields are OMITTED from the upsert (not written as null), so running the
 // Shortcut multiple times a day never overwrites a previously-synced value
 // with a blank. Only fields that arrive with a real number are updated.
-// weight/bodyFat/restingHeartRate/hrvSdnn additionally require a plausible
-// positive value, and sleepSeconds must exceed 1 hour — Shortcuts sometimes
+// weight_kg/body_fat/resting_heart_rate/hrv additionally require a plausible
+// positive value, and sleep_seconds must exceed 1 hour — Shortcuts sometimes
 // emits 0 instead of "" when a Health sample is missing, and these are never
-// real readings. restingEnergy is additionally dropped when it falls far below
+// real readings. resting_energy is additionally dropped when it falls far below
 // the user's recent median (see the anomaly guard below) — a HealthKit data
 // gap rather than a real ~1300 kcal resting day. A dropped value is reported
 // back as `droppedResting` in the response.
@@ -39,7 +40,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  */
 function num(value: unknown): number | null {
   if (value === "" || value === null || value === undefined) return null;
-  const match = String(value).match(/-?\d+(\.\d+)?/);
+  const firstLine = String(value).trim().split(/\r?\n/, 1)[0];
+  const match = firstLine.match(/^-?\d+(\.\d+)?/);
   if (!match) return null;
   const n = Number(match[0]);
   return Number.isFinite(n) ? n : null;
@@ -90,29 +92,57 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   if (!body || typeof body !== "object") {
     return { error: "Missing JSON body" };
   }
-  const { date } = body;
-  if (typeof date !== "string" || !DATE_RE.test(date)) {
-    return { error: "Invalid or missing 'date' (expected YYYY-MM-DD)" };
+  const rawDate = body.date;
+  if (typeof rawDate !== "string" || rawDate.trim() === "") {
+    return { error: "Missing 'date'" };
+  }
+
+  let metricDate: string;
+  if (DATE_RE.test(rawDate)) {
+    metricDate = rawDate;
+  } else {
+    const parsed = new Date(rawDate);
+    if (Number.isNaN(parsed.getTime())) {
+      return { error: "Invalid 'date'" };
+    }
+    metricDate = parsed.toISOString().slice(0, 10);
   }
 
   // Only include fields that carry a real value — null/blank fields are
   // dropped so they don't overwrite an existing row's value on conflict.
-  const record: Record<string, unknown> = { metric_date: date };
-  const weight = num(body.weight);
+  const record: Record<string, unknown> = { metric_date: metricDate };
+  const weight = num(body.weight_kg ?? body.weight);
   if (weight !== null && weight > 0) record.weight_kg = weight;
-  const bodyFat = num(body.bodyFat);
+  const bodyFat = num(body.body_fat ?? body.body_fat_pct ?? body.bodyFat);
   if (bodyFat !== null && bodyFat > 0 && bodyFat < 100) record.body_fat_pct = bodyFat;
-  const active = intOrNull(body.activeEnergy);
+  const active = intOrNull(body.active_energy ?? body.activeEnergy);
   if (active !== null) record.active_energy_kcal = active;
-  const resting = intOrNull(body.restingEnergy);
+  const resting = intOrNull(body.resting_energy ?? body.restingEnergy);
   if (resting !== null) record.resting_energy_kcal = resting;
-  const exerciseMinutes = intOrNull(body.exerciseMinutes ?? body.exercise_minutes ?? body.excercises_time);
+  const exerciseMinutes = intOrNull(
+    body.exercise_time ??
+    body.exercise_minutes ??
+    body.exerciseMinutes ??
+    body.excercises_time
+  );
   if (exerciseMinutes !== null) record.exercise_minutes = exerciseMinutes;
-  const sleepSeconds = intOrNull(body.sleepSeconds ?? body.sleepDuration);
+  const sleepSeconds = intOrNull(
+    body.sleep_seconds ??
+    body.sleepDuration ??
+    body.sleepSeconds
+  );
   if (sleepSeconds !== null && sleepSeconds > 3600) record.sleep_seconds = sleepSeconds;
-  const restingHR = intOrNull(body.restingHeartRate);
+  const restingHR = intOrNull(
+    body.resting_heart_rate ??
+    body.restingHeartRate
+  );
   if (restingHR !== null && restingHR > 0) record.resting_heart_rate = restingHR;
-  const hrv = num(body.hrvSdnn ?? body.heartRateVariability);
+  const hrv = num(
+    body.hrv ??
+    body.hrv_sdnn_ms ??
+    body.heartRateVariability ??
+    body.hrvSdnn
+  );
   if (hrv !== null && hrv > 0) record.hrv_sdnn_ms = hrv;
 
   return { record };
@@ -191,8 +221,14 @@ Deno.serve(async (req) => {
 
   // POST = body metrics ingest (Apple Health → LiftOS).
   const body = await req.json().catch(() => null);
-  const { record, error } = buildRecord(body);
-  if (error) return json({ error }, 400);
+
+  console.error("=== DEBUG START ===");
+  console.error(JSON.stringify(body, null, 2));
+  console.error("=== DEBUG END ===");
+  console.log(JSON.stringify(body, null, 2));
+
+const { record, error } = buildRecord(body);
+if (error) return json({ error }, 400);
 
   // Anomaly guard: a resting-energy value far below the recent personal median
   // is a HealthKit data gap, not a real reading. Drop it (don't write) so it

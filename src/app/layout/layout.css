@@ -82,6 +82,7 @@
   -webkit-overflow-scrolling: touch;
   padding: var(--space-4) var(--space-4)
     calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
+  scrollbar-gutter: stable;
 }
 
 /* While a horizontal tab slide is in flight, both panels are stacked and
