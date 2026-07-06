@@ -370,7 +370,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   );
   const nameBySlug = new Map(exercises.map((e) => [e.slug, e.name]));
   const trainingAttention = [...strengthBySlug.values()]
-    .filter((x) => x.status === "watch")
+    .filter((x) => x.needsAttention)
     .sort((a, b) => a.trend - b.trend) // worst (furthest below PR) first
     .map((x) => ({
       name: nameBySlug.get(x.slug) ?? x.name,
@@ -378,7 +378,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       retentionPct: +(x.trend * 100).toFixed(1),
       weeksSincePR: x.stalledWeeks,
     }));
-  const improvingCount = [...strengthBySlug.values()].filter((x) => x.status !== "watch").length;
+  const improvingCount = [...strengthBySlug.values()].filter((x) => !x.needsAttention).length;
 
   const insights = {
     weight: weightTrend,

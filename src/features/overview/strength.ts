@@ -11,6 +11,13 @@ import { epley1RM } from "@features/training/logic";
 
 export type StrengthStatus = "improving" | "stable" | "watch";
 
+/** A `watch` lift (latest session below 94% of PR) only counts as "needs
+ *  intervention" once it's been stuck this many weeks. A recent PR on either axis
+ *  (small stalledWeeks) means one lighter session isn't a plateau — so it buys a
+ *  grace period. Shared by the card's Needs-Attention list, the AI export, and the
+ *  Decision Engine's decline gate, so the three never disagree. */
+export const ATTENTION_STALL_WEEKS = 3;
+
 export interface StrengthExercise {
   slug: string;
   name: string;
@@ -20,12 +27,18 @@ export interface StrengthExercise {
   trend: number;       // latestE1RM / prE1RM — distance-from-PR ratio that drives `status`
   stalledWeeks: number; // whole weeks since the last PR on EITHER axis (e1RM ceiling or heaviest weight)
   lastLogDate: string;  // ISO date of the most recent session — for staleness labelling
+  /** Below PR AND stuck ≥ ATTENTION_STALL_WEEKS — the single "this lift needs
+   *  intervention" predicate. A recently-PR'd watch lift is false (grace period). */
+  needsAttention: boolean;
 }
 
 export interface StrengthSummary {
   improving: number;
   stable: number;
   watch: number;
+  /** Lifts flagged for intervention = watch AND stalled ≥ ATTENTION_STALL_WEEKS.
+   *  ≤ watch; a recently-PR'd watch lift is excluded. */
+  attention: number;
   total: number; // exercises with enough data
   exercises: StrengthExercise[];
 }
@@ -41,7 +54,7 @@ export type LogsBySlug = Record<string, Array<{ log_date: string | null; raw: st
  * vs prior. Pure: pass logs grouped by slug, get the summary back.
  */
 export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary {
-  const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, total: 0, exercises: [] };
+  const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, attention: 0, total: 0, exercises: [] };
 
   for (const [slug, slugLogs] of Object.entries(logsBySlug)) {
     // Performance trend: need ≥4 logs to compare recent 3 vs prior sessions
@@ -112,6 +125,14 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       (Date.parse(lastDate) - Date.parse(prDate)) / (7 * 24 * 60 * 60 * 1000),
     );
 
+    // "Needs attention" gates the retention flag on the stall clock: a lift only
+    // needs intervention if it's below PR AND has been stuck for weeks. A recent
+    // PR on either axis (small stalledWeeks) keeps it off the list — so one
+    // lighter session after a PR can't flag it. The card, the export, and the
+    // Decision Engine all read this one field.
+    const needsAttention = status === "watch" && stalledWeeks >= ATTENTION_STALL_WEEKS;
+    if (needsAttention) strength.attention++;
+
     strength.exercises.push({
       slug,
       name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -121,6 +142,7 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       trend: pct,
       stalledWeeks,
       lastLogDate: lastDate,
+      needsAttention,
     });
   }
 
@@ -154,7 +176,7 @@ export function buildTrainingEvaluation(summary: StrengthSummary): TrainingEvalu
 
   // A lift counts toward decline only when it's both below PR (watch) AND has
   // carried that gap for ≥3 weeks — a settled drop, not a fresh dip.
-  const stalledWatch = exercises.filter((e) => e.status === "watch" && e.stalledWeeks >= 3).length;
+  const stalledWatch = exercises.filter((e) => e.needsAttention).length;
   const declineThreshold = Math.max(2, Math.ceil(total / 3)); // ≥⅓ of lifts, min 2
   const confidence: TrainingEvaluation["confidence"] = total >= 4 ? "high" : "medium";
 

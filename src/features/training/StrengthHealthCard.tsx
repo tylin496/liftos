@@ -270,7 +270,7 @@ export function StrengthHealthCard({
   }
 
   const hasData = strength.total > 0;
-  const attention = strength.watch;
+  const attention = strength.attention;
   // Now is read once per render for the staleness labels. Fine as a plain read —
   // it only drives a "logged Nw ago" hint, nothing that needs to be reactive.
   const nowMs = Date.now();
@@ -292,13 +292,15 @@ export function StrengthHealthCard({
 
   // Attention always sits above On Track and is ordered worst-first (furthest
   // below PR, i.e. lowest retention), so the most urgent exercise reads first.
+  // `needsAttention` (not raw `watch`) gates the list, so a lift that dipped below
+  // PR but PR'd on either axis within the last few weeks stays out of the red.
   const watchExercises = strength.exercises
-    .filter((e) => e.status === "watch")
+    .filter((e) => e.needsAttention)
     .sort((a, b) => exerciseRetention(a) - exerciseRetention(b));
   // On Track is ordered worst-first (lowest % of PR), so the exercises
   // closest to needing attention read first.
   const onTrackExercises = strength.exercises
-    .filter((e) => e.status !== "watch")
+    .filter((e) => !e.needsAttention)
     .sort((a, b) => exerciseRetention(a) - exerciseRetention(b));
 
   // Hero, colour, and count all derive from ONE source — strength.exercises.
