@@ -457,7 +457,72 @@ export function HealthPage() {
 
   return (
     <div className="page health">
-      {/* 1. Energy — the metabolic model behind the ring. Active leads with its
+      {/* 1. Recovery — sleep / HRV / RHR readiness snapshot. Always mounted (own
+          skeleton while loading); collapses only if there's genuinely no
+          readiness data. Sits first: a day-to-day state read before the
+          longer-arc body-composition and TDEE cards. */}
+      <RecoveryCard loading={!data} snap={recovery} />
+
+      {/* 2. Trend cards — Weight, then Body Fat (body-composition read). Always
+          mounted; each renders its own skeleton (placeholder values) while
+          loading, then resolves the SAME DOM to real values when data lands —
+          no separate skeleton subtree to unmount, so the entrance plays once. */}
+      {METRICS.map((spec) => {
+        const c = cards.find((x) => x.spec.key === spec.key);
+        return (
+          <TrendCard
+            key={spec.key}
+            loading={!data}
+            label={spec.label}
+            avgLabel={spec.avgLabel}
+            value={c ? c.thisWeek : null}
+            unit={spec.unit}
+            decimals={spec.decimals}
+            points={c ? c.bucketed : []}
+            minSpan={spec.minSpan}
+            rangeDays={spec.bucket * SPARK_POINTS}
+            color={spec.color}
+            delta={
+              // Both Weight and Body Fat are down-good on a cut — this page is the
+              // body-composition trend view, so each carries its own coloured
+              // delta (the smoothed rolling average, not a single noisy day; the
+              // threshold still suppresses changes within noise). Overview's weight
+              // card stays delta-free because its pace/Status read covers it there.
+              c && c.change != null && c.readingCount >= 2 ? (
+                <MetricDelta value={c.change} direction="down-good" decimals={spec.decimals} unit={spec.unit} />
+              ) : null
+            }
+            note={
+              spec.key === "body_fat_pct" && skippedBodyFatCount > 0
+                ? `Skipped ${skippedBodyFatCount} invalid body fat sample${skippedBodyFatCount === 1 ? "" : "s"}`
+                : undefined
+            }
+          />
+        );
+      })}
+
+      {/* 3. Lean Mass — derived from weight × (1 − body_fat%). Always mounted so it
+          holds its slot; shows "—" when there's genuinely no body-fat data,
+          same as Weight / Body Fat handle a missing value. */}
+      <TrendCard
+        loading={!data}
+        label="Lean Mass"
+        avgLabel="14-day average"
+        value={lbmCard ? lbmCard.thisWeek : null}
+        unit="kg"
+        decimals={1}
+        points={lbmCard ? lbmCard.bucketed : []}
+        minSpan={2}
+        rangeDays={lbmCard ? lbmCard.rangeDays : 14 * SPARK_POINTS}
+        color="var(--health-measurement)"
+        delta={
+          lbmCard && lbmCard.change != null && lbmCard.readingCount >= 2 ? (
+            <MetricDelta value={lbmCard.change} direction="up-good" decimals={1} unit="kg" />
+          ) : null
+        }
+      />
+
+      {/* 4. Energy — the metabolic model behind the ring. Active leads with its
           trend (behaviour-driven); Resting + TDEE ride below as context so
           Resting + Active = TDEE still adds up. */}
       <section
@@ -561,71 +626,6 @@ export function HealthPage() {
           </p>
         )}
       </section>
-
-      {/* 2. Trend cards — Weight, then Body Fat (body-composition read). Always
-          mounted; each renders its own skeleton (placeholder values) while
-          loading, then resolves the SAME DOM to real values when data lands —
-          no separate skeleton subtree to unmount, so the entrance plays once. */}
-      {METRICS.map((spec) => {
-        const c = cards.find((x) => x.spec.key === spec.key);
-        return (
-          <TrendCard
-            key={spec.key}
-            loading={!data}
-            label={spec.label}
-            avgLabel={spec.avgLabel}
-            value={c ? c.thisWeek : null}
-            unit={spec.unit}
-            decimals={spec.decimals}
-            points={c ? c.bucketed : []}
-            minSpan={spec.minSpan}
-            rangeDays={spec.bucket * SPARK_POINTS}
-            color={spec.color}
-            delta={
-              // Both Weight and Body Fat are down-good on a cut — this page is the
-              // body-composition trend view, so each carries its own coloured
-              // delta (the smoothed rolling average, not a single noisy day; the
-              // threshold still suppresses changes within noise). Overview's weight
-              // card stays delta-free because its pace/Status read covers it there.
-              c && c.change != null && c.readingCount >= 2 ? (
-                <MetricDelta value={c.change} direction="down-good" decimals={spec.decimals} unit={spec.unit} />
-              ) : null
-            }
-            note={
-              spec.key === "body_fat_pct" && skippedBodyFatCount > 0
-                ? `Skipped ${skippedBodyFatCount} invalid body fat sample${skippedBodyFatCount === 1 ? "" : "s"}`
-                : undefined
-            }
-          />
-        );
-      })}
-
-      {/* Lean Mass — derived from weight × (1 − body_fat%). Always mounted so it
-          holds its slot; shows "—" when there's genuinely no body-fat data,
-          same as Weight / Body Fat handle a missing value. */}
-      <TrendCard
-        loading={!data}
-        label="Lean Mass"
-        avgLabel="14-day average"
-        value={lbmCard ? lbmCard.thisWeek : null}
-        unit="kg"
-        decimals={1}
-        points={lbmCard ? lbmCard.bucketed : []}
-        minSpan={2}
-        rangeDays={lbmCard ? lbmCard.rangeDays : 14 * SPARK_POINTS}
-        color="var(--health-measurement)"
-        delta={
-          lbmCard && lbmCard.change != null && lbmCard.readingCount >= 2 ? (
-            <MetricDelta value={lbmCard.change} direction="up-good" decimals={1} unit="kg" />
-          ) : null
-        }
-      />
-
-      {/* Recovery — sleep / HRV / RHR readiness snapshot. Always mounted (own
-          skeleton while loading); collapses only if there's genuinely no
-          readiness data. Sits last: a day-to-day state read below the
-          longer-arc body-composition and TDEE cards. */}
-      <RecoveryCard loading={!data} snap={recovery} />
     </div>
   );
 }

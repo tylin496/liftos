@@ -217,22 +217,28 @@ export function Shell({ session }: { session: Session }) {
       if (alignRef.current?.cancel === cancel) alignRef.current = null;
     };
     alignRef.current = { cancel };
+    // Watch the panel's CONTENT box, not the panel itself: the panel is a
+    // fixed-height scroll container (height:100%), so its own border box never
+    // changes when the page grows inside it — a ResizeObserver on the scroller
+    // would never fire. The content wrapper (.page) is what grows skeleton→data.
+    const content = scroller.firstElementChild ?? scroller;
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (cancelled) return;
-        lastHeight = scroller.scrollHeight;
+        lastHeight = content.scrollHeight;
+        align(); // land now if the content is already tall (no-op on a short skeleton)
         window.addEventListener("wheel", cancel, { passive: true });
         window.addEventListener("touchstart", cancel, { passive: true });
         window.addEventListener("pointerdown", cancel, { passive: true });
         window.addEventListener("keydown", cancel);
         ro = new ResizeObserver(() => {
           if (cancelled) return;
-          const h = scroller.scrollHeight;
+          const h = content.scrollHeight;
           if (h === lastHeight) return; // ignore the initial no-op fire
           lastHeight = h;
           align();
         });
-        ro.observe(scroller);
+        ro.observe(content);
       });
     });
   }

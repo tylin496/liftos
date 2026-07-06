@@ -67,6 +67,9 @@ const CONFIDENCE_DOT: Record<string, "good" | "gold" | "bad"> = {
   low: "bad",
 };
 
+// Reading-order weight, not layout: the four cells are analysis (Observed →
+// Est. intake → Confidence) plus one constant (Target pace), so the constant
+// is the only one dropped a tier below the shared default.
 function EvidenceCell({
   label,
   value,
@@ -75,6 +78,7 @@ function EvidenceCell({
   expandable,
   open,
   onToggle,
+  emphasis,
 }: {
   label: string;
   value: string;
@@ -83,6 +87,7 @@ function EvidenceCell({
   expandable?: boolean;
   open?: boolean;
   onToggle?: () => void;
+  emphasis?: "primary" | "tertiary" | "quiet";
 }) {
   return (
     <div
@@ -103,7 +108,7 @@ function EvidenceCell({
       }
     >
       <span className="ni-cell-label">{label}</span>
-      <span className="ni-cell-value">
+      <span className={`ni-cell-value${emphasis ? ` ni-cell-value--${emphasis}` : ""}`}>
         {dot && <span className={`ni-status-dot status-${dot}`} aria-hidden="true" />}
         {value}
         {expandable && <span className="ni-cell-caret" aria-hidden="true">›</span>}
@@ -244,6 +249,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
                     })()
                   : undefined
               }
+              emphasis="primary"
             />
             <EvidenceCell
               label="Target pace · fixed"
@@ -252,6 +258,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
                   ? `−${e!.targetRange.min.toFixed(2)} – ${e!.targetRange.max.toFixed(2)} kg/wk`
                   : "—"
               }
+              emphasis="quiet"
             />
           </div>
         </div>
@@ -276,6 +283,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
           expandable={confReason != null}
           open={confOpen}
           onToggle={() => setConfOpen((v) => !v)}
+          emphasis="tertiary"
           full
         />
         {/* Revealed reason spans the card, but reads as part of Confidence.

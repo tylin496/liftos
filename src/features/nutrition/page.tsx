@@ -116,22 +116,25 @@ export function NutritionPage() {
             calendarOpen={calendarOpen}
             onCalendarOpenChange={setCalendarOpen}
           />
-          <HistoryView
-            config={config}
-            date={date}
-            onDateChange={setDate}
-            onSelectDay={selectDay}
-            entryVersion={entryVersion}
-            onOpenCalendar={() => setCalendarOpen(true)}
-          />
         </>
       )}
 
       {/* Self-contained — fetches its own state independently of config, so it
           renders OUTSIDE the config gate: during cold load its own internal
           skeleton holds the page's tail, instead of the slot being empty until
-          config arrives. Sits last, below the History cards. */}
+          config arrives. Sits after Today, before the History cards. */}
       <NutritionInsightCard refreshKey={entryVersion} />
+
+      {config && (
+        <HistoryView
+          config={config}
+          date={date}
+          onDateChange={setDate}
+          onSelectDay={selectDay}
+          entryVersion={entryVersion}
+          onOpenCalendar={() => setCalendarOpen(true)}
+        />
+      )}
     </div>
   );
 }
