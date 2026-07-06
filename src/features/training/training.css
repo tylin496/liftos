@@ -1305,19 +1305,21 @@
   margin-top: 2px;
   padding: var(--space-2) 10px;
   border: none;
-  background: transparent;
-  color: var(--accent);
+  /* Solid accent primary — the card's core action. --accent-strong is the
+     token for solid white-on-accent fills; text/icon use --on-color (white). */
+  background: var(--accent-strong);
+  color: var(--on-color);
   font: inherit;
   font-size: var(--text-base);
   font-weight: 600;
   text-align: center;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: color var(--dur-press), background var(--dur-press);
+  transition: background var(--dur-press);
 }
 
 @media (hover: hover) {
-  .hist-add:hover { color: var(--accent-strong); background: var(--bg-soft); }
+  .hist-add:hover { background: var(--accent); }
 }
 
 .hist-add:active { transform: scale(var(--tap-scale)); }
@@ -1325,7 +1327,7 @@
 .hist-add-plus {
   font-size: var(--text-base);
   line-height: 1;
-  color: var(--accent);
+  color: var(--on-color);
 }
 
 /* ── Show more ───────────────────────────────────────────────────────────────*/
