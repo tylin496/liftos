@@ -200,8 +200,14 @@ export function Shell({ session }: { session: Session }) {
     let cancelled = false;
     let ro: ResizeObserver | null = null;
     let lastHeight = 0;
+    // Glide to the card rather than snap: the tab lands at the top, then a smooth
+    // scroll carries the eye down to the target — reads as "here's your tab, now
+    // this card" instead of a jarring instant jump once the data loads. Honours
+    // reduced-motion (instant there).
+    const behavior: ScrollBehavior =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     const align = () =>
-      document.getElementById(targetId)?.scrollIntoView({ block: "start" });
+      document.getElementById(targetId)?.scrollIntoView({ block: "start", behavior });
     const cancel = () => {
       if (cancelled) return;
       cancelled = true;
