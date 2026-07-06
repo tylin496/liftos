@@ -66,6 +66,7 @@ export type Database = {
         Row: {
           archived: boolean
           assisted_mode: boolean
+          compound: boolean
           created_at: string
           id: string
           image_url: string | null
@@ -81,6 +82,7 @@ export type Database = {
         Insert: {
           archived?: boolean
           assisted_mode?: boolean
+          compound?: boolean
           created_at?: string
           id?: string
           image_url?: string | null
@@ -96,6 +98,7 @@ export type Database = {
         Update: {
           archived?: boolean
           assisted_mode?: boolean
+          compound?: boolean
           created_at?: string
           id?: string
           image_url?: string | null
