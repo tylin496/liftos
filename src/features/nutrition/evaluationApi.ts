@@ -14,6 +14,8 @@ import { localDateStrDaysAgo } from "@shared/lib/date";
 import { series, buildRecoveryEvaluation } from "@features/health/math";
 import type { BodyMetric } from "@features/health/api";
 import { computeTdeeWindows } from "@features/health/tdee";
+import { computeStrengthSummary, buildTrainingEvaluation } from "@features/overview/strength";
+import { buildLeanMassEvaluation } from "@features/overview/goal";
 import { targetsFromConfig, type NutritionConfig } from "./api";
 import { DEFAULTS, phaseFromDeficit } from "./logic";
 import {
@@ -138,10 +140,10 @@ export async function getNutritionState(): Promise<NutritionStateFull | null> {
 export async function recomputeAndPersist(): Promise<NutritionStateFull> {
   const userId = await currentUserId();
 
-  const [metricsRes, configRes, entriesRes] = await Promise.all([
+  const [metricsRes, configRes, entriesRes, logsRes, archivedRes] = await Promise.all([
     supabase
       .from("health_metrics")
-      .select("metric_date, weight_kg, active_energy_kcal, resting_energy_kcal, exercise_minutes, sleep_seconds, resting_heart_rate, hrv_sdnn_ms")
+      .select("metric_date, weight_kg, body_fat_pct, active_energy_kcal, resting_energy_kcal, exercise_minutes, sleep_seconds, resting_heart_rate, hrv_sdnn_ms")
       .gte("metric_date", localDateStrDaysAgo(90))
       .order("metric_date", { ascending: true }),
     supabase.from("nutrition_config").select("*").maybeSingle(),
@@ -150,6 +152,14 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
       .select("entry_date, calorie_target")
       .gte("entry_date", localDateStrDaysAgo(60))
       .order("entry_date", { ascending: true }),
+    // Training + archived exercises for the Decision Engine's training slice.
+    // Best-effort (see below): a failure here must not abort the nutrition
+    // recompute, so these two reads are NOT in the throw-on-error guard.
+    supabase
+      .from("training_logs")
+      .select("exercise_slug, raw, log_date")
+      .order("log_date", { ascending: true }),
+    supabase.from("exercises").select("slug").eq("archived", true),
   ]);
 
   // Abort on a failed read rather than recomputing from silently-empty data —
@@ -183,10 +193,32 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
   });
 
   // Recommendation is derived from the Evaluations — the single source of truth.
-  // This assembler is the one place that already holds the raw health metrics, so
-  // it also builds the recovery slice; the registry arbitrates across providers.
+  // This assembler holds every domain's raw inputs, so it builds all four
+  // Evaluation slices and hands them to the Decision Engine (topRecommendation),
+  // which walks the precedence ladder across them.
   const recovery = buildRecoveryEvaluation(metrics);
-  const recommendation = topRecommendation({ nutrition: { evaluation, diagnostics }, recovery });
+  const leanMass = buildLeanMassEvaluation(metrics);
+
+  // Training slice — best-effort. A training read failure must not block the
+  // nutrition recompute, so on error we omit the slice (the engine treats absent
+  // training as "no info", never a bad-news signal).
+  let training = null;
+  if (!logsRes.error && !archivedRes.error) {
+    const archivedSlugs = new Set((archivedRes.data ?? []).map((e) => e.slug));
+    const bySlug: Record<string, { log_date: string | null; raw: string | null }[]> = {};
+    for (const l of logsRes.data ?? []) {
+      if (!l.exercise_slug || archivedSlugs.has(l.exercise_slug)) continue;
+      (bySlug[l.exercise_slug] ??= []).push(l);
+    }
+    training = buildTrainingEvaluation(computeStrengthSummary(bySlug));
+  }
+
+  const recommendation = topRecommendation({
+    nutrition: { evaluation, diagnostics },
+    recovery,
+    training,
+    leanMass,
+  });
   const state: NutritionStateFull = { evaluation, diagnostics, recommendation };
 
   // A shared viewer computes from the owner's data (RLS) but must not persist —

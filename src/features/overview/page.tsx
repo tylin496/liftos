@@ -427,11 +427,6 @@ function CutProgressCard({
               {" "}· Day <b>{cutDay}</b>
             </span>
           )}
-          {lost != null && lost >= 0.1 && (
-            <span className="goal-day">
-              {" "}· Down <b>{lost.toFixed(1)}</b> kg
-            </span>
-          )}
         </span>
         <span className="goal-head-right">
           <GoalPct target={pct} />
@@ -441,6 +436,11 @@ function CutProgressCard({
       <div className="goal-bar">
         <GoalBarFill target={pct} />
       </div>
+      {lost != null && lost >= 0.1 && (
+        <div className="goal-lost">
+          Down <b>{lost.toFixed(1)}</b> kg
+        </div>
+      )}
       <div className="goal-detail">
         <div className="goal-row">
           <div className="goal-col-label">Goal</div>
@@ -735,9 +735,11 @@ function WeightCard({
       >
         <span className="ov-weight-rate">
           <span className="ov-weight-key">Rate</span>{" "}
-          <span className="ov-weight-val">{trend != null ? fmtTrend(trend, false) : "—"}</span>
-          <MetricDelta value={trend} direction="down-good" decimals={2} arrowOnly />
-
+          {/* Rate is neutral: its signed value shows direction, and the status
+              pill carries the band-aware pace verdict (On pace / Too fast /
+              Below pace). A sign-only colour here read every loss as "good" —
+              even one the Decision Engine is flagging as too fast. */}
+          <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
         </span>
         <span className={`ov-weight-status-pill${tone ? ` is-${tone}` : ""}`}>
           <span className="ov-weight-status-dot" />

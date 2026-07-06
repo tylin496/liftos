@@ -57,7 +57,7 @@ describe("paceLabel", () => {
   it("maps status to a one-word pace read", () => {
     expect(paceLabel(make("on_target", "high").evaluation)).toBe("On pace");
     expect(paceLabel(make("below_target", "high").evaluation)).toBe("Below pace");
-    expect(paceLabel(make("above_target", "high").evaluation)).toBe("Above pace");
+    expect(paceLabel(make("above_target", "high").evaluation)).toBe("Too fast");
     expect(paceLabel(make("below_target", "low").evaluation)).toBe("Calibrating");
   });
 });

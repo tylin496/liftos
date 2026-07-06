@@ -9,7 +9,7 @@
 // and a 14-day body-fat average — instead of using the day's raw readings, so
 // Apple Health noise can't make progress appear to slide backwards.
 
-import { rollingAvg } from "@features/health/math";
+import { rollingAvg, regressionSlope } from "@features/health/math";
 import type { BodyMetric } from "@features/health/api";
 
 export type GoalType = "fat_loss" | "lean_bulk" | "maintenance" | "recomp";
@@ -129,4 +129,60 @@ export function computeGoal(
       bodyFat14dAvg,
     },
   };
+}
+
+// ─── Lean Mass Evaluation (the Decision Engine's body-composition slice) ─────
+
+/** kg/month of lean-mass loss before "hold off on further cuts" is warranted.
+ *  Deliberately dull, not sensitive: this is the scariest directive (it tells
+ *  the user to stop the whole cut), so it must never fire on scale-body-fat
+ *  noise. Only a sustained, well-populated 30-day downslope trips it. */
+const LEAN_MASS_FALL_KG_PER_MONTH = -0.15;
+/** Readings needed inside the 30-day window before the lean-mass slope is
+ *  trustworthy. Lean mass rides on body-fat %, the noisiest input, so a sparse
+ *  window can't support a "stop cutting" call. */
+const LEAN_MASS_MIN_POINTS = 10;
+
+export type LeanMassTrend = "stable" | "falling";
+
+export interface LeanMassEvaluation {
+  trend: LeanMassTrend;
+  /** Fitted lean-mass slope over the trailing 30 days, kg/month; null when the
+   *  window has too few readings to fit a trend. */
+  slopePerMonth: number | null;
+  confidence: "low" | "high";
+}
+
+/** Count of readings falling inside the trailing `days`-day window. */
+function countInWindow(pts: { date: string }[], days: number): number {
+  const last = pts.at(-1)?.date;
+  if (!last) return 0;
+  const cutoff = new Date(last + "T12:00:00");
+  cutoff.setDate(cutoff.getDate() - days + 1);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  return pts.filter((p) => p.date >= cutoffStr).length;
+}
+
+/** Lean mass = weight × (1 − bodyfat). Its 30-day trend is the "am I losing
+ *  muscle?" judgment the Decision Engine reads. Returns a low-confidence "stable"
+ *  whenever the data can't support a confident call, so absence never fires the
+ *  hold-cuts tier. */
+export function buildLeanMassEvaluation(metrics: BodyMetric[]): LeanMassEvaluation {
+  const lmPts = metrics
+    .filter((m) => m.weight_kg != null && m.body_fat_pct != null)
+    .map((m) => ({
+      date: m.metric_date,
+      value: (m.weight_kg as number) * (1 - (m.body_fat_pct as number) / 100),
+    }));
+
+  const slopePerWeek = regressionSlope(lmPts, 30); // kg/week, or null (<5 points)
+  if (slopePerWeek == null) return { trend: "stable", slopePerMonth: null, confidence: "low" };
+
+  const slopePerMonth = +(slopePerWeek * (30 / 7)).toFixed(3);
+  const confidence: LeanMassEvaluation["confidence"] =
+    countInWindow(lmPts, 30) >= LEAN_MASS_MIN_POINTS ? "high" : "low";
+  const trend: LeanMassTrend =
+    confidence === "high" && slopePerMonth <= LEAN_MASS_FALL_KG_PER_MONTH ? "falling" : "stable";
+
+  return { trend, slopePerMonth, confidence };
 }

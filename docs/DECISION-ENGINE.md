@@ -1,7 +1,11 @@
 # LiftOS — Decision Engine（設計 v1）
 
 把 Overview 的 Recommendation 從「只看體重調熱量」升級成**綜合全 app 資料的 weekly directive**。
-狀態：設計定案，尚未實作。
+狀態：**已實作（ladder）**。engine 在 `src/features/overview/recommendations/engine.ts`（`decide()`＝4 層短路），由 `topRecommendation` 對外；四個 slice 在 `evaluationApi.recomputeAndPersist` 組好餵進去。
+
+## 實作與 spec 的兩個刻意偏差
+1. **Tier 1a（Prioritize recovery）改為「recovery POOR 單獨即觸發」**，不強制 AND Training=DECLINING。低 readiness 本身就時效敏感，硬要等訓練退步會在最該休息時噤聲；training load 只用來改文案（沿用既有 recovery provider）。
+2. **cut-rate 顏色一併收斂**：Overview Weight card 的 Rate 箭頭（原本 sign-only，掉就綠）拿掉，rate 數字改中性 signed；pace 判決全歸 status pill，`paceTone`/`paceLabel` 修正為「只有 on-pace 是綠，太快=Too fast/warn，太慢=warn，減重期增重=bad」。綠＝在 band 內，不再是「在掉」。
 
 ## 核心原則
 

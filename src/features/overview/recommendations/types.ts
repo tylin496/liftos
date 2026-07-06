@@ -8,6 +8,8 @@
 
 import type { NutritionEvaluation, NutritionDiagnostics } from "@features/nutrition/evaluation";
 import type { RecoveryEvaluation } from "@features/health/math";
+import type { TrainingEvaluation } from "@features/overview/strength";
+import type { LeanMassEvaluation } from "@features/overview/goal";
 
 export type RecSource = "nutrition" | "training" | "weight" | "recovery";
 
@@ -25,6 +27,8 @@ export interface Recommendation {
 export interface RecContext {
   nutrition?: { evaluation: NutritionEvaluation; diagnostics: NutritionDiagnostics } | null;
   recovery?: RecoveryEvaluation | null;
+  training?: TrainingEvaluation | null;
+  leanMass?: LeanMassEvaluation | null;
 }
 
 export type RecProvider = (ctx: RecContext) => Recommendation | null;

@@ -1,32 +1,26 @@
 import { supabase } from "@shared/lib/supabase";
 import { fetchHealthData, type BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { parse, score } from "@features/training/parser";
-import { epley1RM } from "@features/training/logic";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { computeGoal, cutBaselineAt, type Goal } from "./goal";
 import { saveConfig } from "@features/nutrition/api";
+import {
+  computeStrengthSummary,
+  type StrengthStatus,
+  type StrengthExercise,
+  type StrengthSummary,
+} from "./strength";
 
-export type StrengthStatus = "improving" | "stable" | "watch";
-
-export interface StrengthExercise {
-  slug: string;
-  name: string;
-  status: StrengthStatus;
-  latestE1RM: number;  // most recent session best
-  prE1RM: number;      // all-time best across all sessions
-  trend: number;       // latestE1RM / prE1RM — distance-from-PR ratio that drives `status`
-  stalledWeeks: number; // whole weeks since the last session that set a new best
-  lastLogDate: string;  // ISO date of the most recent session — for staleness labelling
-}
-
-export interface StrengthSummary {
-  improving: number;
-  stable: number;
-  watch: number;
-  total: number; // exercises with enough data
-  exercises: StrengthExercise[];
-}
+// Re-exported so existing consumers keep importing these from `overview/api`
+// (Training Health card, copyAllData export, Training page) unchanged — the
+// computation itself now lives in ./strength. See that file for why the split
+// exists (breaking an overview/api ↔ evaluationApi import cycle).
+export {
+  computeStrengthSummary,
+  type StrengthStatus,
+  type StrengthExercise,
+  type StrengthSummary,
+};
 
 export interface OverviewData {
   weightLatest: number | null;
@@ -61,87 +55,6 @@ export interface OverviewData {
   /** Derived active-calorie target + this-week pace, null until both a goal and a
    *  resting-energy baseline exist. See health/activeTarget.ts. */
   activeTarget: ActiveTargetView | null;
-}
-
-/** Logs grouped by exercise slug — the only shape the strength computation
- *  needs. Rows may arrive in any date order (sorted internally). */
-type LogsBySlug = Record<string, Array<{ log_date: string | null; raw: string | null }>>;
-
-/**
- * Per-exercise strength trend — the single source for the Training Health card,
- * shared by Overview (fetchOverview) and the Training tab (computed from the
- * logs it already holds). Needs ≥4 sessions per exercise to compare recent-3
- * vs prior. Pure: pass logs grouped by slug, get the summary back.
- */
-export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary {
-  const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, total: 0, exercises: [] };
-
-  for (const [slug, slugLogs] of Object.entries(logsBySlug)) {
-    // Performance trend: need ≥4 logs to compare recent 3 vs prior sessions
-    if (slugLogs.length < 4) continue;
-    strength.total++;
-
-    // Group by date (a day = one session), take best e1RM per date
-    const byDate: Record<string, number> = {};
-    for (const l of slugLogs) {
-      if (!l.log_date || !l.raw) continue;
-      const p = parse(l.raw);
-      if (!p) continue;
-      const w = score(p);
-      if (!Number.isFinite(w)) continue;
-      const e = epley1RM(w, p.reps);
-      byDate[l.log_date] = Math.max(byDate[l.log_date] ?? 0, e);
-    }
-    // Sort ascending by date so recent/prior slices are correct regardless of
-    // the caller's row order (Overview queries asc; the Training tab keeps logs
-    // newest-first).
-    const datedBests = Object.entries(byDate)
-      .filter(([, v]) => v > 0)
-      .sort(([a], [b]) => a.localeCompare(b));
-    const sessionBests = datedBests.map(([, v]) => v);
-    if (sessionBests.length < 4) { strength.total--; continue; }
-
-    const latestE1RM = sessionBests[sessionBests.length - 1];
-    const prE1RM = Math.max(...sessionBests);
-
-    // Status = distance from PR, NOT recent-vs-prior slope. This user logs
-    // asymmetrically — they only record a session when strength DROPS (or on a
-    // PR); maintained days are left unlogged. So a recent-vs-prior slope reads
-    // that biased sample as decline even while they're holding. Judging purely
-    // by "how far below PR is the last recorded session" makes maintenance the
-    // healthy default and only flags a genuine, meaningful drop.
-    const pct = prE1RM > 0 ? latestE1RM / prE1RM : 0;
-    let status: StrengthStatus;
-    if (pct >= 0.997) { strength.improving++; status = "improving"; }  // at / new PR
-    else if (pct >= 0.94) { strength.stable++; status = "stable"; }    // holding
-    else { strength.watch++; status = "watch"; }                      // real drop below PR
-
-    // Weeks stalled: span from the last session that set a new running best to
-    // the most recent session. A rising lift lands its PR on (or near) the last
-    // session → ~0; a stalled one carries weeks of no new best.
-    let runningMax = -Infinity;
-    let prDate = datedBests[0][0];
-    for (const [date, e] of datedBests) {
-      if (e > runningMax) { runningMax = e; prDate = date; }
-    }
-    const lastDate = datedBests[datedBests.length - 1][0];
-    const stalledWeeks = Math.floor(
-      (Date.parse(lastDate) - Date.parse(prDate)) / (7 * 24 * 60 * 60 * 1000),
-    );
-
-    strength.exercises.push({
-      slug,
-      name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-      status,
-      latestE1RM,
-      prE1RM,
-      trend: pct,
-      stalledWeeks,
-      lastLogDate: lastDate,
-    });
-  }
-
-  return strength;
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
@@ -248,4 +161,3 @@ export async function saveCutBaseline(startDate: string, metrics: BodyMetric[]) 
     cut_start_weight: weightKg,
   });
 }
-

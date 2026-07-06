@@ -147,25 +147,30 @@ export function paceLabel(evaluation: NutritionEvaluation): string {
   if (evaluation.confidence === "low") return "Calibrating";
   if (evaluation.status === "on_target") return "On pace";
   if (evaluation.confidence !== "high") return "Forming";
-  return evaluation.status === "below_target" ? "Below pace" : "Above pace";
+  // Losing too fast is "Too fast", not "Above pace": on a cut it's a muscle risk
+  // the Decision Engine wants corrected, not a lead to celebrate.
+  return evaluation.status === "below_target" ? "Below pace" : "Too fast";
 }
 
 export type PaceTone = "good" | "warn" | "bad" | null;
 
 /** Severity colour for the pace status word (COLOR-SYSTEM rule 3: status words
- *  carry severity colour whether badge or plain text). On/ahead of pace = good;
- *  slower than planned = caution; actually gaining weight during a cut = bad.
- *  Inconclusive/untracked reads (Calibrating / Forming / Not tracked) stay
- *  neutral. Kept beside paceLabel so the word and its colour never diverge. */
+ *  carry severity colour whether badge or plain text). Only *on pace* is good;
+ *  outside the band either way (too fast OR too slow) is a caution; actually
+ *  gaining weight during a cut is bad. This mirrors the Decision Engine — losing
+ *  too fast is a muscle risk it corrects, not a lead — so the pace pill and the
+ *  System card can never disagree. Inconclusive/untracked reads (Calibrating /
+ *  Forming / Not tracked) stay neutral. Kept beside paceLabel so word and colour
+ *  never diverge. */
 export function paceTone(evaluation: NutritionEvaluation): PaceTone {
   const noActiveTarget = evaluation.targetRange.min === evaluation.targetRange.max;
   if (noActiveTarget) return null;                    // Not tracked
   if (evaluation.confidence === "low") return null;   // Calibrating
   if (evaluation.status === "on_target") return "good"; // On pace
   if (evaluation.confidence !== "high") return null;  // Forming — not conclusive
-  if (evaluation.status === "above_target") return "good"; // Above pace (ahead)
-  // Below pace: slower than planned, or — if the trend is upward — outright
-  // gaining weight during the cut, which is the worst read.
+  // Outside the band, either direction, is a caution — too fast (loss > band) is
+  // a muscle risk, too slow (loss < band) is stalled progress. Only outright
+  // gaining weight during the cut (observedRate > 0) is the worst read.
   return evaluation.observedRate > 0 ? "bad" : "warn";
 }
 
