@@ -337,13 +337,14 @@ function AddExerciseForm({
   onAdd,
   onCancel,
 }: {
-  onAdd: (name: string, target: string, note: string, assisted: boolean) => void;
+  onAdd: (name: string, target: string, note: string, assisted: boolean, compound: boolean) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [note, setNote] = useState("");
   const [assisted, setAssisted] = useState(false);
+  const [compound, setCompound] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
   // Opens at the bottom of the page with an auto-focused field — keep its
@@ -355,7 +356,7 @@ function AddExerciseForm({
     if (!name.trim()) return;
     // Don't clear the fields here: on success the parent unmounts this form, on
     // error it stays open — resetting would wipe the user's input on failure.
-    onAdd(name.trim(), target.trim(), note.trim(), assisted);
+    onAdd(name.trim(), target.trim(), note.trim(), assisted, compound);
   }
 
   return (
@@ -404,6 +405,14 @@ function AddExerciseForm({
               onChange={(e) => setAssisted(e.target.checked)}
             />
             Assisted mode
+          </label>
+          <label className="add-ex-opt">
+            <input
+              type="checkbox"
+              checked={compound}
+              onChange={(e) => setCompound(e.target.checked)}
+            />
+            Compound
           </label>
           <button
             type="submit"
@@ -744,10 +753,11 @@ function TrainingPageInner() {
     target: string,
     note: string,
     assisted: boolean,
+    compound: boolean,
   ) {
     try {
       const userId = await currentUserId();
-      await addExercise(userId, split, name, target, note, assisted);
+      await addExercise(userId, split, name, target, note, assisted, compound);
       setAddingExercise(false);
       await reloadAll();
       toast(`${name} added`, "success");

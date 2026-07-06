@@ -29,6 +29,7 @@ export function EditExerciseForm({
   const [name, setName] = useState(exercise.name);
   const [target, setTarget] = useState(exercise.target ?? "");
   const [note, setNote] = useState(exercise.note ?? "");
+  const [compound, setCompound] = useState(exercise.compound);
   const [saving, setSaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -46,6 +47,7 @@ export function EditExerciseForm({
         name: name.trim(),
         target: target.trim() || null,
         note: note.trim() || null,
+        compound,
       });
       onCancel();
     } finally {
@@ -106,6 +108,17 @@ export function EditExerciseForm({
             maxLength={80}
           />
         </div>
+
+        {/* Compound lifts get round-weight Milestone celebrations (see
+            milestone.ts); machine isolations don't. */}
+        <label className="add-ex-opt">
+          <input
+            type="checkbox"
+            checked={compound}
+            onChange={(e) => setCompound(e.target.checked)}
+          />
+          Compound lift
+        </label>
       </div>
 
       <div className="edit-exercise-actions">

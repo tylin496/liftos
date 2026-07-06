@@ -145,6 +145,7 @@ export async function addExercise(
   target?: string,
   note?: string,
   assistedMode?: boolean,
+  compound?: boolean,
 ): Promise<Exercise> {
   // Find current max sort_order for this split. A failed read here would
   // silently place the new exercise at sort_order 0 (colliding at the top),
@@ -170,6 +171,7 @@ export async function addExercise(
     target: target?.trim() || null,
     note: note?.trim() || null,
     assisted_mode: assistedMode ?? false,
+    compound: compound ?? false,
     sort_order: maxOrder + 1,
     archived: false,
   };
