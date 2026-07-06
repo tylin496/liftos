@@ -182,6 +182,16 @@
   color: var(--role-secondary-color);
 }
 
+/* Current intake goal's tenure — a quiet caption below the reason. The day
+   count is lifted to darker/heavier ink (.ni-conf-day) so it carries the line. */
+.ni-rec-tenure {
+  margin: var(--space-2) 0 0;
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
+  line-height: var(--leading-body);
+}
+
 /* Supporting numbers — below a divider, grouped by the order a reader judges
    them: Weight-loss pace (Observed vs Target, paired) → Est. intake (the
    why) → Confidence (a closing stamp, sunk to the bottom). */
@@ -278,44 +288,11 @@
 .ni-status-dot.status-gold { background: var(--warn); }
 .ni-status-dot.status-bad  { background: var(--bad); }
 
-/* Confidence cell is tappable when its value needs explaining (fresh target). */
-.ni-cell-expandable {
-  cursor: pointer;
-}
-
-.ni-cell-caret {
-  display: inline-block;
-  margin-left: 6px;
-  color: var(--role-caption-color);
-  font-family: var(--font-ui);
-  transition: transform var(--dur-press) var(--ease-press);
-}
-
-.ni-cell-expandable[aria-expanded="true"] .ni-cell-caret {
-  transform: rotate(90deg);
-}
-
-/* Revealed explanation for a capped confidence — reads as a caption. */
-.ni-conf-reason {
-  margin: 0;
-  padding-top: var(--space-3);
-  font-size: var(--role-caption-size);
-  font-weight: var(--role-caption-weight);
-  color: var(--role-caption-color);
-  line-height: var(--leading-body);
-}
-
-/* Tenure phrase (today / N days) lifted one tier above the caption —
-   darker ink + heavier weight so the day count carries the sentence. */
+/* Tenure day count (today / N days) in the "On this target" line — darker ink +
+   heavier weight so the number carries the caption. */
 .ni-conf-day {
   font-weight: 700;
   color: var(--ink-2);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ni-cell-caret {
-    transition: none;
-  }
 }
 
 /* ── Skeleton loading state ────────────────────────────────────────────── */

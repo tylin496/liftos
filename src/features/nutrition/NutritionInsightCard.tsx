@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
-import { MIN_TREND_POINTS, confidenceReason } from "./evaluation";
+import { MIN_TREND_POINTS } from "./evaluation";
 import { nutritionDecision, rateTone } from "./recommendation";
 import "./nutrition.css";
 
@@ -30,23 +30,6 @@ function AnimatedInt({ value }: { value: number; delayMs?: number }) {
 }
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
-
-// The confidence reason ends with a tenure phrase — "today" or "N day(s)".
-// Lift that phrase one tier above the caption so the day count reads as the
-// point of the sentence, not buried in the footnote.
-function renderConfReason(reason: string) {
-  const m = reason.match(/(today|\d+\s+days?)(?=\.?$)/);
-  if (!m) return reason;
-  const start = m.index!;
-  const end = start + m[0].length;
-  return (
-    <>
-      {reason.slice(0, start)}
-      <strong className="ni-conf-day">{m[0]}</strong>
-      {reason.slice(end)}
-    </>
-  );
-}
 
 // Observed rate carries a leading dot coloured by distance from the target
 // band (in-band green / near an edge amber / materially off red) — both too
@@ -75,43 +58,20 @@ function EvidenceCell({
   value,
   dot,
   full,
-  expandable,
-  open,
-  onToggle,
   emphasis,
 }: {
   label: string;
   value: string;
   dot?: "good" | "gold" | "bad";
   full?: boolean;
-  expandable?: boolean;
-  open?: boolean;
-  onToggle?: () => void;
   emphasis?: "primary" | "tertiary" | "quiet";
 }) {
   return (
-    <div
-      className={`ni-cell${full ? " ni-cell-full" : ""}${expandable ? " ni-cell-expandable" : ""}`}
-      role={expandable ? "button" : undefined}
-      tabIndex={expandable ? 0 : undefined}
-      aria-expanded={expandable ? open : undefined}
-      onClick={expandable ? onToggle : undefined}
-      onKeyDown={
-        expandable
-          ? (ev) => {
-              if (ev.key === "Enter" || ev.key === " ") {
-                ev.preventDefault();
-                onToggle?.();
-              }
-            }
-          : undefined
-      }
-    >
+    <div className={`ni-cell${full ? " ni-cell-full" : ""}`}>
       <span className="ni-cell-label">{label}</span>
       <span className={`ni-cell-value${emphasis ? ` ni-cell-value--${emphasis}` : ""}`}>
         {dot && <span className={`ni-status-dot status-${dot}`} aria-hidden="true" />}
         {value}
-        {expandable && <span className="ni-cell-caret" aria-hidden="true">›</span>}
       </span>
     </div>
   );
@@ -121,7 +81,6 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
   const [state, setState] = useState<NutritionStateFull | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [freshTarget, setFreshTarget] = useState(false);
-  const [confOpen, setConfOpen] = useState(false);
   // Last proposed target we rendered, so we can pulse only when it actually
   // changes — not on first load and not on every re-render.
   const prevProposedRef = useRef<number | null>(null);
@@ -176,9 +135,6 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
   // observedRate is a 0-fallback when the trend couldn't be fit (<5 readings);
   // show "—" instead of a fabricated "±0.00 kg/wk".
   const hasTrend = d ? d.weightDataPoints >= MIN_TREND_POINTS : false;
-  // Why confidence is capped, revealed on tap — only when a fresh target is the
-  // reason (see confidenceReason). Null → the Confidence cell isn't expandable.
-  const confReason = !noData && !loading && e && d ? confidenceReason(e, d) : null;
 
   return (
     <section id="nutrition-insight-card" className={`page-card ni-card${loading ? " loading-card" : ""}`}>
@@ -226,6 +182,22 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
               ? decision.reason
               : "Log a few days and sync your weight to see how the cut is tracking."}
         </p>
+
+        {/* Current intake goal's tenure — how long this calorie target has been
+            active (daysOnTarget). Always visible: it used to surface only inside
+            the capped-confidence tap-reason, so at High confidence it vanished.
+            Worded "this target" to stay distinct from the cut's total Day-N on
+            the Overview Cut Progress card. */}
+        {!loading && decision && d && hasTrend && (
+          <p className="ni-rec-tenure">
+            On this target ·{" "}
+            <strong className="ni-conf-day">
+              {d.daysOnTarget <= 0
+                ? "today"
+                : `${d.daysOnTarget} ${d.daysOnTarget === 1 ? "day" : "days"}`}
+            </strong>
+          </p>
+        )}
       </div>
 
       {/* Supporting numbers, grouped by the order a reader judges them. */}
@@ -275,22 +247,16 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
         />
 
         {/* Confidence — meta tier, sinks to the bottom as a closing stamp
-            rather than a fourth parallel number. */}
+            rather than a fourth parallel number. The "why capped" tap-reason was
+            dropped: its only content was the target's tenure, which the always-on
+            "On this target · N days" line above now states plainly. */}
         <EvidenceCell
           label="Confidence"
           value={!noData && !loading ? (CONFIDENCE_LABEL[e!.confidence] ?? e!.confidence) : "—"}
           dot={!noData && !loading && e ? CONFIDENCE_DOT[e.confidence] : undefined}
-          expandable={confReason != null}
-          open={confOpen}
-          onToggle={() => setConfOpen((v) => !v)}
           emphasis="tertiary"
           full
         />
-        {/* Revealed reason spans the card, but reads as part of Confidence.
-            The tenure phrase (today / N days) is lifted one tier to carry it. */}
-        {confReason && confOpen && (
-          <p className="ni-conf-reason">{renderConfReason(confReason)}</p>
-        )}
       </div>
     </section>
   );
