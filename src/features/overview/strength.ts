@@ -18,7 +18,7 @@ export interface StrengthExercise {
   latestE1RM: number;  // most recent session best
   prE1RM: number;      // all-time best across all sessions
   trend: number;       // latestE1RM / prE1RM — distance-from-PR ratio that drives `status`
-  stalledWeeks: number; // whole weeks since the last session that set a new best
+  stalledWeeks: number; // whole weeks since the last PR on EITHER axis (e1RM ceiling or heaviest weight)
   lastLogDate: string;  // ISO date of the most recent session — for staleness labelling
 }
 
@@ -48,8 +48,10 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
     if (slugLogs.length < 4) continue;
     strength.total++;
 
-    // Group by date (a day = one session), take best e1RM per date
-    const byDate: Record<string, number> = {};
+    // Group by date (a day = one session); keep the best on BOTH axes — max e1RM
+    // (the status/retention number) and max completed weight (the Performance-PR
+    // axis, used only to reset the stall clock below).
+    const byDate: Record<string, { e1rm: number; weightKg: number }> = {};
     for (const l of slugLogs) {
       if (!l.log_date || !l.raw) continue;
       const p = parse(l.raw);
@@ -57,15 +59,16 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       const w = score(p);
       if (!Number.isFinite(w)) continue;
       const e = epley1RM(w, p.reps);
-      byDate[l.log_date] = Math.max(byDate[l.log_date] ?? 0, e);
+      const cur = byDate[l.log_date] ?? { e1rm: 0, weightKg: 0 };
+      byDate[l.log_date] = { e1rm: Math.max(cur.e1rm, e), weightKg: Math.max(cur.weightKg, w) };
     }
     // Sort ascending by date so recent/prior slices are correct regardless of
     // the caller's row order (Overview queries asc; the Training tab keeps logs
     // newest-first).
     const datedBests = Object.entries(byDate)
-      .filter(([, v]) => v > 0)
+      .filter(([, v]) => v.e1rm > 0)
       .sort(([a], [b]) => a.localeCompare(b));
-    const sessionBests = datedBests.map(([, v]) => v);
+    const sessionBests = datedBests.map(([, v]) => v.e1rm);
     if (sessionBests.length < 4) { strength.total--; continue; }
 
     const latestE1RM = sessionBests[sessionBests.length - 1];
@@ -83,13 +86,26 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
     else if (pct >= 0.94) { strength.stable++; status = "stable"; }    // holding
     else { strength.watch++; status = "watch"; }                      // real drop below PR
 
-    // Weeks stalled: span from the last session that set a new running best to
-    // the most recent session. A rising lift lands its PR on (or near) the last
-    // session → ~0; a stalled one carries weeks of no new best.
-    let runningMax = -Infinity;
+    // Weeks stalled: span from the last session that set a PR on EITHER axis to
+    // the most recent session. "Either axis" mirrors classifyPR's first two
+    // branches (training/logic.ts) — a new rounded-e1RM ceiling OR a new heaviest
+    // completed weight — so a heavier top set that Epley rates flat (77kg×7 ≈
+    // 75kg×8, a Performance PR) still resets the clock. That keeps a lift making
+    // real weight-axis progress OUT of the Decision Engine's "declining" read
+    // (buildTrainingEvaluation gates decline on stalledWeeks ≥ 3). The reps-
+    // tiebreak third branch needs setCount (not threaded here) and is left out —
+    // see docs/PERFORMANCE-PR.md. Status/retention stay pure e1RM (above); only
+    // the stall clock gains the weight axis.
+    let runMaxE1 = -Infinity;
+    let runMaxWeight = -Infinity;
     let prDate = datedBests[0][0];
-    for (const [date, e] of datedBests) {
-      if (e > runningMax) { runningMax = e; prDate = date; }
+    for (const [date, v] of datedBests) {
+      const isPR =
+        Math.round(v.e1rm * 10) / 10 > Math.round(runMaxE1 * 10) / 10 ||
+        v.weightKg > runMaxWeight;
+      if (isPR) prDate = date;
+      if (v.e1rm > runMaxE1) runMaxE1 = v.e1rm;
+      if (v.weightKg > runMaxWeight) runMaxWeight = v.weightKg;
     }
     const lastDate = datedBests[datedBests.length - 1][0];
     const stalledWeeks = Math.floor(
