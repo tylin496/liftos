@@ -51,6 +51,15 @@
 .tr-slide-left .ex-card,
 .tr-slide-right .ex-card { animation: none; }
 
+/* Live-drag target for the split swipe (page.tsx useHorizontalSwipe) — JS drives
+   its transform directly, so no transition here (each drag frame sets
+   transition:none; only onDragEnd's snap-back opts into one). pan-y keeps
+   vertical scroll native while the gesture's axis is still undetermined. */
+.tr-split-swipe {
+  touch-action: pan-y;
+  overflow-x: hidden;
+}
+
 /* ── Exercise list ───────────────────────────────────────────────────────────*/
 .tr-list {
   display: flex;

@@ -33,7 +33,9 @@ import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { useIsReadOnly } from "@app/layout/SessionContext";
+import { useNav } from "@app/layout/NavContext";
 import { getActiveScroller } from "@app/layout/activeScroller";
+import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
 import { EditIcon } from "./EditIcon";
 import "./training.css";
@@ -548,10 +550,8 @@ function TrainingPageInner() {
     Map<string, { undone: boolean; timer: ReturnType<typeof setTimeout> }>
   >(new Map());
 
-  // Splits are switched via the SegmentedControl only. Horizontal swipe here is
-  // intentionally left to bubble to Shell's tab-swipe, so the gesture means the
-  // same thing everywhere (switch tab). Nutrition keeps its own day/week swipe
-  // because those have no equivalent control.
+  // Splits are switched via the SegmentedControl or a horizontal swipe over the
+  // exercise list (see splitSwipeRef below) — both funnel through here.
   function changeSplit(id: SplitId) {
     prevSplitIdx.current = splitIds.indexOf(split);
     didSwitchRef.current = true;
@@ -559,6 +559,72 @@ function TrainingPageInner() {
     sessionStorage.setItem("tr-split", id);
     getActiveScroller()?.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  const nav = useNav();
+  // Listener target for the split swipe — the whole page, so the gesture works
+  // no matter where over the list the finger lands. Stable across split changes
+  // (unlike the keyed .tr-list below), which the listener effect depends on.
+  const pageRootRef = useRef<HTMLDivElement>(null);
+  // Transform target for the LIVE drag — narrower than the listener: only the
+  // exercise-list wrapper visually pages, not the header/segmented control.
+  // Also stable across split changes for the same reason.
+  const splitListWrapRef = useRef<HTMLDivElement>(null);
+  // True the instant a swipe resolves into a real navigation (split change or
+  // tab hand-off) — read by onDragEnd to skip the animated snap-back, since the
+  // resulting remount/tab-switch already supplies its own transition.
+  const splitSwipeCommittedRef = useRef(false);
+
+  // A horizontal swipe within a split pages to the next/previous split, exactly
+  // like tapping the SegmentedControl. Swiping further at either end — past the
+  // first or last split — continues on to the neighbouring app tab (Overview
+  // before Push, Nutrition after the last split), so "keep swiping" reads as one
+  // continuous gesture across both levels of paging.
+  function handleSplitSwipe(dir: 1 | -1) {
+    splitSwipeCommittedRef.current = true;
+    const idx = splitIds.indexOf(split);
+    if (dir === 1) {
+      if (idx < splitIds.length - 1) changeSplit(splitIds[idx + 1]);
+      else nav("nutrition");
+    } else {
+      if (idx > 0) changeSplit(splitIds[idx - 1]);
+      else nav("overview");
+    }
+  }
+
+  useHorizontalSwipe(pageRootRef, handleSplitSwipe, {
+    // A text-heavy form covers the list while adding an exercise — a stray
+    // horizontal drag while composing a name shouldn't page the split away.
+    enabled: !addingExercise,
+    pointer: true,
+    // Whole list follows the finger 1:1 within a split; rubber-band at either
+    // end signals "this is the edge" before a decisive swipe/flick hands off to
+    // the neighbouring tab (handleSplitSwipe, always resolves to something at
+    // the edges — there's no further "can't go" state to dead-end into).
+    onDrag: (dx) => {
+      const el = splitListWrapRef.current;
+      if (!el) return;
+      const idx = splitIds.indexOf(split);
+      const atEdge = (dx < 0 && idx === splitIds.length - 1) || (dx > 0 && idx === 0);
+      const offset = atEdge ? Math.sign(dx) * Math.min(72, Math.abs(dx) * 0.2) : dx;
+      el.style.transition = "none";
+      el.style.transform = `translateX(${offset}px)`;
+    },
+    onDragEnd: () => {
+      const el = splitListWrapRef.current;
+      if (!el) return;
+      if (splitSwipeCommittedRef.current) {
+        // Committed: either the list remounts and plays its own slide-enter
+        // animation, or the tab is switching away — clear instantly so the drag
+        // transform doesn't fight either.
+        splitSwipeCommittedRef.current = false;
+        el.style.transition = "none";
+        el.style.transform = "";
+      } else {
+        el.style.transition = "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)";
+        el.style.transform = "";
+      }
+    },
+  });
 
   // Training Health row → jump to that lift's card and open its Trend. Switch to
   // the lift's split first if it lives in another one, then bump jumpTarget: the
@@ -810,7 +876,7 @@ function TrainingPageInner() {
   }, [logs, exercises]);
 
   return (
-    <div className="page tr-page">
+    <div className="page tr-page" ref={pageRootRef}>
       <div className="shell-header">
         <PageTopBar
           eyebrow="TRAINING"
@@ -873,42 +939,47 @@ function TrainingPageInner() {
       )}
 
       {/* ── Exercise cards ── */}
-      <div
-        key={split}
-        className={`tr-list ${
-          didSwitchRef.current
-            ? `tr-slide-${splitIds.indexOf(split) > prevSplitIdx.current ? "left" : "right"}`
-            : "tr-enter"
-        }`}
-      >
-        {activeExercises.map((ex, idx) => (
-          <ExerciseCard
-            key={ex.slug}
-            exercise={ex}
-            logs={logs[ex.slug] ?? []}
-            timeFilter={timeFilter}
-            expandedLogId={expandedLogId}
-            setExpandedLogId={setExpandedLogId}
-            onLogged={reloadLogs}
-            onLogAdded={onLogAdded}
-            onUpdate={(patch) =>
-              setExercises((prev) =>
-                (prev ?? []).map((e) =>
-                  e.slug === ex.slug ? { ...e, ...patch } : e,
-                ),
-              )
-            }
-            onMoveUp={idx > 0 ? () => handleMoveUp(ex.slug) : undefined}
-            onMoveDown={
-              idx < activeExercises.length - 1
-                ? () => handleMoveDown(ex.slug)
-                : undefined
-            }
-            isFirst={idx === 0}
-            isLast={idx === activeExercises.length - 1}
-            openTrendSignal={jumpTarget?.slug === ex.slug ? jumpTarget.nonce : null}
-          />
-        ))}
+      {/* Stable wrapper (not keyed by split) — the swipe's live-drag transform
+          target. The keyed .tr-list inside still remounts per split for its own
+          slide-enter animation on commit. */}
+      <div ref={splitListWrapRef} className="tr-split-swipe">
+        <div
+          key={split}
+          className={`tr-list ${
+            didSwitchRef.current
+              ? `tr-slide-${splitIds.indexOf(split) > prevSplitIdx.current ? "left" : "right"}`
+              : "tr-enter"
+          }`}
+        >
+          {activeExercises.map((ex, idx) => (
+            <ExerciseCard
+              key={ex.slug}
+              exercise={ex}
+              logs={logs[ex.slug] ?? []}
+              timeFilter={timeFilter}
+              expandedLogId={expandedLogId}
+              setExpandedLogId={setExpandedLogId}
+              onLogged={reloadLogs}
+              onLogAdded={onLogAdded}
+              onUpdate={(patch) =>
+                setExercises((prev) =>
+                  (prev ?? []).map((e) =>
+                    e.slug === ex.slug ? { ...e, ...patch } : e,
+                  ),
+                )
+              }
+              onMoveUp={idx > 0 ? () => handleMoveUp(ex.slug) : undefined}
+              onMoveDown={
+                idx < activeExercises.length - 1
+                  ? () => handleMoveDown(ex.slug)
+                  : undefined
+              }
+              isFirst={idx === 0}
+              isLast={idx === activeExercises.length - 1}
+              openTrendSignal={jumpTarget?.slug === ex.slug ? jumpTarget.nonce : null}
+            />
+          ))}
+        </div>
       </div>
 
       {/* ── Stretches ── */}

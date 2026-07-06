@@ -317,15 +317,18 @@ export function Shell({ session }: { session: Session }) {
   // swipe by kicking off from dx:0 and letting the CSS transition run.
   function switchTab(next: TabId, options?: NavOptions) {
     if (next === tab) {
-      // Re-tapping the already-active tab is a no-op — it no longer scrolls to
-      // top. A caller asking for a specific target (e.g. Weight → Nutrition's
-      // insight card) still jumps there.
+      // Re-tapping the already-active tab bar icon scrolls its panel to top —
+      // the standard "tap the tab you're on to go home" gesture. A caller asking
+      // for a specific target (e.g. Weight → Nutrition's insight card) jumps
+      // there instead.
       if (options?.scrollTo) {
         // Auto-scrolls the active panel (its nearest scrollable ancestor).
         document.getElementById(options.scrollTo)?.scrollIntoView({
           behavior: "smooth",
           block: "start",
         });
+      } else {
+        panelRefs.current[tab]?.scrollTo({ top: 0, behavior: "smooth" });
       }
       return;
     }
