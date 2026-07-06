@@ -27,6 +27,42 @@ function weeksAgo(isoDate: string, nowMs: number): number {
   return Math.floor((nowMs - t) / WEEK_MS);
 }
 
+// ── Snapshot summary line: a tiny decision engine, not a fixed readout ───────
+// The Overview snapshot has one summary line, and Training Health should never
+// open on only bad news. Line 2 already carries "N of M lifts on track", so
+// this line is free to lead with the single best true thing to say today,
+// chosen by importance:
+//   1. a fresh PR this week  → the most rewarding signal; it wins even when
+//      other lifts still need attention (that count is on the line above, so
+//      it's never lost — we just don't headline with it)
+//   2. everything on track   → nothing is flagged, so say so plainly
+//   3. lifts need attention  → the honest fallback when there's no win to show
+// Every branch is derivable from the snapshot alone. In particular we never
+// infer "recovering" or "plateau broken" — those need prior state, and the app
+// deliberately never guesses progress from unlogged maintenance (silence = no
+// info), so surfacing them here would contradict the rest of the card.
+type SnapshotHighlight =
+  | { kind: "pr"; count: number }
+  | { kind: "clear" }
+  | { kind: "attention"; count: number };
+
+function snapshotHighlight(
+  exercises: StrengthExercise[],
+  watch: number,
+  nowMs: number,
+): SnapshotHighlight {
+  // Fresh PR = the most recent session (within the past week) sat at the
+  // all-time best. latestE1RM can never exceed prE1RM (the max includes it), so
+  // `>=` means the latest session set or tied the record — honest from the
+  // snapshot, no history needed.
+  const freshPRs = exercises.filter(
+    (e) => e.latestE1RM >= e.prE1RM && weeksAgo(e.lastLogDate, nowMs) < 1,
+  ).length;
+  if (freshPRs > 0) return { kind: "pr", count: freshPRs };
+  if (watch === 0) return { kind: "clear" };
+  return { kind: "attention", count: watch };
+}
+
 function StaleHint({ isoDate, nowMs }: { isoDate: string; nowMs: number }) {
   const w = weeksAgo(isoDate, nowMs);
   if (w < STALE_WEEKS) return null;
@@ -196,6 +232,8 @@ export function StrengthHealthCard({
   // Now is read once per render for the staleness labels. Fine as a plain read —
   // it only drives a "logged Nw ago" hint, nothing that needs to be reactive.
   const nowMs = Date.now();
+  // The snapshot's one summary line, chosen by importance (see snapshotHighlight).
+  const highlight = snapshotHighlight(strength.exercises, attention, nowMs);
 
   // Expanding On Track drops rows below the fold, where the floating tabbar can
   // clip them — nudge the section into view once the rows have rendered.
@@ -311,16 +349,25 @@ export function StrengthHealthCard({
         {bar}
         <div className="ov-th-fold">
           <span className="ov-th-fold-left">
-            {attention > 0 && (
+            {highlight.kind === "pr" && (
               <>
-                <span className="ov-th-fold-chip">{attention}</span>
-                <span className="ov-th-fold-text">need attention</span>
-                <span className="ov-th-fold-sep" aria-hidden>·</span>
+                <span className="ov-th-fold-emoji" aria-hidden>🔥</span>
+                <span className="ov-th-fold-text">
+                  {highlight.count === 1
+                    ? "New PR this week"
+                    : `${highlight.count} new PRs this week`}
+                </span>
               </>
             )}
-            <span className="ov-th-fold-text ov-th-fold-text--muted">
-              {onTrackExercises.length} on track
-            </span>
+            {highlight.kind === "clear" && (
+              <span className="ov-th-fold-text">All tracked lifts on track</span>
+            )}
+            {highlight.kind === "attention" && (
+              <>
+                <span className="ov-th-fold-chip">{highlight.count}</span>
+                <span className="ov-th-fold-text">need attention</span>
+              </>
+            )}
           </span>
         </div>
       </button>

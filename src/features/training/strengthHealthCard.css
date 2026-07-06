@@ -204,8 +204,12 @@
   color: var(--ink-3);
 }
 
-.ov-th-fold-sep {
-  color: var(--rule-strong);
+/* Win emoji (🔥) leading the summary line when there's a PR to celebrate.
+   Sized to the text beside it; the emoji is the whole colour signal on this
+   line (the gold/red tokens stay off it), matching reward-emoji use elsewhere. */
+.ov-th-fold-emoji {
+  font-size: var(--text-sm);
+  line-height: 1;
   flex-shrink: 0;
 }
 
