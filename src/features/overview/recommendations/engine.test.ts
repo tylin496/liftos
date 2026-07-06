@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { decide } from "./engine";
-import type { RecContext } from "./types";
+import type { RecContext, Recommendation } from "./types";
 import type {
   NutritionEvaluation,
   NutritionDiagnostics,
@@ -47,9 +47,11 @@ const recovery = (
   trainingLoad: RecoveryEvaluation["trainingLoad"] = null,
 ): RecoveryEvaluation => ({
   status,
-  score: status === "Needs Recovery" ? 0 : status === "Ready" ? 3 : 2,
+  score: status === "Ready" ? 3 : status === "Good" ? 2 : status === "Fair" ? 1 : 0,
   trainingLoad,
 });
+
+const priorRec = (title: string): Recommendation => ({ source: "weight", priority: 0, title, subtitle: "" });
 
 const training = (
   trend: TrainingEvaluation["trend"],
@@ -162,5 +164,38 @@ describe("Decision Engine — precedence ladder", () => {
   it("PR needs training evidence — absence keeps it at maintain", () => {
     const rec = decide({ nutrition: nutrition({ status: "on_target" }), recovery: recovery("Ready") });
     expect(rec?.title).toBe("No action needed");
+  });
+});
+
+describe("Decision Engine — exit hysteresis (no flip-flop)", () => {
+  it("holds 'Prioritize recovery' through a dip to Fair once it's showing", () => {
+    const rec = decide(
+      { nutrition: nutrition({ status: "on_target" }), recovery: recovery("Fair") },
+      priorRec("Prioritize recovery"),
+    );
+    expect(rec?.title).toBe("Prioritize recovery");
+  });
+
+  it("does NOT surface recovery on a fresh Fair (no prior directive)", () => {
+    const rec = decide({ nutrition: nutrition({ status: "on_target" }), recovery: recovery("Fair") });
+    expect(rec?.title).not.toBe("Prioritize recovery");
+  });
+
+  it("releases recovery once readiness climbs back to Good", () => {
+    const rec = decide(
+      { nutrition: nutrition({ status: "on_target" }), recovery: recovery("Good") },
+      priorRec("Prioritize recovery"),
+    );
+    expect(rec?.title).not.toBe("Prioritize recovery");
+  });
+
+  it("holds 'Increase activity' near the band edge once it's showing", () => {
+    // loss 0.30, band [0.40,0.70]: on_pace at the enter-margin (min−0.15=0.25),
+    // but slow at the exit-margin (min−0.05=0.35) — so it only holds with a prior.
+    const ctx: RecContext = {
+      nutrition: nutrition({ status: "below_target", observedRate: -0.3, confidence: "high", daysOnTarget: 30 }),
+    };
+    expect(decide(ctx)?.title).not.toBe("Increase activity");
+    expect(decide(ctx, priorRec("Increase activity"))?.title).toBe("Increase activity");
   });
 });

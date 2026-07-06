@@ -13,26 +13,33 @@
 // won't fix it. That distinction is why exercise_minutes earns its place: it
 // changes the advice, not just a displayed number.
 
-import type { RecProvider } from "./types";
+import type { RecProvider, Recommendation } from "./types";
+import type { RecoveryEvaluation } from "@features/health/math";
 
-export const recoveryProvider: RecProvider = (ctx) => {
-  const r = ctx.recovery;
-  if (!r || r.status !== "Needs Recovery") return null;
-
+/** The recovery directive itself, framed by recent training load. Exported so the
+ *  Decision Engine can hold it under exit-hysteresis (keeping it through a brief
+ *  dip to "Fair") without duplicating the copy. Assumes the caller already
+ *  decided recovery should speak — it applies no readiness gate of its own. */
+export function recoveryRecommendation(r: RecoveryEvaluation): Recommendation {
   const subtitle =
     r.trainingLoad === "trained"
       ? "Recovery has run low after recent training — ease today's session."
       : r.trainingLoad === "rested"
         ? "Recovery has run low with little recent training — protect sleep before pushing."
         : "Recovery has run low — keep today easy.";
-
   return {
     source: "recovery",
     // Above a nutrition target tweak (72): an under-recovered body is more
     // time-sensitive than a calorie adjustment, and the two never really
-    // compete in meaning. When it fires, it sits at the top of the stack.
+    // compete in meaning.
     priority: 75,
     title: "Prioritize recovery",
     subtitle,
   };
+}
+
+export const recoveryProvider: RecProvider = (ctx) => {
+  const r = ctx.recovery;
+  if (!r || r.status !== "Needs Recovery") return null;
+  return recoveryRecommendation(r);
 };

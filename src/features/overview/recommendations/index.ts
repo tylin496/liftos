@@ -24,9 +24,14 @@ export function deriveRecommendations(ctx: RecContext): Recommendation[] {
 }
 
 /** The single recommendation the System card surfaces — the Decision Engine's
- *  ladder verdict (Protect > Correct > Sustain > Capitalize). */
-export function topRecommendation(ctx: RecContext): Recommendation | null {
-  return decide(ctx);
+ *  ladder verdict (Protect > Correct > Sustain > Capitalize). `prior` is the
+ *  last-surfaced recommendation (persisted); pass it so exit-hysteresis can hold
+ *  a directive through a marginal wobble instead of flip-flopping. */
+export function topRecommendation(
+  ctx: RecContext,
+  prior?: Recommendation | null,
+): Recommendation | null {
+  return decide(ctx, prior);
 }
 
 export { decide } from "./engine";

@@ -140,7 +140,7 @@ export async function getNutritionState(): Promise<NutritionStateFull | null> {
 export async function recomputeAndPersist(): Promise<NutritionStateFull> {
   const userId = await currentUserId();
 
-  const [metricsRes, configRes, entriesRes, logsRes, archivedRes] = await Promise.all([
+  const [metricsRes, configRes, entriesRes, logsRes, archivedRes, priorState] = await Promise.all([
     supabase
       .from("health_metrics")
       .select("metric_date, weight_kg, body_fat_pct, active_energy_kcal, resting_energy_kcal, exercise_minutes, sleep_seconds, resting_heart_rate, hrv_sdnn_ms")
@@ -160,6 +160,10 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
       .select("exercise_slug, raw, log_date")
       .order("log_date", { ascending: true }),
     supabase.from("exercises").select("slug").eq("archived", true),
+    // Prior surfaced recommendation — feeds the engine's exit-hysteresis so a
+    // marginal signal wobble can't flip the weekly directive. A plain read; null
+    // before the first evaluation ever ran.
+    getNutritionState(),
   ]);
 
   // Abort on a failed read rather than recomputing from silently-empty data —
@@ -213,12 +217,10 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
     training = buildTrainingEvaluation(computeStrengthSummary(bySlug));
   }
 
-  const recommendation = topRecommendation({
-    nutrition: { evaluation, diagnostics },
-    recovery,
-    training,
-    leanMass,
-  });
+  const recommendation = topRecommendation(
+    { nutrition: { evaluation, diagnostics }, recovery, training, leanMass },
+    priorState?.recommendation ?? null,
+  );
   const state: NutritionStateFull = { evaluation, diagnostics, recommendation };
 
   // A shared viewer computes from the owner's data (RLS) but must not persist —

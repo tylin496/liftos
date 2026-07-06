@@ -21,30 +21,59 @@
 // bad-news tier (no info ≠ a problem). Wording is delegated to the domain
 // providers where they already say it well (recovery, nutrition); the engine
 // owns which tier fires, not the prose.
+//
+// Hysteresis (anti-flip-flop): a weekly directive that flips as a signal wobbles
+// at a threshold is worse than none. The inputs are already time-smoothed
+// (weight 21d, recovery 7d-vs-30d, lean mass 30d), so the remaining risk is
+// boundary chatter. We damp it with EXIT-stickiness keyed on the prior directive
+// (passed in — it's already persisted, so no schema change): once a directive is
+// showing, the signal must *clearly* clear before it drops (entry ≠ exit). Only
+// the engine-owned corrections need this; nutrition's own directives already have
+// nutritionDecision's confidence gate, and lean-mass/training are too slow to
+// chatter.
 
 import type { RecContext, Recommendation } from "./types";
 import type { RecoveryEvaluation } from "@features/health/math";
 import type { TrainingEvaluation } from "@features/overview/strength";
 import type { LeanMassEvaluation } from "@features/overview/goal";
-import { recoveryProvider } from "./recovery";
+import { recoveryRecommendation } from "./recovery";
 import { nutritionProvider } from "./nutrition";
+
+// Directive titles the hysteresis keys on (must match the strings produced below
+// / by the recovery provider).
+const RECOVERY_TITLE = "Prioritize recovery";
+const REDUCE_DEFICIT_TITLE = "Reduce deficit slightly";
+const INCREASE_ACTIVITY_TITLE = "Increase activity";
+
+// Recovery is held until readiness climbs back to at least "Good" (score ≥ 2),
+// rather than dropping the instant it leaves "Needs Recovery" (score 0) for
+// "Fair" (score 1).
+const RECOVERY_RELEASE_SCORE = 2;
 
 // ── Discretizers: raw evaluations → the enums the ladder reads ────────────────
 
 type WeightState = "fast" | "on_pace" | "slow" | "stalled" | "unknown";
 
-const STALLED_EPS = 0.1; // kg/week — |rate| below this reads as flat
-const RATE_MARGIN = 0.15; // kg/week past a band edge before it materially counts
+const STALLED_EPS = 0.1; // kg/week — |rate| below this reads as flat (enter)
+const STALLED_EXIT_EPS = 0.15; // wider band to STAY stalled once flagged (exit)
+const RATE_MARGIN = 0.15; // kg/week past a band edge before it counts (enter)
+const RATE_EXIT_MARGIN = 0.05; // narrower margin to LEAVE a correction (exit)
 
-function weightState(n: RecContext["nutrition"]): WeightState {
+function weightState(n: RecContext["nutrition"], priorTitle: string | null): WeightState {
   if (!n) return "unknown";
   const e = n.evaluation;
   // No active band (maintenance) or an unsettled trend can't drive a correction.
   if (e.targetRange.min === e.targetRange.max || e.confidence === "low") return "unknown";
   const loss = -e.observedRate; // observedRate is negative while losing
-  if (Math.abs(e.observedRate) < STALLED_EPS) return "stalled";
-  if (loss > e.targetRange.max + RATE_MARGIN) return "fast";
-  if (loss < e.targetRange.min - RATE_MARGIN) return "slow";
+  // Schmitt hysteresis: a directive already showing uses a narrower exit margin,
+  // so the rate must return well inside the band before the directive drops.
+  const fastMargin = priorTitle === REDUCE_DEFICIT_TITLE ? RATE_EXIT_MARGIN : RATE_MARGIN;
+  const heldStalled = priorTitle === INCREASE_ACTIVITY_TITLE;
+  const slowMargin = heldStalled ? RATE_EXIT_MARGIN : RATE_MARGIN;
+  const stalledEps = heldStalled ? STALLED_EXIT_EPS : STALLED_EPS;
+  if (Math.abs(e.observedRate) < stalledEps) return "stalled";
+  if (loss > e.targetRange.max + fastMargin) return "fast";
+  if (loss < e.targetRange.min - slowMargin) return "slow";
   return "on_pace";
 }
 
@@ -74,20 +103,26 @@ function leanMassFalling(l: LeanMassEvaluation | null | undefined): boolean {
 
 // ── The ladder ────────────────────────────────────────────────────────────────
 
-export function decide(ctx: RecContext): Recommendation | null {
-  const w = weightState(ctx.nutrition);
-  const rec = recoveryState(ctx.recovery);
+/** `prior` = the last-surfaced recommendation (persisted), used only for
+ *  exit-hysteresis so a marginal wobble can't flip the directive. Omit it (or
+ *  pass null) for a fresh, stateless verdict. */
+export function decide(ctx: RecContext, prior?: Recommendation | null): Recommendation | null {
+  const priorTitle = prior?.title ?? null;
+  const w = weightState(ctx.nutrition, priorTitle);
   const trn = trainingState(ctx.training);
+  const r = ctx.recovery;
 
   // ─ Tier 1 — Protect ────────────────────────────────────────────────────────
-  // 1a Prioritize recovery. Fires on a settled readiness dip alone: low
-  //    readiness is time-sensitive on its own, and gating it on a training
-  //    decline too would keep us silent exactly when rest matters most. The
-  //    recovery provider frames the action by recent training load.
-  if (rec === "poor") {
-    const r = recoveryProvider(ctx);
-    if (r) return r;
-  }
+  // 1a Prioritize recovery. Fires on a settled readiness dip (Needs Recovery),
+  //    or — with exit-hysteresis — while it was already showing and readiness
+  //    hasn't climbed back to "Good" yet, so a one-night dip to "Fair" doesn't
+  //    drop it. Recovery is time-sensitive on its own; no training decline
+  //    required. Wording is framed by recent training load.
+  const recFires =
+    r?.status === "Needs Recovery" ||
+    (priorTitle === RECOVERY_TITLE && r?.status != null && r.score < RECOVERY_RELEASE_SCORE);
+  if (recFires && r) return recoveryRecommendation(r);
+
   // 1b Hold off on further cuts. Lean mass is genuinely sliding — the scariest
   //    call, so it only fires on a confident, sustained downslope.
   if (leanMassFalling(ctx.leanMass)) {
@@ -108,7 +143,7 @@ export function decide(ctx: RecContext): Recommendation | null {
     return {
       source: "nutrition",
       priority: 71,
-      title: "Reduce deficit slightly",
+      title: REDUCE_DEFICIT_TITLE,
       subtitle:
         "You're losing faster than planned and training's starting to slip — ease the deficit to protect muscle.",
     };
@@ -120,7 +155,7 @@ export function decide(ctx: RecContext): Recommendation | null {
     return {
       source: "weight",
       priority: 68,
-      title: "Increase activity",
+      title: INCREASE_ACTIVITY_TITLE,
       subtitle:
         "You're on target but the scale's stalled — add activity rather than cutting calories further.",
     };
@@ -134,7 +169,7 @@ export function decide(ctx: RecContext): Recommendation | null {
   // rather than after the default (which would always pre-empt it).
   const nut = ctx.nutrition ? nutritionProvider(ctx) : null;
   const nutIdle = !nut || nut.title === "No action needed";
-  if (nutIdle && rec === "good" && trn === "improving") {
+  if (nutIdle && recoveryState(r) === "good" && trn === "improving") {
     return {
       source: "training",
       priority: 50,
