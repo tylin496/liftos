@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavExpand } from "@app/layout/NavContext";
 import { MetricValue } from "@shared/components/Metric";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
@@ -179,6 +179,14 @@ export function StrengthHealthCard({
   const isNavTarget = variant === "full" && id != null && navExpandTarget === id;
   const [trackOpen, setTrackOpen] = useState(isNavTarget);
   const trackSectionRef = useRef<HTMLDivElement>(null);
+  // Open On Track when deep-linked from Overview. The initial state covers a cold
+  // (remounted) entry; this effect covers a WARM one — the card stays mounted, so
+  // it never re-reads the initial state, but the nav-expand signal still flips to
+  // this id and should open the section. One-way: it opens on the signal and
+  // ignores the later clear, so a manual collapse afterwards sticks.
+  useEffect(() => {
+    if (isNavTarget) setTrackOpen(true);
+  }, [isNavTarget]);
   // Deep-link alignment (landing on this card when nav'd from Overview) is
   // owned by Shell — it pins the target through the skeleton→data layout shift
   // for every deep-link target, so no per-card re-pin is needed here.

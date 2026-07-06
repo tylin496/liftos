@@ -162,9 +162,12 @@ export function Shell({ session }: { session: Session }) {
     const el = panelRefs.current[targetTab];
     if (!el) return; // not mounted yet — a later render will catch it
     if (landing.kind === "element") {
-      // The observer needs the committed skeleton and the panel as the active
-      // scroller, so wait until the slide has finished.
-      if (slide) return;
+      // Apply at slide-start too (the incoming panel is already absolute). For a
+      // warm target the content is loaded, so startAlign's instant pre-scroll
+      // lands the card while the panel is still off-screen — it slides in already
+      // on the card, no top-then-scroll. For a cold/replay target the panel is a
+      // skeleton, so the instant pass is a no-op and the observer glides to the
+      // card once data arrives.
       landingAppliedRef.current = true;
       landingRef.current = null;
       alignRef.current?.cancel();
@@ -183,6 +186,16 @@ export function Shell({ session }: { session: Session }) {
     setActiveScroller(panelRefs.current[tab]);
   }, [tab]);
 
+  // Clear the expand signal once the target card has consumed it. This is a
+  // PASSIVE effect, and React flushes descendants' passive effects before an
+  // ancestor's — so the target card (deep inside a panel) has already read
+  // pendingExpand and opened its section before we reset it here. Resetting lets
+  // a later PLAIN entry to that tab see null and NOT auto-open.
+  useEffect(() => {
+    if (pendingExpand == null) return;
+    setPendingExpand(null);
+  }, [pendingExpand]);
+
   // Deep-link alignment within the target panel. The Page has just remounted to
   // a skeleton; the target card sits at short-page height now and shifts once
   // data lands. So DON'T scroll yet — wait for the first real height change
@@ -194,20 +207,22 @@ export function Shell({ session }: { session: Session }) {
   // never re-fires the observer. scrollIntoView honours the card's
   // scroll-margin-top (a breath) and auto-scrolls this panel (nearest scroller).
   function startAlign(targetId: string, scroller: HTMLElement) {
-    // The target read pendingExpand at mount; clear it so a later plain re-enter
-    // doesn't re-open the section.
-    setPendingExpand(null);
     let cancelled = false;
     let ro: ResizeObserver | null = null;
     let lastHeight = 0;
-    // Glide to the card rather than snap: the tab lands at the top, then a smooth
-    // scroll carries the eye down to the target — reads as "here's your tab, now
-    // this card" instead of a jarring instant jump once the data loads. Honours
-    // reduced-motion (instant there).
-    const behavior: ScrollBehavior =
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
-    const align = () =>
-      document.getElementById(targetId)?.scrollIntoView({ block: "start", behavior });
+    const reduced = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    // Two modes:
+    //  • instant — the first pass, run while the panel is still sliding in. For a
+    //    warm (already-loaded) target this lands the card off-screen so it slides
+    //    in already in place; on a cold skeleton it's a harmless no-op.
+    //  • smooth  — every later pass, once data has grown the page. The tab has
+    //    settled at the top, so a smooth scroll GLIDES down to the card rather
+    //    than snapping. (Reduced-motion forces instant.)
+    const align = (smooth: boolean) =>
+      document.getElementById(targetId)?.scrollIntoView({
+        block: "start",
+        behavior: smooth && !reduced ? "smooth" : "auto",
+      });
     const cancel = () => {
       if (cancelled) return;
       cancelled = true;
@@ -228,7 +243,7 @@ export function Shell({ session }: { session: Session }) {
       requestAnimationFrame(() => {
         if (cancelled) return;
         lastHeight = content.scrollHeight;
-        align(); // land now if the content is already tall (no-op on a short skeleton)
+        align(false); // instant pre-position (warm: lands off-screen; cold: no-op)
         window.addEventListener("wheel", cancel, { passive: true });
         window.addEventListener("touchstart", cancel, { passive: true });
         window.addEventListener("pointerdown", cancel, { passive: true });
@@ -238,7 +253,7 @@ export function Shell({ session }: { session: Session }) {
           const h = content.scrollHeight;
           if (h === lastHeight) return; // ignore the initial no-op fire
           lastHeight = h;
-          align();
+          align(true); // glide to the card as the data grows the page in
         });
         ro.observe(content);
       });
@@ -268,15 +283,16 @@ export function Shell({ session }: { session: Session }) {
 
   // Begin entering `next`. Always bumps activity (background refetch), then
   // decides this entry's single landing intent (applied to the panel by the
-  // layout effect the moment it's on screen). A deep-link (targetId set) always
-  // replays: the target must re-read its expand signal at mount and be
-  // positioned by the observer. Otherwise a stale/first entry replays (remount +
-  // land at top); a quick back-and-forth resumes (keep the mounted panel at its
-  // scroll). Runs at slide-start so a replay animates as the panel slides in.
+  // layout effect the moment it's on screen). A stale/first entry replays
+  // (remount + land at top); a quick back-and-forth — including a deep-link to a
+  // tab you were just on — resumes (keep the mounted panel + its loaded content),
+  // which lets a deep-link pre-position on the card DURING the slide instead of
+  // landing at top and scrolling after a skeleton reload. Runs at slide-start so
+  // a replay animates as the panel slides in.
   function enterTab(next: TabId, targetId?: string) {
     const firstVisit = !visited.has(next);
     const idle = Date.now() - leftAt.current[next];
-    const replay = targetId != null || firstVisit || idle >= REPLAY_IDLE_MS;
+    const replay = firstVisit || idle >= REPLAY_IDLE_MS;
 
     setVisited((prev) => new Set([...prev, next]));
     setTabActivity((prev) => ({ ...prev, [next]: prev[next] + 1 }));
