@@ -794,6 +794,7 @@ export function OverviewPage() {
   // removing. Each card renders its own skeleton in place while `loading`.
   return (
     <div className="page">
+      {header}
       {/* System — a conditional actionable banner (usually absent), so it's not
           skeletonized; it appears only when there's something to act on. */}
       {data?.nutritionState?.recommendation && (

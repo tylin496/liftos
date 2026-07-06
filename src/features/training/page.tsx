@@ -31,7 +31,7 @@ import { parse, score, formatRepsDisplay } from "./parser";
 import { fmtWeightNum } from "./ExprDisplay";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
-import { usePageHeader } from "@app/layout/PageHeaderContext";
+import { PageTopBar } from "@shared/components/PageTopBar";
 import { useIsReadOnly } from "@app/layout/SessionContext";
 import { getActiveScroller } from "@app/layout/activeScroller";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
@@ -775,14 +775,15 @@ function TrainingPageInner() {
     return { strength: computeStrengthSummary(activeLogs) };
   }, [logs, exercises]);
 
-  usePageHeader({
-    eyebrow: "TRAINING",
-    title: SPLITS.find((s) => s.id === split)?.name ?? split,
-    onCopy: copyTrainingData,
-  });
-
   return (
     <div className="page tr-page">
+      <div className="shell-header">
+        <PageTopBar
+          eyebrow="TRAINING"
+          title={SPLITS.find((s) => s.id === split)?.name ?? split}
+          onCopy={copyTrainingData}
+        />
+      </div>
       {/* ── Segment control ── */}
       <div className="tr-top-row">
         <SegmentedControl

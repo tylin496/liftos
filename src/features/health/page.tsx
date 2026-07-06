@@ -15,7 +15,7 @@ import {
 import { ErrorState } from "@shared/components/ErrorState";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
-import { usePageHeader } from "@app/layout/PageHeaderContext";
+import { PageTopBar } from "@shared/components/PageTopBar";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { localDateStr } from "@shared/lib/date";
@@ -445,11 +445,16 @@ export function HealthPage() {
     return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS };
   }, [data, metrics]);
 
-  usePageHeader({ eyebrow: "HEALTH", title: "Trends", onCopy: copyHealthData, note: syncNote });
+  const header = (
+    <div className="shell-header">
+      <PageTopBar eyebrow="HEALTH" title="Trends" onCopy={copyHealthData} note={syncNote} />
+    </div>
+  );
 
   if (error && !data) {
     return (
       <div className="page">
+        {header}
         <ErrorState message={error} onRetry={() => { setError(null); void load(); }} />
       </div>
     );
@@ -457,6 +462,7 @@ export function HealthPage() {
 
   return (
     <div className="page health">
+      {header}
       {/* 1. Recovery — sleep / HRV / RHR readiness snapshot. Always mounted (own
           skeleton while loading); collapses only if there's genuinely no
           readiness data. Sits first: a day-to-day state read before the

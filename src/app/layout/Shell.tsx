@@ -13,8 +13,6 @@ import { SessionUserProvider } from "./SessionContext";
 import { NavContext, NavExpandContext, type NavOptions } from "./NavContext";
 import { setActiveScroller } from "./activeScroller";
 import { TabActivityContext } from "./TabActivityContext";
-import { PageHeaderContext, IsActiveTabContext, type PageHeader } from "./PageHeaderContext";
-import { PageTopBar } from "@shared/components/PageTopBar";
 import { ToastProvider } from "@shared/components/Toast";
 import { NutritionConfigProvider } from "@features/nutrition/NutritionConfigContext";
 import { TrainingMilestone } from "@features/training/TrainingMilestone";
@@ -106,7 +104,6 @@ export function Shell({ session }: { session: Session }) {
   // lands at the top instead of resuming where you left off. Under this, a
   // back-and-forth is treated as "still reading" and keeps its place.
   const REPLAY_IDLE_MS = 3 * 60_000;
-  const [header, setHeader] = useState<PageHeader>({ eyebrow: "", title: "" });
   // Horizontal tab transition. `to` is the neighbour sliding in; `dir` is +1
   // when moving to a higher-index tab (new page enters from the right), −1 for
   // the reverse. `dx` tracks the live finger offset (0 while a tap-triggered
@@ -590,11 +587,7 @@ export function Shell({ session }: { session: Session }) {
     <SettingsSheetProvider>
       <NavContext.Provider value={switchTab}>
       <NavExpandContext.Provider value={pendingExpand}>
-      <PageHeaderContext.Provider value={setHeader}>
         <div className="shell">
-          <div className="shell-header">
-            <PageTopBar eyebrow={header.eyebrow} title={header.title} onCopy={header.onCopy} note={header.note} />
-          </div>
           <main ref={contentRef} className={`shell-content${slide ? " is-sliding" : ""}`}>
             {pull && (
               <div
@@ -634,19 +627,17 @@ export function Shell({ session }: { session: Session }) {
 
                 return (
                   <TabActivityContext.Provider key={tabId} value={tabActivity[tabId]}>
-                    <IsActiveTabContext.Provider value={tabId === highlight}>
-                      <div
-                        className="tab-panel"
-                        style={style}
-                        ref={(el) => { panelRefs.current[tabId] = el; }}
-                      >
-                        {/* Key the page by its activity version so every FRESH
-                            tab-enter REMOUNTS it — the entrance replays and the
-                            scroller resets to top. A resume keeps the key, so the
-                            panel stays mounted at its scroll position. */}
-                        <Page key={tabVersions[tabId]} />
-                      </div>
-                    </IsActiveTabContext.Provider>
+                    <div
+                      className="tab-panel"
+                      style={style}
+                      ref={(el) => { panelRefs.current[tabId] = el; }}
+                    >
+                      {/* Key the page by its activity version so every FRESH
+                          tab-enter REMOUNTS it — the entrance replays and the
+                          scroller resets to top. A resume keeps the key, so the
+                          panel stays mounted at its scroll position. */}
+                      <Page key={tabVersions[tabId]} />
+                    </div>
                   </TabActivityContext.Provider>
                 );
               })}
@@ -657,7 +648,6 @@ export function Shell({ session }: { session: Session }) {
         <GlobalSettingsSheet />
         <TrainingMilestone />
         {splash && <Splash variant="overlay" leaving={splashLeaving} />}
-      </PageHeaderContext.Provider>
       </NavExpandContext.Provider>
       </NavContext.Provider>
     </SettingsSheetProvider>
