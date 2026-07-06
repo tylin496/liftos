@@ -247,6 +247,25 @@
   white-space: nowrap;
 }
 
+/* Emphasis tiers — the four evidence cells aren't equally load-bearing:
+   Observed rate and Est. intake are the analysis, Confidence is meta on that
+   analysis, and Target pace is just a fixed constant. Base (.ni-cell-value)
+   is the Est. intake tier; primary/tertiary/quiet step off it either way. */
+.ni-cell-value--primary {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.ni-cell-value--tertiary {
+  font-size: var(--text-sm);
+}
+
+.ni-cell-value--quiet {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
 /* Leading status dot — colour lives here only, never on the value text beside
    it (Observed rate: in/near/off target band; Confidence: level). */
 .ni-status-dot {

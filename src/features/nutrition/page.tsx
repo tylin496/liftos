@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNutritionConfig } from "./NutritionConfigContext";
-import { usePageHeader } from "@app/layout/PageHeaderContext";
+import { PageTopBar } from "@shared/components/PageTopBar";
 import { TodayView, labelFor } from "./today";
 import { HistoryView } from "./history";
 import { NutritionInsightCard } from "./NutritionInsightCard";
@@ -32,11 +32,11 @@ export function NutritionPage() {
   // ("Thu, Jul 2"). The daily card no longer repeats it — the header is the
   // single place that says which day you're looking at.
   const isToday = date === defaultLogDate();
-  usePageHeader({
-    eyebrow: "NUTRITION",
-    title: isToday ? "Today" : labelFor(date),
-    onCopy: copyNutritionData,
-  });
+  const header = (
+    <div className="shell-header">
+      <PageTopBar eyebrow="NUTRITION" title={isToday ? "Today" : labelFor(date)} onCopy={copyNutritionData} />
+    </div>
+  );
 
   // New data landed → refresh the day/history immediately, then recompute the
   // shared evaluation in the background and bump again so the Insight card picks
@@ -51,6 +51,7 @@ export function NutritionPage() {
   if (error && !config) {
     return (
       <div className="page">
+        {header}
         <ErrorState message={error} onRetry={reload} />
       </div>
     );
@@ -58,6 +59,7 @@ export function NutritionPage() {
 
   return (
     <div className="page">
+      {header}
       {/* Cold-load skeleton — real card structure with placeholder values so
           the page never sits blank under the header while config loads. */}
       {!config && (

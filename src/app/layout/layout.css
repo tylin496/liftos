@@ -42,13 +42,13 @@
 }
 
 /* ── Header ─────────────────────────────────────────────────────────── */
-/* Rendered once, outside the horizontally-sliding pager, so the avatar/copy
-   button and the surrounding chrome never move during a tab swipe. */
+/* Rendered by each page as the first element of its own scrollable content
+   (not pinned above it), so it scrolls away with the rest of the page. */
 .shell-header {
   width: 100%;
   max-width: var(--content-max);
   margin: 0 auto;
-  padding: calc(var(--safe-top) + var(--space-5)) var(--space-4) var(--space-3);
+  padding: calc(var(--safe-top) + var(--space-5)) 0 var(--space-3);
 }
 
 /* ── Content ────────────────────────────────────────────────────────── */
@@ -80,7 +80,7 @@
   height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: var(--space-4) var(--space-4)
+  padding: 0 var(--space-4)
     calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
   scrollbar-gutter: stable;
 }

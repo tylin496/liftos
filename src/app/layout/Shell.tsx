@@ -106,10 +106,6 @@ export function Shell({ session }: { session: Session }) {
   // lands at the top instead of resuming where you left off. Under this, a
   // back-and-forth is treated as "still reading" and keeps its place.
   const REPLAY_IDLE_MS = 3 * 60_000;
-  // Header content (eyebrow/title/onCopy), pushed up by whichever page is
-  // active via usePageHeader. Rendered once, outside the sliding tab panels,
-  // so the avatar/copy button stay anchored during a tab swipe — only this
-  // content cross-fades (see PageTopBar).
   const [header, setHeader] = useState<PageHeader>({ eyebrow: "", title: "" });
   // Horizontal tab transition. `to` is the neighbour sliding in; `dir` is +1
   // when moving to a higher-index tab (new page enters from the right), −1 for

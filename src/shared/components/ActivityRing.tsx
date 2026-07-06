@@ -43,7 +43,12 @@ export function ActivityRing({
 
   return (
     <div className="activity-ring" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ filter: "drop-shadow(0 1px 2.5px rgba(0,0,0,.5)) drop-shadow(0 2px 4px rgba(0,0,0,.3))" }}
+      >
         <defs>
           <mask id={maskId}>
             <circle
@@ -142,7 +147,7 @@ export function OverflowRing({
         {overflowFrac > 0 && (
           <g clipPath={`url(#${tailClipId})`}>
             <g clipPath={`url(#${bandClipId})`}>
-              <circle {...overflowArc} style={{ filter: "drop-shadow(0 2.5px 3.5px rgba(0,0,0,.7))" }} />
+              <circle {...overflowArc} style={{ filter: "drop-shadow(0 1px 2.5px rgba(0,0,0,.5)) drop-shadow(0 2px 4px rgba(0,0,0,.3))" }} />
             </g>
           </g>
         )}
