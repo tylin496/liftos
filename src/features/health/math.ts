@@ -25,6 +25,22 @@ export function syncLabel(
   return { text: `Synced ${daysAgo} days ago`, tone: "bad" };
 }
 
+/** Just the clock time (HH:MM) of the latest sync, and only when it landed
+ *  today — older readings carry no meaningful time-of-day, so this returns null
+ *  and the caller shows nothing (staleness is surfaced elsewhere). */
+export function syncTime(
+  latest: Pick<BodyMetric, "metric_date" | "updated_at"> | null,
+): string | null {
+  if (!latest) return null;
+  const daysAgo = Math.round((Date.parse(localDateStr()) - Date.parse(latest.metric_date)) / 86400000);
+  if (daysAgo > 0) return null;
+  const t = new Date(latest.updated_at);
+  if (Number.isNaN(t.getTime())) return null;
+  const hh = String(t.getHours()).padStart(2, "0");
+  const mm = String(t.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
 export type MetricKey =
   | "weight_kg"
   | "body_fat_pct"

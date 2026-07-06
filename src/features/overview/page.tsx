@@ -3,7 +3,7 @@ import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { series, rollingAvg, syncLabel } from "@features/health/math";
+import { series, rollingAvg, syncTime } from "@features/health/math";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useInView } from "@shared/hooks/useInView";
@@ -123,12 +123,14 @@ function ActiveTargetCard({
   view,
   targetTdee,
   currentTdee,
+  sync,
   onNav,
   loading = false,
 }: {
   view: ActiveTargetView | null;
   targetTdee: number | null;
   currentTdee: number | null;
+  sync: string | null;
   onNav: () => void;
   loading?: boolean;
 }) {
@@ -142,8 +144,10 @@ function ActiveTargetCard({
         <div className="ov-active-target-head">
           <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
           <span className="ov-active-target-head-right">
-            <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
-            <span className="ov-active-target-chevron" aria-hidden>›</span>
+            <span className="ov-active-target-goal-row">
+              <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
+              <span className="ov-active-target-chevron" aria-hidden>›</span>
+            </span>
           </span>
         </div>
         <div className="ov-active-target-ring-row">
@@ -182,11 +186,14 @@ function ActiveTargetCard({
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
         <span className="ov-active-target-head-right">
-          <span className="ov-active-target-goal">
-            {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
-            {targetTdee.toLocaleString()} TDEE
+          {sync && <span className="ov-active-target-sync">{sync}</span>}
+          <span className="ov-active-target-goal-row">
+            <span className="ov-active-target-goal">
+              {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
+              {targetTdee.toLocaleString()} TDEE
+            </span>
+            <span className="ov-active-target-chevron" aria-hidden>›</span>
           </span>
-          <span className="ov-active-target-chevron" aria-hidden>›</span>
         </span>
       </div>
 
@@ -774,24 +781,15 @@ export function OverviewPage() {
   // (no separate skeleton subtree to unmount, so the entrance never replays).
   const loading = !data;
 
-  // Sync freshness rides next to the greeting so you can trust the topbar
-  // activity ring — it only accrues as fast as the health sync. Same label logic
-  // as the Health tab (syncLabel). Memoised so the header's crossfade only
-  // re-fires when the label text actually changes, not on every render.
-  const lastSynced = useMemo(() => syncLabel(data?.metrics.at(-1) ?? null), [data]);
-  const syncNote = useMemo(
-    () =>
-      lastSynced ? (
-        <span className={`page-topbar-sync-note${lastSynced.tone === "bad" ? " is-bad" : ""}`}>
-          {lastSynced.text}
-        </span>
-      ) : undefined,
-    [lastSynced],
-  );
+  // Today's sync time lives on the Active Target card (above the goal it feeds),
+  // not the topbar — the ring only accrues as fast as the health sync, so the
+  // time belongs with the number it qualifies. Only today's reading carries a
+  // clock time; staleness is surfaced by the ring's own note.
+  const syncedTime = useMemo(() => syncTime(data?.metrics.at(-1) ?? null), [data]);
 
   const header = (
     <div className="shell-header">
-      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} note={syncNote} />
+      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} />
     </div>
   );
 
@@ -825,6 +823,7 @@ export function OverviewPage() {
         view={data?.activeTarget ?? null}
         targetTdee={data?.targetTdee ?? null}
         currentTdee={data?.currentTdee ?? null}
+        sync={syncedTime}
         onNav={() => nav("health", { scrollTo: "health-energy-card" })}
       />
 

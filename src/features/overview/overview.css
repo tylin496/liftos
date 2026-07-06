@@ -14,14 +14,29 @@
 
 .ov-active-target-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
 }
 
 .ov-active-target-head-right {
   display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.ov-active-target-goal-row {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Today's sync time, sitting above the goal — the ring only accrues as fast as
+   the health sync, so the timestamp qualifies the number right below it. Shown
+   only for a same-day reading, so it's always fresh (no stale tone needed). */
+.ov-active-target-sync {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
 }
 
 .ov-active-target-goal {
