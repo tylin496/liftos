@@ -111,6 +111,60 @@ export function beatsBest(
   return !best || cmpStrength(a, best) > 0;
 }
 
+// ─── PR classification (log-time feedback only) ──────────────────────────────
+// The health card judges strength on e1RM alone (overview/api.ts) — the right
+// *status* axis, but blind to a heavier top set that Epley rates at the same or
+// even a lower e1RM (77kg×7 ≈ 75kg×8). So the feedback shown when you log a set
+// splits a new best into two kinds, WITHOUT touching cmpStrength (still the one
+// comparator for status/trend/history, so nothing there can disagree):
+//   Strength PR    — a new estimated-1RM ceiling (the gold moment).
+//   Performance PR — real work e1RM misses: the heaviest weight ever actually
+//                    completed, or more total reps than the record at a tied
+//                    ceiling.
+// Milestone (round-number weights) isn't here yet — it needs a per-exercise
+// boundary rule.
+export interface PRBests {
+  /** Highest estimated 1RM across the history (kg). */
+  e1rm: number;
+  /** Heaviest weight actually completed across the history (kg). */
+  weightKg: number;
+}
+
+/** The two PR axes' all-time bests from a set of logs. Pass the history the new
+ *  set is measured against — i.e. excluding the set being classified. */
+export function computePRBests(logs: TrainingLog[], setCount: number): PRBests {
+  let e1rm = 0;
+  let weightKg = 0;
+  for (const l of logs) {
+    const e = toLogEntry(l, setCount);
+    if (!e) continue;
+    if (e.e1rm > e1rm) e1rm = e.e1rm;
+    if (e.weightKg > weightKg) weightKg = e.weightKg;
+  }
+  return { e1rm, weightKg };
+}
+
+export type PRKind = "strength" | "performance" | null;
+
+/** Classify a freshly-logged set against the prior bests. A new rounded-e1RM
+ *  ceiling is a Strength PR; otherwise a new heaviest completed weight — or more
+ *  total reps than the record at a tied ceiling — is a Performance PR; anything
+ *  else is not a PR. e1RM is rounded to the same 1-decimal the UI shows, so a
+ *  set that only *displays* as tying the ceiling isn't mislabelled a Strength
+ *  PR. The first-ever set (empty history) counts as a Strength PR. */
+export function classifyPR(
+  entry: Pick<LogEntry, "e1rm" | "weightKg" | "totalReps">,
+  prev: PRBests,
+  prevBest: Pick<LogEntry, "e1rm" | "totalReps"> | null,
+): PRKind {
+  const e1 = Math.round(entry.e1rm * 10) / 10;
+  const prevE1 = Math.round(prev.e1rm * 10) / 10;
+  if (e1 > prevE1) return "strength";
+  if (entry.weightKg > prev.weightKg) return "performance";
+  if (prevBest && cmpStrength(entry, prevBest) > 0) return "performance";
+  return null;
+}
+
 // ─── computeStats ────────────────────────────────────────────────────────────
 
 export interface Stats {
