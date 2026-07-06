@@ -404,10 +404,17 @@ export function Shell({ session }: { session: Session }) {
   // Mirrors `pull?.refreshing` without a stale closure inside the touch
   // handlers below (that effect's deps are [tab], not [pull]).
   const pullRefreshing = useRef(false);
+  // Mirrors the live `pull.dy` outside React state so onTouchEnd can read the
+  // armed distance directly. Reading `pull` via a setPull functional updater
+  // and calling refreshTab() (which itself calls setPull/setTabVersions) from
+  // inside that "pure" updater is what caused the runaway update loop — a
+  // second pull landed while the first's cascade was still resolving.
+  const pullDy = useRef(0);
 
   function refreshTab() {
     haptic("success");
     pullRefreshing.current = true;
+    pullDy.current = 0;
     setPull({ dy: PULL_THRESHOLD, refreshing: true });
     setTabVersions((prev) => ({ ...prev, [tab]: prev[tab] + 1 }));
     window.setTimeout(() => {
@@ -475,13 +482,16 @@ export function Shell({ session }: { session: Session }) {
           // Pulled back up past the top — cancel the gesture instead of
           // letting it dip negative (would read as an upward flick).
           pullActive.current = false;
+          pullDy.current = 0;
           setPull(null);
           return;
         }
         e.preventDefault();
         // Rubber-band damping so the indicator eases past the threshold
         // rather than tracking the finger 1:1.
-        setPull({ dy: Math.min(PULL_THRESHOLD * 1.4, dy * 0.5), refreshing: false });
+        const damped = Math.min(PULL_THRESHOLD * 1.4, dy * 0.5);
+        pullDy.current = damped;
+        setPull({ dy: damped, refreshing: false });
       }
     }
 
@@ -489,13 +499,16 @@ export function Shell({ session }: { session: Session }) {
       if (axisLocked.current === "v") {
         if (pullActive.current) {
           pullActive.current = false;
-          setPull((p) => {
-            if (p && p.dy >= PULL_THRESHOLD) {
-              refreshTab();
-              return p;
-            }
-            return null;
-          });
+          // Read the armed distance from the ref, then call refreshTab (a side
+          // effect that itself calls setPull/setTabVersions) as a plain
+          // statement here — NOT from inside a setPull functional updater,
+          // which is what let a fast second pull compound into a runaway
+          // update loop (React error #185).
+          if (pullDy.current >= PULL_THRESHOLD) {
+            refreshTab();
+          } else {
+            setPull(null);
+          }
         }
         return;
       }
