@@ -51,13 +51,12 @@ function snapshotHighlight(
   watch: number,
   nowMs: number,
 ): SnapshotHighlight {
-  // Fresh PR = the most recent session (within the past week) sat at the
-  // all-time best. latestE1RM can never exceed prE1RM (the max includes it), so
-  // `>=` means the latest session set or tied the record — honest from the
-  // snapshot, no history needed.
-  const freshPRs = exercises.filter(
-    (e) => e.latestE1RM >= e.prE1RM && weeksAgo(e.lastLogDate, nowMs) < 1,
-  ).length;
+  // Fresh PR = a PR on EITHER axis (new e1RM ceiling OR heaviest weight ever)
+  // landed within the past week. lastPRDate is the two-axis stall clock's reset
+  // point, so this counts Performance PRs — a heavier top set Epley rates flat
+  // (77kg×7 ≈ 75kg×8) — not just new e1RM ceilings, and it survives a lighter
+  // session logged after the PR. Honest from the snapshot, no history needed.
+  const freshPRs = exercises.filter((e) => weeksAgo(e.lastPRDate, nowMs) < 1).length;
   if (freshPRs > 0) return { kind: "pr", count: freshPRs };
   if (watch === 0) return { kind: "clear" };
   return { kind: "attention", count: watch };

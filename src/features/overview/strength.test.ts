@@ -20,6 +20,7 @@ describe("computeStrengthSummary — two-axis stall clock", () => {
     });
     const bench = summary.exercises.find((e) => e.slug === "bench")!;
     expect(bench.stalledWeeks).toBe(0);
+    expect(bench.lastPRDate).toBe("2026-02-19"); // the weight-axis Performance PR
   });
 
   it("a genuine plateau (no PR on either axis) still accrues stalledWeeks", () => {

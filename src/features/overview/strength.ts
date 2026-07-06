@@ -27,6 +27,10 @@ export interface StrengthExercise {
   trend: number;       // latestE1RM / prE1RM — distance-from-PR ratio that drives `status`
   stalledWeeks: number; // whole weeks since the last PR on EITHER axis (e1RM ceiling or heaviest weight)
   lastLogDate: string;  // ISO date of the most recent session — for staleness labelling
+  /** ISO date of the most recent session that SET a PR on either axis (new e1RM
+   *  ceiling OR heaviest weight) — the stall clock's reset point. Powers the
+   *  "fresh PR this week" snapshot line, so it counts Performance PRs too. */
+  lastPRDate: string;
   /** Below PR AND stuck ≥ ATTENTION_STALL_WEEKS — the single "this lift needs
    *  intervention" predicate. A recently-PR'd watch lift is false (grace period). */
   needsAttention: boolean;
@@ -142,6 +146,7 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       trend: pct,
       stalledWeeks,
       lastLogDate: lastDate,
+      lastPRDate: prDate,
       needsAttention,
     });
   }
