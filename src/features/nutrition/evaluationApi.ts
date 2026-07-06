@@ -11,7 +11,7 @@ import { supabase } from "@shared/lib/supabase";
 import { isViewer } from "@shared/lib/owner";
 import type { Database } from "@shared/lib/database.types";
 import { localDateStrDaysAgo } from "@shared/lib/date";
-import { series } from "@features/health/math";
+import { series, buildRecoveryEvaluation } from "@features/health/math";
 import type { BodyMetric } from "@features/health/api";
 import { computeTdeeWindows } from "@features/health/tdee";
 import { targetsFromConfig, type NutritionConfig } from "./api";
@@ -141,7 +141,7 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
   const [metricsRes, configRes, entriesRes] = await Promise.all([
     supabase
       .from("health_metrics")
-      .select("metric_date, weight_kg, active_energy_kcal, resting_energy_kcal")
+      .select("metric_date, weight_kg, active_energy_kcal, resting_energy_kcal, exercise_minutes, sleep_seconds, resting_heart_rate, hrv_sdnn_ms")
       .gte("metric_date", localDateStrDaysAgo(90))
       .order("metric_date", { ascending: true }),
     supabase.from("nutrition_config").select("*").maybeSingle(),
@@ -182,8 +182,11 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
     now: new Date(),
   });
 
-  // Recommendation is derived from the Evaluation — the single source of truth.
-  const recommendation = topRecommendation({ nutrition: { evaluation, diagnostics } });
+  // Recommendation is derived from the Evaluations — the single source of truth.
+  // This assembler is the one place that already holds the raw health metrics, so
+  // it also builds the recovery slice; the registry arbitrates across providers.
+  const recovery = buildRecoveryEvaluation(metrics);
+  const recommendation = topRecommendation({ nutrition: { evaluation, diagnostics }, recovery });
   const state: NutritionStateFull = { evaluation, diagnostics, recommendation };
 
   // A shared viewer computes from the owner's data (RLS) but must not persist —

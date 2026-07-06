@@ -6,8 +6,9 @@
 
 import type { RecContext, Recommendation, RecProvider } from "./types";
 import { nutritionProvider } from "./nutrition";
+import { recoveryProvider } from "./recovery";
 
-export const PROVIDERS: RecProvider[] = [nutritionProvider];
+export const PROVIDERS: RecProvider[] = [nutritionProvider, recoveryProvider];
 
 /** All non-null recommendations, most urgent first. */
 export function deriveRecommendations(ctx: RecContext): Recommendation[] {

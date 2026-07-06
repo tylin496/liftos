@@ -224,6 +224,41 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, score, status, insight, date };
 }
 
+// A day counts as "trained" at ≥20 exercise minutes; ≥2 such days in the trailing
+// week means real recent load. Coarse on purpose — this only has to distinguish
+// "there was training" from "there wasn't", which active energy can't (it folds in
+// walking/NEAT). It's the discriminator, not a dose.
+const TRAINED_MINUTES = 20;
+const TRAINED_DAYS = 2;
+
+/** Did the user train recently? "trained" / "rested" / null (no exercise data at
+ *  all — never populated, so we can't claim either way). Anchored on the latest
+ *  metric date so a stale exercise feed reads as "rested", not a phantom "trained". */
+export function recentTrainingLoad(metrics: BodyMetric[]): "trained" | "rested" | null {
+  if (!metrics.length) return null;
+  const pts = series(metrics, "exercise_minutes");
+  if (!pts.length) return null;
+  const anchor = new Date(metrics.at(-1)!.metric_date + "T12:00:00").getTime();
+  const cutoff = anchor - 6 * 86400000; // trailing 7 days, inclusive of the anchor
+  const week = pts.filter((p) => new Date(p.date + "T12:00:00").getTime() >= cutoff);
+  const trainedDays = week.filter((p) => p.value >= TRAINED_MINUTES).length;
+  return trainedDays >= TRAINED_DAYS ? "trained" : "rested";
+}
+
+/** The recovery slice the recommendation registry consumes. A derived judgment
+ *  (status + recent load), never raw numbers — the provider shapes it into an
+ *  action without re-deriving anything. */
+export interface RecoveryEvaluation {
+  status: RecoveryStatus | null;
+  score: number;
+  trainingLoad: "trained" | "rested" | null;
+}
+
+export function buildRecoveryEvaluation(metrics: BodyMetric[]): RecoveryEvaluation {
+  const rec = computeRecovery(metrics);
+  return { status: rec.status, score: rec.score, trainingLoad: recentTrainingLoad(metrics) };
+}
+
 export function regressionSlope(pts: { date: string; value: number }[], days = 28): number | null {
   const last = pts.at(-1)?.date;
   if (!last) return null;

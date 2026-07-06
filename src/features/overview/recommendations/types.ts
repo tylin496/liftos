@@ -7,6 +7,7 @@
 // only a new file here plus one entry in PROVIDERS.
 
 import type { NutritionEvaluation, NutritionDiagnostics } from "@features/nutrition/evaluation";
+import type { RecoveryEvaluation } from "@features/health/math";
 
 export type RecSource = "nutrition" | "training" | "weight" | "recovery";
 
@@ -23,6 +24,7 @@ export interface Recommendation {
  *  null when it has no input yet. Future providers add their own slice here. */
 export interface RecContext {
   nutrition?: { evaluation: NutritionEvaluation; diagnostics: NutritionDiagnostics } | null;
+  recovery?: RecoveryEvaluation | null;
 }
 
 export type RecProvider = (ctx: RecContext) => Recommendation | null;
