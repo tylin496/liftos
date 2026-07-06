@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getEntry, saveEntry, deleteEntry, targetsFromConfig, type NutritionConfig } from "./api";
 import {
-  defaultLogDate,
+  calendarToday,
   getCalorieResult,
   getProteinResult,
   calorieTone,
@@ -220,7 +220,7 @@ function shiftDate(date: string, days: number): string {
 }
 
 export function labelFor(date: string): string {
-  const today = defaultLogDate();
+  const today = calendarToday();
   if (date === today) {
     const weekday = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
     return `${weekday} · Today`;
@@ -299,7 +299,7 @@ export function TodayView({
   // previous day's numbers on screen and swap in place — no full-card shimmer.
   const firstLoad = useRef(true);
 
-  const todayStr = defaultLogDate();
+  const todayStr = calendarToday();
   const isToday = date === todayStr;
 
   // Load entry when date changes

@@ -5,7 +5,7 @@ import { TodayView, labelFor } from "./today";
 import { HistoryView } from "./history";
 import { NutritionInsightCard } from "./NutritionInsightCard";
 import { recomputeAndPersist } from "./evaluationApi";
-import { defaultLogDate } from "./logic";
+import { defaultLogDate, calendarToday } from "./logic";
 import { buildNutritionJson } from "@shared/lib/copyAllData";
 import { MetricCaption } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
@@ -31,7 +31,7 @@ export function NutritionPage() {
   // Header title tracks the viewed day: "Today" on today, otherwise the date
   // ("Thu, Jul 2"). The daily card no longer repeats it — the header is the
   // single place that says which day you're looking at.
-  const isToday = date === defaultLogDate();
+  const isToday = date === calendarToday();
   const header = (
     <div className="shell-header">
       <PageTopBar eyebrow="NUTRITION" title={isToday ? "Today" : labelFor(date)} onCopy={copyNutritionData} />

@@ -280,12 +280,24 @@ export function monthlyStats(days: DayInput[]): MonthlyStats {
   };
 }
 
-// Local YYYY-MM-DD. Before 6am we default to yesterday — you log the previous
-// day's intake in the morning (matches the legacy app's behaviour).
+// Before this hour, a log defaults to yesterday — you're closing out the day
+// that just ended, not starting a new one. 5am assumes you won't log later.
+const DAY_ROLLOVER_HOUR = 5;
+
+// Local YYYY-MM-DD, with the pre-dawn rollover applied. Use this ONLY to pick
+// which day a fresh form preselects — before 5am it lands on yesterday so you
+// can close out the day that just ended.
 export function defaultLogDate(now = new Date()): string {
   const d = new Date(now);
-  if (d.getHours() < 6) d.setDate(d.getDate() - 1);
+  if (d.getHours() < DAY_ROLLOVER_HOUR) d.setDate(d.getDate() - 1);
   return toDateStr(d);
+}
+
+// The real calendar day, no rollover. Use this for anything that means "today"
+// in the UI — the header label, the calendar's today marker, the forward-nav
+// edge — so "Today" always points at the actual current day even pre-dawn.
+export function calendarToday(now = new Date()): string {
+  return toDateStr(new Date(now));
 }
 
 export function toDateStr(d: Date): string {
