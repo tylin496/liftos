@@ -18,6 +18,25 @@ export type StrengthStatus = "improving" | "stable" | "watch";
  *  Decision Engine's decline gate, so the three never disagree. */
 export const ATTENTION_STALL_WEEKS = 3;
 
+/** A recovering lift's latest session must clear its recent trough by at least
+ *  this ratio (≥2%) — enough to be a real climb, not e1RM float noise. Mirrors
+ *  the magnitude the PR clock already treats as meaningful. */
+const RECOVERY_MIN_RATIO = 1.02;
+
+/** Is the lift climbing back? Uses the last three LOGGED session bests (ascending):
+ *  a two-step climb into the most recent session (prior ≤ mid < latest) that clears
+ *  RECOVERY_MIN_RATIO off the recent trough. Trajectory is read ONLY in the benign
+ *  (upward) direction — the asymmetric log biases toward drop-days, so a down-slope
+ *  is untrustworthy, but a climb seen *despite* that bias is a strong signal. So
+ *  this only ever rescues a lift from Needs Attention; it never flags one. */
+function isRecovering(sessionBests: number[]): boolean {
+  if (sessionBests.length < 3) return false;
+  const [prior, mid, latest] = sessionBests.slice(-3);
+  const twoStepClimb = latest > mid && mid >= prior;
+  const meaningful = latest / Math.min(prior, mid) >= RECOVERY_MIN_RATIO;
+  return twoStepClimb && meaningful;
+}
+
 export interface StrengthExercise {
   slug: string;
   name: string;
@@ -32,8 +51,13 @@ export interface StrengthExercise {
    *  "fresh PR this week" snapshot line, so it counts Performance PRs too. */
   lastPRDate: string;
   /** Below PR AND stuck ≥ ATTENTION_STALL_WEEKS — the single "this lift needs
-   *  intervention" predicate. A recently-PR'd watch lift is false (grace period). */
+   *  intervention" predicate. A recently-PR'd watch lift is false (grace period).
+   *  Also false while `recovering` (climbing back on its own → no intervention). */
   needsAttention: boolean;
+  /** Below PR but the last few LOGGED sessions are climbing back — a recovery
+   *  visible in the data (not inferred from silence). Suppresses needsAttention
+   *  and earns a "回升中" chip; never used to FLAG a lift, only to rescue one. */
+  recovering: boolean;
 }
 
 export interface StrengthSummary {
@@ -134,7 +158,14 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
     // PR on either axis (small stalledWeeks) keeps it off the list — so one
     // lighter session after a PR can't flag it. The card, the export, and the
     // Decision Engine all read this one field.
-    const needsAttention = status === "watch" && stalledWeeks >= ATTENTION_STALL_WEEKS;
+    //
+    // Recovery override: a watch lift whose last few logged sessions are climbing
+    // back is self-correcting — no intervention needed — so it's pulled off the
+    // list too (and shown "回升中" instead). Distinct from the stall-clock grace
+    // above: that covers "just PR'd", this covers "below PR but visibly climbing".
+    const recovering = status === "watch" && isRecovering(sessionBests);
+    const needsAttention =
+      status === "watch" && stalledWeeks >= ATTENTION_STALL_WEEKS && !recovering;
     if (needsAttention) strength.attention++;
 
     strength.exercises.push({
@@ -148,6 +179,7 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       lastLogDate: lastDate,
       lastPRDate: prDate,
       needsAttention,
+      recovering,
     });
   }
 

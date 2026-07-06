@@ -377,6 +377,18 @@
   white-space: nowrap;
 }
 
+/* Recovery marker — a watch lift climbing back lives in On Track (not the red
+   list); this green note explains why a sub-94% row sits here: it's on the way
+   up. Text-only like its stale/fresh siblings, coloured --good (the same
+   On-Track-is-a-good-state exception the segmented bar uses). */
+.ov-th-row-recover {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--good);
+  white-space: nowrap;
+}
+
 /* On-track percent stays neutral ink-3 — a ratio, not a judgeable delta,
    even though it visually resembles the hero %. */
 .ov-th-row-pct {

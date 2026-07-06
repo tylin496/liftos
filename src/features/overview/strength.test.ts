@@ -69,7 +69,46 @@ describe("computeStrengthSummary — needs-attention gating (recent-PR grace)", 
     });
     const bench = s.exercises.find((e) => e.slug === "bench")!;
     expect(bench.status).toBe("watch");
+    expect(bench.recovering).toBe(false); // last 3 sessions trend DOWN → not climbing
     expect(bench.needsAttention).toBe(true);
     expect(s.attention).toBe(1);
+  });
+
+  it("a watch lift climbing back over its last sessions is NOT flagged (recovery)", () => {
+    // 80×8 is the all-time PR (both axes). It then drops and climbs back over the
+    // next three logged sessions — 60→65→70×8 — a two-step climb still well below
+    // PR (~88% of the 80×8 e1RM). Distance-from-PR + stall clock (6wk) would flag
+    // it, but the recovery override pulls it off the red list: it's self-correcting.
+    const s = computeStrengthSummary({
+      squat: [
+        log("2026-01-01", "80*8"), // PR on both axes → stall clock starts here
+        log("2026-01-20", "60*8"),
+        log("2026-02-01", "65*8"),
+        log("2026-02-15", "70*8"), // latest: still ~88% of PR, but climbing
+      ],
+    });
+    const squat = s.exercises.find((e) => e.slug === "squat")!;
+    expect(squat.status).toBe("watch"); // latest is below 94% of PR
+    expect(squat.stalledWeeks).toBeGreaterThanOrEqual(3); // and stalled long enough to flag
+    expect(squat.recovering).toBe(true); // …but the last 3 sessions are climbing
+    expect(squat.needsAttention).toBe(false); // → rescued from the red list
+    expect(s.attention).toBe(0);
+  });
+
+  it("a single up-tick after a slide does NOT count as recovery (needs two steps)", () => {
+    // 90→75→85×8: the latest rebounds but the step before it fell — one bounce,
+    // not a climb. Stays flagged so noise can't clear a genuinely stuck lift.
+    const s = computeStrengthSummary({
+      row: [
+        log("2026-01-01", "100*8"), // PR
+        log("2026-01-20", "90*8"),
+        log("2026-02-01", "75*8"),
+        log("2026-02-15", "85*8"), // up vs prior, but the middle step dropped
+      ],
+    });
+    const row = s.exercises.find((e) => e.slug === "row")!;
+    expect(row.status).toBe("watch");
+    expect(row.recovering).toBe(false);
+    expect(row.needsAttention).toBe(true);
   });
 });
