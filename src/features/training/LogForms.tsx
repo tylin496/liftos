@@ -87,15 +87,21 @@ function RepsSetInput({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EditDeleteAction — plain red-text delete (delete is optimistic + Undo toast)
+// EditSecondaryActions — small text links under the submit button, matching the
+// Nutrition Save-entry form: Delete on the left (optimistic + Undo toast),
+// Cancel on the right. Replaces the old ✕ dismiss button.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function EditDeleteAction({ onDelete }: { onDelete?: () => void }) {
-  if (!onDelete) return null;
+function EditSecondaryActions({ onDelete, onCancel }: { onDelete?: () => void; onCancel: () => void }) {
   return (
-    <div className="log-edit-delete">
-      <button type="button" className="log-edit-delete-btn" onClick={onDelete}>
-        Delete entry
+    <div className="log-secondary">
+      {onDelete && (
+        <button type="button" className="log-delete-link" onClick={onDelete}>
+          Delete entry
+        </button>
+      )}
+      <button type="button" className="log-cancel-link" onClick={onCancel}>
+        Cancel
       </button>
     </div>
   );
@@ -158,9 +164,6 @@ export function AddEntryForm({
   return (
     <form className="add-form log-redesign" ref={formRef} onSubmit={submit}>
       <div className="log-topbar">
-        <button type="button" className="log-dismiss" onClick={onCancel} aria-label="Dismiss">
-          ✕
-        </button>
         <input
           type="date"
           className="log-date-chip"
@@ -248,6 +251,11 @@ export function AddEntryForm({
       <button type="submit" className="btn-log-primary" disabled={!isValid || submitting}>
         {submitting ? "Saving…" : "Log set"}
       </button>
+      <div className="log-secondary">
+        <button type="button" className="log-cancel-link" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }
@@ -330,9 +338,6 @@ export function AddAssistedForm({
   return (
     <form className="add-form log-redesign" ref={formRef} onSubmit={submit}>
       <div className="log-topbar">
-        <button type="button" className="log-dismiss" onClick={onCancel} aria-label="Dismiss">
-          ✕
-        </button>
         <input
           type="date"
           className="log-date-chip"
@@ -431,6 +436,11 @@ export function AddAssistedForm({
       <button type="submit" className="btn-log-primary" disabled={!isValid || submitting}>
         {submitting ? "Saving…" : "Log set"}
       </button>
+      <div className="log-secondary">
+        <button type="button" className="log-cancel-link" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }
@@ -564,11 +574,8 @@ export function InlineEditEntry({
         <button type="submit" className="btn-log-primary" disabled={!isValid}>
           Save changes
         </button>
-        <button type="button" className="log-dismiss" onClick={onCancel} aria-label="Cancel">
-          ✕
-        </button>
       </div>
-      <EditDeleteAction onDelete={onDelete} />
+      <EditSecondaryActions onDelete={onDelete} onCancel={onCancel} />
     </form>
   );
 }
@@ -703,11 +710,8 @@ export function InlineEditAssistedEntry({
         <button type="submit" className="btn-log-primary" disabled={!isValid}>
           Save changes
         </button>
-        <button type="button" className="log-dismiss" onClick={onCancel} aria-label="Cancel">
-          ✕
-        </button>
       </div>
-      <EditDeleteAction onDelete={onDelete} />
+      <EditSecondaryActions onDelete={onDelete} onCancel={onCancel} />
     </form>
   );
 }

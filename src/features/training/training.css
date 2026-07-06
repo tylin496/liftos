@@ -925,32 +925,6 @@
   gap: var(--space-2);
 }
 
-.log-dismiss {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  background: var(--bg-soft);
-  color: var(--ink-3);
-  font-size: var(--text-base);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background var(--dur-press), color var(--dur-press);
-}
-
-.log-dismiss:hover {
-  background: var(--rule-strong);
-  color: var(--ink);
-}
-
-.log-dismiss:active {
-  transform: scale(var(--tap-scale));
-  transition-duration: var(--dur-press);
-}
-
 .log-date-chip {
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
@@ -1271,28 +1245,39 @@
   font-size: var(--text-sm);
 }
 
-/* ── Delete entry ────────────────────────────────────────────────────────────
-   Plain red-text action, tucked bottom-left and low-emphasis so it stays clear
-   of the primary Save. Delete is optimistic + Undo toast (handleDelete). */
-.log-edit-delete {
+/* ── Secondary form actions ─────────────────────────────────────────────────
+   Small text links under the primary Save button, matching the Nutrition
+   Save-entry form: Delete on the left (optimistic + Undo toast), Cancel on the
+   right. Low-emphasis so they stay clear of the primary action. */
+.log-secondary {
   display: flex;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
 }
 
-.log-edit-delete-btn {
-  background: transparent;
+.log-delete-link {
+  margin-right: auto;
+  background: none;
   border: none;
-  padding: 0;
-  color: var(--bad);
-  font-family: var(--font-ui);
+  padding: var(--space-1) 0;
   font-size: var(--text-sm);
   font-weight: 600;
+  color: var(--bad);
   cursor: pointer;
-  text-align: left;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.log-edit-delete-btn:hover {
-  text-decoration: underline;
+.log-cancel-link {
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ── "Log set" open button ───────────────────────────────────────────────────*/
@@ -1305,10 +1290,10 @@
   margin-top: 2px;
   padding: var(--space-2) 10px;
   border: none;
-  /* Solid accent primary — the card's core action. --accent-strong is the
-     token for solid white-on-accent fills; text/icon use --on-color (white). */
-  background: var(--accent-strong);
-  color: var(--on-color);
+  /* Tonal accent — a soft accent tint with accent text/icon. Reads clearly as
+     a button (the card's core action) without the loud full-bleed solid fill. */
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
   font: inherit;
   font-size: var(--text-base);
   font-weight: 600;
@@ -1319,7 +1304,7 @@
 }
 
 @media (hover: hover) {
-  .hist-add:hover { background: var(--accent); }
+  .hist-add:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 }
 
 .hist-add:active { transform: scale(var(--tap-scale)); }
@@ -1327,7 +1312,7 @@
 .hist-add-plus {
   font-size: var(--text-base);
   line-height: 1;
-  color: var(--on-color);
+  color: var(--accent);
 }
 
 /* ── Show more ───────────────────────────────────────────────────────────────*/
