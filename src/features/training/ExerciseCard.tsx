@@ -21,6 +21,7 @@ import {
   totalReps,
   type TimeFilter,
 } from "./logic";
+import { milestoneReached } from "./milestone";
 import { useToast } from "@shared/components/Toast";
 import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import { defaultSetCount } from "./logFormHelpers";
@@ -281,13 +282,23 @@ export function ExerciseCard({
       const newScore = newParsed ? score(newParsed) : 0;
       const newReps = newParsed?.reps ?? "1";
       const newE1RM = epley1RM(newScore, newReps);
+      const prevBests = computePRBests(effectiveLogsAsc, sc);
       const prKind = classifyPR(
         { e1rm: newE1RM, weightKg: newScore, totalReps: totalReps(newReps, sc) },
-        computePRBests(effectiveLogsAsc, sc),
+        prevBests,
         oldBest,
       );
+      // Milestone (compound lifts only) outranks a Strength/Performance PR — a
+      // round-weight rung is the bigger moment. It implies a weight-axis PR, so
+      // it only ever pre-empts, never hides, a real PR.
+      const milestone = exercise.compound ? milestoneReached(newScore, prevBests.weightKg) : null;
       const wStr = newParsed ? `${fmtWeightNum(newScore)} kg` : "";
-      if (prKind === "strength") {
+      if (milestone != null) {
+        setPrFlash(true);
+        setTimeout(() => setPrFlash(false), 1100);
+        haptic("success");
+        celebration.celebrate({ variant: "milestone", title: `${milestone} kg`, sub: exercise.name });
+      } else if (prKind === "strength") {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);
         haptic("success");
@@ -330,14 +341,17 @@ export function ExerciseCard({
       // row doesn't read as beating itself. Editing the reigning best is never a
       // fresh PR — same guard the old `log.id !== oldBest` check gave.
       const priorAsc = effectiveLogsAsc.filter((l) => l.id !== log.id);
-      const prKind =
-        log.id === stats.best?.log.id
-          ? null
-          : classifyPR(
-              { e1rm: newE1RM, weightKg: editScore, totalReps: totalReps(parsed.reps, sc) },
-              computePRBests(priorAsc, sc),
-              computeStats(priorAsc, sc).best,
-            );
+      const isReigningBest = log.id === stats.best?.log.id;
+      const editPrevBests = computePRBests(priorAsc, sc);
+      const prKind = isReigningBest
+        ? null
+        : classifyPR(
+            { e1rm: newE1RM, weightKg: editScore, totalReps: totalReps(parsed.reps, sc) },
+            editPrevBests,
+            computeStats(priorAsc, sc).best,
+          );
+      const milestone =
+        !isReigningBest && exercise.compound ? milestoneReached(editScore, editPrevBests.weightKg) : null;
       await updateLog(log.id, {
         raw,
         reps: parsed.reps,
@@ -352,7 +366,12 @@ export function ExerciseCard({
       setSavedRowId(log.id);
       setTimeout(() => setSavedRowId(null), 1200);
       haptic("tap");
-      if (prKind === "strength") {
+      if (milestone != null) {
+        setPrFlash(true);
+        setTimeout(() => setPrFlash(false), 1100);
+        haptic("success");
+        celebration.celebrate({ variant: "milestone", title: `${milestone} kg`, sub: exercise.name });
+      } else if (prKind === "strength") {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);
         haptic("success");
