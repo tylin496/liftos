@@ -1,9 +1,9 @@
-import { useEffect, useState, type Ref } from "react";
+import { useEffect, useMemo, useState, type Ref } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { series, rollingAvg } from "@features/health/math";
+import { series, rollingAvg, syncLabel } from "@features/health/math";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useInView } from "@shared/hooks/useInView";
@@ -774,9 +774,24 @@ export function OverviewPage() {
   // (no separate skeleton subtree to unmount, so the entrance never replays).
   const loading = !data;
 
+  // Sync freshness rides next to the greeting so you can trust the topbar
+  // activity ring — it only accrues as fast as the health sync. Same label logic
+  // as the Health tab (syncLabel). Memoised so the header's crossfade only
+  // re-fires when the label text actually changes, not on every render.
+  const lastSynced = useMemo(() => syncLabel(data?.metrics.at(-1) ?? null), [data]);
+  const syncNote = useMemo(
+    () =>
+      lastSynced ? (
+        <span className={`page-topbar-sync-note${lastSynced.tone === "bad" ? " is-bad" : ""}`}>
+          {lastSynced.text}
+        </span>
+      ) : undefined,
+    [lastSynced],
+  );
+
   const header = (
     <div className="shell-header">
-      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} />
+      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} note={syncNote} />
     </div>
   );
 

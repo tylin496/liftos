@@ -61,6 +61,20 @@
   transition: opacity var(--dur-press) var(--ease-press);
 }
 
+/* Sync freshness note — the content the note slot carries on Health (freshness
+   of the metrics every card anchors on) and Overview (freshness of the topbar
+   activity ring). Two-plus days stale flags bad; today (with a time) and
+   yesterday read neutral. Lives here, not in a feature stylesheet, so both tabs
+   pick it up (health.css isn't loaded on Overview). */
+.page-topbar-sync-note {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+}
+
+.page-topbar-sync-note.is-bad {
+  color: var(--bad);
+}
+
 .page-topbar-actions {
   flex-shrink: 0;
   display: flex;

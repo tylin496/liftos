@@ -8,6 +8,7 @@ import {
   sanitizeMetrics,
   countSkippedBodyFat,
   RECOVERY_STATUS_COLOR,
+  syncLabel,
   type MetricKey,
   type ChartPoint,
   type RecoverySnapshot,
@@ -18,7 +19,6 @@ import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metr
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
-import { localDateStr } from "@shared/lib/date";
 import "./health.css";
 
 interface MetricSpec {
@@ -324,28 +324,6 @@ function TrendCard({
 // countSkippedBodyFat) now lives in ./math so the AI export applies the exact
 // same filter — a sample that never reaches a chart must never reach the export.
 
-// Sync freshness for the header note. With multiple sync methods now (scheduled
-// runs, on-open), today shows the actual clock time of the last write so you can
-// tell how fresh it is; yesterday reads plainly; two-plus days is a real staleness
-// problem, so it flags bad.
-function syncLabel(
-  latest: { metric_date: string; updated_at: string } | null,
-): { text: string; tone: "normal" | "bad" } | null {
-  if (!latest) return null;
-  const daysAgo = Math.round((Date.parse(localDateStr()) - Date.parse(latest.metric_date)) / 86400000);
-  if (daysAgo <= 0) {
-    const t = new Date(latest.updated_at);
-    if (!Number.isNaN(t.getTime())) {
-      const hh = String(t.getHours()).padStart(2, "0");
-      const mm = String(t.getMinutes()).padStart(2, "0");
-      return { text: `Synced ${hh}:${mm}`, tone: "normal" };
-    }
-    return { text: "Synced today", tone: "normal" };
-  }
-  if (daysAgo === 1) return { text: "Synced yesterday", tone: "normal" };
-  return { text: `Synced ${daysAgo} days ago`, tone: "bad" };
-}
-
 export function HealthPage() {
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -378,7 +356,7 @@ export function HealthPage() {
   const syncNote = useMemo(
     () =>
       lastSynced ? (
-        <span className={`health-sync-note${lastSynced.tone === "bad" ? " is-bad" : ""}`}>
+        <span className={`page-topbar-sync-note${lastSynced.tone === "bad" ? " is-bad" : ""}`}>
           {lastSynced.text}
         </span>
       ) : undefined,

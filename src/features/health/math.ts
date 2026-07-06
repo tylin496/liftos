@@ -1,4 +1,29 @@
 import type { BodyMetric } from "./api";
+import { localDateStr } from "@shared/lib/date";
+
+// Sync freshness for the header note. Shared by both the Health tab (freshness of
+// the metrics every card anchors on) and Overview (freshness of the topbar
+// activity ring, which only accrues as fast as the health sync). With multiple
+// sync methods now (scheduled runs, on-open), today shows the actual clock time
+// of the last write so you can tell how fresh it is; yesterday reads plainly;
+// two-plus days is a real staleness problem, so it flags bad.
+export function syncLabel(
+  latest: Pick<BodyMetric, "metric_date" | "updated_at"> | null,
+): { text: string; tone: "normal" | "bad" } | null {
+  if (!latest) return null;
+  const daysAgo = Math.round((Date.parse(localDateStr()) - Date.parse(latest.metric_date)) / 86400000);
+  if (daysAgo <= 0) {
+    const t = new Date(latest.updated_at);
+    if (!Number.isNaN(t.getTime())) {
+      const hh = String(t.getHours()).padStart(2, "0");
+      const mm = String(t.getMinutes()).padStart(2, "0");
+      return { text: `Synced ${hh}:${mm}`, tone: "normal" };
+    }
+    return { text: "Synced today", tone: "normal" };
+  }
+  if (daysAgo === 1) return { text: "Synced yesterday", tone: "normal" };
+  return { text: `Synced ${daysAgo} days ago`, tone: "bad" };
+}
 
 export type MetricKey =
   | "weight_kg"
