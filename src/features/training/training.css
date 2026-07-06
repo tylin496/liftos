@@ -1294,9 +1294,10 @@
   padding: var(--space-2) 10px;
   border: none;
   background: transparent;
-  color: var(--ink-4);
+  color: var(--accent);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
+  font-weight: 600;
   text-align: center;
   cursor: pointer;
   border-radius: var(--radius-sm);
@@ -1304,7 +1305,7 @@
 }
 
 @media (hover: hover) {
-  .hist-add:hover { color: var(--ink-2); background: var(--bg-soft); }
+  .hist-add:hover { color: var(--accent-strong); background: var(--bg-soft); }
 }
 
 .hist-add:active { transform: scale(var(--tap-scale)); }
