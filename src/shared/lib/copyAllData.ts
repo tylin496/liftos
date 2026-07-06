@@ -1,6 +1,6 @@
 import { fetchHealthData } from "@features/health/api";
-import { getConfig, getEntries, targetsFromConfig } from "@features/nutrition/api";
-import { monthlyStats, weeklyStats, trainingMonthsFromStart } from "@features/nutrition/logic";
+import { getConfig, getEntries, targetsFromConfig, type NutritionEntry } from "@features/nutrition/api";
+import { monthlyStats, weeklyStats, trainingMonthsFromStart, phaseFromDeficit } from "@features/nutrition/logic";
 import { getNutritionState } from "@features/nutrition/evaluationApi";
 import { weeklyWeightRate } from "@features/nutrition/evaluation";
 import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
@@ -114,6 +114,78 @@ function weekStartMonday(dateStr: string): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Target-phase history reconstructed from the entries themselves. Every
+ *  nutrition entry snapshots the calorie/protein target that was active the day
+ *  it was logged (saveEntry writes targetsFromConfig), so the full target
+ *  timeline lives in the data — no separate audit table needed. A new phase
+ *  begins whenever calorie_target or protein_target changes from the previous
+ *  logged day. This lets an analysis attribute each day's intake to the goal
+ *  actually in force at the time: a 2452 kcal day under a 2050 target is on
+ *  plan, NOT overeating against today's 1750 target. Without this the reader
+ *  sees only the current target and mistakes every historical over-target day
+ *  for a slip. */
+function buildTargetPhases(entries: NutritionEntry[]) {
+  const withTarget = [...entries]
+    .filter((e) => e.calorie_target != null)
+    .sort((a, b) => a.entry_date.localeCompare(b.entry_date));
+
+  type Acc = {
+    from: string; to: string;
+    calorieTarget: number; proteinTarget: number | null;
+    deficitTarget: number | null; tdee: number | null;
+    calSum: number; calN: number; protSum: number; protN: number;
+  };
+  const accs: Acc[] = [];
+  for (const e of withTarget) {
+    const cal = e.calorie_target as number;
+    const prot = e.protein_target;
+    const last = accs.at(-1);
+    // New phase when the effective target (calories or protein) changes.
+    if (!last || last.calorieTarget !== cal || last.proteinTarget !== prot) {
+      accs.push({
+        from: e.entry_date, to: e.entry_date,
+        calorieTarget: cal, proteinTarget: prot,
+        deficitTarget: e.deficit_target, tdee: e.tdee,
+        calSum: 0, calN: 0, protSum: 0, protN: 0,
+      });
+    }
+    const acc = accs.at(-1)!;
+    acc.to = e.entry_date;
+    if (e.calories != null) { acc.calSum += e.calories; acc.calN++; }
+    if (e.protein != null) { acc.protSum += e.protein; acc.protN++; }
+  }
+
+  return accs.map((a) => ({
+    from: a.from,
+    to: a.to,
+    // activeDays = inclusive calendar span of the phase; loggedDays = how many
+    // of those days actually have an entry (the rest are gaps, not misses).
+    activeDays: Math.round((Date.parse(a.to) - Date.parse(a.from)) / 86_400_000) + 1,
+    loggedDays: a.calN,
+    calorieTarget: a.calorieTarget,
+    proteinTarget: a.proteinTarget,
+    deficitTarget: a.deficitTarget,
+    tdee: a.tdee,
+    cutPhase: a.deficitTarget != null ? phaseFromDeficit(a.deficitTarget) : null,
+    avgCalories: a.calN ? Math.round(a.calSum / a.calN) : null,
+    avgProtein: a.protN ? Math.round(a.protSum / a.protN) : null,
+  }));
+}
+
+/** Start date of the phase matching the current config target — i.e. how long
+ *  today's target has been in force. Null when the current target differs from
+ *  the last logged phase (target changed but not yet logged against), so the
+ *  field never claims an activeSince the data can't back up. */
+function activeSinceFor(
+  phases: ReturnType<typeof buildTargetPhases>,
+  currentCalorieTarget: number | null | undefined,
+): string | null {
+  const last = phases.at(-1);
+  return last && currentCalorieTarget != null && last.calorieTarget === currentCalorieTarget
+    ? last.from
+    : null;
+}
+
 /** Per-metric latest / average / change summary over the fetched window. */
 function buildHealthSummary(metrics: BodyMetric[], periodDays: number) {
   const summary: Record<string, unknown> = {};
@@ -196,6 +268,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   const sortedEntries = [...nutritionEntries].sort((a, b) =>
     a.entry_date.localeCompare(b.entry_date),
   );
+  const nutritionPhases = buildTargetPhases(sortedEntries);
   const logged = sortedEntries.filter((e) => e.calories != null);
   const avgCalories = logged.length
     ? Math.round(logged.reduce((s, e) => s + (e.calories ?? 0), 0) / logged.length)
@@ -412,7 +485,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 2.4,
+    schema: 2.5,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
     dataSpan: overviewWindow, // total span of ALL data (see windowOf); distinct from per-section windowDays
     summary: {
@@ -457,8 +530,14 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
             calories: targets.calorieTarget,
             protein: targets.proteinTarget,
             tdee: nutritionConfig?.tdee ?? null,
+            // How long today's target has been running (see activeSinceFor).
+            activeSince: activeSinceFor(nutritionPhases, targets.calorieTarget),
           }
         : null,
+      // Target-phase timeline: which calorie/protein goal was in force over
+      // which dates, so an over-target day is judged against the goal of its
+      // day — not today's. See buildTargetPhases.
+      phases: nutritionPhases,
       summary: {
         periodDays: nutritionDays,
         days: sortedEntries.length,
@@ -515,7 +594,7 @@ export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> 
 
   const payload = {
     source: "LiftOS",
-    schema: 2.4,
+    schema: 2.5,
     tab: "health",
     units: unitsFor(HEALTH_UNIT_KEYS),
     dataSpan: windowOf(metrics.map((m) => m.metric_date)),
@@ -547,6 +626,7 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
 
   const targets = config ? targetsFromConfig(config) : null;
   const sorted = [...entries].sort((a, b) => a.entry_date.localeCompare(b.entry_date));
+  const phases = buildTargetPhases(sorted);
   const logged = sorted.filter((e) => e.calories != null);
   const avgCalories = logged.length
     ? Math.round(logged.reduce((s, e) => s + (e.calories ?? 0), 0) / logged.length)
@@ -580,7 +660,7 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
 
   const payload = {
     source: "LiftOS",
-    schema: 2.4,
+    schema: 2.5,
     tab: "nutrition",
     units: unitsFor(NUTRITION_UNIT_KEYS),
     dataSpan: windowOf(sorted.map((e) => e.entry_date)),
@@ -592,8 +672,13 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
           deficitTarget: targets.deficitTarget,
           cutPhase: targets.cutPhaseName,
           tdee: config?.tdee ?? null,
+          activeSince: activeSinceFor(phases, targets.calorieTarget),
         }
       : null,
+    // Target-phase timeline reconstructed from each day's snapshotted target —
+    // which calorie/protein goal was in force over which dates. See
+    // buildTargetPhases: judge each day's intake against its day's target.
+    phases,
     evaluation: state,
     summary: {
       periodDays: days,
@@ -616,6 +701,10 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
       date: e.entry_date,
       calories: e.calories,
       protein: e.protein,
+      // Per-day snapshot of the target in force when this day was logged, so a
+      // reader never has to infer it from `phases` — the raw truth is inline.
+      calorieTarget: e.calorie_target,
+      proteinTarget: e.protein_target,
     })),
   };
   return JSON.stringify(payload, null, 2);
@@ -697,7 +786,7 @@ export async function buildTrainingJson(): Promise<string> {
 
   const payload = {
     source: "LiftOS",
-    schema: 2.4,
+    schema: 2.5,
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
     dataSpan: windowOf(
