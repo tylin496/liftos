@@ -14,7 +14,7 @@ import { StrengthHealthCard } from "@features/training/StrengthHealthCard";
 import { ActivityRing, OverflowRing } from "@shared/components/ActivityRing";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import "@shared/components/activityRing.css";
-import { usePageHeader } from "@app/layout/PageHeaderContext";
+import { PageTopBar } from "@shared/components/PageTopBar";
 import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
@@ -339,12 +339,14 @@ function GoalBarFill({ target }: { target: number }) {
 function CutProgressCard({
   goal,
   cutStartDate,
+  cutStartWeight,
   state,
   onNav,
   loading = false,
 }: {
   goal?: Goal | null;
   cutStartDate: string | null;
+  cutStartWeight: number | null;
   state: NutritionStateFull | null;
   onNav: () => void;
   loading?: boolean;
@@ -404,6 +406,10 @@ function CutProgressCard({
     : null;
   const isComplete = pct >= 100;
   const cutDay = cutStartDate ? daysSince(cutStartDate) : null;
+  // Weight dropped since the frozen cut baseline — a progress-to-date stat that
+  // rides in the header next to the day count. Only shown once there's a real
+  // loss to report (guards the +noise case where current briefly reads higher).
+  const lost = cutStartWeight != null ? cutStartWeight - e.currentWeight : null;
 
   return (
     <button
@@ -419,6 +425,11 @@ function CutProgressCard({
           {!isComplete && cutDay != null && (
             <span className="goal-day">
               {" "}· Day <b>{cutDay}</b>
+            </span>
+          )}
+          {lost != null && lost >= 0.1 && (
+            <span className="goal-day">
+              {" "}· Down <b>{lost.toFixed(1)}</b> kg
             </span>
           )}
         </span>
@@ -761,11 +772,16 @@ export function OverviewPage() {
   // (no separate skeleton subtree to unmount, so the entrance never replays).
   const loading = !data;
 
-  usePageHeader({ eyebrow: fmtTopbarDate(), title: greeting(user), onCopy: copyAllData });
+  const header = (
+    <div className="shell-header">
+      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} />
+    </div>
+  );
 
   if (error && !data) {
     return (
       <div className="page">
+        {header}
         <ErrorState message={error} onRetry={() => { setError(null); void load(); }} />
       </div>
     );
@@ -806,6 +822,7 @@ export function OverviewPage() {
           loading={loading}
           goal={data?.goal}
           cutStartDate={data?.cutStartDate ?? null}
+          cutStartWeight={data?.cutStartWeight ?? null}
           state={data?.nutritionState ?? null}
           onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />

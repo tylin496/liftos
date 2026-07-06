@@ -48,6 +48,9 @@ export interface OverviewData {
   /** Persisted cut-start date, or null when no baseline is set yet — the card
    *  shows its one-time initializer in that state. */
   cutStartDate: string | null;
+  /** Persisted smoothed weight (kg) at the cut baseline. Card subtracts the
+   *  current weight from this to show how much has been lost since the start. */
+  cutStartWeight: number | null;
   /** Raw body metrics — the initializer snapshots the baseline at a chosen date
    *  from these (once, at Save). */
   metrics: BodyMetric[];
@@ -160,7 +163,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     // read here — there is no in-app UI. To restart a cut, edit these directly.
     supabase
       .from("nutrition_config")
-      .select("target_body_fat_pct, cut_start_date, cut_start_body_fat_pct")
+      .select("target_body_fat_pct, cut_start_date, cut_start_body_fat_pct, cut_start_weight")
       .maybeSingle(),
   ]);
 
@@ -220,6 +223,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     goal,
     targetBodyFat: configRes.data?.target_body_fat_pct ?? null,
     cutStartDate: configRes.data?.cut_start_date ?? null,
+    cutStartWeight: configRes.data?.cut_start_weight ?? null,
     metrics: metrics as BodyMetric[],
     targetTdee: health.targetTdee,
     currentTdee: health.tdee.tdee,
