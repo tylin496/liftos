@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo } from "react";
 import { ErrorState } from "@shared/components/ErrorState";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import {
@@ -577,15 +577,18 @@ function TrainingPageInner() {
     setJumpTarget((prev) => ({ slug, nonce: (prev?.nonce ?? 0) + 1 }));
   }
 
-  useEffect(() => {
+  // Position the panel on the card SYNCHRONOUSLY, before paint. A cross-split
+  // jump remounts the list (key={split}) while the panel is still scrolled to
+  // the Training Health card at the bottom — an rAF (post-paint) scroll would
+  // paint one frame of the new split at that stale offset first, then jump (the
+  // "judder"). A layout effect + instant scroll lands the card in the same frame
+  // the split switches; the Trend sheet then opens over it. The list runs in the
+  // commit before this, so the target card is already in the DOM.
+  useLayoutEffect(() => {
     if (!jumpTarget) return;
-    // Wait a frame so a just-switched split's card is in the DOM before scrolling.
-    const raf = requestAnimationFrame(() => {
-      document
-        .getElementById(`ex-card-${jumpTarget.slug}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    return () => cancelAnimationFrame(raf);
+    document
+      .getElementById(`ex-card-${jumpTarget.slug}`)
+      ?.scrollIntoView({ block: "start" });
   }, [jumpTarget]);
 
   const reloadAll = useCallback(async () => {
