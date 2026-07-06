@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { useId, useMemo, type ReactNode } from "react";
 
 /** A single progress ring — stroke-based, so it scales cleanly from the
  *  topbar avatar size up to a hero card. `pct` is 0–1+ (values over 1 just
@@ -110,9 +110,14 @@ export function OverflowRing({
   // land only ON the ring — never past the outer edge nor into the inner hole.
   const rOut = r + strokeWidth / 2;
   const rIn = r - strokeWidth / 2;
-  const bandPath =
-    `M ${c - rOut} ${c} a ${rOut} ${rOut} 0 1 0 ${rOut * 2} 0 a ${rOut} ${rOut} 0 1 0 ${-rOut * 2} 0 Z ` +
-    `M ${c - rIn} ${c} a ${rIn} ${rIn} 0 1 0 ${rIn * 2} 0 a ${rIn} ${rIn} 0 1 0 ${-rIn * 2} 0 Z`;
+  // Depends only on the ring's fixed geometry (size/strokeWidth), not `ratio` —
+  // memoise so the count-up roll doesn't rebuild the same annulus path each frame.
+  const bandPath = useMemo(
+    () =>
+      `M ${c - rOut} ${c} a ${rOut} ${rOut} 0 1 0 ${rOut * 2} 0 a ${rOut} ${rOut} 0 1 0 ${-rOut * 2} 0 Z ` +
+      `M ${c - rIn} ${c} a ${rIn} ${rIn} 0 1 0 ${rIn * 2} 0 a ${rIn} ${rIn} 0 1 0 ${-rIn * 2} 0 Z`,
+    [c, rOut, rIn],
+  );
   // The second lap is ONE arc, drawn twice from the same props: the plain ribbon
   // on top, and a shadowed copy behind it shown only where the tail window AND
   // the ring band overlap — so the shadow lifts the ribbon's END, cast onto the
