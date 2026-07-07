@@ -42,9 +42,56 @@
   color: var(--ink-4);
 }
 
+.health-sparkline-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .health-sparkline {
   flex-shrink: 0;
   overflow: visible;
+  cursor: grab;
+  touch-action: none;
+}
+
+.health-sparkline:active {
+  cursor: grabbing;
+}
+
+.health-spark-guide {
+  stroke: var(--ink-4);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.health-spark-scrub-dot {
+  pointer-events: none;
+}
+
+.health-spark-tooltip {
+  position: absolute;
+  top: -6px;
+  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.health-spark-tooltip-date {
+  color: var(--ink);
 }
 
 /* Trend redraw on tab-enter: the line strokes itself in left→right (linear, so

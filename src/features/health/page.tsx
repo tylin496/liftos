@@ -19,6 +19,8 @@ import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metr
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
+import { useChartScrub } from "@shared/hooks/useChartScrub";
+import { timelineDate } from "@shared/lib/date";
 import "./health.css";
 
 interface MetricSpec {
@@ -56,12 +58,30 @@ const copyHealthData = () => buildHealthJson();
 // (Weight → 42d/6wk, Body Fat/Lean Mass → 84d/12wk).
 const SPARK_POINTS = 6;
 
-/* Small static trend indicator on each Trend card's header — a glance-only
-   shape (range = its own bucket × SPARK_POINTS), not a scrubbable chart
-   (that's a deliberate design call, not a fidelity cut: the card's own big
-   number + delta already carry the "what changed" story). */
-function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }: { points: ChartPoint[]; minSpan?: number; color?: string }) {
+/* Trend indicator on each Trend card's header (range = its own bucket ×
+   SPARK_POINTS). Press-drag anywhere on it to scrub any bucket's date range
+   and value — the card's own big number + delta still carry the resting
+   "what changed" story; this is for "when did that happen". */
+function Sparkline({
+  points,
+  minSpan = 0,
+  color = "var(--health-measurement)",
+  unit = "",
+  decimals = 1,
+}: {
+  points: ChartPoint[];
+  minSpan?: number;
+  color?: string;
+  unit?: string;
+  decimals?: number;
+}) {
   const width = 130, height = 44;
+
+  // Hooks can't be conditional — call it every render with whatever xs the
+  // <2-point placeholder branch below would have (empty, so it just no-ops).
+  const xs = points.map((_, i) => (points.length > 1 ? (i / (points.length - 1)) * width : width / 2));
+  const { svgRef, index: scrubIdx, ...scrubHandlers } = useChartScrub(xs, width);
+
   if (points.length < 2) return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline" />;
 
   const vals = points.map((p) => p.value);
@@ -91,6 +111,42 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
   const last = coords[coords.length - 1];
   const n = coords.length;
 
+  const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
+  const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
+  const scrubStart = scrubPoint ? timelineDate(scrubPoint.dateStart) : null;
+  const scrubEnd = scrubPoint ? timelineDate(scrubPoint.dateEnd) : null;
+  const scrubGuide = scrubCoord && (
+    <line
+      className="health-spark-guide"
+      x1={scrubCoord.x.toFixed(1)}
+      y1={dot}
+      x2={scrubCoord.x.toFixed(1)}
+      y2={height - dot}
+      vectorEffect="non-scaling-stroke"
+    />
+  );
+  const scrubDot = scrubCoord && (
+    <circle
+      className="health-spark-scrub-dot"
+      cx={scrubCoord.x.toFixed(1)}
+      cy={scrubCoord.y.toFixed(1)}
+      r={dot + 1}
+      fill={color}
+    />
+  );
+  const tooltip = scrubPoint && scrubCoord && scrubStart && scrubEnd && (
+    <div
+      className="health-spark-tooltip"
+      style={{ left: `${Math.min(88, Math.max(12, (scrubCoord.x / width) * 100))}%` }}
+    >
+      <span className="health-spark-tooltip-date">
+        {scrubStart.mon} {scrubStart.day}
+        {scrubPoint.dateStart !== scrubPoint.dateEnd ? `–${scrubEnd.day}` : ""}
+      </span>
+      <span className="mono">{fmt(scrubPoint.value, decimals)}{unit}</span>
+    </div>
+  );
+
   const reduced =
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -101,13 +157,25 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
   // anchor. SPARK_POINTS keeps the beads from crowding.
   if (reduced) {
     return (
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
-        <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        {coords.slice(0, -1).map((c, i) => (
-          <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="1.4" />
-        ))}
-        <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={anchorDot} fill="var(--bg-card)" stroke={color} strokeWidth="2.4" />
-      </svg>
+      <div className="health-sparkline-wrap">
+        <svg
+          ref={svgRef}
+          width={width}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+          className="health-sparkline"
+          {...scrubHandlers}
+        >
+          <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          {coords.slice(0, -1).map((c, i) => (
+            <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="1.4" />
+          ))}
+          <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={anchorDot} fill="var(--bg-card)" stroke={color} strokeWidth="2.4" />
+          {scrubGuide}
+          {scrubDot}
+        </svg>
+        {tooltip}
+      </div>
     );
   }
 
@@ -122,44 +190,56 @@ function Sparkline({ points, minSpan = 0, color = "var(--health-measurement)" }:
   // expression inline so they stay locked to their line, then trail it left→right.
   const tierDelay = "calc(var(--stagger-step) * var(--enter-tier, 0) * 3 + var(--enter-wait))";
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
-      <g>
-        <polyline
-          className="health-spark-line"
-          points={pts}
-          pathLength={1}
-          fill="none"
-          stroke="var(--ink-4)"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ ["--spark-dur" as string]: `${dur}ms` }}
-        />
-        {coords.slice(0, -1).map((c, i) => (
-          <circle
-            key={i}
-            className="health-spark-bead"
-            cx={c.x.toFixed(1)}
-            cy={c.y.toFixed(1)}
-            r={dot}
-            fill="var(--bg-card)"
+    <div className="health-sparkline-wrap">
+      <svg
+        ref={svgRef}
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="health-sparkline"
+        {...scrubHandlers}
+      >
+        <g>
+          <polyline
+            className="health-spark-line"
+            points={pts}
+            pathLength={1}
+            fill="none"
             stroke="var(--ink-4)"
-            strokeWidth="1.4"
-            style={{ animationDelay: `calc(${tierDelay} + ${((i / (n - 1)) * dur).toFixed(0)}ms)` }}
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ ["--spark-dur" as string]: `${dur}ms` }}
           />
-        ))}
-        <circle
-          className="health-spark-bead health-spark-bead--anchor"
-          cx={last.x.toFixed(1)}
-          cy={last.y.toFixed(1)}
-          r={anchorDot}
-          fill="var(--bg-card)"
-          stroke={color}
-          strokeWidth="2.4"
-          style={{ animationDelay: `calc(${tierDelay} + ${dur}ms)` }}
-        />
-      </g>
-    </svg>
+          {coords.slice(0, -1).map((c, i) => (
+            <circle
+              key={i}
+              className="health-spark-bead"
+              cx={c.x.toFixed(1)}
+              cy={c.y.toFixed(1)}
+              r={dot}
+              fill="var(--bg-card)"
+              stroke="var(--ink-4)"
+              strokeWidth="1.4"
+              style={{ animationDelay: `calc(${tierDelay} + ${((i / (n - 1)) * dur).toFixed(0)}ms)` }}
+            />
+          ))}
+          <circle
+            className="health-spark-bead health-spark-bead--anchor"
+            cx={last.x.toFixed(1)}
+            cy={last.y.toFixed(1)}
+            r={anchorDot}
+            fill="var(--bg-card)"
+            stroke={color}
+            strokeWidth="2.4"
+            style={{ animationDelay: `calc(${tierDelay} + ${dur}ms)` }}
+          />
+          {scrubGuide}
+          {scrubDot}
+        </g>
+      </svg>
+      {tooltip}
+    </div>
   );
 }
 
@@ -309,7 +389,7 @@ function TrendCard({
             {delta}
           </div>
         </div>
-        <Sparkline points={points} minSpan={minSpan} color={color} />
+        <Sparkline points={points} minSpan={minSpan} color={color} unit={unit} decimals={decimals} />
       </div>
       <div className="health-trend-foot">
         <MetricCaption>{loading ? "Loading…" : avgLabel}</MetricCaption>
@@ -564,7 +644,7 @@ export function HealthPage() {
                   )}
                 </div>
               </div>
-              <Sparkline points={energyBucketed} minSpan={ENERGY_MIN_SPAN} color="var(--accent)" />
+              <Sparkline points={energyBucketed} minSpan={ENERGY_MIN_SPAN} color="var(--accent)" unit=" kcal" decimals={0} />
             </div>
             <div className="health-trend-foot">
               <MetricCaption>
