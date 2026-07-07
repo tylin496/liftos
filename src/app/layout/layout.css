@@ -161,7 +161,7 @@ html.kb-open .tabbar {
   position: fixed;
   z-index: var(--z-nav);
   left: 50%;
-  bottom: calc(var(--safe-bottom) + var(--space-3));
+  bottom: calc(var(--safe-bottom) + var(--space-1));
   transform: translateX(-50%);
   width: min(100vw - var(--space-5) * 2, var(--content-max));
   display: flex;
@@ -821,8 +821,6 @@ html.kb-open .tabbar {
 }
 .splash-word b { color: var(--accent); }
 .splash-tag {
-  position: absolute;
-  bottom: 44px;
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -830,6 +828,24 @@ html.kb-open .tabbar {
   color: var(--ink-3);
   z-index: 1;
   animation: word-in var(--dur-enter) var(--ease-enter) 180ms both;
+}
+/* Loading cue — three ember dots INSIDE the lockup (fourth stacked item, no
+   longer floating at the screen edge). They appear only ~900ms in, so a fast
+   splash never shows them; only a genuinely stuck cold start surfaces the
+   "still working" breath, right where the eye already rests. */
+.splash-dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3); /* a touch looser than mark→word→tag, still one group */
+  z-index: 1;
+  animation: dots-appear var(--dur-move) var(--ease-enter) 900ms both;
+}
+.splash-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 @keyframes mark-in {
   from { opacity: 0; transform: scale(0.82) translateY(6px); }
@@ -842,16 +858,33 @@ html.kb-open .tabbar {
 
 /* Breathing glow on the held frame — signals progress without a spinner */
 @media (prefers-reduced-motion: no-preference) {
-  .splash::after { animation: splash-glow 2400ms ease-in-out infinite; }
+  .splash::after { animation: splash-glow 4200ms ease-in-out infinite; }
   .splash--static .splash-mark { animation: splash-float 3200ms ease-in-out infinite; }
+  /* Dots breathe on the shared ambient clock; the nth-child delays sit AFTER the
+     shorthand so they survive it (the shorthand would otherwise zero the delay).
+     Gated here → static, non-pulsing dots under reduced-motion. */
+  .splash-dots span { animation: dot-pulse var(--dur-ambient) ease-in-out infinite; }
+  .splash-dots span:nth-child(2) { animation-delay: 220ms; }
+  .splash-dots span:nth-child(3) { animation-delay: 440ms; }
 }
+/* Brightness-only breath — no scale, so the glow settles instead of pulsing in
+   size. The base ::after keeps its translate centering (this keyframe only
+   touches opacity). */
 @keyframes splash-glow {
-  0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.94); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.72; }
 }
 @keyframes splash-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
+}
+@keyframes dots-appear {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.8; }
 }
 
 /* Settings — low-key brand footer */
