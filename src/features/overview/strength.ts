@@ -8,6 +8,7 @@
 
 import { parse, score } from "@features/training/parser";
 import { epley1RM, maxReps } from "@features/training/logic";
+import { milestoneReached } from "@features/training/milestone";
 
 export type StrengthStatus = "improving" | "stable" | "watch";
 
@@ -90,6 +91,13 @@ export interface StrengthExercise {
   /** The PR session's heaviest set as "77 kg × 7" — the concrete detail for a
    *  Performance PR reward row. */
   lastPRDetail: string;
+  /** If the most recent PR session also crossed a round-weight milestone rung
+   *  (compound lifts only — see milestone.ts), the rung in kg. The persisted
+   *  look-back counterpart to ExerciseCard's log-time 🎯 toast, so the Training
+   *  Health card can show a gold "🎯 180 kg" chip on the reward row. Undefined
+   *  when the caller supplied no compound flags, the lift isn't compound, or no
+   *  new rung was crossed. */
+  milestoneKg?: number;
 }
 
 export interface StrengthSummary {
@@ -113,7 +121,14 @@ export type LogsBySlug = Record<string, Array<{ log_date: string | null; raw: st
  * logs it already holds). Needs ≥4 sessions per exercise to compare recent-3
  * vs prior. Pure: pass logs grouped by slug, get the summary back.
  */
-export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary {
+export function computeStrengthSummary(
+  logsBySlug: LogsBySlug,
+  /** Slugs flagged `exercises.compound` — only these earn a round-weight
+   *  milestone (machine isolations load heavy and would spam rungs; see
+   *  milestone.ts). Optional: callers that don't render the reward chip (the
+   *  Decision Engine slice, the data export) omit it and no milestone is set. */
+  compoundSlugs?: Set<string>,
+): StrengthSummary {
   const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, attention: 0, total: 0, exercises: [] };
 
   for (const [slug, slugLogs] of Object.entries(logsBySlug)) {
@@ -178,12 +193,19 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
     let runMaxWeight = -Infinity;
     let prDate = datedBests[0][0];
     let lastPRKind: "strength" | "performance" = "strength"; // first-ever session = strength PR
+    // Round-weight milestone crossed at the LAST PR session (compound only). Set
+    // alongside prDate/lastPRKind so it always describes the reward row's PR, not
+    // an earlier one. runMaxWeight here still holds the heaviest weight from PRIOR
+    // sessions (it's updated below the check) — exactly milestoneReached's prevBest.
+    const isCompound = compoundSlugs?.has(slug) ?? false;
+    let lastPRMilestone: number | null = null;
     for (const [date, v] of datedBests) {
       const newCeiling = Math.round(v.e1rm * 10) / 10 > Math.round(runMaxE1 * 10) / 10;
       const newWeight = v.weightKg > runMaxWeight;
       if (newCeiling || newWeight) {
         prDate = date;
         lastPRKind = newCeiling ? "strength" : "performance";
+        lastPRMilestone = isCompound ? milestoneReached(v.weightKg, runMaxWeight) : null;
       }
       if (v.e1rm > runMaxE1) runMaxE1 = v.e1rm;
       if (v.weightKg > runMaxWeight) runMaxWeight = v.weightKg;
@@ -232,6 +254,7 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       recentBests: sessionBests.slice(-8),
       lastPRKind,
       lastPRDetail,
+      milestoneKg: lastPRMilestone ?? undefined,
     });
   }
 

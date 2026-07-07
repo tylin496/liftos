@@ -474,6 +474,14 @@
   color: var(--ink-4);
   white-space: nowrap;
 }
+/* Milestone rung chip (🎯 180 kg): the gold celebration tier, replacing the
+   muted "🔥 this week". Gold + glow is the sanctioned gold-text treatment
+   (tokens.css --gold / --gold-glow); gold stays reserved for celebration. */
+.ov-th-rrow-chip--milestone {
+  color: var(--gold);
+  font-weight: 600;
+  text-shadow: var(--gold-glow);
+}
 .ov-th-rrow-right {
   grid-column: 3;
   grid-row: 1 / span 2;

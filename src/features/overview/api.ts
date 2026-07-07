@@ -58,7 +58,7 @@ export interface OverviewData {
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
-  const [health, logsRes, archivedRes, nutritionState, configRes] = await Promise.all([
+  const [health, logsRes, exercisesRes, nutritionState, configRes] = await Promise.all([
     // 180 days of body metrics. Recovery's 7/30-day windows anchor to the latest
     // reading, so the wider window doesn't shift its baseline.
     fetchHealthData(180),
@@ -66,9 +66,10 @@ export async function fetchOverview(): Promise<OverviewData> {
       .from("training_logs")
       .select("exercise_slug, raw, log_date")
       .order("log_date", { ascending: true }),
-    // Archived exercises are excluded from the strength watch list below —
-    // they're retired, not stalled.
-    supabase.from("exercises").select("slug").eq("archived", true),
+    // All exercises' flags: `archived` (excluded from the strength watch list —
+    // retired, not stalled) and `compound` (earns round-weight milestones on the
+    // reward row). Fetched together to avoid a second round trip.
+    supabase.from("exercises").select("slug, archived, compound"),
     // Shared nutrition state — a plain read; recompute happens on data change.
     getNutritionState(),
     // Goal Provider config: the target plus the persisted cut baseline
@@ -84,7 +85,7 @@ export async function fetchOverview(): Promise<OverviewData> {
   // rejecting — check explicitly so a transient failure surfaces the real
   // ErrorState instead of silently reading back as "no data".
   if (logsRes.error) throw logsRes.error;
-  if (archivedRes.error) throw archivedRes.error;
+  if (exercisesRes.error) throw exercisesRes.error;
   if (configRes.error) throw configRes.error;
 
   // Weight — latest reading. The trend/status the Weight card shows comes from
@@ -109,14 +110,15 @@ export async function fetchOverview(): Promise<OverviewData> {
 
   // Group logs by exercise for the performance-trend summary, excluding
   // archived exercises — they're retired, not stalled.
-  const archivedSlugs = new Set((archivedRes.data ?? []).map((e) => e.slug));
+  const archivedSlugs = new Set((exercisesRes.data ?? []).filter((e) => e.archived).map((e) => e.slug));
+  const compoundSlugs = new Set((exercisesRes.data ?? []).filter((e) => e.compound).map((e) => e.slug));
   const bySlug: Record<string, typeof logs> = {};
   for (const l of logs) {
     if (!l.exercise_slug || archivedSlugs.has(l.exercise_slug)) continue;
     (bySlug[l.exercise_slug] ??= []).push(l);
   }
 
-  const strength = computeStrengthSummary(bySlug);
+  const strength = computeStrengthSummary(bySlug, compoundSlugs);
 
   // Primary Goal — computed entirely upstream in the Provider. The card only
   // renders the finished payload; swapping goal types never touches this call.

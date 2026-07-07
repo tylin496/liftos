@@ -150,7 +150,15 @@ function RewardRow({
       <span className="ov-th-rrow-name">{exercise.name}</span>
       <span className={`ov-th-rrow-note${isPR ? "" : " ov-th-rrow-note--rebounding"}`}>{note}</span>
       {isPR ? (
-        <span className="ov-th-rrow-chip">🔥 this week</span>
+        // A Strength PR that also cleared a round-weight rung earns the gold 🎯
+        // (the log-time milestone toast, remembered). Only on the strength row:
+        // its note ("new best e1RM") carries no weight, so the rung adds a
+        // concrete number — a Performance row already prints its weight in the note.
+        strong && exercise.milestoneKg != null ? (
+          <span className="ov-th-rrow-chip ov-th-rrow-chip--milestone">🎯 {exercise.milestoneKg} kg</span>
+        ) : (
+          <span className="ov-th-rrow-chip">🔥 this week</span>
+        )
       ) : (
         <span className="ov-th-rrow-right">
           <Sparkline bests={exercise.recentBests} tone="good" />

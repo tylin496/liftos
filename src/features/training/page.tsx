@@ -892,10 +892,11 @@ function TrainingPageInner() {
   // resolved here from the exercise list (Overview resolves them via query).
   const strengthHealth = useMemo(() => {
     const archivedSlugs = new Set((exercises ?? []).filter((e) => e.archived).map((e) => e.slug));
+    const compoundSlugs = new Set((exercises ?? []).filter((e) => e.compound).map((e) => e.slug));
     const activeLogs = Object.fromEntries(
       Object.entries(logs).filter(([slug]) => !archivedSlugs.has(slug)),
     );
-    return { strength: computeStrengthSummary(activeLogs) };
+    return { strength: computeStrengthSummary(activeLogs, compoundSlugs) };
   }, [logs, exercises]);
 
   return (

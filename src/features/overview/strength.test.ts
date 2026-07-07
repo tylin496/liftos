@@ -112,3 +112,42 @@ describe("computeStrengthSummary — needs-attention gating (recent-PR grace)", 
     expect(row.needsAttention).toBe(true);
   });
 });
+
+describe("computeStrengthSummary — milestoneKg (reward-row 🎯 chip)", () => {
+  // The last session crosses 100 kg (heaviest ever, new rung) AND raises the
+  // e1RM ceiling — the classic Strength PR + milestone the gold chip is for.
+  const crossing = {
+    squat: [
+      log("2026-01-01", "90*5"),
+      log("2026-01-08", "92*5"),
+      log("2026-01-15", "95*5"),
+      log("2026-02-01", "100*5"), // heaviest ever → crosses the 100 rung
+    ],
+  };
+
+  it("captures the rung at the last PR when the slug is flagged compound", () => {
+    const s = computeStrengthSummary(crossing, new Set(["squat"]));
+    const squat = s.exercises.find((e) => e.slug === "squat")!;
+    expect(squat.lastPRKind).toBe("strength");
+    expect(squat.milestoneKg).toBe(100);
+  });
+
+  it("stays undefined for a non-compound lift (rung spam guard)", () => {
+    const s = computeStrengthSummary(crossing, new Set()); // squat not flagged
+    expect(s.exercises.find((e) => e.slug === "squat")!.milestoneKg).toBeUndefined();
+  });
+
+  it("stays undefined when no compound set is supplied (engine / export callers)", () => {
+    const s = computeStrengthSummary(crossing);
+    expect(s.exercises.find((e) => e.slug === "squat")!.milestoneKg).toBeUndefined();
+  });
+
+  it("stays undefined when the PR set no new rung", () => {
+    // Heaviest climbs 90→95 but never clears the next rung (100), so no milestone.
+    const s = computeStrengthSummary(
+      { squat: [log("2026-01-01", "90*5"), log("2026-01-08", "70*5"), log("2026-01-15", "72*5"), log("2026-02-01", "95*5")] },
+      new Set(["squat"]),
+    );
+    expect(s.exercises.find((e) => e.slug === "squat")!.milestoneKg).toBeUndefined();
+  });
+});
