@@ -14,11 +14,6 @@ function exerciseRetention(ex: StrengthExercise): number {
   return ex.latestE1RM / ex.prE1RM;
 }
 
-// Staleness is a LABEL, never a score adjustment. A lift last logged long ago
-// just means "we don't know if this still represents now" — the app never
-// guesses recovery or decline from silence (maintenance goes unlogged). Rows
-// only surface the hint past this threshold so fresh lifts stay uncluttered.
-const STALE_WEEKS = 4;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function weeksAgo(isoDate: string, nowMs: number): number {
@@ -86,30 +81,26 @@ function Sparkline({ bests, tone }: { bests: number[]; tone: "bad" | "warn" | "g
   );
 }
 
-function StaleHint({ isoDate, nowMs }: { isoDate: string; nowMs: number }) {
-  const w = weeksAgo(isoDate, nowMs);
-  if (w < STALE_WEEKS) return null;
-  return <span className="ov-th-row-stale">logged {w}w ago</span>;
-}
-
 // A warning row — two lines: name + mini trend (top), marker + note + retention%
 // (bottom). Declining ↓ (acute, red) and plateau ● (chronic, amber) share one
 // section; colour does the sorting. Weeks is demoted to the caption — retention%
 // is the headline number (the primary judgment, not staleness). Tap → trend chart.
 function WarningRow({
   exercise,
-  nowMs,
   onJump,
 }: {
   exercise: StrengthExercise;
-  nowMs: number;
   onJump?: (slug: string) => void;
 }) {
   const acute = exercise.declining;
   const tone: "bad" | "warn" = acute ? "bad" : "warn";
   const pct = Math.round(exerciseRetention(exercise) * 100);
   const wk = exercise.stalledWeeks;
-  const note = acute ? "Declining" : `Stalled · ${wk} ${wk === 1 ? "wk" : "wks"} since PR`;
+  // The note is the whole story of the row — no separate staleness hint (weeks is
+  // folded in here, retention% is the headline on the right).
+  const note = acute
+    ? "Declining · last 3 sessions"
+    : `Stalled · ${wk} ${wk === 1 ? "wk" : "wks"} since PR`;
   const body = (
     <>
       <span className="ov-th-wrow-name">{exercise.name}</span>
@@ -121,7 +112,6 @@ function WarningRow({
           {acute ? "↓" : "●"}
         </span>
         <span className="ov-th-wrow-note">{note}</span>
-        <StaleHint isoDate={exercise.lastLogDate} nowMs={nowMs} />
       </span>
       <span className={`ov-th-wrow-pct ov-th-wrow-pct--${tone}`}>{pct}%</span>
     </>
@@ -149,7 +139,11 @@ function RewardRow({
   const isPR = rewardKind === "pr";
   const strong = exercise.lastPRKind === "strength";
   const icon = isPR ? (strong ? "🏆" : "💪") : "↑";
-  const note = isPR ? (strong ? "Strength PR" : "Performance PR") : "Rebounding";
+  const note = isPR
+    ? strong
+      ? "Strength PR · new best e1RM"
+      : `Performance PR · ${exercise.lastPRDetail}`
+    : "Rebounding · climbing back";
   const body = (
     <>
       <span className={`ov-th-rrow-icon${isPR ? "" : " ov-th-rrow-icon--up"}`} aria-hidden>{icon}</span>
@@ -498,7 +492,7 @@ export function StrengthHealthCard({
               <span className="ov-th-sect-head">Needs attention · {warnings.length}</span>
             </div>
             {warnings.map((ex) => (
-              <WarningRow key={ex.slug} exercise={ex} nowMs={nowMs} onJump={onJumpToExercise} />
+              <WarningRow key={ex.slug} exercise={ex} onJump={onJumpToExercise} />
             ))}
           </div>
         )}

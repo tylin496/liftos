@@ -7,7 +7,7 @@
 // the training parser/e1RM, nothing else.
 
 import { parse, score } from "@features/training/parser";
-import { epley1RM } from "@features/training/logic";
+import { epley1RM, maxReps } from "@features/training/logic";
 
 export type StrengthStatus = "improving" | "stable" | "watch";
 
@@ -87,6 +87,9 @@ export interface StrengthExercise {
    *  ("strength") or a weight-axis PR ("performance") — drives the 🏆 / 💪 reward
    *  icon. Always set (the first-ever session counts as a strength PR). */
   lastPRKind: "strength" | "performance";
+  /** The PR session's heaviest set as "77 kg × 7" — the concrete detail for a
+   *  Performance PR reward row. */
+  lastPRDetail: string;
 }
 
 export interface StrengthSummary {
@@ -121,7 +124,7 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
     // Group by date (a day = one session); keep the best on BOTH axes — max e1RM
     // (the status/retention number) and max completed weight (the Performance-PR
     // axis, used only to reset the stall clock below).
-    const byDate: Record<string, { e1rm: number; weightKg: number }> = {};
+    const byDate: Record<string, { e1rm: number; weightKg: number; topReps: number }> = {};
     for (const l of slugLogs) {
       if (!l.log_date || !l.raw) continue;
       const p = parse(l.raw);
@@ -129,8 +132,13 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       const w = score(p);
       if (!Number.isFinite(w)) continue;
       const e = epley1RM(w, p.reps);
-      const cur = byDate[l.log_date] ?? { e1rm: 0, weightKg: 0 };
-      byDate[l.log_date] = { e1rm: Math.max(cur.e1rm, e), weightKg: Math.max(cur.weightKg, w) };
+      const cur = byDate[l.log_date] ?? { e1rm: 0, weightKg: 0, topReps: 0 };
+      const heavier = w > cur.weightKg; // track reps of the HEAVIEST set (the PR detail)
+      byDate[l.log_date] = {
+        e1rm: Math.max(cur.e1rm, e),
+        weightKg: heavier ? w : cur.weightKg,
+        topReps: heavier ? maxReps(p.reps) : cur.topReps,
+      };
     }
     // Sort ascending by date so recent/prior slices are correct regardless of
     // the caller's row order (Overview queries asc; the Training tab keeps logs
@@ -184,6 +192,8 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
     const stalledWeeks = Math.floor(
       (Date.parse(lastDate) - Date.parse(prDate)) / (7 * 24 * 60 * 60 * 1000),
     );
+    const prBest = byDate[prDate];
+    const lastPRDetail = prBest ? `${Math.round(prBest.weightKg * 10) / 10} kg × ${prBest.topReps}` : "";
 
     // "Needs attention" gates the retention flag on the stall clock: a lift only
     // needs intervention if it's below PR AND has been stuck for weeks. A recent
@@ -221,6 +231,7 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       declining,
       recentBests: sessionBests.slice(-8),
       lastPRKind,
+      lastPRDetail,
     });
   }
 
