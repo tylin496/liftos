@@ -60,8 +60,17 @@ export function totalReps(repsStr: string, setCount: number): number {
   return segs.reduce((sum, n) => sum + n, 0);
 }
 
+/** Reps past which Epley's linear term overestimates 1RM badly. Beyond this a
+ *  high-rep burnout set would mint an unbeatable "PR" ceiling no normal working
+ *  set can touch — real export: Leg Curl 68×15 → a phantom 102 e1RM vs a ~95
+ *  working ceiling, leaving the lift permanently "stale / below PR" against a
+ *  number it can't beat. Clamp the rep count into the formula so a set past 12
+ *  estimates the same as 12 (where Epley is still trustworthy). Only affects
+ *  sets logged above 12 reps; every normal working set is unchanged. */
+const EPLEY_MAX_REPS = 12;
+
 export function epley1RM(weightKg: number, repsStr: string): number {
-  const maxR = maxReps(repsStr);
+  const maxR = Math.min(maxReps(repsStr), EPLEY_MAX_REPS);
   if (!maxR || !weightKg || weightKg <= 0) return 0;
   return weightKg * (1 + maxR / 30);
 }
