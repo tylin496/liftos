@@ -69,6 +69,28 @@ export function ArchiveIcon({ className = "" }: { className?: string }) {
   );
 }
 
+// Collapsed-card footer "Log set" affordance — the only accent-colored glyph
+// in an otherwise neutral-ink footer row.
+export function PlusIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`lucide lucide-plus ${className}`}
+    >
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
+
 // Row-level inline edit affordance (distinct from the square-pen menu edit).
 // The baseline line reads as "edit this entry/line".
 export function PenLineIcon({ className = "" }: { className?: string }) {

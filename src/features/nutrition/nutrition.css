@@ -217,8 +217,16 @@
   flex-direction: column;
   gap: 2px;
   padding: var(--space-3);
-  background: var(--bg-soft);
+  /* Lighter panel in light mode — nudge --bg-soft toward the white card so the
+     grey reads cleaner/less heavy. Dark mode keeps --bg-soft (see override). */
+  background: color-mix(in srgb, var(--bg-soft), var(--bg-card) 40%);
   border-radius: var(--radius-sm);
+}
+
+/* Dark mode was already fine — keep the original --bg-soft panels there. */
+:root[data-theme="dark"] .ni-cell,
+:root[data-theme="dark"] .ni-pace {
+  background: var(--bg-soft);
 }
 
 /* Full-width cells (Est. intake, Confidence) read as a row, not a stacked
@@ -286,7 +294,8 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
-  background: var(--bg-soft);
+  /* Lighter panel in light mode (see .ni-cell); dark keeps --bg-soft. */
+  background: color-mix(in srgb, var(--bg-soft), var(--bg-card) 40%);
   border-radius: var(--radius-card);
 }
 

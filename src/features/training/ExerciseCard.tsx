@@ -31,7 +31,7 @@ import { useCelebration } from "@shared/components/Celebration";
 import { haptic } from "@shared/lib/haptics";
 import { EditExerciseForm } from "./EditExerciseForm";
 import { TrendSheet } from "./TrendSheet";
-import { EditIcon, PenLineIcon, ArrowUpIcon, ArrowDownIcon, ArchiveIcon } from "./EditIcon";
+import { EditIcon, PenLineIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, ArchiveIcon } from "./EditIcon";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import { useIsReadOnly } from "@app/layout/SessionContext";
 import { getActiveScroller } from "@app/layout/activeScroller";
@@ -861,8 +861,8 @@ export function ExerciseCard({
         </div>
       )}
 
-      {/* ── Log set form or button (owner only) ── */}
-      {!readOnly && (editingMode === "logset" ? (
+      {/* ── Log set form (owner only) ── */}
+      {!readOnly && editingMode === "logset" && (
         addAssisted ? (
           <AddAssistedForm
             setCount={sc}
@@ -880,36 +880,40 @@ export function ExerciseCard({
             submitting={submitting}
           />
         )
-      ) : editingMode === "view" && editingLogId == null ? (
-        <button
-          type="button"
-          className="hist-add"
-          onClick={() => {
-            setEditingMode("logset");
-          }}
-        >
-          <span className="hist-add-plus">＋</span>
-          <span className="hist-add-text">Log set</span>
-        </button>
-      ) : null)}
+      )}
 
-      {/* ── Show more ── */}
-      {editingMode !== "meta" && filteredDesc.length > 2 && editingMode !== "logset" && (
-        <button
-          className="show-more"
-          onClick={() => {
-            const next = !showAll;
-            setShowAll(next);
-            if (next) {
-              setJustExpanded(true);
-              setTimeout(() => setJustExpanded(false), 700);
-            }
-          }}
-        >
-          {showAll
-            ? `Show recent only (${filteredDesc.length} total)`
-            : `View all ${filteredDesc.length} entries`}
-        </button>
+      {/* ── Footer: Log set link + View all ── */}
+      {editingMode !== "meta" &&
+        editingMode !== "logset" &&
+        (!readOnly && editingLogId == null || filteredDesc.length > 2) && (
+        <div className="ex-footer">
+          {!readOnly && editingLogId == null && (
+            <button
+              type="button"
+              className="ex-log-link"
+              onClick={() => setEditingMode("logset")}
+            >
+              <PlusIcon className="ex-log-plus" />
+              <span className="ex-log-text">Log set</span>
+            </button>
+          )}
+          {filteredDesc.length > 2 && (
+            <button
+              type="button"
+              className="ex-view-all"
+              onClick={() => {
+                const next = !showAll;
+                setShowAll(next);
+                if (next) {
+                  setJustExpanded(true);
+                  setTimeout(() => setJustExpanded(false), 700);
+                }
+              }}
+            >
+              {showAll ? "Recent only" : `View all ${filteredDesc.length}`}
+            </button>
+          )}
+        </div>
       )}
 
       <TrendSheet

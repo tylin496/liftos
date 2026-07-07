@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { MutableRefObject } from "react";
 import { supabase } from "@shared/lib/supabase";
 import { parse, normalize, score } from "./parser";
 import type { TrainingLog } from "./api";
@@ -87,23 +88,219 @@ function RepsSetInput({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EditSecondaryActions — small text links under the submit button, matching the
-// Nutrition Save-entry form: Delete on the left (optimistic + Undo toast),
-// Cancel on the right. Replaces the old ✕ dismiss button.
+// Shared form pieces — used by both the "Log set" (add) and "Edit entry" forms
+// so the two surfaces stay identical. Each returns a single form-level child so
+// the stagger (`.log-redesign > *`) and column gap are preserved.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function EditSecondaryActions({ onDelete, onCancel }: { onDelete?: () => void; onCancel: () => void }) {
+// Weight hero (± / value / ±) + kg·lb unit toggle. Normal (non-assisted) sets.
+function WeightZone({
+  weightRef,
+  weightExpr,
+  setWeightExpr,
+  adjustWeight,
+  unit,
+  setUnit,
+  placeholder = "0",
+}: {
+  weightRef: MutableRefObject<HTMLInputElement | null>;
+  weightExpr: string;
+  setWeightExpr: (v: string) => void;
+  adjustWeight: (delta: number) => void;
+  unit: "kg" | "lbs";
+  setUnit: (u: "kg" | "lbs") => void;
+  placeholder?: string;
+}) {
   return (
-    <div className="log-secondary">
-      {onDelete && (
-        <button type="button" className="log-delete-link" onClick={onDelete}>
-          Delete entry
+    <div className="log-weight-zone">
+      <div className="log-hero-row">
+        <button type="button" className="log-adj-btn" onClick={() => adjustWeight(-2.5)} aria-label="−2.5">
+          −
         </button>
-      )}
-      <button type="button" className="log-cancel-link" onClick={onCancel}>
-        Cancel
-      </button>
+        <input
+          ref={weightRef}
+          autoFocus
+          className="log-hero-input mono"
+          style={heroInputStyle(weightExpr)}
+          value={weightExpr}
+          onChange={(e) => setWeightExpr(e.target.value)}
+          placeholder={placeholder}
+          aria-label="Weight"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          inputMode="text"
+        />
+        <button type="button" className="log-adj-btn" onClick={() => adjustWeight(+2.5)} aria-label="+2.5">
+          +
+        </button>
+      </div>
+      <div className="log-unit-row">
+        <div className="unit-toggle" role="group" aria-label="Unit">
+          <button type="button" className={`unit-btn${unit === "kg" ? " on" : ""}`} onClick={() => setUnit("kg")}>
+            kg
+          </button>
+          <button type="button" className={`unit-btn${unit === "lbs" ? " on" : ""}`} onClick={() => setUnit("lbs")}>
+            lb
+          </button>
+        </div>
+      </div>
     </div>
+  );
+}
+
+// Assistance hero (± / value / ±) + bodyweight row. Assisted sets. When
+// `bwFromHealth` the bodyweight field is a locked read-out of the latest Health
+// weight; otherwise it's a manual entry (a first-ever assisted log, or an edit).
+function AssistedWeightZone({
+  assistRef,
+  assistance,
+  setAssistance,
+  adjustAssist,
+  bodyweight,
+  setBodyweight,
+  bwFromHealth = false,
+}: {
+  assistRef: MutableRefObject<HTMLInputElement | null>;
+  assistance: string;
+  setAssistance: (v: string) => void;
+  adjustAssist: (delta: number) => void;
+  bodyweight: string;
+  setBodyweight: (v: string) => void;
+  bwFromHealth?: boolean;
+}) {
+  return (
+    <div className="log-weight-zone">
+      <div className="log-assisted-label">Assistance</div>
+      <div className="log-hero-row">
+        <button type="button" className="log-adj-btn" onClick={() => adjustAssist(-2.5)} aria-label="−2.5">
+          −
+        </button>
+        <input
+          ref={assistRef}
+          autoFocus
+          className="log-hero-input mono"
+          style={heroInputStyle(assistance)}
+          value={assistance}
+          onChange={(e) => setAssistance(e.target.value)}
+          placeholder="0"
+          aria-label="Assistance kg"
+          inputMode="text"
+          autoComplete="off"
+        />
+        <button type="button" className="log-adj-btn" onClick={() => adjustAssist(+2.5)} aria-label="+2.5">
+          +
+        </button>
+      </div>
+      <div className="log-bw-row">
+        <label className="log-bw-label">{bwFromHealth ? "Bodyweight" : "Bodyweight (manual)"}</label>
+        <input
+          className={`log-bw-input mono${bwFromHealth ? " log-bw-input--static" : ""}`}
+          value={bodyweight}
+          onChange={(e) => setBodyweight(e.target.value)}
+          readOnly={bwFromHealth}
+          tabIndex={bwFromHealth ? -1 : undefined}
+          placeholder="0"
+          aria-label={bwFromHealth ? "Bodyweight kg (from latest Health measurement)" : "Bodyweight kg"}
+          inputMode={bwFromHealth ? "none" : "decimal"}
+          autoComplete="off"
+        />
+        <span className="log-bw-unit">kg</span>
+      </div>
+    </div>
+  );
+}
+
+// "Reps per set" label + the multi-set numeric inputs.
+function RepsZone({
+  setCount,
+  values,
+  onChange,
+  onLastEnter,
+  defaultRep,
+}: {
+  setCount: number;
+  values: string[];
+  onChange: (v: string[]) => void;
+  onLastEnter: () => void;
+  defaultRep?: string;
+}) {
+  return (
+    <div className="log-reps-zone">
+      <div className="log-reps-label">Reps per set</div>
+      <RepsSetInput
+        setCount={setCount}
+        values={values}
+        onChange={onChange}
+        onLastEnter={onLastEnter}
+        defaultRep={defaultRep}
+        hero
+      />
+    </div>
+  );
+}
+
+// Assisted preview: effective load × reps (assist). Renders nothing until valid.
+function AssistedPreviewBar({ load, reps, assist }: { load: number | null; reps: string; assist: number }) {
+  if (load === null || load <= 0 || !reps) return null;
+  return (
+    <div className="log-preview-bar">
+      <span className="mono">
+        <strong>{fmtWeightNum(load)} kg</strong>
+        <span className="expr-sep"> ×{reps}</span>
+        <span className="log-assist-preview"> ({assist} kg assist)</span>
+      </span>
+    </div>
+  );
+}
+
+// The note input (identical across every form).
+function NoteField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      className="log-note"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="note (optional)"
+      aria-label="Note"
+    />
+  );
+}
+
+// Primary submit + secondary text links. `onDelete` present → Delete on the
+// left (edit forms); absent → just Cancel (add forms). One shared footer so the
+// add and edit forms end identically.
+function LogFormFooter({
+  primaryLabel,
+  submitting = false,
+  disabled,
+  onCancel,
+  onDelete,
+}: {
+  primaryLabel: string;
+  submitting?: boolean;
+  disabled: boolean;
+  onCancel: () => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <>
+      <div className="log-edit-actions">
+        <button type="submit" className="btn-log-primary" disabled={disabled}>
+          {submitting ? "Saving…" : primaryLabel}
+        </button>
+      </div>
+      <div className="log-secondary">
+        {onDelete && (
+          <button type="button" className="log-delete-link" onClick={onDelete}>
+            Delete entry
+          </button>
+        )}
+        <button type="button" className="log-cancel-link" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </>
   );
 }
 
@@ -175,87 +372,32 @@ export function AddEntryForm({
         />
       </div>
 
-      <div className="log-weight-zone">
-        <div className="log-hero-row">
-          <button
-            type="button"
-            className="log-adj-btn"
-            onClick={() => adjustWeight(-2.5)}
-            aria-label="−2.5"
-          >
-            −
-          </button>
-          <input
-            ref={weightRef}
-            autoFocus
-            className="log-hero-input mono"
-            style={heroInputStyle(weightExpr)}
-            value={weightExpr}
-            onChange={(e) => setWeightExpr(e.target.value)}
-            placeholder={lastParsed?.weightExpr ?? "0"}
-            aria-label="Weight"
-            autoComplete="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            inputMode="text"
-          />
-          <button
-            type="button"
-            className="log-adj-btn"
-            onClick={() => adjustWeight(+2.5)}
-            aria-label="+2.5"
-          >
-            +
-          </button>
-        </div>
-        <div className="log-unit-row">
-          <div className="unit-toggle" role="group" aria-label="Unit">
-            <button
-              type="button"
-              className={`unit-btn${unit === "kg" ? " on" : ""}`}
-              onClick={() => setUnit("kg")}
-            >
-              kg
-            </button>
-            <button
-              type="button"
-              className={`unit-btn${unit === "lbs" ? " on" : ""}`}
-              onClick={() => setUnit("lbs")}
-            >
-              lb
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="log-reps-zone">
-        <div className="log-reps-label">Reps per set</div>
-        <RepsSetInput
-          setCount={n}
-          values={repValues}
-          onChange={setRepValues}
-          onLastEnter={() => formRef.current?.requestSubmit()}
-          defaultRep={defaultRep}
-          hero
-        />
-      </div>
-
-      <input
-        className="log-note"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="note (optional)"
-        aria-label="Note"
+      <WeightZone
+        weightRef={weightRef}
+        weightExpr={weightExpr}
+        setWeightExpr={setWeightExpr}
+        adjustWeight={adjustWeight}
+        unit={unit}
+        setUnit={setUnit}
+        placeholder={lastParsed?.weightExpr ?? "0"}
       />
 
-      <button type="submit" className="btn-log-primary" disabled={!isValid || submitting}>
-        {submitting ? "Saving…" : "Log set"}
-      </button>
-      <div className="log-secondary">
-        <button type="button" className="log-cancel-link" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
+      <RepsZone
+        setCount={n}
+        values={repValues}
+        onChange={setRepValues}
+        onLastEnter={() => formRef.current?.requestSubmit()}
+        defaultRep={defaultRep}
+      />
+
+      <NoteField value={note} onChange={setNote} />
+
+      <LogFormFooter
+        primaryLabel="Log set"
+        submitting={submitting}
+        disabled={!isValid || submitting}
+        onCancel={onCancel}
+      />
     </form>
   );
 }
@@ -349,98 +491,33 @@ export function AddAssistedForm({
         />
       </div>
 
-      <div className="log-weight-zone">
-        <div className="log-assisted-label">Assistance</div>
-        <div className="log-hero-row">
-          <button
-            type="button"
-            className="log-adj-btn"
-            onClick={() => adjustAssist(-2.5)}
-            aria-label="−2.5"
-          >
-            −
-          </button>
-          <input
-            ref={assistRef}
-            autoFocus
-            className="log-hero-input mono"
-            style={heroInputStyle(assistance)}
-            value={assistance}
-            onChange={(e) => setAssistance(e.target.value)}
-            placeholder="0"
-            aria-label="Assistance kg"
-            inputMode="text"
-            autoComplete="off"
-          />
-          <button
-            type="button"
-            className="log-adj-btn"
-            onClick={() => adjustAssist(+2.5)}
-            aria-label="+2.5"
-          >
-            +
-          </button>
-        </div>
-        <div className="log-bw-row">
-          <label className="log-bw-label">
-            {bwFromHealth ? "Bodyweight" : "Bodyweight (manual)"}
-          </label>
-          <input
-            className={`log-bw-input mono${bwFromHealth ? " log-bw-input--static" : ""}`}
-            value={bodyweight}
-            onChange={(e) => setBodyweight(e.target.value)}
-            readOnly={bwFromHealth}
-            tabIndex={bwFromHealth ? -1 : undefined}
-            placeholder="0"
-            aria-label={
-              bwFromHealth
-                ? "Bodyweight kg (from latest Health measurement)"
-                : "Bodyweight kg"
-            }
-            inputMode={bwFromHealth ? "none" : "decimal"}
-            autoComplete="off"
-          />
-          <span className="log-bw-unit">kg</span>
-        </div>
-      </div>
-
-      <div className="log-reps-zone">
-        <div className="log-reps-label">Reps per set</div>
-        <RepsSetInput
-          setCount={n}
-          values={repValues}
-          onChange={setRepValues}
-          onLastEnter={() => formRef.current?.requestSubmit()}
-          hero
-        />
-      </div>
-
-      {isValid && effectiveLoad !== null && reps ? (
-        <div className="log-preview-bar">
-          <span className="mono">
-            <strong>{fmtWeightNum(effectiveLoad)} kg</strong>
-            <span className="expr-sep"> ×{reps}</span>
-            <span className="log-assist-preview"> ({parsedAssist} kg assist)</span>
-          </span>
-        </div>
-      ) : null}
-
-      <input
-        className="log-note"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="note (optional)"
-        aria-label="Note"
+      <AssistedWeightZone
+        assistRef={assistRef}
+        assistance={assistance}
+        setAssistance={setAssistance}
+        adjustAssist={adjustAssist}
+        bodyweight={bodyweight}
+        setBodyweight={setBodyweight}
+        bwFromHealth={bwFromHealth}
       />
 
-      <button type="submit" className="btn-log-primary" disabled={!isValid || submitting}>
-        {submitting ? "Saving…" : "Log set"}
-      </button>
-      <div className="log-secondary">
-        <button type="button" className="log-cancel-link" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
+      <RepsZone
+        setCount={n}
+        values={repValues}
+        onChange={setRepValues}
+        onLastEnter={() => formRef.current?.requestSubmit()}
+      />
+
+      <AssistedPreviewBar load={isValid ? effectiveLoad : null} reps={reps} assist={parsedAssist} />
+
+      <NoteField value={note} onChange={setNote} />
+
+      <LogFormFooter
+        primaryLabel="Log set"
+        submitting={submitting}
+        disabled={!isValid || submitting}
+        onCancel={onCancel}
+      />
     </form>
   );
 }
@@ -498,84 +575,30 @@ export function InlineEditEntry({
 
   return (
     <form className="add-form log-redesign log-edit" ref={formRef} onSubmit={save}>
-      <div className="log-weight-zone">
-        <div className="log-hero-row">
-          <button
-            type="button"
-            className="log-adj-btn"
-            onClick={() => adjustWeight(-2.5)}
-            aria-label="−2.5"
-          >
-            −
-          </button>
-          <input
-            ref={weightRef}
-            className="log-hero-input mono"
-            style={heroInputStyle(weightExpr)}
-            value={weightExpr}
-            onChange={(e) => setWeightExpr(e.target.value)}
-            autoFocus
-            placeholder="0"
-            aria-label="Weight"
-            autoComplete="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            inputMode="text"
-          />
-          <button
-            type="button"
-            className="log-adj-btn"
-            onClick={() => adjustWeight(+2.5)}
-            aria-label="+2.5"
-          >
-            +
-          </button>
-        </div>
-        <div className="log-unit-row">
-          <div className="unit-toggle" role="group" aria-label="Unit">
-            <button
-              type="button"
-              className={`unit-btn${unit === "kg" ? " on" : ""}`}
-              onClick={() => setUnit("kg")}
-            >
-              kg
-            </button>
-            <button
-              type="button"
-              className={`unit-btn${unit === "lbs" ? " on" : ""}`}
-              onClick={() => setUnit("lbs")}
-            >
-              lb
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="log-reps-zone">
-        <div className="log-reps-label">Reps per set</div>
-        <RepsSetInput
-          setCount={n}
-          values={repValues}
-          onChange={setRepValues}
-          onLastEnter={() => formRef.current?.requestSubmit()}
-          hero
-        />
-      </div>
-
-      <input
-        className="log-note"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="note (optional)"
-        aria-label="Note"
+      <WeightZone
+        weightRef={weightRef}
+        weightExpr={weightExpr}
+        setWeightExpr={setWeightExpr}
+        adjustWeight={adjustWeight}
+        unit={unit}
+        setUnit={setUnit}
       />
 
-      <div className="log-edit-actions">
-        <button type="submit" className="btn-log-primary" disabled={!isValid}>
-          Save changes
-        </button>
-      </div>
-      <EditSecondaryActions onDelete={onDelete} onCancel={onCancel} />
+      <RepsZone
+        setCount={n}
+        values={repValues}
+        onChange={setRepValues}
+        onLastEnter={() => formRef.current?.requestSubmit()}
+      />
+
+      <NoteField value={note} onChange={setNote} />
+
+      <LogFormFooter
+        primaryLabel="Save changes"
+        disabled={!isValid}
+        onCancel={onCancel}
+        onDelete={onDelete}
+      />
     </form>
   );
 }
@@ -630,88 +653,32 @@ export function InlineEditAssistedEntry({
 
   return (
     <form className="add-form log-redesign log-edit" ref={formRef} onSubmit={save}>
-      <div className="log-weight-zone">
-        <div className="log-assisted-label">Assistance</div>
-        <div className="log-hero-row">
-          <button
-            type="button"
-            className="log-adj-btn"
-            onClick={() => adjustAssist(-2.5)}
-            aria-label="−2.5"
-          >
-            −
-          </button>
-          <input
-            ref={assistRef}
-            className="log-hero-input mono"
-            style={heroInputStyle(assistance)}
-            value={assistance}
-            onChange={(e) => setAssistance(e.target.value)}
-            placeholder="0"
-            aria-label="Assistance kg"
-            inputMode="text"
-            autoComplete="off"
-            autoFocus
-          />
-          <button
-            type="button"
-            className="log-adj-btn"
-            onClick={() => adjustAssist(+2.5)}
-            aria-label="+2.5"
-          >
-            +
-          </button>
-        </div>
-        <div className="log-bw-row">
-          <label className="log-bw-label">Bodyweight</label>
-          <input
-            className="log-bw-input mono"
-            value={bodyweight}
-            onChange={(e) => setBodyweight(e.target.value)}
-            placeholder="0"
-            aria-label="Bodyweight kg"
-            inputMode="text"
-            autoComplete="off"
-          />
-          <span className="log-bw-unit">kg</span>
-        </div>
-      </div>
-
-      <div className="log-reps-zone">
-        <div className="log-reps-label">Reps per set</div>
-        <RepsSetInput
-          setCount={n}
-          values={repValues}
-          onChange={setRepValues}
-          onLastEnter={() => formRef.current?.requestSubmit()}
-          hero
-        />
-      </div>
-
-      {isValid && effectiveLoad !== null && reps ? (
-        <div className="log-preview-bar">
-          <span className="mono">
-            <strong>{fmtWeightNum(effectiveLoad)} kg</strong>
-            <span className="expr-sep"> ×{reps}</span>
-            <span className="log-assist-preview"> ({parsedAssist} kg assist)</span>
-          </span>
-        </div>
-      ) : null}
-
-      <input
-        className="log-note"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="note (optional)"
-        aria-label="Note"
+      <AssistedWeightZone
+        assistRef={assistRef}
+        assistance={assistance}
+        setAssistance={setAssistance}
+        adjustAssist={adjustAssist}
+        bodyweight={bodyweight}
+        setBodyweight={setBodyweight}
       />
 
-      <div className="log-edit-actions">
-        <button type="submit" className="btn-log-primary" disabled={!isValid}>
-          Save changes
-        </button>
-      </div>
-      <EditSecondaryActions onDelete={onDelete} onCancel={onCancel} />
+      <RepsZone
+        setCount={n}
+        values={repValues}
+        onChange={setRepValues}
+        onLastEnter={() => formRef.current?.requestSubmit()}
+      />
+
+      <AssistedPreviewBar load={isValid ? effectiveLoad : null} reps={reps} assist={parsedAssist} />
+
+      <NoteField value={note} onChange={setNote} />
+
+      <LogFormFooter
+        primaryLabel="Save changes"
+        disabled={!isValid}
+        onCancel={onCancel}
+        onDelete={onDelete}
+      />
     </form>
   );
 }

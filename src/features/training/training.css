@@ -1238,7 +1238,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
 }
 
 .log-delete-link {
@@ -1264,62 +1264,51 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ── "Log set" open button ───────────────────────────────────────────────────*/
-.hist-add {
+/* ── Footer: "Log set" link + "View all" ──────────────────────────────────── */
+.ex-footer {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  width: 100%;
-  margin-top: 2px;
-  /* Match .btn-log-primary's padding so the closed "Log set" button and the
-     open form's submit are the same height (no jump on open). */
-  padding: var(--space-3);
+  justify-content: space-between;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--rule);
+}
+
+.ex-log-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
   border: none;
-  /* Tonal accent — a soft accent tint with accent text/icon. Reads clearly as
-     a button (the card's core action) without the loud full-bleed solid fill. */
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: var(--accent);
+  background: none;
+  cursor: pointer;
   font: inherit;
   font-size: var(--text-base);
   font-weight: 600;
-  text-align: center;
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: background var(--dur-press);
+  color: var(--ink);
 }
 
-@media (hover: hover) {
-  .hist-add:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
-}
+.ex-log-link:active { transform: scale(var(--tap-scale)); }
 
-.hist-add:active { transform: scale(var(--tap-scale)); }
-
-.hist-add-plus {
-  font-size: var(--text-base);
-  line-height: 1;
+.ex-log-plus {
   color: var(--accent);
+  flex-shrink: 0;
 }
 
-/* ── Show more ───────────────────────────────────────────────────────────────*/
-.show-more {
-  display: block;
-  margin-top: 0;
-  padding: 4px 10px;
+.ex-view-all {
+  padding: 4px 2px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
   font-size: var(--text-2xs);
   font-weight: 500;
-  color: var(--ink-3);
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  width: 100%;
+  color: var(--ink-4);
   transition: color var(--dur-press);
 }
 
 @media (hover: hover) {
-  .show-more:hover { color: var(--ink-2); }
+  .ex-view-all:hover { color: var(--ink-3); }
 }
 
 /* ── History reveal animation ────────────────────────────────────────────────*/
