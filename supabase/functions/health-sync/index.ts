@@ -5,16 +5,15 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 //   GET  ?date=YYYY-MM-DD → export a day's logged calories + protein
 //          (LiftOS nutrition_entries → Apple Health Dietary Energy/Protein).
 //
-// POST payload (DO NOT change shape):
-//   { date: "YYYY-MM-DD", weight_kg: number|"", body_fat: number|"",
-//     active_energy: number|"", resting_energy: number|"",
-//     exercise_time: number|"",
-//     sleep_seconds: number|"", resting_heart_rate: number|"", hrv: number|"" }
-// Also accepts these camelCase aliases the iOS Shortcut's auto-generated variable names
-// sometimes use instead of the snake_case names above: exerciseMinutes / exercise_minutes / excercises_time
-// (exercise_time), sleepDuration (sleep_seconds), restingHeartRate (resting_heart_rate),
-// heartRateVariability / hrvSdnn (hrv). All field names (including these aliases) are
-// matched case-insensitively, since Shortcuts derives variable names from step labels
+// POST payload — field names match the health_metrics columns exactly:
+//   { date: "YYYY-MM-DD", weight_kg: number|"", body_fat_pct: number|"",
+//     active_energy_kcal: number|"", resting_energy_kcal: number|"",
+//     exercise_minutes: number|"",
+//     sleep_seconds: number|"", resting_heart_rate: number|"", hrv_sdnn_ms: number|"" }
+// Also accepts these plain-English aliases: weight, bodyfat / body_fat, activeenergy /
+// active_energy, restingenergy / resting_energy, sleep / asleep, restingheartrate / rhr,
+// hrvsdnnms / hrv. All field names (including these aliases) are matched
+// case-insensitively, since Shortcuts derives variable names from step labels
 // and their capitalization isn't something the user reliably controls.
 // `date` is normally required, but a missing/blank one falls back to today in
 // LOCAL_TZ (not the server's) — a safety net for when the Shortcut's date step
@@ -153,18 +152,16 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   const record: Record<string, unknown> = { metric_date: metricDate };
   const weight = num(pick(keys, "weight_kg", "weight"));
   if (weight !== null && weight > 0) record.weight_kg = round(weight, 2);
-  const bodyFat = num(pick(keys, "body_fat", "body_fat_pct", "bodyFat"));
+  const bodyFat = num(pick(keys, "body_fat_pct", "bodyfat", "body_fat"));
   if (bodyFat !== null && bodyFat > 0 && bodyFat < 100) record.body_fat_pct = round(bodyFat, 1);
-  const active = intOrNull(pick(keys, "active_energy_kcal", "active_energy", "activeEnergy"));
+  const active = intOrNull(pick(keys, "active_energy_kcal", "activeenergy", "active_energy"));
   if (active !== null) record.active_energy_kcal = active;
-  const resting = intOrNull(pick(keys, "resting_energy_kcal", "resting_energy", "restingEnergy"));
+  const resting = intOrNull(pick(keys, "resting_energy_kcal", "restingenergy", "resting_energy"));
   if (resting !== null) record.resting_energy_kcal = resting;
-  const exerciseMinutes = intOrNull(
-    pick(keys, "exercise_time", "exercise_minutes", "exerciseMinutes", "excercises_time")
-  );
+  const exerciseMinutes = intOrNull(pick(keys, "exercise_minutes"));
   if (exerciseMinutes !== null) record.exercise_minutes = exerciseMinutes;
 
-  const rawSleep = pick(keys, "sleep_seconds", "sleepDuration", "sleepSeconds");
+  const rawSleep = pick(keys, "sleep_seconds", "sleep", "asleep");
   let sleepSeconds = intOrNull(rawSleep);
 
   if (typeof rawSleep === "string") {
@@ -175,9 +172,9 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   }
 
   if (sleepSeconds !== null && sleepSeconds > 3600) record.sleep_seconds = sleepSeconds;
-  const restingHR = intOrNull(pick(keys, "resting_heart_rate", "restingHeartRate"));
+  const restingHR = intOrNull(pick(keys, "resting_heart_rate", "restingheartrate", "rhr"));
   if (restingHR !== null && restingHR > 0) record.resting_heart_rate = restingHR;
-  const hrv = num(pick(keys, "hrv", "hrv_sdnn_ms", "heartRateVariability", "hrvSdnn"));
+  const hrv = num(pick(keys, "hrv_sdnn_ms", "hrvsdnnms", "hrv"));
   if (hrv !== null && hrv > 0) record.hrv_sdnn_ms = round(hrv, 1);
 
   return { record };
