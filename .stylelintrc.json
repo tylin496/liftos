@@ -2,10 +2,12 @@
   "plugins": ["stylelint-declaration-strict-value"],
   "rules": {
     "scale-unlimited/declaration-strict-value": [
-      ["/^border-radius/", "font-size", "/^padding/", "/^margin/", "/gap$/"],
+      ["/^border-radius/", "font-size", "/^padding/", "/^margin/", "/gap$/", "z-index"],
       {
         "ignoreValues": [
           "0",
+          "1",
+          "-1",
           "auto",
           "inherit",
           "none",
@@ -23,7 +25,7 @@
           "-6px"
         ],
         "disableFix": true,
-        "message": "Design-token discipline: use a token (var(--…)) for \"${property}\", not the magic number \"${value}\". Layout spacing must use --space-*; component micro-spacing may use 6px/10px. Escapes: var(), clamp(), calc(), env(), %, em, 0, <=4px. If a raw value is genuinely needed (e.g. geometric centering), add a stylelint-disable-next-line with a reason."
+        "message": "Design-token discipline: use a token (var(--…)) for \"${property}\", not the magic number \"${value}\". Layout spacing must use --space-*; component micro-spacing may use 6px/10px; z-index must use the --z-* ladder (bare 0/1/-1 allowed for local sibling ordering). Escapes: var(), clamp(), calc(), env(), %, em, 0, <=4px. If a raw value is genuinely needed (e.g. geometric centering), add a stylelint-disable-next-line with a reason."
       }
     ]
   }

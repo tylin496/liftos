@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
+import { useFocusTrap } from "@shared/hooks/useFocusTrap";
+import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
 import { useToast } from "@shared/components/Toast";
 import { signOut } from "@shared/lib/auth";
 import { useNutritionConfig } from "@features/nutrition/NutritionConfigContext";
@@ -107,116 +109,16 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   const [editingRow, setEditingRow] = useState<RowKey | null>(null);
 
   const sheetRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
 
   // Focus trap + Escape-to-close. aria-modal promises the rest of the page is
   // inert while this is open — without this, a keyboard/switch-control user
   // could Tab straight out of the sheet into the page behind the scrim.
-  useEffect(() => {
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-
-    function focusables(): HTMLElement[] {
-      return Array.from(
-        sheet!.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-    }
-
-    // Move focus in on open so a keyboard user starts inside the sheet.
-    focusables()[0]?.focus();
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onCloseRef.current();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const els = focusables();
-      if (!els.length) return;
-      const first = els[0];
-      const last = els[els.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+  useFocusTrap(sheetRef, onClose);
 
   // Swipe-down-to-dismiss on the grabber/header — the grabber otherwise
-  // implies a drag affordance it doesn't honor. Direct DOM writes during the
-  // drag (not React state) keep it smooth; onClose fires only once the
-  // manual slide-out has visually finished.
-  const dragStartY = useRef(0);
-  const isDragging = useRef(false);
-  // Velocity sampling so a quick flick-down dismisses even below the 90px
-  // distance threshold. prev trails last by one move (see useHorizontalSwipe).
-  const dragPrevY = useRef(0);
-  const dragPrevT = useRef(0);
-  const dragLastY = useRef(0);
-  const dragLastT = useRef(0);
-
-  function onDragStart(e: ReactTouchEvent) {
-    dragStartY.current = e.touches[0].clientY;
-    dragPrevY.current = dragLastY.current = e.touches[0].clientY;
-    dragPrevT.current = dragLastT.current = e.timeStamp;
-    isDragging.current = true;
-    if (sheetRef.current) {
-      sheetRef.current.style.transition = "none";
-      sheetRef.current.classList.add("is-dragging");
-    }
-  }
-  function onDragMove(e: ReactTouchEvent) {
-    if (!isDragging.current || !sheetRef.current) return;
-    dragPrevY.current = dragLastY.current;
-    dragPrevT.current = dragLastT.current;
-    dragLastY.current = e.touches[0].clientY;
-    dragLastT.current = e.timeStamp;
-    const dy = Math.max(0, e.touches[0].clientY - dragStartY.current);
-    sheetRef.current.style.transform = `translateY(${dy}px)`;
-  }
-  function onDragEnd(e: ReactTouchEvent) {
-    if (!isDragging.current || !sheetRef.current) return;
-    isDragging.current = false;
-    const endY = e.changedTouches[0].clientY;
-    const dy = Math.max(0, endY - dragStartY.current);
-    const dt = e.timeStamp - dragPrevT.current;
-    const vy = dt > 0 ? (endY - dragPrevY.current) / dt : 0;
-    // Dismiss on enough travel OR a quick downward flick.
-    const flickedDown = vy >= 0.5 && dy >= 12;
-    const el = sheetRef.current;
-    el.style.transition = "transform 200ms ease";
-    if (dy > 90 || flickedDown) {
-      el.style.transform = "translateY(100%)";
-      setTimeout(() => onCloseRef.current(), 200);
-    } else {
-      el.style.transform = "";
-      setTimeout(() => {
-        el.style.transition = "";
-        el.classList.remove("is-dragging");
-      }, 200);
-    }
-  }
-  // touchcancel (system gesture / incoming call) skips onDragEnd — without this
-  // the sheet stays frozen mid-drag with transition:none. Snap it back to rest.
-  function onDragCancel() {
-    if (!isDragging.current || !sheetRef.current) return;
-    isDragging.current = false;
-    const el = sheetRef.current;
-    el.style.transition = "transform 200ms ease";
-    el.style.transform = "";
-    setTimeout(() => {
-      el.style.transition = "";
-      el.classList.remove("is-dragging");
-    }, 200);
-  }
+  // implies a drag affordance it doesn't honor.
+  const { onTouchStart: onDragStart, onTouchMove: onDragMove, onTouchEnd: onDragEnd, onTouchCancel: onDragCancel } =
+    useSheetSwipe(sheetRef, onClose);
 
   useEffect(() => {
     if (!config) return;

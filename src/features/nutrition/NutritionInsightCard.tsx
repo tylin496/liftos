@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS } from "./evaluation";
-import { nutritionDecision, rateTone } from "./recommendation";
+import { nutritionDecision } from "./recommendation";
 import "./nutrition.css";
 
 /* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
@@ -31,19 +31,8 @@ function AnimatedInt({ value }: { value: number; delayMs?: number }) {
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
 
-// Observed rate carries a leading dot coloured by distance from the target
-// band (in-band green / near an edge amber / materially off red) — both too
-// slow and too fast score worse the further they drift, so this isn't a
-// simple low=bad/high=good read. The rate value stays neutral ink — colour
-// lives on the dot only, not doubled onto the number.
-
-// Leading status dot before Observed rate / Confidence values — same
-// good/gold/bad language as the text colour above, just a glance-only mark.
-const RATE_DOT: Record<"good" | "warn" | "bad", "good" | "gold" | "bad"> = {
-  good: "good",
-  warn: "gold",
-  bad: "bad",
-};
+// Leading status dot before the Confidence value — a glance-only mark that
+// mirrors the confidence level's good/gold/bad language.
 const CONFIDENCE_DOT: Record<string, "good" | "gold" | "bad"> = {
   high: "good",
   medium: "gold",
@@ -73,6 +62,81 @@ function EvidenceCell({
         {dot && <span className={`ni-status-dot status-${dot}`} aria-hidden="true" />}
         {value}
       </span>
+    </div>
+  );
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+
+// Pace meter — the one comparison that drives the decision, drawn instead of
+// asked. Axis = weekly loss magnitude (kg/wk); the target band is the middle
+// third of the track and the observed rate is a marker on it, so "is −0.71
+// inside −0.60 – −0.90?" is answered by eye, not arithmetic. The band is
+// centred by construction: the domain pads one band-width on each side
+//   domainMin = lo − w,  span = 3w   (w = hi − lo)
+// which fixes the band at [33.33%, 66.67%] and leaves a full band-width of
+// runway for the marker to fall out either edge. Marker green in-band, gold
+// off — same in/off language the card uses everywhere else.
+function PaceMeter({
+  observedRate,
+  lo,
+  hi,
+}: {
+  observedRate: number;
+  lo: number;
+  hi: number;
+}) {
+  const obs = Math.abs(observedRate);
+  const w = hi - lo;
+  const domainMin = lo - w;
+  const span = 3 * w;
+  // Clamp keeps the marker off the rounded ends; extreme reads still read as
+  // "pinned past the edge" without being clipped.
+  const markerPct = clamp(((obs - domainMin) / span) * 100, 4, 96);
+  const inState = obs >= lo && obs <= hi;
+  const tone = inState ? "good" : "gold";
+
+  const sign = observedRate < 0 ? "−" : observedRate > 0 ? "+" : "±";
+  const note = inState
+    ? "inside range"
+    : obs < lo
+      ? "below range — losing too slowly"
+      : "above range — losing too fast";
+
+  return (
+    <div className="ni-pace">
+      <div className="ni-pace-head">
+        <span className="ni-cell-label">Observed rate · 21d</span>
+        <span className="ni-pace-obs">
+          <span className={`ni-status-dot status-${tone}`} aria-hidden="true" />
+          {sign}
+          {obs.toFixed(2)} kg/wk
+        </span>
+      </div>
+
+      <div className="ni-meter">
+        <div className="ni-meter-track">
+          <div className={`ni-meter-band ${inState ? "is-in" : "is-off"}`} />
+          <div
+            className={`ni-meter-marker ${inState ? "is-in" : "is-off"}`}
+            style={{ left: `${markerPct}%` }}
+          />
+        </div>
+        <div className="ni-meter-scale">
+          <span className="ni-meter-end">slower</span>
+          <span className="ni-meter-tick" style={{ left: "33.33%" }}>
+            −{lo.toFixed(2)}
+          </span>
+          <span className="ni-meter-tick" style={{ left: "66.67%" }}>
+            −{hi.toFixed(2)}
+          </span>
+          <span className="ni-meter-end ni-meter-end--right">faster</span>
+        </div>
+      </div>
+
+      <p className={`ni-pace-note ${inState ? "is-in" : "is-off"}`}>{note}</p>
     </div>
   );
 }
@@ -205,34 +269,18 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
         {/* The comparison that drives the decision: Observed vs Target, paired. */}
         <div className="ni-group">
           <span className="page-eyebrow" style={{ margin: 0 }}>Weight-loss pace</span>
-          <div className="ni-grid">
-            <EvidenceCell
-              label="Observed rate · 21d"
-              value={
-                !noData && !loading && hasTrend
-                  ? `${e!.observedRate < 0 ? "−" : e!.observedRate > 0 ? "+" : "±"}${Math.abs(e!.observedRate).toFixed(2)} kg/wk`
-                  : "—"
-              }
-              dot={
-                !noData && !loading && hasTrend && e
-                  ? (() => {
-                      const t = rateTone(e);
-                      return t ? RATE_DOT[t] : undefined;
-                    })()
-                  : undefined
-              }
-              emphasis="primary"
+          {!noData && !loading && hasTrend && hasRange && e ? (
+            <PaceMeter
+              observedRate={e.observedRate}
+              lo={e.targetRange.min}
+              hi={e.targetRange.max}
             />
-            <EvidenceCell
-              label="Target pace · fixed"
-              value={
-                !noData && !loading && hasRange
-                  ? `−${e!.targetRange.min.toFixed(2)} – ${e!.targetRange.max.toFixed(2)} kg/wk`
-                  : "—"
-              }
-              emphasis="quiet"
-            />
-          </div>
+          ) : (
+            <div className="ni-cell ni-cell-full">
+              <span className="ni-cell-label">Observed vs target</span>
+              <span className="ni-cell-value">—</span>
+            </div>
+          )}
         </div>
 
         {/* Why the pace reads the way it does — the reason, on its own row. */}

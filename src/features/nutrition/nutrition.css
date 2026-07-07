@@ -210,12 +210,6 @@
   gap: var(--space-2);
 }
 
-.ni-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
-
 /* Each evidence cell is a --bg-soft rounded cell, not a floating label/value —
    groups them visually the way the label already groups them semantically. */
 .ni-cell {
@@ -270,12 +264,6 @@
   font-size: var(--text-sm);
 }
 
-.ni-cell-value--quiet {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-3);
-}
-
 /* Leading status dot — colour lives here only, never on the value text beside
    it (Observed rate: in/near/off target band; Confidence: level). */
 .ni-status-dot {
@@ -287,6 +275,131 @@
 .ni-status-dot.status-good { background: var(--good); }
 .ni-status-dot.status-gold { background: var(--warn); }
 .ni-status-dot.status-bad  { background: var(--bad); }
+
+/* ── Pace meter ─────────────────────────────────────────────────────────
+   Replaces the paired Observed/Target tiles: the target band is drawn as a
+   track segment and the observed rate rides it as a marker, so the reader
+   sees "in the band or not" instead of comparing two numbers. Green in-band,
+   gold (--warn) off-band. */
+.ni-pace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-soft);
+  border-radius: var(--radius-card);
+}
+
+/* Label left, precise observed value big on the right (1b: exact number stays
+   readable up top, the meter below is pure position). */
+.ni-pace-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.ni-pace-obs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.ni-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Track — left = slower (smaller magnitude), right = faster. */
+.ni-meter-track {
+  position: relative;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+/* Green band = target range, fixed at the middle third by the meter geometry.
+   Sits a hair proud of the track (top/bottom −1px) with a faint outline. */
+.ni-meter-band {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: 33.33%;
+  width: 33.34%;
+  border-radius: var(--radius-pill);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--good) 45%, transparent);
+}
+.ni-meter-band.is-in  { background: color-mix(in srgb, var(--good) 20%, transparent); }
+/* Weakened when the marker isn't inside it — the band recedes, the off-band
+   marker carries the attention. */
+.ni-meter-band.is-off { background: color-mix(in srgb, var(--good) 14%, transparent); }
+
+/* Marker — a raised dot with a card-coloured gap ring so it reads as floating
+   above the track. */
+.ni-meter-marker {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid var(--bg-soft);
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+}
+.ni-meter-marker.is-in {
+  background: var(--good);
+  box-shadow: 0 0 0 1px var(--good), 0 0 8px color-mix(in srgb, var(--good) 55%, transparent);
+}
+.ni-meter-marker.is-off {
+  background: var(--warn);
+  box-shadow: 0 0 0 1px var(--warn), 0 0 8px color-mix(in srgb, var(--warn) 55%, transparent);
+}
+
+/* Scale row — band-edge values under the band boundaries, slower/faster at the
+   axis ends. */
+.ni-meter-scale {
+  position: relative;
+  height: 1.2em;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ink-4);
+}
+.ni-meter-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.ni-meter-end {
+  position: absolute;
+  left: 0;
+  color: var(--ink-4);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  letter-spacing: normal;
+}
+.ni-meter-end--right {
+  left: auto;
+  right: 0;
+}
+
+/* State caption — green when the marker sits in-band, gold when it's out. */
+.ni-pace-note {
+  margin: 0;
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+}
+.ni-pace-note.is-in  { color: var(--good); }
+.ni-pace-note.is-off { color: var(--warn); }
 
 /* Tenure day count (today / N days) in the "On this target" line — darker ink +
    heavier weight so the number carries the caption. */
@@ -476,7 +589,7 @@
 .ncal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 10;
+  z-index: var(--z-scrim);
   background: var(--scrim-bg);
   backdrop-filter: var(--scrim-blur);
   -webkit-backdrop-filter: var(--scrim-blur);
@@ -491,18 +604,18 @@
   position: fixed;
   left: 50%;
   top: 50%;
-  z-index: 11;
+  z-index: var(--z-modal);
   width: min(390px, calc(100% - 32px));
   max-height: min(620px, calc(100dvh - 32px));
   display: grid;
   grid-template-rows: auto auto 1fr;
   transform: translate(-50%, -50%);
   border: 1px solid var(--rule);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--bg-card) 96%, transparent);
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-lg);
   padding: var(--space-6) var(--space-5) var(--space-6);
   animation: ncal-in var(--dur-enter) ease both;
 }

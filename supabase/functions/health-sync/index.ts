@@ -40,7 +40,10 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  */
 function num(value: unknown): number | null {
   if (value === "" || value === null || value === undefined) return null;
-  const firstLine = String(value).trim().split(/\r?\n/, 1)[0];
+  const firstLine = String(value)
+    .replace(/,/g, "")
+    .trim()
+    .split(/\r?\n/, 1)[0];
   const match = firstLine.match(/^-?\d+(\.\d+)?/);
   if (!match) return null;
   const n = Number(match[0]);
@@ -126,11 +129,17 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
     body.excercises_time
   );
   if (exerciseMinutes !== null) record.exercise_minutes = exerciseMinutes;
-  const sleepSeconds = intOrNull(
-    body.sleep_seconds ??
-    body.sleepDuration ??
-    body.sleepSeconds
-  );
+
+  const rawSleep = body.sleep_seconds ?? body.sleepDuration ?? body.sleepSeconds;
+  let sleepSeconds = intOrNull(rawSleep);
+
+  if (typeof rawSleep === "string") {
+    const m = rawSleep.trim().match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+    if (m) {
+      sleepSeconds = Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]);
+    }
+  }
+
   if (sleepSeconds !== null && sleepSeconds > 3600) record.sleep_seconds = sleepSeconds;
   const restingHR = intOrNull(
     body.resting_heart_rate ??
@@ -221,14 +230,10 @@ Deno.serve(async (req) => {
 
   // POST = body metrics ingest (Apple Health → LiftOS).
   const body = await req.json().catch(() => null);
-
-  console.error("=== DEBUG START ===");
-  console.error(JSON.stringify(body, null, 2));
-  console.error("=== DEBUG END ===");
   console.log(JSON.stringify(body, null, 2));
 
-const { record, error } = buildRecord(body);
-if (error) return json({ error }, 400);
+  const { record, error } = buildRecord(body);
+  if (error) return json({ error }, 400);
 
   // Anomaly guard: a resting-energy value far below the recent personal median
   // is a HealthKit data gap, not a real reading. Drop it (don't write) so it

@@ -471,6 +471,17 @@
   transition: width var(--dur-enter) var(--ease-enter);
 }
 
+.goal-lost {
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  margin-top: var(--space-3);
+}
+
+.goal-lost b {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
 .goal-detail {
   display: flex;
   align-items: stretch;

@@ -199,6 +199,10 @@
   --radius-pill: 999px;/* fully-rounded: chips, badges, pill buttons, bars */
   --shadow-sm: 0 1px 1px rgba(17, 24, 39, 0.04), 0 4px 10px -2px rgba(17, 24, 39, 0.05), 0 12px 28px -8px rgba(17, 24, 39, 0.07), 0 28px 60px -32px rgba(17, 24, 39, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.92);
   --shadow-md: 0 12px 30px rgba(28, 36, 60, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  /* One elevation for large floating surfaces that sit ABOVE a scrim (centred
+     modals, celebration card). Bottom sheets are edge-docked and cast their
+     shadow upward, so they keep a bespoke directional shadow — not this. */
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.22);
 
   --card-blur: blur(22px);
 
@@ -225,6 +229,25 @@
   --scrim-bg: rgba(0, 0, 0, 0.34);
   --scrim-blur: blur(16px);
   --scrim-strong: rgba(0, 0, 0, 0.85); /* near-opaque backdrop — photo lightbox only */
+
+  /* ── Elevation ladder (z-index) ───────────────────────────────────────
+     Every FLOATING surface picks a rung by ROLE, never a raw number, so the
+     whole stacking order lives here and a card-scoped menu can't quietly
+     drift up to modal/splash level. Rungs are spaced so a scrim + its own
+     surface sit adjacent. Purely LOCAL sibling ordering inside one component
+     (a thumb behind its label, a pseudo behind its card) stays a literal
+     0 / 1 / -1 — that's geometry within a stacking context, not app layering,
+     and is whitelisted in .stylelintrc alongside these tokens. */
+  --z-raised:    10;  /* lift above adjacent content WITHIN one stacking context
+                         (in-card ⋯ anchor, image loading cover, inline badge) —
+                         not comparable to the global rungs below */
+  --z-nav:       20;  /* persistent chrome: tab bar */
+  --z-dropdown:  30;  /* card-scoped menus (⋯ card menu, stretch menu) */
+  --z-scrim:     40;  /* modal / sheet backdrop */
+  --z-modal:     41;  /* modal / sheet surface */
+  --z-celebrate: 95;  /* confetti / celebration card */
+  --z-splash:   100;  /* cold-start / auth cover */
+  --z-toast:    200;  /* transient toasts — always on top */
 
   /* ── Motion ───────────────────────────────────────────────────────────
      ROLE-DRIVEN. You never pick a number — you pick a ROLE. Each role has
@@ -314,5 +337,6 @@
   --glass-lens-bg: rgba(255, 255, 255, 0.13);
   --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.4), 0 8px 22px -6px rgba(0, 0, 0, 0.42), 0 22px 50px -18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --shadow-md: 0 18px 42px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
   --focus-ring: 0 0 0 3px rgba(255, 122, 69, 0.32);
 }

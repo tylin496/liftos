@@ -114,7 +114,7 @@
   position: absolute;
   top: var(--space-3);
   right: var(--space-3);
-  z-index: 10;
+  z-index: var(--z-raised);
 }
 
 .card-menu-btn {
@@ -211,7 +211,7 @@
 
 .card-menu-popup {
   min-width: 180px;
-  z-index: 100;
+  z-index: var(--z-dropdown);
 }
 
 .card-menu-sep {
@@ -389,13 +389,6 @@
   transition: background var(--dur-press);
   border-radius: var(--radius-sm);
   padding: var(--space-1) 0;
-  /* .pr-weight's background-clip:text gradient promotes it to its own
-     compositing layer, which can otherwise paint above the card's ⋯ menu
-     popup despite being static content earlier in DOM order. Pinning this
-     to an explicit low stacking context keeps it under .ex-card-menu
-     (z-index: 10). */
-  position: relative;
-  z-index: 0;
 }
 
 @keyframes pr-pop {
@@ -474,20 +467,10 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
-  /* brushed-metal gradient */
+  /* Hero metric — plain --ink for max legibility. --ink flips per theme, so
+     no dark override needed. (Celebration lives on .pr-just-set + the history
+     gold pill, not the resting number.) */
   color: var(--ink);
-  background: linear-gradient(168deg, var(--ink-2) 0%, var(--ink) 52%, #05070a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-:root[data-theme="dark"] .pr-weight {
-  color: #fafbfc;
-  background: linear-gradient(168deg, #ffffff 0%, #dfe3e7 52%, #c3c8ce 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 .pr-meta.mono {
@@ -682,7 +665,7 @@
   padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   position: relative;
-  z-index: 10;
+  z-index: var(--z-raised);
 }
 
 .hist-status-gain {
@@ -924,6 +907,7 @@
   align-items: center;
   gap: var(--space-2);
 }
+
 
 .log-date-chip {
   border: 1px solid var(--rule);
@@ -1245,7 +1229,7 @@
   font-size: var(--text-sm);
 }
 
-/* ── Secondary form actions ─────────────────────────────────────────────────
+/* ── Secondary form actions ───────────────────────────────────────────────────
    Small text links under the primary Save button, matching the Nutrition
    Save-entry form: Delete on the left (optimistic + Undo toast), Cancel on the
    right. Low-emphasis so they stay clear of the primary action. */
@@ -1675,7 +1659,7 @@
 
 .stretch-menu-popup {
   min-width: 120px;
-  z-index: 50;
+  z-index: var(--z-dropdown);
 }
 
 .stretch-menu-item {
@@ -2014,7 +1998,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  z-index: var(--z-raised);
 }
 
 .image-well-actions {

@@ -72,7 +72,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  z-index: 200;
+  z-index: var(--z-toast);
   pointer-events: none;
   align-items: center;
   width: max-content;
@@ -177,7 +177,7 @@ button {
 .save-celebration {
   position: fixed;
   inset: 0;
-  z-index: 95;
+  z-index: var(--z-celebrate);
   pointer-events: none;
   display: flex;
   align-items: center;
@@ -190,7 +190,7 @@ button {
   background: color-mix(in srgb, var(--bg-card) 95%, transparent);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
-  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
   padding: var(--space-5) var(--space-6);

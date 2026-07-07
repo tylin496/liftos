@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, type TouchEvent as ReactTouchEvent } from "react";
+import { useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
+import { useFocusTrap } from "@shared/hooks/useFocusTrap";
+import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
 import { defaultSetCount } from "./logFormHelpers";
 import { buildTrendSeries, windowTrend, type TrendPoint } from "./logic";
 import { fmtWeightNum } from "./ExprDisplay";
@@ -92,8 +94,6 @@ function SheetInner({
   onClose: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
 
   const setCount = defaultSetCount(exercise);
   const { full, win } = useMemo(() => {
@@ -111,91 +111,11 @@ function SheetInner({
   const windowLabel = win.clipped ? "Last 365 days" : "All time";
 
   // Focus trap + Escape-to-close — the page behind the scrim is inert.
-  useEffect(() => {
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-    const focusables = () =>
-      Array.from(
-        sheet.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-    focusables()[0]?.focus();
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onCloseRef.current();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const els = focusables();
-      if (!els.length) return;
-      const firstEl = els[0];
-      const lastEl = els[els.length - 1];
-      if (e.shiftKey && document.activeElement === firstEl) {
-        e.preventDefault();
-        lastEl.focus();
-      } else if (!e.shiftKey && document.activeElement === lastEl) {
-        e.preventDefault();
-        firstEl.focus();
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+  useFocusTrap(sheetRef, onClose);
 
   // Swipe-down-to-dismiss on the grabber/header — matches the Settings sheet.
-  const dragStartY = useRef(0);
-  const isDragging = useRef(false);
-  const dragPrevY = useRef(0);
-  const dragPrevT = useRef(0);
-
-  function onDragStart(e: ReactTouchEvent) {
-    dragStartY.current = dragPrevY.current = e.touches[0].clientY;
-    dragPrevT.current = e.timeStamp;
-    isDragging.current = true;
-    if (sheetRef.current) {
-      sheetRef.current.style.transition = "none";
-      sheetRef.current.classList.add("is-dragging");
-    }
-  }
-  function onDragMove(e: ReactTouchEvent) {
-    if (!isDragging.current || !sheetRef.current) return;
-    dragPrevY.current = e.touches[0].clientY;
-    dragPrevT.current = e.timeStamp;
-    const dy = Math.max(0, e.touches[0].clientY - dragStartY.current);
-    sheetRef.current.style.transform = `translateY(${dy}px)`;
-  }
-  function onDragEnd(e: ReactTouchEvent) {
-    if (!isDragging.current || !sheetRef.current) return;
-    isDragging.current = false;
-    const endY = e.changedTouches[0].clientY;
-    const dy = Math.max(0, endY - dragStartY.current);
-    const dt = e.timeStamp - dragPrevT.current;
-    const vy = dt > 0 ? (endY - dragPrevY.current) / dt : 0;
-    const el = sheetRef.current;
-    el.style.transition = "transform 200ms ease";
-    if (dy > 90 || (vy >= 0.5 && dy >= 12)) {
-      el.style.transform = "translateY(100%)";
-      setTimeout(() => onCloseRef.current(), 200);
-    } else {
-      el.style.transform = "";
-      setTimeout(() => {
-        el.style.transition = "";
-        el.classList.remove("is-dragging");
-      }, 200);
-    }
-  }
-  function onDragCancel() {
-    if (!isDragging.current || !sheetRef.current) return;
-    isDragging.current = false;
-    const el = sheetRef.current;
-    el.style.transition = "transform 200ms ease";
-    el.style.transform = "";
-    setTimeout(() => {
-      el.style.transition = "";
-      el.classList.remove("is-dragging");
-    }, 200);
-  }
+  const { onTouchStart: onDragStart, onTouchMove: onDragMove, onTouchEnd: onDragEnd, onTouchCancel: onDragCancel } =
+    useSheetSwipe(sheetRef, onClose);
 
   return createPortal(
     <>

@@ -13,6 +13,7 @@ import {
 } from "./logic";
 import { useToast } from "@shared/components/Toast";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
+import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useCelebration } from "@shared/components/Celebration";
 import { MetricCaption } from "@shared/components/Metric";
 import { Badge } from "@shared/components/Badge";
@@ -91,7 +92,12 @@ function NutriCalendar({
   const [historyMonths, setHistoryMonths] = useState(INITIAL_HISTORY_MONTHS);
   const [visibleMonth, setVisibleMonth] = useState(selected.slice(0, 7));
   const gridRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const isExtendingRef = useRef(false);
+
+  // aria-modal promises the page behind the scrim is inert — this was missing
+  // a focus trap/Escape entirely, unlike every other dialog in the app.
+  useFocusTrap(panelRef, onClose);
 
   const weeks = useMemo(
     () => buildCalendarWeeks(todayStr, historyMonths, selected),
@@ -151,7 +157,13 @@ function NutriCalendar({
   return createPortal(
     <>
       <div className={`ncal-backdrop${closing ? " is-closing" : ""}`} onClick={onClose} />
-      <div className={`ncal-panel${closing ? " is-closing" : ""}`} role="dialog" aria-modal aria-label="Date picker">
+      <div
+        ref={panelRef}
+        className={`ncal-panel${closing ? " is-closing" : ""}`}
+        role="dialog"
+        aria-modal
+        aria-label="Date picker"
+      >
         <div className="ncal-header">
           <span className="ncal-month-label">{monthLabel}</span>
           <button

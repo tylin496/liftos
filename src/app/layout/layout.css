@@ -159,7 +159,7 @@ html.kb-open .tabbar {
    read as real glass rather than flat frost. */
 .tabbar {
   position: fixed;
-  z-index: 20;
+  z-index: var(--z-nav);
   left: 50%;
   bottom: calc(var(--safe-bottom) + var(--space-3));
   transform: translateX(-50%);
@@ -374,7 +374,7 @@ html.kb-open .tabbar {
 .settings-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: var(--z-scrim);
   background: var(--scrim-bg);
   backdrop-filter: var(--scrim-blur);
   -webkit-backdrop-filter: var(--scrim-blur);
@@ -390,7 +390,7 @@ html.kb-open .tabbar {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 41;
+  z-index: var(--z-modal);
   max-height: 88dvh;
   display: flex;
   flex-direction: column;
@@ -782,7 +782,7 @@ html.kb-open .tabbar {
 .splash--overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-splash);
 }
 .splash--static {
   min-height: 100dvh;
