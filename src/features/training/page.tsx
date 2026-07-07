@@ -663,7 +663,7 @@ function TrainingPageInner() {
     if (!jumpTarget) return;
     document
       .getElementById(`ex-card-${jumpTarget.slug}`)
-      ?.scrollIntoView({ block: "start" });
+      ?.scrollIntoView({ block: "center" });
   }, [jumpTarget]);
 
   const reloadAll = useCallback(async () => {
