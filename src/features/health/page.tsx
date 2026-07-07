@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { fetchHealthData, type HealthData } from "./api";
 import {
   series,
@@ -9,6 +9,7 @@ import {
   countSkippedBodyFat,
   RECOVERY_STATUS_COLOR,
   syncLabel,
+  latestFullSync,
   type MetricKey,
   type ChartPoint,
   type RecoverySnapshot,
@@ -19,8 +20,7 @@ import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metr
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
-import { useChartScrub } from "@shared/hooks/useChartScrub";
-import { timelineDate } from "@shared/lib/date";
+import { HealthTrendSheet, type HealthTrendConfig } from "./TrendSheet";
 import "./health.css";
 
 interface MetricSpec {
@@ -59,28 +59,21 @@ const copyHealthData = () => buildHealthJson();
 const SPARK_POINTS = 6;
 
 /* Trend indicator on each Trend card's header (range = its own bucket ×
-   SPARK_POINTS). Press-drag anywhere on it to scrub any bucket's date range
-   and value — the card's own big number + delta still carry the resting
-   "what changed" story; this is for "when did that happen". */
+   SPARK_POINTS) — a glance-only shape. Tapping it opens the big trend sheet
+   (all readings, scrubbable); that tap is its own button with stopPropagation
+   so it never fights the card's own tap (e.g. Active's Resting/TDEE reveal). */
 function Sparkline({
   points,
   minSpan = 0,
   color = "var(--health-measurement)",
-  unit = "",
-  decimals = 1,
+  onOpen,
 }: {
   points: ChartPoint[];
   minSpan?: number;
   color?: string;
-  unit?: string;
-  decimals?: number;
+  onOpen?: () => void;
 }) {
   const width = 130, height = 44;
-
-  // Hooks can't be conditional — call it every render with whatever xs the
-  // <2-point placeholder branch below would have (empty, so it just no-ops).
-  const xs = points.map((_, i) => (points.length > 1 ? (i / (points.length - 1)) * width : width / 2));
-  const { svgRef, index: scrubIdx, ...scrubHandlers } = useChartScrub(xs, width);
 
   if (points.length < 2) return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline" />;
 
@@ -111,42 +104,6 @@ function Sparkline({
   const last = coords[coords.length - 1];
   const n = coords.length;
 
-  const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
-  const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
-  const scrubStart = scrubPoint ? timelineDate(scrubPoint.dateStart) : null;
-  const scrubEnd = scrubPoint ? timelineDate(scrubPoint.dateEnd) : null;
-  const scrubGuide = scrubCoord && (
-    <line
-      className="health-spark-guide"
-      x1={scrubCoord.x.toFixed(1)}
-      y1={dot}
-      x2={scrubCoord.x.toFixed(1)}
-      y2={height - dot}
-      vectorEffect="non-scaling-stroke"
-    />
-  );
-  const scrubDot = scrubCoord && (
-    <circle
-      className="health-spark-scrub-dot"
-      cx={scrubCoord.x.toFixed(1)}
-      cy={scrubCoord.y.toFixed(1)}
-      r={dot + 1}
-      fill={color}
-    />
-  );
-  const tooltip = scrubPoint && scrubCoord && scrubStart && scrubEnd && (
-    <div
-      className="health-spark-tooltip"
-      style={{ left: `${Math.min(88, Math.max(12, (scrubCoord.x / width) * 100))}%` }}
-    >
-      <span className="health-spark-tooltip-date">
-        {scrubStart.mon} {scrubStart.day}
-        {scrubPoint.dateStart !== scrubPoint.dateEnd ? `–${scrubEnd.day}` : ""}
-      </span>
-      <span className="mono">{fmt(scrubPoint.value, decimals)}{unit}</span>
-    </div>
-  );
-
   const reduced =
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -155,90 +112,84 @@ function Sparkline({
   // threaded on it (fill masks the line to read as open). Every bead is the same
   // size — only the latest is ringed in the metric colour, the "you are here"
   // anchor. SPARK_POINTS keeps the beads from crowding.
-  if (reduced) {
-    return (
-      <div className="health-sparkline-wrap">
-        <svg
-          ref={svgRef}
-          width={width}
-          height={height}
-          viewBox={`0 0 ${width} ${height}`}
-          className="health-sparkline"
-          {...scrubHandlers}
-        >
-          <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          {coords.slice(0, -1).map((c, i) => (
-            <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="1.4" />
-          ))}
-          <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={anchorDot} fill="var(--bg-card)" stroke={color} strokeWidth="2.4" />
-          {scrubGuide}
-          {scrubDot}
+  const svg = reduced ? (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
+      <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      {coords.slice(0, -1).map((c, i) => (
+        <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="1.4" />
+      ))}
+      <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={anchorDot} fill="var(--bg-card)" stroke={color} strokeWidth="2.4" />
+    </svg>
+  ) : (
+    // Draws itself in once, the first time the card mounts with data: the grey
+    // line strokes left→right and each bead pops the moment the line reaches it.
+    // A background re-fetch updates points in place (same element, no remount), so
+    // the draw never restarts — and tab switches don't replay it.
+    (() => {
+      const dur = 450; // ms — line-draw duration; bead delays are fractions of it.
+      // EXCEPTION to the flat entrance: these lines keep a bottom-up cascade (see
+      // .health-spark-line), each trailing the card below by tier × --stagger-step × 3
+      // after --enter-wait. The line-delay lives in CSS; the beads reuse the SAME
+      // expression inline so they stay locked to their line, then trail it left→right.
+      const tierDelay = "calc(var(--stagger-step) * var(--enter-tier, 0) * 3 + var(--enter-wait))";
+      return (
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
+          <g>
+            <polyline
+              className="health-spark-line"
+              points={pts}
+              pathLength={1}
+              fill="none"
+              stroke="var(--ink-4)"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ ["--spark-dur" as string]: `${dur}ms` }}
+            />
+            {coords.slice(0, -1).map((c, i) => (
+              <circle
+                key={i}
+                className="health-spark-bead"
+                cx={c.x.toFixed(1)}
+                cy={c.y.toFixed(1)}
+                r={dot}
+                fill="var(--bg-card)"
+                stroke="var(--ink-4)"
+                strokeWidth="1.4"
+                style={{ animationDelay: `calc(${tierDelay} + ${((i / (n - 1)) * dur).toFixed(0)}ms)` }}
+              />
+            ))}
+            <circle
+              className="health-spark-bead health-spark-bead--anchor"
+              cx={last.x.toFixed(1)}
+              cy={last.y.toFixed(1)}
+              r={anchorDot}
+              fill="var(--bg-card)"
+              stroke={color}
+              strokeWidth="2.4"
+              style={{ animationDelay: `calc(${tierDelay} + ${dur}ms)` }}
+            />
+          </g>
         </svg>
-        {tooltip}
-      </div>
-    );
-  }
+      );
+    })()
+  );
 
-  // Draws itself in once, the first time the card mounts with data: the grey
-  // line strokes left→right and each bead pops the moment the line reaches it.
-  // A background re-fetch updates points in place (same element, no remount), so
-  // the draw never restarts — and tab switches don't replay it.
-  const dur = 450; // ms — line-draw duration; bead delays are fractions of it.
-  // EXCEPTION to the flat entrance: these lines keep a bottom-up cascade (see
-  // .health-spark-line), each trailing the card below by tier × --stagger-step × 3
-  // after --enter-wait. The line-delay lives in CSS; the beads reuse the SAME
-  // expression inline so they stay locked to their line, then trail it left→right.
-  const tierDelay = "calc(var(--stagger-step) * var(--enter-tier, 0) * 3 + var(--enter-wait))";
+  if (!onOpen) return <div className="health-sparkline-wrap">{svg}</div>;
+
   return (
     <div className="health-sparkline-wrap">
-      <svg
-        ref={svgRef}
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        className="health-sparkline"
-        {...scrubHandlers}
+      <button
+        type="button"
+        className="health-sparkline-btn"
+        aria-label="View full trend"
+        onClick={(e: ReactMouseEvent) => {
+          e.stopPropagation();
+          onOpen();
+        }}
       >
-        <g>
-          <polyline
-            className="health-spark-line"
-            points={pts}
-            pathLength={1}
-            fill="none"
-            stroke="var(--ink-4)"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ ["--spark-dur" as string]: `${dur}ms` }}
-          />
-          {coords.slice(0, -1).map((c, i) => (
-            <circle
-              key={i}
-              className="health-spark-bead"
-              cx={c.x.toFixed(1)}
-              cy={c.y.toFixed(1)}
-              r={dot}
-              fill="var(--bg-card)"
-              stroke="var(--ink-4)"
-              strokeWidth="1.4"
-              style={{ animationDelay: `calc(${tierDelay} + ${((i / (n - 1)) * dur).toFixed(0)}ms)` }}
-            />
-          ))}
-          <circle
-            className="health-spark-bead health-spark-bead--anchor"
-            cx={last.x.toFixed(1)}
-            cy={last.y.toFixed(1)}
-            r={anchorDot}
-            fill="var(--bg-card)"
-            stroke={color}
-            strokeWidth="2.4"
-            style={{ animationDelay: `calc(${tierDelay} + ${dur}ms)` }}
-          />
-          {scrubGuide}
-          {scrubDot}
-        </g>
-      </svg>
-      {tooltip}
+        {svg}
+      </button>
     </div>
   );
 }
@@ -351,6 +302,7 @@ function TrendCard({
   minSpan = 0,
   rangeDays,
   color,
+  onOpenTrend,
 }: {
   label: string;
   avgLabel: string;
@@ -370,6 +322,8 @@ function TrendCard({
   /** Identity colour for this metric's eyebrow label and sparkline "you are
       here" bead — not a good/bad signal, just which card it belongs to. */
   color?: string;
+  /** Tapping the sparkline (only) opens the big scrubbable trend sheet. */
+  onOpenTrend?: () => void;
 }) {
   return (
     <section className={`page-card health-trend${loading ? " loading-card" : ""}`}>
@@ -389,7 +343,7 @@ function TrendCard({
             {delta}
           </div>
         </div>
-        <Sparkline points={points} minSpan={minSpan} color={color} unit={unit} decimals={decimals} />
+        <Sparkline points={points} minSpan={minSpan} color={color} onOpen={onOpenTrend} />
       </div>
       <div className="health-trend-foot">
         <MetricCaption>{loading ? "Loading…" : avgLabel}</MetricCaption>
@@ -430,7 +384,7 @@ export function HealthPage() {
   }, [activity]);
 
   const metrics = useMemo(() => (data ? sanitizeMetrics(data.metrics) : []), [data]);
-  const lastSynced = useMemo(() => syncLabel(metrics.at(-1) ?? null), [metrics]);
+  const lastSynced = useMemo(() => syncLabel(latestFullSync(metrics)), [metrics]);
   // Rendered beside the page title (Shell's PageTopBar). Memoised so the header
   // effect only re-fires when the label actually changes, not every render.
   const syncNote = useMemo(
@@ -468,18 +422,18 @@ export function HealthPage() {
       const prevWeek = rollingAvg(s, spec.bucket, spec.bucket);
       const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
       const bucketed = bucketSeries(s, { spanDays: spec.bucket * SPARK_POINTS, bucketDays: spec.bucket });
-      return { spec, bucketed, thisWeek, change, readingCount: s.length };
+      return { spec, bucketed, thisWeek, change, readingCount: s.length, raw: s };
     });
   }, [data, metrics]);
 
   // Active-energy sparkline — Active is the one behaviour-driven, trend-worthy
   // number in the Energy card, so it gets the same 14-day bucket / 84-day trend
   // shape as Body Fat and Lean Mass. Resting + TDEE ride along as model context.
+  const energyRaw = useMemo(() => series(metrics, "active_energy_kcal"), [metrics]);
   const energyBucketed = useMemo(() => {
     if (!data) return [];
-    const s = series(metrics, "active_energy_kcal");
-    return bucketSeries(s, { spanDays: ENERGY_BUCKET * SPARK_POINTS, bucketDays: ENERGY_BUCKET });
-  }, [data, metrics]);
+    return bucketSeries(energyRaw, { spanDays: ENERGY_BUCKET * SPARK_POINTS, bucketDays: ENERGY_BUCKET });
+  }, [data, energyRaw]);
 
   const recovery = useMemo(() => {
     if (!data) return null;
@@ -500,8 +454,19 @@ export function HealthPage() {
     const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
     const lbmBucket = 14;
     const bucketed = bucketSeries(pts, { spanDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket });
-    return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS };
+    return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS, raw: pts };
   }, [data, metrics]);
+
+  // The big scrubbable trend sheet — one shared instance, driven by which
+  // card's sparkline was tapped. `trendConfig` is left populated after close
+  // (harmless once `trendOpen` is false) so the exit transition still has
+  // content to animate out, same pattern as Training's per-exercise sheet.
+  const [trendConfig, setTrendConfig] = useState<HealthTrendConfig | null>(null);
+  const [trendOpen, setTrendOpen] = useState(false);
+  const openTrend = (config: HealthTrendConfig) => {
+    setTrendConfig(config);
+    setTrendOpen(true);
+  };
 
   const header = (
     <div className="shell-header">
@@ -561,6 +526,11 @@ export function HealthPage() {
                 ? `Skipped ${skippedBodyFatCount} invalid body fat sample${skippedBodyFatCount === 1 ? "" : "s"}`
                 : undefined
             }
+            onOpenTrend={
+              c && c.raw.length >= 2
+                ? () => openTrend({ label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color, points: c.raw })
+                : undefined
+            }
           />
         );
       })}
@@ -583,6 +553,11 @@ export function HealthPage() {
           lbmCard && lbmCard.change != null && lbmCard.readingCount >= 2 ? (
             <MetricDelta value={lbmCard.change} direction="up-good" decimals={1} unit="kg" />
           ) : null
+        }
+        onOpenTrend={
+          lbmCard && lbmCard.raw.length >= 2
+            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.raw })
+            : undefined
         }
       />
 
@@ -644,7 +619,16 @@ export function HealthPage() {
                   )}
                 </div>
               </div>
-              <Sparkline points={energyBucketed} minSpan={ENERGY_MIN_SPAN} color="var(--accent)" unit=" kcal" decimals={0} />
+              <Sparkline
+                points={energyBucketed}
+                minSpan={ENERGY_MIN_SPAN}
+                color="var(--accent)"
+                onOpen={
+                  energyRaw.length >= 2
+                    ? () => openTrend({ label: "Active", unit: " kcal", decimals: 0, color: "var(--accent)", points: energyRaw })
+                    : undefined
+                }
+              />
             </div>
             <div className="health-trend-foot">
               <MetricCaption>
@@ -690,6 +674,8 @@ export function HealthPage() {
           </p>
         )}
       </section>
+
+      <HealthTrendSheet config={trendConfig} open={trendOpen} onClose={() => setTrendOpen(false)} />
     </div>
   );
 }

@@ -25,6 +25,31 @@ export function syncLabel(
   return { text: `Synced ${daysAgo} days ago`, tone: "bad" };
 }
 
+// The live shortcut only writes weight / body_fat / active_energy on a
+// today-dated row; the nightly shortcut writes the full day summary (all
+// fields) on a yesterday-dated row. These five fields are exclusive to the
+// nightly run, so a row carrying any of them is a *complete* sync.
+const FULL_SYNC_FIELDS = [
+  "resting_energy_kcal",
+  "exercise_minutes",
+  "sleep_seconds",
+  "hrv_sdnn_ms",
+  "resting_heart_rate",
+] as const;
+
+/** The most recent row that came from a full (nightly) sync. The Health tab
+ *  anchors every card on the complete dataset, so its freshness note must track
+ *  the last full sync — NOT a partial live write, which lands a fresher
+ *  timestamp on a today-dated but mostly-empty row. Overview intentionally does
+ *  the opposite (it shows the live active-energy write via `.at(-1)`). Falls
+ *  back to the newest row if no full sync exists in range. */
+export function latestFullSync(metrics: BodyMetric[]): BodyMetric | null {
+  for (let i = metrics.length - 1; i >= 0; i--) {
+    if (FULL_SYNC_FIELDS.some((f) => metrics[i][f] != null)) return metrics[i];
+  }
+  return metrics.at(-1) ?? null;
+}
+
 /** Just the clock time (HH:MM) of the latest sync, and only when it landed
  *  today — older readings carry no meaningful time-of-day, so this returns null
  *  and the caller shows nothing (staleness is surfaced elsewhere). */
