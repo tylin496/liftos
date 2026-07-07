@@ -117,7 +117,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
 
   // Swipe-down-to-dismiss on the grabber/header — the grabber otherwise
   // implies a drag affordance it doesn't honor.
-  const { onTouchStart: onDragStart, onTouchMove: onDragMove, onTouchEnd: onDragEnd, onTouchCancel: onDragCancel } =
+  const { onPointerDown: onDragStart, onPointerMove: onDragMove, onPointerUp: onDragEnd, onPointerCancel: onDragCancel } =
     useSheetSwipe(sheetRef, onClose);
 
   useEffect(() => {
@@ -181,17 +181,17 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
         <div
           className="settings-sheet-grabber"
           aria-hidden
-          onTouchStart={onDragStart}
-          onTouchMove={onDragMove}
-          onTouchEnd={onDragEnd}
-          onTouchCancel={onDragCancel}
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragCancel}
         />
         <div
           className="settings-sheet-header"
-          onTouchStart={onDragStart}
-          onTouchMove={onDragMove}
-          onTouchEnd={onDragEnd}
-          onTouchCancel={onDragCancel}
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragCancel}
         >
           <span className="settings-sheet-title">Settings</span>
           <div className="settings-sheet-header-actions">

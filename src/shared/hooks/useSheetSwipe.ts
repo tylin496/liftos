@@ -1,15 +1,23 @@
-import { useRef, type TouchEvent as ReactTouchEvent, type RefObject } from "react";
+import { useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 
 /**
- * Swipe-down-to-dismiss for a bottom sheet. During the drag it writes the
- * transform straight to the DOM (not React state) so the sheet tracks the
- * finger without a re-render per move, and fires `onDismiss` only once the
- * slide-out has visually finished. Dismisses on >90px of travel OR a quick
- * downward flick (velocity sampled from the last move so a short flick counts).
+ * Swipe-down-to-dismiss for a bottom sheet. Uses native Pointer Events so the
+ * same drag works with a finger on mobile AND a mouse/trackpad on desktop
+ * (touch-only handlers left the desktop grabber inert). During the drag it
+ * writes the transform straight to the DOM (not React state) so the sheet
+ * tracks the pointer without a re-render per move, and fires `onDismiss` only
+ * once the slide-out has visually finished. Dismisses on >90px of travel OR a
+ * quick downward flick (velocity sampled from the last move so a short flick
+ * counts).
+ *
+ * Pointer capture (taken on the dragged element) keeps the gesture tracking
+ * even when the pointer leaves the grabber/header mid-drag — the CSS grabber +
+ * header set `touch-action: none`, which is what lets the pointer stream flow
+ * instead of the browser claiming it for a scroll.
  *
  * Pass the ref of the sheet element itself; spread the returned handlers onto
  * whatever should be draggable (grabber + header). The sheet's CSS must define
- * `.is-dragging` to suspend its entrance transition while the finger is down.
+ * `.is-dragging` to suspend its entrance transition while the pointer is down.
  */
 export function useSheetSwipe(
   ref: RefObject<HTMLElement | null>,
@@ -34,10 +42,18 @@ export function useSheetSwipe(
     }, 200);
   }
 
-  function onTouchStart(e: ReactTouchEvent) {
-    startY.current = prevY.current = lastY.current = e.touches[0].clientY;
+  function onPointerDown(e: ReactPointerEvent) {
+    // Mouse: primary button only. Touch/pen report button 0 too.
+    if (e.button > 0) return;
+    startY.current = prevY.current = lastY.current = e.clientY;
     prevT.current = lastT.current = e.timeStamp;
     dragging.current = true;
+    // Capture so a drag that wanders off the grabber still tracks/releases here.
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* not all pointer ids are capturable (e.g. hover) — safe to ignore */
+    }
     const el = ref.current;
     if (el) {
       el.style.transition = "none";
@@ -45,20 +61,20 @@ export function useSheetSwipe(
     }
   }
 
-  function onTouchMove(e: ReactTouchEvent) {
+  function onPointerMove(e: ReactPointerEvent) {
     if (!dragging.current || !ref.current) return;
     prevY.current = lastY.current;
     prevT.current = lastT.current;
-    lastY.current = e.touches[0].clientY;
+    lastY.current = e.clientY;
     lastT.current = e.timeStamp;
-    const dy = Math.max(0, e.touches[0].clientY - startY.current);
+    const dy = Math.max(0, e.clientY - startY.current);
     ref.current.style.transform = `translateY(${dy}px)`;
   }
 
-  function onTouchEnd(e: ReactTouchEvent) {
+  function onPointerUp(e: ReactPointerEvent) {
     if (!dragging.current || !ref.current) return;
     dragging.current = false;
-    const endY = e.changedTouches[0].clientY;
+    const endY = e.clientY;
     const dy = Math.max(0, endY - startY.current);
     const dt = e.timeStamp - prevT.current;
     const vy = dt > 0 ? (endY - prevY.current) / dt : 0;
@@ -74,9 +90,10 @@ export function useSheetSwipe(
     }
   }
 
-  // touchcancel (system gesture / incoming call) skips onTouchEnd — without this
-  // the sheet stays frozen mid-drag with transition:none. Snap it back to rest.
-  function onTouchCancel() {
+  // pointercancel (system gesture / incoming call / lost capture) skips
+  // onPointerUp — without this the sheet stays frozen mid-drag with
+  // transition:none. Snap it back to rest.
+  function onPointerCancel() {
     if (!dragging.current || !ref.current) return;
     dragging.current = false;
     const el = ref.current;
@@ -85,5 +102,5 @@ export function useSheetSwipe(
     settle(el);
   }
 
-  return { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel };
+  return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel };
 }

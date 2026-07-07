@@ -186,7 +186,7 @@ function SheetInner({
   useFocusTrap(sheetRef, onClose);
 
   // Swipe-down-to-dismiss on the grabber/header — matches the Settings sheet.
-  const { onTouchStart: onDragStart, onTouchMove: onDragMove, onTouchEnd: onDragEnd, onTouchCancel: onDragCancel } =
+  const { onPointerDown: onDragStart, onPointerMove: onDragMove, onPointerUp: onDragEnd, onPointerCancel: onDragCancel } =
     useSheetSwipe(sheetRef, onClose);
 
   return createPortal(
@@ -202,17 +202,17 @@ function SheetInner({
         <div
           className="settings-sheet-grabber"
           aria-hidden
-          onTouchStart={onDragStart}
-          onTouchMove={onDragMove}
-          onTouchEnd={onDragEnd}
-          onTouchCancel={onDragCancel}
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragCancel}
         />
         <div
           className="settings-sheet-header"
-          onTouchStart={onDragStart}
-          onTouchMove={onDragMove}
-          onTouchEnd={onDragEnd}
-          onTouchCancel={onDragCancel}
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragCancel}
         >
           <span className="settings-sheet-title">{label}</span>
           <button className="settings-sheet-close" onClick={onClose} aria-label="Close">

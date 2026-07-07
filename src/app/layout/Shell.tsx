@@ -13,6 +13,7 @@ import { SessionUserProvider } from "./SessionContext";
 import { NavContext, NavExpandContext, type NavOptions } from "./NavContext";
 import { setActiveScroller } from "./activeScroller";
 import { TabActivityContext } from "./TabActivityContext";
+import { isFeatureHSwipeActive } from "@shared/hooks/useHorizontalSwipe";
 import { ToastProvider } from "@shared/components/Toast";
 import { NutritionConfigProvider } from "@features/nutrition/NutritionConfigContext";
 import { TrainingMilestone } from "@features/training/TrainingMilestone";
@@ -570,15 +571,129 @@ export function Shell({ session }: { session: Session }) {
       }
     }
 
+    // ── Mouse drag (desktop) — mirror the HORIZONTAL touch path so the tab-swipe
+    // is testable with a cursor. Only the tab-swipe is mouse-enabled: the
+    // pull-to-refresh half stays touch-only, because a downward mouse drag is
+    // ordinary text selection, not a refresh gesture. window-level move/up so a
+    // drag that leaves the shell still tracks and releases cleanly.
+    let mouseActive = false;
+    let mCancelled = false;
+    let suppressClick = false;
+
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 0) return; // left button only
+      // Clear per-gesture state up front (see onTouchStart for why).
+      axisLocked.current = null;
+      dragTo.current = null;
+      mCancelled = false;
+      if (slideRef.current?.settling || pullRefreshing.current) return;
+      mouseActive = true;
+      touchStartX.current = e.clientX;
+      touchStartY.current = e.clientY;
+      prevX = lastX = e.clientX;
+      prevT = lastT = e.timeStamp;
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    }
+
+    function onMouseMove(e: MouseEvent) {
+      if (!mouseActive || mCancelled) return;
+      if (slideRef.current?.settling || pullRefreshing.current) return;
+      const dx = e.clientX - touchStartX.current;
+      const dy = e.clientY - touchStartY.current;
+      if (axisLocked.current === null) {
+        // A feature-level swiper (Training split, Nutrition day/week) already
+        // owns this drag — stand down, the mouse analogue of the touch path
+        // deferring via stopPropagation.
+        if (isFeatureHSwipeActive()) {
+          mCancelled = true;
+          return;
+        }
+        if (Math.abs(dx) > Math.abs(dy) * 1.25 && Math.abs(dx) > 10) {
+          axisLocked.current = "h";
+          noteLeaving();
+          const idx = TAB_ORDER.indexOf(tab);
+          const dir: 1 | -1 = dx < 0 ? 1 : -1;
+          dragTo.current = TAB_ORDER[wrapIndex(idx + dir)];
+        } else if (Math.abs(dy) > 10) {
+          // Vertical mouse drag — bow out (no pull-to-refresh on desktop), let
+          // the page scroll / text select normally.
+          axisLocked.current = "v";
+          mCancelled = true;
+          return;
+        } else {
+          return;
+        }
+      }
+      if (axisLocked.current === "h") {
+        e.preventDefault(); // stop text selection while dragging
+        prevX = lastX; prevT = lastT;
+        lastX = e.clientX; lastT = e.timeStamp;
+        const to = dragTo.current;
+        if (!to) return;
+        const dir: 1 | -1 = dx < 0 ? 1 : -1;
+        setSlide({ to, dir, dx, settling: false });
+      }
+    }
+
+    function onMouseUp(e: MouseEvent) {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      mouseActive = false;
+      if (axisLocked.current !== "h" || mCancelled) {
+        axisLocked.current = null;
+        dragTo.current = null;
+        return;
+      }
+      const to = dragTo.current;
+      const endX = e.clientX;
+      const dx = endX - touchStartX.current;
+      // A real horizontal drag happened → swallow the click it will emit.
+      if (Math.abs(dx) > 5) suppressClick = true;
+      const dt = e.timeStamp - prevT;
+      const velocity = dt > 0 ? (endX - prevX) / dt : 0;
+      const flicked = Math.abs(velocity) >= 0.5 && Math.abs(dx) >= 12;
+      axisLocked.current = null;
+      dragTo.current = null;
+      if (!to || (Math.abs(dx) < 56 && !flicked)) {
+        // Snap back to the current tab.
+        if (slideRef.current) {
+          setSlide((s) => (s ? { ...s, dx: 0, settling: true } : null));
+          scheduleFinalize();
+        }
+        return;
+      }
+      setHighlight(to);
+      enterTab(to);
+      const dir: 1 | -1 = dx < 0 ? 1 : -1;
+      const width = window.innerWidth || 1;
+      setSlide({ to, dir, dx: -dir * width, settling: true });
+      scheduleFinalize();
+    }
+
+    function onClickCapture(e: MouseEvent) {
+      if (suppressClick) {
+        suppressClick = false;
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    }
+
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd, { passive: true });
     el.addEventListener("touchcancel", onTouchCancel, { passive: true });
+    el.addEventListener("mousedown", onMouseDown);
+    el.addEventListener("click", onClickCapture, true); // capture: beat child handlers
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", onTouchCancel);
+      el.removeEventListener("mousedown", onMouseDown);
+      el.removeEventListener("click", onClickCapture, true);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
     };
   }, [tab]);
 

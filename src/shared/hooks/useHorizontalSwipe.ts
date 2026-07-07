@@ -51,6 +51,16 @@ const AXIS_RATIO = 1.25;
 const FLICK_VELOCITY = 0.5;
 const FLICK_MIN_DX = 12;
 
+// Set while a feature-level horizontal swipe owns the current gesture. Shell's
+// app-tab swipe reads this to defer on desktop MOUSE drags — the mouse
+// equivalent of the touch path's `stopPropagation` (which already keeps Shell
+// out on touch). Only one gesture is active app-wide at a time, so a
+// module-level flag is enough. Set on axis-lock, cleared on every gesture end.
+let featureHSwipeActive = false;
+export function isFeatureHSwipeActive(): boolean {
+  return featureHSwipeActive;
+}
+
 export function useHorizontalSwipe<T extends HTMLElement>(
   ref: RefObject<T | null>,
   onSwipe: (dir: 1 | -1) => void,
@@ -81,6 +91,7 @@ export function useHorizontalSwipe<T extends HTMLElement>(
     function reset() {
       axis = null;
       cancelled = false;
+      featureHSwipeActive = false;
     }
 
     function onTouchStart(e: TouchEvent) {
@@ -109,6 +120,7 @@ export function useHorizontalSwipe<T extends HTMLElement>(
       if (axis === null) {
         if (Math.abs(dx) > Math.abs(dy) * AXIS_RATIO && Math.abs(dx) > AXIS_LOCK_PX) {
           axis = "h";
+          featureHSwipeActive = true;
         } else if (Math.abs(dy) > AXIS_LOCK_PX) {
           axis = "v";
           return;
@@ -189,6 +201,7 @@ export function useHorizontalSwipe<T extends HTMLElement>(
       if (axis === null) {
         if (Math.abs(dx) > Math.abs(dy) * AXIS_RATIO && Math.abs(dx) > AXIS_LOCK_PX) {
           axis = "h";
+          featureHSwipeActive = true;
         } else if (Math.abs(dy) > AXIS_LOCK_PX) {
           axis = "v"; // vertical mouse drag — bow out, let the page behave normally
           return;
