@@ -43,55 +43,26 @@
 }
 
 .health-sparkline-wrap {
-  position: relative;
   flex-shrink: 0;
 }
+
+/* The sparkline is its own tap target — opens the big trend sheet — separate
+   from the card's own tap (e.g. Active's Resting/TDEE reveal), so the two
+   gestures don't fight. Reset button chrome back to plain SVG appearance. */
+.health-sparkline-btn {
+  display: block;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.health-sparkline-btn:active { opacity: 0.7; }
 
 .health-sparkline {
   flex-shrink: 0;
   overflow: visible;
-  cursor: grab;
-  touch-action: none;
-}
-
-.health-sparkline:active {
-  cursor: grabbing;
-}
-
-.health-spark-guide {
-  stroke: var(--ink-4);
-  stroke-width: 1;
-  stroke-dasharray: 2 2;
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.health-spark-scrub-dot {
-  pointer-events: none;
-}
-
-.health-spark-tooltip {
-  position: absolute;
-  top: -6px;
-  transform: translate(-50%, -100%);
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: 4px 10px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  color: var(--ink-3);
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.health-spark-tooltip-date {
-  color: var(--ink);
 }
 
 /* Trend redraw on tab-enter: the line strokes itself in left→right (linear, so
@@ -401,3 +372,169 @@
    isn't loaded there). */
 
 /* Active Target card moved to Overview — see overview.css */
+
+/* ── Health trend sheet — the big scrubbable graph a Sparkline tap opens ────
+   Reuses the Settings sheet chrome (.settings-sheet / -backdrop / -header /
+   -close, shared in layout.css); everything below is health-specific. Not
+   shared with Training's own trend sheet (training.css isn't loaded here). */
+.health-trend-sheet-body {
+  gap: var(--space-4);
+  padding-bottom: var(--space-6);
+}
+
+.health-trend-sheet-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}
+
+.health-trend-sheet-window {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.health-trend-sheet-chart-wrap {
+  position: relative;
+}
+
+.health-trend-sheet-chart {
+  width: 100%;
+  height: 130px;
+  display: block;
+  overflow: visible;
+  cursor: grab;
+  touch-action: none;
+}
+
+.health-trend-sheet-chart:active {
+  cursor: grabbing;
+}
+
+/* Draw the line in once on open, left→right; the fill fades up behind it.
+   Length is measured in JS (getTotalLength) and applied inline — see
+   TrendSheet.tsx for why (a normalized pathLength clips the final segment). */
+.health-trend-sheet-line {
+  transition: stroke-dashoffset var(--dur-enter) var(--ease-enter);
+}
+
+.health-trend-sheet-area {
+  opacity: 0;
+  animation: fade-in var(--dur-enter) var(--ease-enter) 200ms forwards;
+}
+
+.health-trend-sheet-dot--peak {
+  fill: var(--bg-card);
+  stroke: var(--gold);
+  stroke-width: 2.4;
+}
+
+.health-trend-sheet-dot--last {
+  fill: var(--bg-card);
+  stroke: currentColor;
+  stroke-width: 2.4;
+}
+
+.health-trend-sheet-guide {
+  stroke: var(--ink-4);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Rendered as an HTML dot, not an in-SVG <circle> — see TrendChart's comment
+   for why (preserveAspectRatio="none" stretches an in-SVG circle into an
+   ellipse). Fixed pixel size stays round regardless of chart width. */
+.health-trend-sheet-scrub-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: currentColor;
+  border: 2px solid var(--bg-card);
+  pointer-events: none;
+}
+
+.health-trend-sheet-tooltip {
+  position: absolute;
+  top: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* Anchor by edge near either end of the chart so a wide pill can't overhang
+   the sheet — centered anchor only in the safe middle range. */
+.health-trend-sheet-tooltip--center { transform: translateX(-50%); }
+.health-trend-sheet-tooltip--start { transform: translateX(0); }
+.health-trend-sheet-tooltip--end { transform: translateX(-100%); }
+
+.health-trend-sheet-tooltip-date {
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .health-trend-sheet-line { transition: none; }
+  .health-trend-sheet-area { animation: none; opacity: 1; }
+}
+
+.health-trend-sheet-stats {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.health-trend-sheet-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.health-trend-sheet-stat-k {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+}
+
+.health-trend-sheet-stat-v {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.health-trend-sheet-stat-v--peak {
+  color: var(--gold);
+}
+
+.health-trend-sheet-stat-u {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-4);
+}
+
+.health-trend-sheet-delta--gain { color: var(--good); }
+.health-trend-sheet-delta--loss { color: var(--bad); }
+.health-trend-sheet-delta--flat { color: var(--ink-3); }
+
+.health-trend-sheet-empty {
+  font-size: var(--text-base);
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin: var(--space-4) 0;
+}
