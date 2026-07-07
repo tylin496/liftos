@@ -23,7 +23,7 @@ import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
 import { useSessionUser, useIsReadOnly } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
-import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
+import { MIN_TREND_POINTS, FRESH_TARGET_DAYS } from "@features/nutrition/evaluation";
 import { paceLabel, paceTone, cutEtaLabel } from "@features/nutrition/recommendation";
 import type { Recommendation } from "@features/overview/recommendations";
 import type { Goal } from "./goal";
@@ -748,9 +748,13 @@ function WeightCard({
     weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
 
   // Second-order read beside the Rate: is the loss itself slowing (approaching a
-  // plateau — amber, worth a nudge) or accelerating (neutral; "too fast" is the
-  // pill's job, not repeated here)? Null = holding steady, so nothing shows.
-  const accel = weightAcceleration(weightPts);
+  // plateau — amber, worth a nudge) or accelerating? Accelerating is normally
+  // muted ("too fast" is the pill's job) — but when it compounds an already
+  // too-fast pill it turns amber (the muscle-risk moment; see the render). On a
+  // fresh target (< FRESH_TARGET_DAYS) the prior window is still the old regime,
+  // so a "faster" read there is just the deficit step / whoosh — suppress it.
+  const freshTarget = state != null && state.diagnostics.daysOnTarget < FRESH_TARGET_DAYS;
+  const accel = freshTarget ? null : weightAcceleration(weightPts);
 
   if (weightLatest == null) {
     return (
@@ -835,7 +839,9 @@ function WeightCard({
           <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
           {accel && (
             <span
-              className={`ov-weight-accel is-${accel.direction}${accel.strong ? " is-strong" : ""}`}
+              className={`ov-weight-accel is-${accel.direction}${accel.strong ? " is-strong" : ""}${
+                accel.direction === "faster" && status === "Too fast" ? " is-risk" : ""
+              }`}
               aria-label={accel.direction === "slowing" ? "Loss slowing" : "Loss accelerating"}
             >
               {accel.direction === "slowing" ? "↓" : "↑"}

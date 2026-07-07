@@ -349,6 +349,10 @@
 }
 .ov-weight-accel.is-slowing { color: var(--warn); }
 .ov-weight-accel.is-faster  { color: var(--ink-3); }
+/* Accelerating while the pill already reads "Too fast" is the muscle-risk
+   moment — escalate the otherwise-muted "faster" to the caution colour so the
+   chip and pill agree instead of the chip staying silent. */
+.ov-weight-accel.is-faster.is-risk { color: var(--warn); }
 .ov-weight-accel.is-strong  { font-weight: 700; }
 
 /* Arrow-only delta trails the number (delta-after-value, app-wide), carrying

@@ -75,7 +75,7 @@ const STATUS_EPS = 0.02;
  *  a HIGH-confidence verdict on it. Below this, the trailing trend is still partly
  *  the PRIOR target, and weight right after a deficit change carries transient
  *  water/glycogen — so a fast rate reads as optimistic, not settled. */
-const FRESH_TARGET_DAYS = 14;
+export const FRESH_TARGET_DAYS = 14;
 
 /** Canonical weekly weight rate (kg/week) — the exact number the UI's "Trend"
  *  shows: a least-squares slope over the same trailing 21-day window `evaluate`
