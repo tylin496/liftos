@@ -824,8 +824,9 @@ function WeightCard({
           {accel && (
             <span
               className={`ov-weight-accel is-${accel.direction}${accel.strong ? " is-strong" : ""}`}
+              aria-label={accel.direction === "slowing" ? "Loss slowing" : "Loss accelerating"}
             >
-              {accel.direction === "slowing" ? "↓ Slowing" : "↑ Faster"}
+              {accel.direction === "slowing" ? "↓" : "↑"}
             </span>
           )}
         </span>
