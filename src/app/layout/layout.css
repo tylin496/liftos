@@ -82,7 +82,19 @@
   -webkit-overflow-scrolling: touch;
   padding: 0 var(--space-4)
     calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
-  scrollbar-gutter: stable;
+  /* Hide the scrollbar rather than reserve a stable gutter for it. A mouse-driven
+     browser (unlike a touch device's auto-hiding overlay scrollbar) renders a
+     classic, space-taking scrollbar the instant a tab's content grows past the
+     skeleton height — since that growth happens in one commit (skeleton → real
+     data), the scrollbar popping in and the card column narrowing to make room
+     for it read as a single visible squeeze-then-settle. Hiding it removes the
+     width it would ever take, on every browser — the touch-scroll gesture Shell
+     depends on doesn't need a visible track. Matches nutrition's .ncal-grid. */
+  scrollbar-width: none;
+}
+
+.tab-panel::-webkit-scrollbar {
+  display: none;
 }
 
 /* While a horizontal tab slide is in flight, both panels are stacked and
