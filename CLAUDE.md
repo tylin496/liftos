@@ -43,6 +43,7 @@ Supabase → features/*/api.ts → page.tsx → 子元件
 ## 設計 Tokens
 - 顏色、字體、間距：`src/shared/styles/tokens.css`
 - 全域 reset / animations：`src/shared/styles/global.css`
+- **動畫時序**：一律用 role token（`--dur-*` / `--ease-*`,見 `tokens.css` §Motion）,**勿硬寫 ms 或新增曲線**。新增/修改任何 `@keyframes` / `animation` / `transition` / count-up **先載入 `motion` skill**——完整 token 表、進場/gate/snap/count-up pattern 都在裡面。
 
 ### Token Discipline（護欄）
 不要再寫 magic number。新增樣式一律用 token：
@@ -56,6 +57,7 @@ Supabase → features/*/api.ts → page.tsx → 子元件
 | 任務 | 去哪改 |
 |------|--------|
 | 改顏色 / 間距 | `tokens.css` |
+| 改動畫 / 動效 / 過場 / count-up | 先載入 `motion` skill;role token `--dur-*` / `--ease-*` |
 | 改 Training 卡片 UI | `ExerciseCard.tsx` |
 | 改輸入表單邏輯 | `LogForms.tsx` |
 | 改重量顯示格式 | `ExprDisplay.tsx` |
