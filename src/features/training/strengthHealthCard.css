@@ -394,12 +394,16 @@
 .ov-th-wrow-pct--bad { color: var(--bad); }
 .ov-th-wrow-pct--warn { color: var(--warn-ink); }
 
-/* ── Reward row — single line: icon + name + note + chip/spark ── */
+/* ── Reward row — two lines: name (top), note (bottom); icon + chip/spark
+   span both rows, vertically centered — same shape as the warning row. ── */
 .ov-th-rrow,
 .ov-th-rrow--tap {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
   align-items: center;
-  gap: var(--space-2);
+  column-gap: var(--space-2);
+  row-gap: 2px;
   padding: 10px 0;
   border-bottom: 1px solid var(--rule);
 }
@@ -418,45 +422,54 @@
   -webkit-tap-highlight-color: transparent;
 }
 .ov-th-rrow--tap:active { opacity: 0.55; }
-.ov-th-rrow-icon { font-size: var(--text-base); line-height: 1; flex-shrink: 0; }
+.ov-th-rrow-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: var(--text-base);
+  line-height: 1;
+}
 .ov-th-rrow-icon--up { color: var(--good); font-weight: 700; }
 .ov-th-rrow-name {
+  grid-column: 2;
+  grid-row: 1;
   font-size: var(--text-base);
   font-weight: 600;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* Can shrink (min-width:0), but only after the note — so the lift's name stays
-     as complete as possible and the note ellipsizes first (name = identity). */
   min-width: 0;
-  flex-shrink: 1;
 }
 .ov-th-rrow-note {
-  flex: 1 1 0;
+  grid-column: 2;
+  grid-row: 2;
   min-width: 0;
   font-size: var(--text-sm);
   font-weight: 500;
   color: var(--ink-4);
   white-space: nowrap;
-  /* Absorb the squeeze first: ellipsize so the 🔥 chip / sparkline never clip. */
   overflow: hidden;
   text-overflow: ellipsis;
 }
 /* The 🔥 emoji carries the celebration colour (gold/red tokens stay off the text,
    matching the summary-line convention). */
 .ov-th-rrow-chip {
-  flex-shrink: 0;
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  align-self: center;
   font-size: var(--text-2xs);
   font-weight: 500;
   color: var(--ink-4);
   white-space: nowrap;
 }
 .ov-th-rrow-right {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  align-self: center;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-shrink: 0;
 }
 .ov-th-rrow-pct {
   font-family: var(--font-mono);
@@ -513,3 +526,11 @@
   border-radius: var(--radius-pill);
   white-space: nowrap;
 }
+.ov-th-chip--tap {
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--dur-press);
+}
+.ov-th-chip--tap:active { opacity: 0.55; }

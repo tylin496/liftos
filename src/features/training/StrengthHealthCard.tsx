@@ -174,10 +174,12 @@ function HoldingPeak({
   exercises,
   open,
   onToggle,
+  onJump,
 }: {
   exercises: StrengthExercise[];
   open: boolean;
   onToggle: () => void;
+  onJump?: (slug: string) => void;
 }) {
   return (
     <div className="ov-th-holding">
@@ -192,9 +194,20 @@ function HoldingPeak({
       </button>
       <div className={`ov-th-holding-reveal${open ? " open" : ""}`}>
         <div className="ov-th-holding-chips">
-          {exercises.map((e) => (
-            <span key={e.slug} className="ov-th-chip">{e.name}</span>
-          ))}
+          {exercises.map((e) =>
+            onJump ? (
+              <button
+                key={e.slug}
+                type="button"
+                className="ov-th-chip ov-th-chip--tap"
+                onClick={() => onJump(e.slug)}
+              >
+                {e.name}
+              </button>
+            ) : (
+              <span key={e.slug} className="ov-th-chip">{e.name}</span>
+            ),
+          )}
         </div>
       </div>
     </div>
@@ -510,7 +523,7 @@ export function StrengthHealthCard({
         )}
         {holdingPeak.length > 0 && (
           <div className="ov-th-section" ref={trackSectionRef}>
-            <HoldingPeak exercises={holdingPeak} open={trackOpen} onToggle={toggleHolding} />
+            <HoldingPeak exercises={holdingPeak} open={trackOpen} onToggle={toggleHolding} onJump={onJumpToExercise} />
           </div>
         )}
       </div>
