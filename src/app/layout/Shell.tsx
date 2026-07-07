@@ -169,14 +169,21 @@ export function Shell({ session }: { session: Session }) {
       landingAppliedRef.current = true;
       landingRef.current = null;
       alignRef.current?.cancel();
-      el.scrollTop = 0;
+      if (el.scrollTop !== 0) el.scrollTop = 0;
       startAlign(landing.id, el);
       return;
     }
     landingAppliedRef.current = true;
     landingRef.current = null;
     alignRef.current?.cancel();
-    el.scrollTop = landing.kind === "restore" ? landing.y : 0;
+    // Guard the write: a resume's target usually already matches (the panel kept
+    // its scrollTop natively — this assignment is a defensive belt-and-suspenders
+    // for browsers that drop it on display:none). Writing the SAME value still
+    // registers as "a scroll happened" on some engines (notably iOS Safari),
+    // which briefly flashes the native scroll indicator even though nothing
+    // actually moved — skipping the no-op write avoids that stray flash.
+    const target = landing.kind === "restore" ? landing.y : 0;
+    if (el.scrollTop !== target) el.scrollTop = target;
   }, [slide, tab]);
 
   // Keep the imperative-scroller registry pointed at the active panel.
