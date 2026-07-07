@@ -27,6 +27,10 @@ export function ActivityRing({
   const clamped = Math.max(0, Math.min(1, pct));
   const offset = circumference * (1 - clamped);
   const maskId = useId();
+  // At 100% the ring IS the celebration gold — give it the shared gold halo,
+  // same as every other celebration-gold element. Consumers pass exactly
+  // var(--progress-complete) at completion, so match on that.
+  const goldGlow = color === "var(--progress-complete)" ? "drop-shadow(var(--gold-glow))" : undefined;
   // The fill stays the saturated base colour and only lightens over a fixed window
   // (FADE_DEG) right at the leading tip — not the whole arc, so most of the ring
   // reads solid. The tip's paleness also grows with fill (k), so a small fill stays
@@ -43,7 +47,7 @@ export function ActivityRing({
 
   return (
     <div className="activity-ring" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ filter: goldGlow }}>
         <defs>
           <mask id={maskId}>
             <circle
@@ -101,6 +105,9 @@ export function OverflowRing({
   const overflowLength = overflowFrac * circumference;
   const tailClipId = useId();
   const bandClipId = useId();
+  // Overflow only ever renders past 100%, where the ring is the completion gold —
+  // give it the same gold halo as ActivityRing at 100%.
+  const goldGlow = color === "var(--progress-complete)" ? "drop-shadow(var(--gold-glow))" : undefined;
   // Tail = the leading end of the second lap; the shadow is revealed only here.
   const tailAngle = overflowFrac * 2 * Math.PI - Math.PI / 2;
   const tailX = c + r * Math.cos(tailAngle);
@@ -133,7 +140,7 @@ export function OverflowRing({
   };
   return (
     <div className="activity-ring" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ filter: goldGlow }}>
         <defs>
           <clipPath id={tailClipId}>
             <circle cx={tailX} cy={tailY} r={strokeWidth * 1.6} />
