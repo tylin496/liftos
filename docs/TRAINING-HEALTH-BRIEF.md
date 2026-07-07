@@ -133,13 +133,35 @@ So the detailed card here would show ~3 rows, not 15. That's the goal.
 - Labels in **English**.
 - Existing class prefix `ov-th-*` and an entrance cascade on the bar.
 
-## 10. Open questions for the designer
+## 10. Decided direction (resolved with product)
 
-1. Confirm the ~7 at-peak lifts stay *hidden* (only in the count/bar) — vs a
-   collapsed "7 holding peak" affordance.
-2. Declining ↓ vs Needs Attention: one section or visually separated (acute vs
-   chronic)?
-3. How much reward to surface in the *detailed* card — a rewards section, inline
-   chips, or just the summary line?
-4. Thresholds (what % / how many weeks) are being calibrated on real data — design
-   should represent the **states**, not hard-code numbers.
+1. **The ~7 at-peak lifts** → **one collapsible "N holding peak" row**, collapsed
+   by default. Not seven rows (clutter), not fully hidden (keep a quiet positive
+   clue). Tap to expand the list.
+2. **Declining vs Needs Attention** → **one Warnings section**, sorted worst-first
+   so the acute ↓ slides sit on top; each declining row carries a distinct **↓**
+   marker. No second header — order + marker carry acute-vs-chronic.
+3. **Reward in the detailed card** → a compact **Rewards section BELOW Warnings**
+   (🔥 fresh PR + ↑ Rebounding). Problems lead (decision tool); positives follow.
+4. **PR taxonomy** → **distinguish the three types with an icon** (🏆 Strength /
+   💪 Performance / 🎯 Milestone), minimal label. Honours the two-axis work
+   (77kg×7 is a *Performance* PR, not Strength). Needs the PR *type* surfaced per
+   lift (small data addition).
+
+Extra constraints: a declining row taps → its **trend chart** (reviewable); GOLD
+stays celebration-only; reuse the **Recovery card's** visual language; keep the
+"logged Nw ago" staleness hint.
+
+Thresholds (what % / how many weeks) are still being calibrated on real data — so
+design the **states**, never hard-code the numbers.
+
+## 11. Exploration ask
+
+Produce **two directions** to compare (the philosophy is locked — not three). They
+should differ mainly on:
+- **Warnings / Rewards zoning & hierarchy** — how the two groups are arranged and
+  weighted against each other.
+- **Row information density** — what each row shows (retention % vs weeks vs a
+  status marker).
+
+Keep the **hero + segmented bar** consistent across both directions.
