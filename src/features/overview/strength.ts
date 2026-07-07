@@ -294,7 +294,15 @@ export function buildTrainingEvaluation(summary: StrengthSummary): TrainingEvalu
 
   let trend: TrainingTrend;
   if (stalledWatch >= declineThreshold) trend = "declining";
-  else if (improving > total / 2 && watch === 0) trend = "improving";
+  // "improving" needs a majority PRing AND no lift that actually needs
+  // intervention. Gating on stalledWatch (needsAttention) rather than raw `watch`
+  // is a real-data calibration fix: a strong block almost always carries 1–2
+  // lagging lifts that are either fresh off a PR (grace window) or visibly
+  // rebounding — neither is a problem, so neither should veto the whole-body
+  // "improving" read. Only a settled stall or an acute slide should. (Export
+  // check 2026-07: 8/11 lifts PRing with the only watch lifts being a just-PR'd
+  // Assisted Pull-up + a rebounding Leg Curl — old `watch === 0` mislabelled it.)
+  else if (improving > total / 2 && stalledWatch === 0) trend = "improving";
   else trend = "holding";
 
   return { trend, confidence, watch, total };

@@ -44,6 +44,20 @@ describe("computeStrengthSummary — two-axis stall clock", () => {
     });
     expect(buildTrainingEvaluation(plateau).trend).toBe("declining");
   });
+
+  it("a majority PRing reads 'improving' even with a rebounding watch lift", () => {
+    // Two lifts PRing on their latest session + one watch lift that's below PR
+    // but visibly climbing back (rebounding → needsAttention false). The old
+    // `watch === 0` gate mislabelled this "holding"; a lagging-but-recovering
+    // lift shouldn't veto a block that's otherwise all PRs.
+    const block = computeStrengthSummary({
+      press: [log("2026-01-01", "50*8"), log("2026-01-20", "54*8"), log("2026-02-01", "57*8"), log("2026-02-15", "60*8")],
+      hinge: [log("2026-01-01", "90*8"), log("2026-01-20", "94*8"), log("2026-02-01", "97*8"), log("2026-02-15", "100*8")],
+      squat: [log("2026-01-01", "80*8"), log("2026-01-20", "60*8"), log("2026-02-01", "65*8"), log("2026-02-15", "70*8")],
+    });
+    expect(block.exercises.find((e) => e.slug === "squat")!.needsAttention).toBe(false);
+    expect(buildTrainingEvaluation(block).trend).toBe("improving");
+  });
 });
 
 describe("computeStrengthSummary — needs-attention gating (recent-PR grace)", () => {
