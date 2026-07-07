@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent, type Ref } from "react";
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type Ref } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
@@ -563,11 +563,17 @@ function WeightSparkline({
     coordsForScrub.map((c) => c.x),
     W,
   );
-  // The card itself navigates to Health on tap — scrubbing the chart shouldn't
-  // also fire that, so stop the pointerdown from bubbling to the card.
+  // The card itself navigates to Health on tap. stopPropagation on pointerdown
+  // stops the drag from ever reaching the card, but a tap still fires a
+  // SEPARATE click event afterward (pointerdown → pointerup → click) that
+  // bubbles independently — so the click needs its own stopPropagation too,
+  // or a plain tap-to-scrub still navigated away.
   const onChartPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
     e.stopPropagation();
     onPointerDown(e);
+  };
+  const onChartClick = (e: ReactMouseEvent<SVGSVGElement>) => {
+    e.stopPropagation();
   };
 
   // Not enough data: hold the 80px height with a flat dashed placeholder so the
@@ -614,6 +620,7 @@ function WeightSparkline({
         preserveAspectRatio="none"
         aria-hidden
         onPointerDown={onChartPointerDown}
+        onClick={onChartClick}
         {...scrubMove}
       >
         <defs>
