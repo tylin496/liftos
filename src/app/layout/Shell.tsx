@@ -207,19 +207,18 @@ export function Shell({ session }: { session: Session }) {
     let cancelled = false;
     let ro: ResizeObserver | null = null;
     let lastHeight = 0;
-    const reduced = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    // Two modes:
-    //  • instant — the first pass, run while the panel is still sliding in. For a
-    //    warm (already-loaded) target this lands the card off-screen so it slides
-    //    in already in place; on a cold skeleton it's a harmless no-op.
-    //  • smooth  — every later pass, once data has grown the page. The tab has
-    //    settled at the top, so a smooth scroll GLIDES down to the card rather
-    //    than snapping. (Reduced-motion forces instant.)
-    const align = (smooth: boolean) =>
-      document.getElementById(targetId)?.scrollIntoView({
-        block: "start",
-        behavior: smooth && !reduced ? "smooth" : "auto",
-      });
+    // Always instant, deliberately not smooth. This app loads each page's data
+    // as one atomic swap (a single Promise.all, never a progressive/staged
+    // reveal — see reloadAll in training/page.tsx and its Health/Overview
+    // equivalents), and that same swap is what triggers the page's entrance
+    // cascade (cards rising in). A smooth scrollIntoView here would run
+    // alongside that cascade — the viewport gliding while cards are still
+    // popping in reads as competing motion, which is the "judder" a smooth
+    // catch-up align was meant to prevent, not cause. Instant lands the target
+    // in the same frame the layout settles, so the cascade is the only motion
+    // on screen.
+    const align = () =>
+      document.getElementById(targetId)?.scrollIntoView({ block: "start" });
     const cancel = () => {
       if (cancelled) return;
       cancelled = true;
@@ -240,7 +239,7 @@ export function Shell({ session }: { session: Session }) {
       requestAnimationFrame(() => {
         if (cancelled) return;
         lastHeight = content.scrollHeight;
-        align(false); // instant pre-position (warm: lands off-screen; cold: no-op)
+        align(); // pre-position (warm: lands off-screen; cold: no-op on the skeleton)
         window.addEventListener("wheel", cancel, { passive: true });
         window.addEventListener("touchstart", cancel, { passive: true });
         window.addEventListener("pointerdown", cancel, { passive: true });
@@ -250,7 +249,7 @@ export function Shell({ session }: { session: Session }) {
           const h = content.scrollHeight;
           if (h === lastHeight) return; // ignore the initial no-op fire
           lastHeight = h;
-          align(true); // glide to the card as the data grows the page in
+          align(); // re-land instantly as the data grows the page in
         });
         ro.observe(content);
       });
