@@ -154,7 +154,6 @@ function RewardRow({
       ) : (
         <span className="ov-th-rrow-right">
           <Sparkline bests={exercise.recentBests} tone="good" />
-          <span className="ov-th-rrow-pct">{Math.round(exerciseRetention(exercise) * 100)}%</span>
         </span>
       )}
     </>
