@@ -67,6 +67,8 @@
                         traffic-light amber. Was coral (~10°), too close to
                         --bad's red (~355°); orange sits clear of both --bad
                         and the celebration --gold (~45°). */
+  --warn-ink: #c47600; /* Deep amber for amber TEXT/lines — #ff9500 lacks contrast
+                          as ink on white. --warn stays for dots/fills. */
   /* PR / gold-reward celebration — a rich metallic GOLD: warm and desaturated
      enough to read as metal, not bronze/brown and not flat/pure yellow.
      Reserved exclusively for achievements and personal records — never a
@@ -320,6 +322,7 @@
   --good: #4ad968;
   --bad: #ff4245;    /* Error — Apple systemRed (Default dark) */
   --warn: #ff9f0a;   /* Warning / attention — Apple systemOrange (dark), clear of --bad/--gold */
+  --warn-ink: #ffbe5c; /* Deep-amber counterpart for text/lines — lighter than --warn so amber ink reads on dark */
   --gold: #ffd970;   /* PR / gold-reward — vivid warm gold, glows on dark (was --pr) */
   --blue: #6dd9ff;   /* Cyan (IC-dark) */
   /* Health chart colours — Apple increased-contrast (dark) for active (brighter

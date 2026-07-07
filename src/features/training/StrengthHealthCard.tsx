@@ -28,38 +28,62 @@ function weeksAgo(isoDate: string, nowMs: number): number {
 }
 
 // ── Snapshot summary line: a tiny decision engine, not a fixed readout ───────
-// The Overview snapshot has one summary line, and Training Health should never
-// open on only bad news. Line 2 already carries "N of M lifts on track", so
-// this line is free to lead with the single best true thing to say today,
-// chosen by importance:
-//   1. a fresh PR this week  → the most rewarding signal; it wins even when
-//      other lifts still need attention (that count is on the line above, so
-//      it's never lost — we just don't headline with it)
-//   2. everything on track   → nothing is flagged, so say so plainly
-//   3. lifts need attention  → the honest fallback when there's no win to show
-// Every branch is derivable from the snapshot alone. In particular we never
-// infer "recovering" or "plateau broken" — those need prior state, and the app
-// deliberately never guesses progress from unlogged maintenance (silence = no
-// info), so surfacing them here would contradict the rest of the card.
+// The Overview snapshot carries ONE line, chosen by importance:
+//   1. an ACUTE decline  → a lift is consecutively sliding right now. It leads —
+//      a live slide (e.g. losing strength mid-cut) is the most time-sensitive
+//      thing to surface, more than a celebration. (bar/count stay green-dominant,
+//      so the whole card still doesn't read as bad news.)
+//   2. a fresh PR this week → the most rewarding signal when nothing's sliding.
+//   3. everything on track  → nothing flagged, say so plainly.
+//   4. lifts need attention → the honest fallback (chronic plateaus).
+// Every branch is derivable from the snapshot alone — we never infer a fuzzy
+// slope; only the trusted `declining` run and distance-from-peak.
 type SnapshotHighlight =
+  | { kind: "declining"; name: string }
   | { kind: "pr"; count: number }
   | { kind: "clear" }
   | { kind: "attention"; count: number };
 
 function snapshotHighlight(
   exercises: StrengthExercise[],
-  watch: number,
+  attention: number,
   nowMs: number,
 ): SnapshotHighlight {
-  // Fresh PR = a PR on EITHER axis (new e1RM ceiling OR heaviest weight ever)
-  // landed within the past week. lastPRDate is the two-axis stall clock's reset
-  // point, so this counts Performance PRs — a heavier top set Epley rates flat
-  // (77kg×7 ≈ 75kg×8) — not just new e1RM ceilings, and it survives a lighter
-  // session logged after the PR. Honest from the snapshot, no history needed.
+  // Acute decline leads — the most urgent read. Name the worst (lowest retention).
+  const declining = exercises.filter((e) => e.declining);
+  if (declining.length > 0) {
+    const worst = [...declining].sort((a, b) => exerciseRetention(a) - exerciseRetention(b))[0];
+    return { kind: "declining", name: worst.name };
+  }
+  // Fresh PR = a PR on EITHER axis landed within the past week (counts Performance
+  // PRs — a heavier top set Epley rates flat — and survives a later lighter session).
   const freshPRs = exercises.filter((e) => weeksAgo(e.lastPRDate, nowMs) < 1).length;
   if (freshPRs > 0) return { kind: "pr", count: freshPRs };
-  if (watch === 0) return { kind: "clear" };
-  return { kind: "attention", count: watch };
+  if (attention === 0) return { kind: "clear" };
+  return { kind: "attention", count: attention };
+}
+
+// A row's mini trend line — the last few session e1RMs drawn small, coloured by
+// state (red slide / amber plateau / green climb). Fed real session bests; nodes
+// stay round (explicit width/height, no preserveAspectRatio="none").
+function Sparkline({ bests, tone }: { bests: number[]; tone: "bad" | "warn" | "good" }) {
+  const pts = bests.slice(-6);
+  if (pts.length < 2) return null;
+  const W = 56, H = 20, PAD = 3;
+  const min = Math.min(...pts), max = Math.max(...pts), range = max - min || 1;
+  const stepX = (W - PAD * 2) / (pts.length - 1);
+  const coords = pts.map((v, i) => {
+    const x = PAD + i * stepX;
+    const y = PAD + (1 - (v - min) / range) * (H - PAD * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const [lx, ly] = coords[coords.length - 1].split(",");
+  return (
+    <svg className={`ov-th-spark ov-th-spark--${tone}`} viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden>
+      <polyline points={coords.join(" ")} fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lx} cy={ly} r="2.4" />
+    </svg>
+  );
 }
 
 function StaleHint({ isoDate, nowMs }: { isoDate: string; nowMs: number }) {
@@ -68,11 +92,11 @@ function StaleHint({ isoDate, nowMs }: { isoDate: string; nowMs: number }) {
   return <span className="ov-th-row-stale">logged {w}w ago</span>;
 }
 
-// Bare number only — the "wks since PR" unit lives once in the section header
-// (a column label), so rows stop repeating it four times over. A fresh PR
-// (< 1 wk) is the one row that can't read as a week count, so it keeps a tiny
-// inline word instead of a number.
-function AttentionRow({
+// A warning row — two lines: name + mini trend (top), marker + note + retention%
+// (bottom). Declining ↓ (acute, red) and plateau ● (chronic, amber) share one
+// section; colour does the sorting. Weeks is demoted to the caption — retention%
+// is the headline number (the primary judgment, not staleness). Tap → trend chart.
+function WarningRow({
   exercise,
   nowMs,
   onJump,
@@ -81,84 +105,106 @@ function AttentionRow({
   nowMs: number;
   onJump?: (slug: string) => void;
 }) {
-  const weeks = exercise.stalledWeeks;
+  const acute = exercise.declining;
+  const tone: "bad" | "warn" = acute ? "bad" : "warn";
+  const pct = Math.round(exerciseRetention(exercise) * 100);
+  const wk = exercise.stalledWeeks;
+  const note = acute ? "Declining" : `Stalled · ${wk} ${wk === 1 ? "wk" : "wks"} since PR`;
   const body = (
     <>
-      <span className="ov-th-row-dot" aria-hidden />
-      <span className="ov-th-row-name">{exercise.name}</span>
-      <StaleHint isoDate={exercise.lastLogDate} nowMs={nowMs} />
-      {weeks < 1 ? (
-        <span className="ov-th-row-fresh">PR this wk</span>
+      <span className="ov-th-wrow-name">{exercise.name}</span>
+      <span className="ov-th-wrow-spark">
+        <Sparkline bests={exercise.recentBests} tone={tone} />
+      </span>
+      <span className="ov-th-wrow-meta">
+        <span className={`ov-th-wrow-marker ov-th-wrow-marker--${tone}`} aria-hidden>
+          {acute ? "↓" : "●"}
+        </span>
+        <span className="ov-th-wrow-note">{note}</span>
+        <StaleHint isoDate={exercise.lastLogDate} nowMs={nowMs} />
+      </span>
+      <span className={`ov-th-wrow-pct ov-th-wrow-pct--${tone}`}>{pct}%</span>
+    </>
+  );
+  return onJump ? (
+    <button type="button" className="ov-th-wrow ov-th-wrow--tap" onClick={() => onJump(exercise.slug)}>
+      {body}
+    </button>
+  ) : (
+    <div className="ov-th-wrow">{body}</div>
+  );
+}
+
+// A reward row — single line. Fresh PR (🏆 strength / 💪 performance) with a
+// "🔥 this week" chip, or a Rebounding ↑ climb shown with its green sparkline.
+function RewardRow({
+  exercise,
+  rewardKind,
+  onJump,
+}: {
+  exercise: StrengthExercise;
+  rewardKind: "pr" | "rebounding";
+  onJump?: (slug: string) => void;
+}) {
+  const isPR = rewardKind === "pr";
+  const strong = exercise.lastPRKind === "strength";
+  const icon = isPR ? (strong ? "🏆" : "💪") : "↑";
+  const note = isPR ? (strong ? "Strength PR" : "Performance PR") : "Rebounding";
+  const body = (
+    <>
+      <span className={`ov-th-rrow-icon${isPR ? "" : " ov-th-rrow-icon--up"}`} aria-hidden>{icon}</span>
+      <span className="ov-th-rrow-name">{exercise.name}</span>
+      <span className="ov-th-rrow-note">{note}</span>
+      {isPR ? (
+        <span className="ov-th-rrow-chip">🔥 this week</span>
       ) : (
-        <span className="ov-th-row-stalled-val">{weeks}</span>
+        <span className="ov-th-rrow-right">
+          <Sparkline bests={exercise.recentBests} tone="good" />
+          <span className="ov-th-rrow-pct">{Math.round(exerciseRetention(exercise) * 100)}%</span>
+        </span>
       )}
     </>
   );
   return onJump ? (
-    <button type="button" className="ov-th-row ov-th-row--tap" onClick={() => onJump(exercise.slug)}>
+    <button type="button" className="ov-th-rrow ov-th-rrow--tap" onClick={() => onJump(exercise.slug)}>
       {body}
     </button>
   ) : (
-    <div className="ov-th-row">{body}</div>
+    <div className="ov-th-rrow">{body}</div>
   );
 }
 
-// Section header doubles as the fold trigger — defaults collapsed so the full
-// card opens as just the hero + bar; the two lists are opt-in detail, not
-// something you scroll past every time.
-function SectHeadRow({
-  label,
+// Maintaining / neutral lifts carry no signal, so they don't get rows — they'd be
+// the noise this redesign removes. Collapsed to ONE "N holding peak" line; tap to
+// reveal them as name chips (a quiet clue, not a list you scroll past).
+function HoldingPeak({
+  exercises,
   open,
   onToggle,
 }: {
-  label: string;
+  exercises: StrengthExercise[];
   open: boolean;
   onToggle: () => void;
 }) {
   return (
-    <button
-      type="button"
-      className="ov-th-sect-head-row"
-      onClick={onToggle}
-      aria-expanded={open}
-    >
-      <span className="ov-th-sect-head">{label}</span>
-      <svg
-        className={`ov-th-sect-chevron${open ? " open" : ""}`}
-        width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"
-      >
-        <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </button>
-  );
-}
-
-function OnTrackRow({
-  exercise,
-  nowMs,
-  onJump,
-}: {
-  exercise: StrengthExercise;
-  nowMs: number;
-  onJump?: (slug: string) => void;
-}) {
-  const retPct = Math.round(exerciseRetention(exercise) * 100);
-  const body = (
-    <>
-      <span className="ov-th-row-name">{exercise.name}</span>
-      {/* A watch lift climbing back lives here (not the red list); this note
-          explains why a sub-94% row sits under On Track — it's on the way up. */}
-      {exercise.recovering && <span className="ov-th-row-recover">↑ Rebounding</span>}
-      <StaleHint isoDate={exercise.lastLogDate} nowMs={nowMs} />
-      <span className="ov-th-row-pct">{retPct}%</span>
-    </>
-  );
-  return onJump ? (
-    <button type="button" className="ov-th-row ov-th-row--tap" onClick={() => onJump(exercise.slug)}>
-      {body}
-    </button>
-  ) : (
-    <div className="ov-th-row">{body}</div>
+    <div className="ov-th-holding">
+      <button type="button" className="ov-th-holding-head" onClick={onToggle} aria-expanded={open}>
+        <span className="ov-th-holding-label">{exercises.length} holding peak</span>
+        <svg
+          className={`ov-th-sect-chevron${open ? " open" : ""}`}
+          width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"
+        >
+          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <div className={`ov-th-holding-reveal${open ? " open" : ""}`}>
+        <div className="ov-th-holding-chips">
+          {exercises.map((e) => (
+            <span key={e.slug} className="ov-th-chip">{e.name}</span>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -281,7 +327,7 @@ export function StrengthHealthCard({
 
   // Expanding On Track drops rows below the fold, where the floating tabbar can
   // clip them — nudge the section into view once the rows have rendered.
-  const toggleTrack = () =>
+  const toggleHolding = () =>
     setTrackOpen((v) => {
       const next = !v;
       if (next) {
@@ -292,18 +338,29 @@ export function StrengthHealthCard({
       return next;
     });
 
-  // Attention always sits above On Track and is ordered worst-first (furthest
-  // below PR, i.e. lowest retention), so the most urgent exercise reads first.
-  // `needsAttention` (not raw `watch`) gates the list, so a lift that dipped below
-  // PR but PR'd on either axis within the last few weeks stays out of the red.
-  const watchExercises = strength.exercises
-    .filter((e) => e.needsAttention)
-    .sort((a, b) => exerciseRetention(a) - exerciseRetention(b));
-  // On Track is ordered worst-first (lowest % of PR), so the exercises
-  // closest to needing attention read first.
-  const onTrackExercises = strength.exercises
-    .filter((e) => !e.needsAttention)
-    .sort((a, b) => exerciseRetention(a) - exerciseRetention(b));
+  // Categorise every lift into ONE of: warning (acute ↓ decline, then chronic ●
+  // plateau), reward (fresh PR, then rebounding), or holding-peak (no signal).
+  // Only warnings + rewards get rows; holding-peak collapses to a count. Sorted
+  // worst-first within each group (lowest retention reads first).
+  const byRetention = (a: StrengthExercise, b: StrengthExercise) =>
+    exerciseRetention(a) - exerciseRetention(b);
+  const isFreshPR = (e: StrengthExercise) => weeksAgo(e.lastPRDate, nowMs) < 1 && !e.declining;
+
+  const declining = strength.exercises.filter((e) => e.declining).sort(byRetention);
+  const plateau = strength.exercises
+    .filter((e) => e.needsAttention && !e.declining)
+    .sort(byRetention);
+  const warnings = [...declining, ...plateau];
+
+  const freshPRs = strength.exercises.filter(isFreshPR).sort(byRetention);
+  const rebounding = strength.exercises
+    .filter((e) => e.recovering && !isFreshPR(e))
+    .sort(byRetention);
+  const rewards = [...freshPRs, ...rebounding];
+
+  const signalSlugs = new Set([...warnings, ...rewards].map((e) => e.slug));
+  const holdingPeak = strength.exercises.filter((e) => !signalSlugs.has(e.slug));
+  const onTrackCount = strength.total - warnings.length;
 
   // Hero, colour, and count all derive from ONE source — strength.exercises.
   // Hero = mean % of PR across every qualifying lift; the count and bar report
@@ -357,7 +414,7 @@ export function StrengthHealthCard({
           sessions) are judged. Absence of data isn't counted as anything, so
           the denominator is "lifts we can read," not "all your lifts." */}
       <span className="ov-th-ret-count">
-        {onTrackExercises.length} of {strength.total} tracked lifts on track
+        {onTrackCount} of {strength.total} tracked lifts on track
       </span>
     </div>
   );
@@ -366,15 +423,16 @@ export function StrengthHealthCard({
     <div
       className="ov-th-bar"
       role="img"
-      aria-label={`${onTrackExercises.length} of ${strength.total} tracked lifts on track`}
+      aria-label={`${onTrackCount} of ${strength.total} tracked lifts on track`}
     >
       {strength.exercises.map((ex, i) => (
         <span
           key={ex.slug}
-          className={`ov-th-bar-seg${i < onTrackExercises.length ? " is-good" : " is-watch"}`}
-          // Green cells snap in one at a time on a fixed --stagger-step tick
-          // (NOT divided by count) so the one-by-one rhythm stays legible — a
-          // discrete cascade, intentionally past the flat-entrance budget.
+          // Each cell is coloured by its lift's state so the bar maps to the rows
+          // below: acute decline = red tint, chronic plateau = amber, else green.
+          className={`ov-th-bar-seg${ex.declining ? " is-declining" : ex.needsAttention ? " is-watch" : " is-good"}`}
+          // Cells snap in one at a time on a fixed --stagger-step tick (NOT divided
+          // by count) so the one-by-one rhythm stays legible — a discrete cascade.
           style={{ animationDelay: `calc(var(--enter-wait) + ${i} * var(--stagger-step))` }}
         />
       ))}
@@ -395,6 +453,12 @@ export function StrengthHealthCard({
         {bar}
         <div className="ov-th-fold">
           <span className="ov-th-fold-left">
+            {highlight.kind === "declining" && (
+              <>
+                <span className="ov-th-fold-marker" aria-hidden>↓</span>
+                <span className="ov-th-fold-text">{highlight.name} declining</span>
+              </>
+            )}
             {highlight.kind === "pr" && (
               <>
                 <span className="ov-th-fold-emoji" aria-hidden>🔥</span>
@@ -428,28 +492,32 @@ export function StrengthHealthCard({
       {hero}
       {bar}
       <div className="ov-th-fold-body">
-        {watchExercises.length > 0 && (
+        {warnings.length > 0 && (
           <div className="ov-th-section">
             <div className="ov-th-sect-head-row ov-th-sect-head-row--static">
-              <span className="ov-th-sect-head">Needs attention · {watchExercises.length}</span>
-              <span className="ov-th-sect-unit">wks since PR</span>
+              <span className="ov-th-sect-head">Needs attention · {warnings.length}</span>
             </div>
-            {watchExercises.map((ex) => (
-              <AttentionRow key={ex.slug} exercise={ex} nowMs={nowMs} onJump={onJumpToExercise} />
+            {warnings.map((ex) => (
+              <WarningRow key={ex.slug} exercise={ex} nowMs={nowMs} onJump={onJumpToExercise} />
             ))}
           </div>
         )}
-        {onTrackExercises.length > 0 && (
+        {rewards.length > 0 && (
+          <div className="ov-th-section">
+            <div className="ov-th-sect-head-row ov-th-sect-head-row--static">
+              <span className="ov-th-sect-head">Wins</span>
+            </div>
+            {freshPRs.map((ex) => (
+              <RewardRow key={ex.slug} exercise={ex} rewardKind="pr" onJump={onJumpToExercise} />
+            ))}
+            {rebounding.map((ex) => (
+              <RewardRow key={ex.slug} exercise={ex} rewardKind="rebounding" onJump={onJumpToExercise} />
+            ))}
+          </div>
+        )}
+        {holdingPeak.length > 0 && (
           <div className="ov-th-section" ref={trackSectionRef}>
-            <SectHeadRow
-              label={`On track · ${onTrackExercises.length}`}
-              open={trackOpen}
-              onToggle={toggleTrack}
-            />
-            {trackOpen &&
-              onTrackExercises.map((ex) => (
-                <OnTrackRow key={ex.slug} exercise={ex} nowMs={nowMs} onJump={onJumpToExercise} />
-              ))}
+            <HoldingPeak exercises={holdingPeak} open={trackOpen} onToggle={toggleHolding} />
           </div>
         )}
       </div>

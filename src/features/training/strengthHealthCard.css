@@ -399,3 +399,231 @@
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
+
+/* ═══ Redesign (1B): signal-only rows — Warnings, Wins, holding-peak ═══════════
+   The card lists only lifts with a signal; maintaining/neutral lifts collapse to
+   a count. No cards, no fills, no left rail — hairline-divided rows; colour lives
+   on the marker, the % and the mini sparkline. */
+
+/* Bar: watch/declining cells tint so the bar maps to the rows below. */
+.ov-th-bar-seg.is-watch::before,
+.ov-th-bar-seg.is-declining::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  animation: th-seg-in 1ms linear both;
+  animation-delay: inherit;
+}
+.ov-th-bar-seg.is-watch::before { background: rgba(255, 149, 0, 0.55); }     /* chronic plateau — amber */
+.ov-th-bar-seg.is-declining::before { background: rgba(255, 56, 60, 0.6); } /* acute slide — red */
+
+/* Snapshot: acute-decline marker leading the summary line. */
+.ov-th-fold-marker {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--bad);
+  flex-shrink: 0;
+}
+
+/* Mini trend sparkline — colour set by tone class, geometry from real bests. */
+.ov-th-spark { display: block; }
+.ov-th-spark polyline { stroke: currentColor; }
+.ov-th-spark circle { fill: currentColor; }
+.ov-th-spark--bad { color: var(--bad); }
+.ov-th-spark--warn { color: var(--warn-ink); }
+.ov-th-spark--good { color: var(--good); }
+
+/* ── Warning row — two lines: name + spark (top), marker/note + retention% (bottom) ── */
+.ov-th-wrow,
+.ov-th-wrow--tap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.ov-th-section > .ov-th-wrow:last-child,
+.ov-th-section > .ov-th-wrow--tap:last-child { border-bottom: none; }
+.ov-th-wrow--tap {
+  width: 100%;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ov-th-wrow--tap:active { opacity: 0.55; }
+
+.ov-th-wrow-name {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ov-th-wrow-spark {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  display: flex;
+}
+.ov-th-wrow-meta {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ov-th-wrow-marker {
+  font-size: var(--text-sm);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.ov-th-wrow-marker--bad { color: var(--bad); font-weight: 700; }
+.ov-th-wrow-marker--warn { color: var(--warn); }
+.ov-th-wrow-note {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ov-th-wrow-pct {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.ov-th-wrow-pct--bad { color: var(--bad); }
+.ov-th-wrow-pct--warn { color: var(--warn-ink); }
+
+/* ── Reward row — single line: icon + name + note + chip/spark ── */
+.ov-th-rrow,
+.ov-th-rrow--tap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.ov-th-section > .ov-th-rrow:last-child,
+.ov-th-section > .ov-th-rrow--tap:last-child { border-bottom: none; }
+.ov-th-rrow--tap {
+  width: 100%;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ov-th-rrow--tap:active { opacity: 0.55; }
+.ov-th-rrow-icon { font-size: var(--text-base); line-height: 1; flex-shrink: 0; }
+.ov-th-rrow-icon--up { color: var(--good); font-weight: 700; }
+.ov-th-rrow-name {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ov-th-rrow-note {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+/* The 🔥 emoji carries the celebration colour (gold/red tokens stay off the text,
+   matching the summary-line convention). */
+.ov-th-rrow-chip {
+  flex-shrink: 0;
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+.ov-th-rrow-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.ov-th-rrow-pct {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--good);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Holding-peak — one collapsed line, expands to name chips (grid-rows trick) ── */
+.ov-th-holding {
+  display: flex;
+  flex-direction: column;
+}
+.ov-th-holding-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-2);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ov-th-holding-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-4);
+}
+.ov-th-holding-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-move) var(--ease-move);
+}
+.ov-th-holding-reveal.open {
+  grid-template-rows: 1fr;
+}
+.ov-th-holding-chips {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: var(--space-3);
+}
+.ov-th-chip {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--ink-3);
+  background: var(--rule);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
