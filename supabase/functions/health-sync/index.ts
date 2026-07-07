@@ -55,6 +55,11 @@ const intOrNull = (v: unknown) => {
   return n === null ? null : Math.round(n);
 };
 
+const round = (n: number, digits: number) => {
+  const factor = 10 ** digits;
+  return Math.round(n * factor) / factor;
+};
+
 // --- Resting-energy anomaly guard --------------------------------------------
 // Apple sometimes reports a Resting Energy value far below the real daily
 // figure (watch unworn all day, HealthKit not finished computing, sync
@@ -95,9 +100,9 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   if (!body || typeof body !== "object") {
     return { error: "Missing JSON body" };
   }
-  const rawDate = body.date;
+  let rawDate = body.date;
   if (typeof rawDate !== "string" || rawDate.trim() === "") {
-    return { error: "Missing 'date'" };
+    rawDate = new Date().toLocaleDateString("sv-SE");
   }
 
   let metricDate: string;
@@ -115,9 +120,9 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   // dropped so they don't overwrite an existing row's value on conflict.
   const record: Record<string, unknown> = { metric_date: metricDate };
   const weight = num(body.weight_kg ?? body.weight);
-  if (weight !== null && weight > 0) record.weight_kg = weight;
+  if (weight !== null && weight > 0) record.weight_kg = round(weight, 2);
   const bodyFat = num(body.body_fat ?? body.body_fat_pct ?? body.bodyFat);
-  if (bodyFat !== null && bodyFat > 0 && bodyFat < 100) record.body_fat_pct = bodyFat;
+  if (bodyFat !== null && bodyFat > 0 && bodyFat < 100) record.body_fat_pct = round(bodyFat, 1);
   const active = intOrNull(body.active_energy ?? body.activeEnergy);
   if (active !== null) record.active_energy_kcal = active;
   const resting = intOrNull(body.resting_energy ?? body.restingEnergy);
@@ -152,7 +157,7 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
     body.heartRateVariability ??
     body.hrvSdnn
   );
-  if (hrv !== null && hrv > 0) record.hrv_sdnn_ms = hrv;
+  if (hrv !== null && hrv > 0) record.hrv_sdnn_ms = round(hrv, 1);
 
   return { record };
 }
