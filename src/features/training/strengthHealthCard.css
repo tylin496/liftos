@@ -269,16 +269,6 @@
   color: var(--role-section-title-color);
 }
 
-/* Column label — the "wks since PR" unit shown ONCE at the Needs Attention
-   header, right-aligned so the bare numbers below read as a column under it.
-   Neutral metadata (ink-4), never a verdict; the red lives on the numbers. */
-.ov-th-sect-unit {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-4);
-  white-space: nowrap;
-}
-
 .ov-th-sect-chevron {
   color: var(--ink-4);
   flex-shrink: 0;
@@ -287,117 +277,6 @@
 
 .ov-th-sect-chevron.open {
   transform: rotate(180deg);
-}
-
-/* Row shell — shared by Attention and On Track rows */
-.ov-th-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--rule);
-}
-
-.ov-th-section > .ov-th-row:last-child {
-  border-bottom: none;
-}
-
-/* Tappable row — a full-width button that jumps to the lift's card and opens
-   its Trend. Reset the button chrome so it reads exactly like a static row; a
-   quiet press state is the only added affordance. */
-.ov-th-row--tap {
-  width: 100%;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--rule);
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.ov-th-row--tap:active {
-  opacity: 0.55;
-}
-
-.ov-th-row-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--bad);
-  flex-shrink: 0;
-}
-
-.ov-th-row-name {
-  flex: 1;
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* On Track rows have no dot, and their name carries less weight than a
-   flagged Attention row (headline vs reassurance). */
-.ov-th-section:last-child .ov-th-row-name {
-  font-weight: 500;
-}
-
-/* Stall readout — bare number, the delta/severity signal (red), aligned under
-   the "wks since PR" column label in the section header. */
-.ov-th-row-stalled-val {
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--bad);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/* Fresh-PR row (< 1 wk) — can't read as a week count under the column, so it
-   keeps a tiny neutral word instead of a number. */
-.ov-th-row-fresh {
-  flex-shrink: 0;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-4);
-  white-space: nowrap;
-}
-
-/* Staleness hint — a neutral freshness note ("logged 8w ago"), never a verdict.
-   ink-4 so it reads as metadata beside the name, not a status signal. */
-.ov-th-row-stale {
-  flex-shrink: 0;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-4);
-  white-space: nowrap;
-}
-
-/* Recovery marker — a watch lift climbing back lives in On Track (not the red
-   list); this green note explains why a sub-94% row sits here: it's on the way
-   up. Text-only like its stale/fresh siblings, coloured --good (the same
-   On-Track-is-a-good-state exception the segmented bar uses). */
-.ov-th-row-recover {
-  flex-shrink: 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--good);
-  white-space: nowrap;
-}
-
-/* On-track percent stays neutral ink-3 — a ratio, not a judgeable delta,
-   even though it visually resembles the hero %. */
-.ov-th-row-pct {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
 }
 
 /* ═══ Redesign (1B): signal-only rows — Warnings, Wins, holding-peak ═══════════
@@ -548,14 +427,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex-shrink: 0;
+  /* Can shrink (min-width:0), but only after the note — so the lift's name stays
+     as complete as possible and the note ellipsizes first (name = identity). */
+  min-width: 0;
+  flex-shrink: 1;
 }
 .ov-th-rrow-note {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   font-size: var(--text-sm);
   font-weight: 500;
   color: var(--ink-4);
   white-space: nowrap;
+  /* Absorb the squeeze first: ellipsize so the 🔥 chip / sparkline never clip. */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* The 🔥 emoji carries the celebration colour (gold/red tokens stay off the text,
    matching the summary-line convention). */
