@@ -666,6 +666,19 @@ function TrainingPageInner() {
       ?.scrollIntoView({ block: "center" });
   }, [jumpTarget]);
 
+  // Clear the jump target once its card has consumed it (opened its Trend via
+  // openTrendSignal). A PASSIVE effect, not layout — React flushes a
+  // descendant's (ExerciseCard's) passive effects before this one, so the card
+  // has already reacted before we reset. Without this, jumpTarget stays stuck
+  // forever: switching splits remounts every ExerciseCard (key={split}), and the
+  // once-jumped-to exercise would keep reading a stale non-null openTrendSignal
+  // on every future mount, wrongly re-opening its Trend sheet (e.g. every time
+  // you return to the split it lives in).
+  useEffect(() => {
+    if (!jumpTarget) return;
+    setJumpTarget(null);
+  }, [jumpTarget]);
+
   const reloadAll = useCallback(async () => {
     try {
       const [ex, lg] = await Promise.all([fetchExercises(), fetchLogsBySlug()]);
