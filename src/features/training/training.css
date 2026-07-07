@@ -2415,3 +2415,14 @@
   line-height: 1.5;
   margin: var(--space-4) 0;
 }
+
+/* Celebration-gold glow — PR badges/labels are the "special" gold, so they get
+   the soft gold halo (--gold-glow). Grouped here so every PR gold-text element
+   shares one treatment; shows on dark, a faint warm haze on light. */
+.pr-label,
+.ex-history .hist-status.hist-status-pr,
+.hist-detail-v.is-pr,
+.archived-pr.mono,
+.trend-stat-v--peak {
+  text-shadow: var(--gold-glow);
+}

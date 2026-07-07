@@ -76,6 +76,11 @@
      is carried by animation/stars/confetti plus the gold itself. Named --gold
      (was --pr) so the token that IS gold is actually called gold. */
   --gold: #d4af37;   /* trophy gold — the classic metallic gold (warm ~46°, luminous, not lemon-yellow) */
+  /* Celebration halo — a soft gold glow marking the special/celebration gold
+     (PR badges, 100% completion, Double Hit). References --gold so it tracks the
+     theme; shows as a real glow on dark, a faint warm haze on light. Applied as
+     text-shadow on gold text and box-shadow on gold fills. */
+  --gold-glow: 0 0 10px color-mix(in srgb, var(--gold) 55%, transparent);
   --blue: #007eae;   /* Cyan — neutral series/identity colour, never a status verdict */
 
   /* ── Health chart metric colors (iOS-style; read fine on light + dark) ── */

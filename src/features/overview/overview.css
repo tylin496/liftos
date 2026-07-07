@@ -592,13 +592,16 @@
 }
 
 /* ─── 100% completion state ──────────────────────────────────────────────── */
-.goal.is-complete .goal-label { color: var(--progress-complete); }
-.goal.is-complete .goal-pct { color: var(--progress-complete); }
+/* 100% is the celebration gold, so it gets the gold halo (--gold-glow). */
+.goal.is-complete .goal-label { color: var(--progress-complete); text-shadow: var(--gold-glow); }
+.goal.is-complete .goal-pct { color: var(--progress-complete); text-shadow: var(--gold-glow); }
 /* At exactly 100% the whole bar flips to solid GOLD — the discrete "goal
    reached" celebration, not a point on the ramp and not a green good/bad
-   verdict. A flat fill (no gradient); !important beats the inline ramp colour. */
+   verdict. A flat fill (no gradient); !important beats the inline ramp colour.
+   The gold halo (box-shadow) makes the completed bar glow. */
 .goal.is-complete .goal-bar-fill {
   background: var(--progress-complete) !important;
+  box-shadow: var(--gold-glow);
 }
 
 .goal.is-celebrating .goal-pct {

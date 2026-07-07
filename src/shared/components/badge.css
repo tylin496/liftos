@@ -9,6 +9,7 @@
 
 .status-text--gold {
   color: var(--gold);
+  text-shadow: var(--gold-glow);
 }
 
 .status-text--good {
