@@ -425,17 +425,25 @@ export function StrengthHealthCard({
     </div>
   );
 
+  // Bar cells are ordered by severity (good → attention → declining) so the bar
+  // reads as one clean proportion meter: the on-track green fills from the left
+  // and the few flagged lifts collect together at the right, instead of the
+  // amber cells scattering wherever a lift happens to fall in the raw list.
+  const barSeverity = (e: StrengthExercise) => (e.declining ? 2 : e.needsAttention ? 1 : 0);
+  const barCells = [...strength.exercises].sort((a, b) => barSeverity(a) - barSeverity(b));
+
   const bar = (
     <div
       className="ov-th-bar"
       role="img"
       aria-label={`${onTrackCount} of ${strength.total} tracked lifts on track`}
     >
-      {strength.exercises.map((ex, i) => (
+      {barCells.map((ex, i) => (
         <span
           key={ex.slug}
-          // Each cell is coloured by its lift's state so the bar maps to the rows
-          // below: acute decline = red tint, chronic plateau = amber, else green.
+          // Coloured by the lift's state — acute decline = red tint, chronic
+          // plateau = amber, else green — and severity-sorted (above) so same
+          // colours sit together rather than speckling the bar.
           className={`ov-th-bar-seg${ex.declining ? " is-declining" : ex.needsAttention ? " is-watch" : " is-good"}`}
           // Cells snap in one at a time on a fixed --stagger-step tick (NOT divided
           // by count) so the one-by-one rhythm stays legible — a discrete cascade.
