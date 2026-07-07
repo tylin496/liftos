@@ -265,7 +265,7 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
       <span className="ov-system-body">
         <span className="ov-system-label">System</span>
         <span className="ov-system-title">{rec.title}</span>
-        <span className="ov-system-sub">{rec.subtitle.replace(/\.$/, "")}</span>
+        <span className="ov-system-sub">{rec.subtitle}</span>
       </span>
       <span className="ov-system-chevron" aria-hidden>›</span>
     </button>

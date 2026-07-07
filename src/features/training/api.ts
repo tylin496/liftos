@@ -314,15 +314,15 @@ const DEFAULT_STRETCHES: Record<SplitId, StretchItem[]> = {
     { id: "anterior-shoulder-stretch", name: "Anterior Shoulder Stretch", note: "Optional" },
   ],
   pull: [
-    { id: "lat-stretch", name: "Lat Stretch", note: "前にストレッチを感じるように" },
+    { id: "lat-stretch", name: "Lat Stretch", note: "Feel the stretch through the front" },
     { id: "cross-body-shoulder-stretch-pull", name: "Cross-Body Shoulder Stretch" },
-    { id: "biceps-stretch", name: "Biceps Stretch", note: "アームカール後のリカバリー" },
+    { id: "biceps-stretch", name: "Biceps Stretch", note: "Recovery after arm curls" },
   ],
   legs: [
-    { id: "hamstring-stretch", name: "Hamstring Stretch", note: "RDL後の張りを緩和" },
+    { id: "hamstring-stretch", name: "Hamstring Stretch", note: "Eases tightness after RDLs" },
     { id: "hip-flexor-stretch", name: "Hip Flexor Stretch" },
     { id: "adductor-stretch", name: "Adductor Stretch", note: "Optional" },
-    { id: "glute-stretch", name: "Glute Stretch", note: "臀部と腰の負担を減らす · Optional" },
+    { id: "glute-stretch", name: "Glute Stretch", note: "Eases load on glutes and lower back · Optional" },
   ],
 };
 

@@ -30,7 +30,7 @@ describe("nutritionProvider — event type + specific action", () => {
   it("surfaces an imperative decision with the reason (no number) at high confidence", () => {
     const rec = nutritionProvider(ctx("below_target", "high"))!;
     expect(rec.title).toBe("Review calorie target");
-    expect(rec.subtitle).toBe("Weight loss has slowed.");
+    expect(rec.subtitle).toBe("Weight loss has slowed");
     expect(rec.subtitle).not.toMatch(/kcal/i); // number lives on the Nutrition card
     expect(rec.priority).toBe(72);
   });
@@ -46,7 +46,7 @@ describe("nutritionProvider — event type + specific action", () => {
   it("surfaces an imperative decision with the reason when losing too fast", () => {
     const rec = nutritionProvider(ctx("above_target", "high"))!;
     expect(rec.title).toBe("Review calorie target");
-    expect(rec.subtitle).toBe("You're losing faster than planned.");
+    expect(rec.subtitle).toBe("You're losing faster than planned");
     expect(rec.subtitle).not.toMatch(/kcal/i);
     expect(rec.priority).toBe(70);
   });
@@ -54,7 +54,7 @@ describe("nutritionProvider — event type + specific action", () => {
   it("reads as no-action-needed when on target", () => {
     const rec = nutritionProvider(ctx("on_target", "high"))!;
     expect(rec.title).toBe("No action needed");
-    expect(rec.subtitle).toBe("Weight loss remains on plan.");
+    expect(rec.subtitle).toBe("Weight loss remains on plan");
     expect(rec.subtitle).not.toMatch(/kcal/i);
     expect(rec.priority).toBe(30);
   });

@@ -148,7 +148,7 @@ function OnTrackRow({
       <span className="ov-th-row-name">{exercise.name}</span>
       {/* A watch lift climbing back lives here (not the red list); this note
           explains why a sub-94% row sits under On Track — it's on the way up. */}
-      {exercise.recovering && <span className="ov-th-row-recover">↑ 回升中</span>}
+      {exercise.recovering && <span className="ov-th-row-recover">↑ Rebounding</span>}
       <StaleHint isoDate={exercise.lastLogDate} nowMs={nowMs} />
       <span className="ov-th-row-pct">{retPct}%</span>
     </>

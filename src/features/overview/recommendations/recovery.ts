@@ -23,10 +23,10 @@ import type { RecoveryEvaluation } from "@features/health/math";
 export function recoveryRecommendation(r: RecoveryEvaluation): Recommendation {
   const subtitle =
     r.trainingLoad === "trained"
-      ? "Recovery has run low after recent training — ease today's session."
+      ? "Recovery has run low after recent training — ease today's session"
       : r.trainingLoad === "rested"
-        ? "Recovery has run low with little recent training — protect sleep before pushing."
-        : "Recovery has run low — keep today easy.";
+        ? "Recovery has run low with little recent training — protect sleep before pushing"
+        : "Recovery has run low — keep today easy";
   return {
     source: "recovery",
     // Above a nutrition target tweak (72): an under-recovered body is more

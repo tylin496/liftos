@@ -71,14 +71,14 @@ export function nutritionDecision(
         target,
         "This phase isn't a tracked cut, so there's no weight-loss target to evaluate.",
         40,
-        "No active weight-loss target in this phase.",
+        "No active weight-loss target in this phase",
       );
     }
     return maintain(
       target,
       "Not enough confident data yet — keep the current target while the trend settles.",
       40,
-      "Still gathering data on your trend.",
+      "Still gathering data on your trend",
     );
   }
 
@@ -87,7 +87,7 @@ export function nutritionDecision(
       target,
       "Weight loss is tracking within the planned range.",
       30,
-      "Weight loss remains on plan.",
+      "Weight loss remains on plan",
     );
   }
 
@@ -103,8 +103,8 @@ export function nutritionDecision(
         : "Weight loss appears faster than planned, but confidence is not yet high enough to justify changing your calorie target.",
       55,
       tooSlow
-        ? "Loss looks slow, but the trend isn't confirmed yet."
-        : "Loss looks fast, but the trend isn't confirmed yet.",
+        ? "Loss looks slow, but the trend isn't confirmed yet"
+        : "Loss looks fast, but the trend isn't confirmed yet",
     );
   }
 
@@ -114,7 +114,7 @@ export function nutritionDecision(
     return {
       action: "reduce",
       eventType: "Review calorie target",
-      actionLine: "Weight loss has slowed.",
+      actionLine: "Weight loss has slowed",
       actionHeadline: "Reduce calorie target",
       reason: "Weight loss has been slower than planned — a small cut should restart it.",
       currentTarget: target,
@@ -126,7 +126,7 @@ export function nutritionDecision(
   return {
     action: "increase",
     eventType: "Review calorie target",
-    actionLine: "You're losing faster than planned.",
+    actionLine: "You're losing faster than planned",
     actionHeadline: "Increase calorie target",
     reason: "You're losing faster than planned — ease the deficit to protect muscle.",
     currentTarget: target,

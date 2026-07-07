@@ -131,7 +131,7 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
       priority: 80,
       title: "Hold off on further cuts",
       subtitle:
-        "Lean mass has been trending down — pause the deficit and hold calories to protect muscle.",
+        "Lean mass has been trending down — pause the deficit and hold calories to protect muscle",
     };
   }
 
@@ -145,7 +145,7 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
       priority: 71,
       title: REDUCE_DEFICIT_TITLE,
       subtitle:
-        "You're losing faster than planned and training's starting to slip — ease the deficit to protect muscle.",
+        "You're losing faster than planned and training's starting to slip — ease the deficit to protect muscle",
     };
   }
   // 2b Increase activity. Following the plan but the scale's stuck — reach for
@@ -157,7 +157,7 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
       priority: 68,
       title: INCREASE_ACTIVITY_TITLE,
       subtitle:
-        "You're on target but the scale's stalled — add activity rather than cutting calories further.",
+        "You're on target but the scale's stalled — add activity rather than cutting calories further",
     };
   }
 
@@ -175,7 +175,7 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
       priority: 50,
       title: "Push for a PR this week",
       subtitle:
-        "Recovery's strong and your lifts are trending up — a good week to chase a PR.",
+        "Recovery's strong and your lifts are trending up — a good week to chase a PR",
     };
   }
 

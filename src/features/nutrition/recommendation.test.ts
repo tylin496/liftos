@@ -32,7 +32,7 @@ describe("nutritionDecision", () => {
     expect(d.proposedTarget).toBe(2045);
     expect(d.actionHeadline).toBe("Reduce calorie target");
     expect(d.eventType).toBe("Review calorie target");
-    expect(d.actionLine).toBe("Weight loss has slowed.");
+    expect(d.actionLine).toBe("Weight loss has slowed");
     expect(d.currentTarget).toBe(2145);
   });
 
