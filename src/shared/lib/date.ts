@@ -9,3 +9,19 @@ export function localDateStrDaysAgo(days: number): string {
   d.setDate(d.getDate() - days);
   return localDateStr(d);
 }
+
+const MONTH_ABBR = [
+  "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+  "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+];
+
+/** "YYYY-MM-DD" → {mon, day} for compact timeline/history labels, e.g. {mon:"JUN", day:"25"}. */
+export function timelineDate(isoDate: string): { mon: string; day: string } {
+  if (!isoDate) return { mon: "", day: "" };
+  const d = new Date(isoDate + "T12:00:00");
+  if (isNaN(d.getTime())) return { mon: "", day: String(isoDate) };
+  return {
+    mon: MONTH_ABBR[d.getMonth()],
+    day: String(d.getDate()).padStart(2, "0"),
+  };
+}

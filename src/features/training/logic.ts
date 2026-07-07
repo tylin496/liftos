@@ -313,20 +313,4 @@ export function computeHistDelta(
   return { text: `${direction === "gain" ? "▲" : "▼"} ${detail}`, direction };
 }
 
-// ─── timelineDate ────────────────────────────────────────────────────────────
-
-const MONTH_ABBR = [
-  "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-  "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
-];
-
-export function timelineDate(isoDate: string): { mon: string; day: string } {
-  if (!isoDate) return { mon: "", day: "" };
-  const d = new Date(isoDate + "T12:00:00");
-  if (isNaN(d.getTime())) return { mon: "", day: String(isoDate) };
-  return {
-    mon: MONTH_ABBR[d.getMonth()],
-    day: String(d.getDate()).padStart(2, "0"),
-  };
-}
 

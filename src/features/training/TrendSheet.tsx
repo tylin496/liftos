@@ -1,10 +1,12 @@
-import { useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
+import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { defaultSetCount } from "./logFormHelpers";
-import { buildTrendSeries, windowTrend, timelineDate, type TrendPoint } from "./logic";
+import { buildTrendSeries, windowTrend, type TrendPoint } from "./logic";
+import { timelineDate } from "@shared/lib/date";
 import { fmtWeightNum } from "./ExprDisplay";
 import { formatRepsDisplay } from "./parser";
 import type { Exercise, TrainingLog } from "./api";
@@ -55,36 +57,8 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
   }, [line]);
 
   // Scrub: press-drag anywhere on the chart to inspect any point's date/value.
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [scrubIdx, setScrubIdx] = useState<number | null>(null);
-
-  const scrubToClientX = (clientX: number) => {
-    const svg = svgRef.current;
-    if (!svg || coords.length === 0) return;
-    const rect = svg.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    const targetX = padX + ratio * innerW;
-    let nearest = 0;
-    let bestDist = Infinity;
-    coords.forEach((c, i) => {
-      const d = Math.abs(c.x - targetX);
-      if (d < bestDist) {
-        bestDist = d;
-        nearest = i;
-      }
-    });
-    setScrubIdx(nearest);
-  };
-
-  const onChartPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    scrubToClientX(e.clientX);
-  };
-  const onChartPointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
-    if (scrubIdx == null) return;
-    scrubToClientX(e.clientX);
-  };
-  const endScrub = () => setScrubIdx(null);
+  const xs = useMemo(() => coords.map((c) => c.x), [coords]);
+  const { svgRef, index: scrubIdx, ...scrubHandlers } = useChartScrub(xs, W);
 
   const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
   const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
@@ -99,10 +73,7 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
         preserveAspectRatio="none"
         role="img"
         aria-label="Estimated one-rep-max over time"
-        onPointerDown={onChartPointerDown}
-        onPointerMove={onChartPointerMove}
-        onPointerUp={endScrub}
-        onPointerCancel={endScrub}
+        {...scrubHandlers}
       >
         <defs>
           <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">

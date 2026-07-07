@@ -251,11 +251,58 @@
 /* 14-day trend line — the card's dominant element. Fixed 80px height so the
    card never reflows between loading / empty / loaded (the SVG holds this space
    with a flat placeholder when data is thin). */
+.ov-weight-spark-wrap {
+  position: relative;
+}
+
 .ov-weight-spark {
   display: block;
   width: 100%;
   height: 80px;
   margin-top: var(--space-4);
+  cursor: grab;
+  touch-action: none;
+}
+
+.ov-weight-spark:active {
+  cursor: grabbing;
+}
+
+.ov-weight-spark-guide {
+  stroke: var(--ink-4);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.ov-weight-spark-scrub-dot {
+  fill: var(--ink);
+  stroke: var(--bg-card);
+  stroke-width: 2;
+}
+
+.ov-weight-spark-tooltip {
+  position: absolute;
+  top: calc(var(--space-4) + 2px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.ov-weight-spark-tooltip-date {
+  color: var(--ink);
 }
 
 /* Reveal the whole spark (line + area together) in one left→right wipe, on the

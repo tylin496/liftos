@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Ref } from "react";
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent, type Ref } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
@@ -7,7 +7,9 @@ import { series, rollingAvg, syncTime } from "@features/health/math";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useInView } from "@shared/hooks/useInView";
+import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { progressColor } from "@shared/lib/progressColor";
+import { timelineDate } from "@shared/lib/date";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
 import { StrengthHealthCard } from "@features/training/StrengthHealthCard";
@@ -537,11 +539,36 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 // pure). preserveAspectRatio="none" stretches the 100×64 viewBox to fill the
 // card width while non-scaling-stroke keeps the line a constant 2px.
 const WEIGHT_SPARK_MIN_SPAN = 1; // kg — floor so a flat week doesn't fill height
+const fmt1kg = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-function WeightSparkline({ values, tone }: { values: number[]; tone: "good" | "bad" | "flat" }) {
+function WeightSparkline({
+  points,
+  tone,
+}: {
+  points: { date: string; value: number }[];
+  tone: "good" | "bad" | "flat";
+}) {
   const stroke = tone === "good" ? "var(--good)" : tone === "bad" ? "var(--bad)" : "var(--ink-4)";
   const gradId = `ov-spark-grad-${tone}`;
   const W = 100, H = 80, pad = 4;
+  const values = points.map((p) => p.value);
+
+  // Scrub: press-drag anywhere on the line to inspect any day's date/weight.
+  // Hooks can't be conditional, so this runs even on the <2-point placeholder
+  // branch below (xs is just empty there — the hook no-ops).
+  const coordsForScrub = values.map((_, i) => ({
+    x: pad + (values.length > 1 ? i / (values.length - 1) : 0.5) * (W - pad * 2),
+  }));
+  const { svgRef, index: scrubIdx, onPointerDown, ...scrubMove } = useChartScrub(
+    coordsForScrub.map((c) => c.x),
+    W,
+  );
+  // The card itself navigates to Health on tap — scrubbing the chart shouldn't
+  // also fire that, so stop the pointerdown from bubbling to the card.
+  const onChartPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
+    e.stopPropagation();
+    onPointerDown(e);
+  };
 
   // Not enough data: hold the 80px height with a flat dashed placeholder so the
   // card never changes height between loading / empty / loaded (layout stability).
@@ -574,25 +601,67 @@ function WeightSparkline({ values, tone }: { values: number[]; tone: "good" | "b
   const first = coords[0], last = coords[coords.length - 1];
   const area = `${pts} ${last.x.toFixed(1)},${H} ${first.x.toFixed(1)},${H}`;
 
+  const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
+  const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
+  const scrubDate = scrubPoint ? timelineDate(scrubPoint.date) : null;
+
   return (
-    <svg className="ov-weight-spark ov-weight-spark--draw" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
-          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={area} fill={`url(#${gradId})`} stroke="none" />
-      <polyline
-        points={pts}
-        fill="none"
-        stroke={stroke}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
+    <div className="ov-weight-spark-wrap">
+      <svg
+        ref={svgRef}
+        className="ov-weight-spark ov-weight-spark--draw"
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        aria-hidden
+        onPointerDown={onChartPointerDown}
+        {...scrubMove}
+      >
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
+            <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon points={area} fill={`url(#${gradId})`} stroke="none" />
+        <polyline
+          points={pts}
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+        {scrubCoord && (
+          <line
+            className="ov-weight-spark-guide"
+            x1={scrubCoord.x.toFixed(1)}
+            y1={pad}
+            x2={scrubCoord.x.toFixed(1)}
+            y2={H - pad}
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+        {scrubCoord && (
+          <circle
+            className="ov-weight-spark-scrub-dot"
+            cx={scrubCoord.x.toFixed(1)}
+            cy={scrubCoord.y.toFixed(1)}
+            r="3.4"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+      </svg>
+      {scrubPoint && scrubCoord && scrubDate && (
+        <div
+          className="ov-weight-spark-tooltip"
+          style={{ left: `${Math.min(92, Math.max(8, (scrubCoord.x / W) * 100))}%` }}
+        >
+          <span className="ov-weight-spark-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
+          <span className="mono">{fmt1kg(scrubPoint.value)}kg</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -636,7 +705,7 @@ function WeightCard({
         <div className="ov-weight-stat">
           <MetricValue size="lg" unit="kg">00.0</MetricValue>
         </div>
-        <WeightSparkline values={[]} tone="flat" />
+        <WeightSparkline points={[]} tone="flat" />
         <div className="ov-weight-rows ov-weight-rows--single">
           <span className="ov-weight-rate">
             <span className="ov-weight-key">Rate</span>{" "}
@@ -662,7 +731,7 @@ function WeightCard({
   // driven by the SAME weightDelta sign as MetricDelta below (down = good on a
   // cut): direction from the number's sign, colour from the tone — kept
   // independent, matching the delta-arrow rule.
-  const sparkValues = weightPts.map((p) => p.value).slice(-14);
+  const sparkPoints = weightPts.slice(-14);
   const sparkTone: "good" | "bad" | "flat" =
     weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
 
@@ -730,7 +799,7 @@ function WeightCard({
         <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
       </div>
 
-      <WeightSparkline values={sparkValues} tone={sparkTone} />
+      <WeightSparkline points={sparkPoints} tone={sparkTone} />
 
       <button
         type="button"

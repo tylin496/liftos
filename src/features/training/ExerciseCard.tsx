@@ -13,7 +13,6 @@ import {
   computeStats,
   computeHistDelta,
   filterByTime,
-  timelineDate,
   toLogEntry,
   epley1RM,
   computePRBests,
@@ -21,6 +20,7 @@ import {
   totalReps,
   type TimeFilter,
 } from "./logic";
+import { timelineDate } from "@shared/lib/date";
 import { milestoneReached } from "./milestone";
 import { useToast } from "@shared/components/Toast";
 import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
