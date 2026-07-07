@@ -155,9 +155,9 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   if (weight !== null && weight > 0) record.weight_kg = round(weight, 2);
   const bodyFat = num(pick(keys, "body_fat", "body_fat_pct", "bodyFat"));
   if (bodyFat !== null && bodyFat > 0 && bodyFat < 100) record.body_fat_pct = round(bodyFat, 1);
-  const active = intOrNull(pick(keys, "active_energy", "activeEnergy"));
+  const active = intOrNull(pick(keys, "active_energy_kcal", "active_energy", "activeEnergy"));
   if (active !== null) record.active_energy_kcal = active;
-  const resting = intOrNull(pick(keys, "resting_energy", "restingEnergy"));
+  const resting = intOrNull(pick(keys, "resting_energy_kcal", "resting_energy", "restingEnergy"));
   if (resting !== null) record.resting_energy_kcal = resting;
   const exerciseMinutes = intOrNull(
     pick(keys, "exercise_time", "exercise_minutes", "exerciseMinutes", "excercises_time")
