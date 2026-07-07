@@ -37,6 +37,25 @@ function isRecovering(sessionBests: number[]): boolean {
   return twoStepClimb && meaningful;
 }
 
+/** Mirror of RECOVERY_MIN_RATIO for the down direction: the latest session must be
+ *  at least this far (≥2%) below the recent high to count as a real slide. */
+const DECLINE_MAX_RATIO = 0.98;
+
+/** Is the lift sliding? The mirror of isRecovering — a two-step DOWN-run into the
+ *  most recent session (prior ≥ mid > latest) clearing a ≥2% drop off the recent
+ *  high. A consecutive monotonic slide is a REAL pattern in the recorded sessions
+ *  (not an interpolation of unlogged days), so — unlike a fuzzy regression slope,
+ *  which the asymmetric drop-day logging makes untrustworthy — it IS safe to flag.
+ *  And it's acute: it flags immediately, without waiting for the stall-week gate
+ *  (a live slide during a cut = likely muscle loss, the thing to catch fastest). */
+function isDeclining(sessionBests: number[]): boolean {
+  if (sessionBests.length < 3) return false;
+  const [prior, mid, latest] = sessionBests.slice(-3);
+  const twoStepSlide = latest < mid && mid <= prior;
+  const meaningful = latest / Math.max(prior, mid) <= DECLINE_MAX_RATIO;
+  return twoStepSlide && meaningful;
+}
+
 export interface StrengthExercise {
   slug: string;
   name: string;
@@ -56,8 +75,12 @@ export interface StrengthExercise {
   needsAttention: boolean;
   /** Below PR but the last few LOGGED sessions are climbing back — a recovery
    *  visible in the data (not inferred from silence). Suppresses needsAttention
-   *  and earns a "回升中" chip; never used to FLAG a lift, only to rescue one. */
+   *  and earns a "Rebounding" chip; never used to FLAG a lift, only to rescue one. */
   recovering: boolean;
+  /** The last few LOGGED sessions are stepping DOWN (a consecutive slide) — an
+   *  acute decline visible in the data. FLAGS the lift (unlike recovering, which
+   *  rescues): fires immediately, without the stall-week gate or the watch gate. */
+  declining: boolean;
 }
 
 export interface StrengthSummary {
@@ -161,11 +184,17 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
     //
     // Recovery override: a watch lift whose last few logged sessions are climbing
     // back is self-correcting — no intervention needed — so it's pulled off the
-    // list too (and shown "回升中" instead). Distinct from the stall-clock grace
+    // list too (and shown "Rebounding" instead). Distinct from the stall-clock grace
     // above: that covers "just PR'd", this covers "below PR but visibly climbing".
     const recovering = status === "watch" && isRecovering(sessionBests);
+    // Acute decline: a consecutive down-run in the logged sessions. Flags on its
+    // own — NOT gated on `watch` or the stall-week clock — because a live slide
+    // (e.g. losing strength mid-cut) is urgent even a few % below peak. Mirror of
+    // `recovering`: same trusted consecutive-run logic, opposite direction.
+    const declining = isDeclining(sessionBests);
     const needsAttention =
-      status === "watch" && stalledWeeks >= ATTENTION_STALL_WEEKS && !recovering;
+      declining ||
+      (status === "watch" && stalledWeeks >= ATTENTION_STALL_WEEKS && !recovering);
     if (needsAttention) strength.attention++;
 
     strength.exercises.push({
@@ -180,6 +209,7 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       lastPRDate: prDate,
       needsAttention,
       recovering,
+      declining,
     });
   }
 
