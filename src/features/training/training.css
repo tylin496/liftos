@@ -1288,7 +1288,9 @@
   gap: var(--space-2);
   width: 100%;
   margin-top: 2px;
-  padding: var(--space-2) 10px;
+  /* Match .btn-log-primary's padding so the closed "Log set" button and the
+     open form's submit are the same height (no jump on open). */
+  padding: var(--space-3);
   border: none;
   /* Tonal accent — a soft accent tint with accent text/icon. Reads clearly as
      a button (the card's core action) without the loud full-bleed solid fill. */
