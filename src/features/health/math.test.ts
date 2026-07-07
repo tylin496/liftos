@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { series, bucketSeries, rollingAvg, regressionSlope, computeRecovery } from "./math";
+import { series, bucketSeries, rollingAvg, regressionSlope, weightAcceleration, computeRecovery } from "./math";
 import type { BodyMetric } from "./api";
 
 // Helper: build a sequential daily series from a start date.
@@ -286,5 +286,51 @@ describe("regressionSlope", () => {
     const recent = daily("2026-06-26", [50, 50, 50, 50, 50]);
     const slope = regressionSlope([...old, ...recent], 28);
     expect(slope).toBeCloseTo(0, 10);
+  });
+});
+
+describe("weightAcceleration", () => {
+  // 28 consecutive daily readings: the first 14 fall in the "prior" window, the
+  // last 14 in the "recent" window, each an exactly-linear ramp so its slope is
+  // known. priorPerDay/recentPerDay are the per-day steps (×7 = kg/week).
+  function twoRate(priorPerDay: number, recentPerDay: number, start = 90) {
+    const vals: number[] = [];
+    let v = start;
+    for (let i = 0; i < 14; i++) { vals.push(v); v += priorPerDay; }
+    for (let i = 0; i < 14; i++) { vals.push(v); v += recentPerDay; }
+    return daily("2026-06-01", vals);
+  }
+
+  it("flags strong slowing when the loss decelerates (prior −0.7 → recent −0.28)", () => {
+    const a = weightAcceleration(twoRate(-0.1, -0.04));
+    expect(a?.direction).toBe("slowing");
+    expect(a?.strong).toBe(true);
+    expect(a?.deltaPerWeek).toBeCloseTo(0.42, 2);
+  });
+
+  it("flags mild slowing between the steady and strong thresholds", () => {
+    const a = weightAcceleration(twoRate(-0.1, -0.08)); // Δ ≈ +0.14 kg/wk
+    expect(a?.direction).toBe("slowing");
+    expect(a?.strong).toBe(false);
+  });
+
+  it("flags faster (neutral) when the loss accelerates", () => {
+    const a = weightAcceleration(twoRate(-0.04, -0.1));
+    expect(a?.direction).toBe("faster");
+    expect(a?.deltaPerWeek).toBeCloseTo(-0.42, 2);
+  });
+
+  it("returns null inside the steady deadband (Δ < 0.1 kg/wk)", () => {
+    expect(weightAcceleration(twoRate(-0.1, -0.11))).toBeNull(); // Δ ≈ −0.07
+  });
+
+  it("returns null when the prior window wasn't a loss regime", () => {
+    expect(weightAcceleration(twoRate(0.05, -0.02))).toBeNull(); // prior gaining
+  });
+
+  it("returns null when a window can't fit a trend", () => {
+    // 8 days: the prior window (≤ last−14) is empty, so there's nothing to
+    // compare against.
+    expect(weightAcceleration(daily("2026-06-20", [90, 89.9, 89.8, 89.7, 89.6, 89.5, 89.4, 89.3]))).toBeNull();
   });
 });

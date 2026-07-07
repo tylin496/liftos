@@ -3,7 +3,7 @@ import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { series, rollingAvg, syncTime } from "@features/health/math";
+import { series, rollingAvg, syncTime, weightAcceleration } from "@features/health/math";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useInView } from "@shared/hooks/useInView";
@@ -735,6 +735,11 @@ function WeightCard({
   const sparkTone: "good" | "bad" | "flat" =
     weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
 
+  // Second-order read beside the Rate: is the loss itself slowing (approaching a
+  // plateau — amber, worth a nudge) or accelerating (neutral; "too fast" is the
+  // pill's job, not repeated here)? Null = holding steady, so nothing shows.
+  const accel = weightAcceleration(weightPts);
+
   if (weightLatest == null) {
     return (
       <div
@@ -816,6 +821,13 @@ function WeightCard({
               Below pace). A sign-only colour here read every loss as "good" —
               even one the Decision Engine is flagging as too fast. */}
           <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
+          {accel && (
+            <span
+              className={`ov-weight-accel is-${accel.direction}${accel.strong ? " is-strong" : ""}`}
+            >
+              {accel.direction === "slowing" ? "↓ Slowing" : "↑ Faster"}
+            </span>
+          )}
         </span>
         <span className={`ov-weight-status-pill${tone ? ` is-${tone}` : ""}`}>
           <span className="ov-weight-status-dot" />

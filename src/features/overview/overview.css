@@ -328,6 +328,20 @@
   font-size: var(--text-sm);
 }
 
+/* Acceleration read trailing the Rate: is the loss slowing or speeding up? A
+   small inline label (not a second pill — the status pill owns that slot). Amber
+   for slowing (approaching a plateau, worth attention); muted for faster, since
+   "too fast" is the pill's verdict, not repeated here. */
+.ov-weight-accel {
+  margin-left: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ov-weight-accel.is-slowing { color: var(--warn); }
+.ov-weight-accel.is-faster  { color: var(--ink-3); }
+.ov-weight-accel.is-strong  { font-weight: 700; }
+
 /* Arrow-only delta trails the number (delta-after-value, app-wide), carrying
    the up/down direction on its own — a hairline gap keeps it off the glyphs. */
 .ov-weight-rate .metric-delta {

@@ -300,6 +300,72 @@ export function buildRecoveryEvaluation(metrics: BodyMetric[]): RecoveryEvaluati
   return { status: rec.status, score: rec.score, trainingLoad: recentTrainingLoad(metrics) };
 }
 
+export type AccelDirection = "slowing" | "faster";
+
+export interface WeightAcceleration {
+  /** Least-squares slope over the last 14 days (kg/week). */
+  recentRatePerWeek: number;
+  /** Slope over the 14 days before that (kg/week). */
+  priorRatePerWeek: number;
+  /** recent − prior. On a cut (both negative) a positive delta means the rate
+   *  moved toward zero — losing *slower*; negative means losing *faster*. */
+  deltaPerWeek: number;
+  direction: AccelDirection;
+  /** true once |delta| clears the strong threshold. */
+  strong: boolean;
+}
+
+/** Window (days) for each half of the acceleration comparison. Symmetric so the
+ *  two slopes have the same variance — a fair recent-vs-prior read. */
+const ACCEL_WINDOW_DAYS = 14;
+/** kg/week deadband: below this the rate is holding, so we report nothing
+ *  ("Steady") rather than flap a chip on daily scale noise. */
+const ACCEL_MIN_DELTA = 0.1;
+/** kg/week above which the change is a strong acceleration/deceleration. */
+const ACCEL_STRONG_DELTA = 0.2;
+
+/** Second-order weight read: is the loss accelerating or slowing? Compares a
+ *  least-squares slope over the last 14 days against the 14 days before that.
+ *  This is deliberately SEPARATE from the canonical 21-day `weeklyWeightRate`
+ *  the card shows — that number answers "how fast" (level); this answers "which
+ *  way is that rate itself moving" (trend of the level). A band-position pill
+ *  (On pace / Too fast) can read fine while the rate is quietly slowing toward a
+ *  plateau; this is the signal that catches that early.
+ *
+ *  Returns null when it can't speak: either window lacks a fittable trend
+ *  (<5 readings), the prior window wasn't a loss regime (a slowing/faster read
+ *  is only meaningful against a loss), or the change is inside the steady
+ *  deadband. Callers render nothing in those cases. */
+export function weightAcceleration(
+  pts: { date: string; value: number }[],
+): WeightAcceleration | null {
+  const recent = regressionSlope(pts, ACCEL_WINDOW_DAYS);
+  if (recent == null) return null;
+  const last = pts.at(-1)?.date;
+  if (!last) return null;
+  // Prior half = the 14 days ending the day before the recent window opens.
+  const priorEnd = new Date(last + "T12:00:00");
+  priorEnd.setDate(priorEnd.getDate() - ACCEL_WINDOW_DAYS);
+  const priorEndStr = priorEnd.toISOString().slice(0, 10);
+  const prior = regressionSlope(
+    pts.filter((p) => p.date <= priorEndStr),
+    ACCEL_WINDOW_DAYS,
+  );
+  if (prior == null) return null;
+  // Only a loss regime gives "slowing/faster" a stable meaning. If the prior
+  // window wasn't losing, the sign convention below breaks down — stay silent.
+  if (prior >= 0) return null;
+  const deltaPerWeek = +(recent - prior).toFixed(3);
+  if (Math.abs(deltaPerWeek) < ACCEL_MIN_DELTA) return null;
+  return {
+    recentRatePerWeek: +recent.toFixed(3),
+    priorRatePerWeek: +prior.toFixed(3),
+    deltaPerWeek,
+    direction: deltaPerWeek > 0 ? "slowing" : "faster",
+    strong: Math.abs(deltaPerWeek) >= ACCEL_STRONG_DELTA,
+  };
+}
+
 export function regressionSlope(pts: { date: string; value: number }[], days = 28): number | null {
   const last = pts.at(-1)?.date;
   if (!last) return null;
