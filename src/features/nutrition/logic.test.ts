@@ -55,12 +55,18 @@ describe("getProteinResult", () => {
     expect(getProteinResult(185, 180).celebrated).toBe(true);
   });
 
-  it("does not celebrate below the full floor — no grace", () => {
-    // A floor only counts once you hit it: even 1g short is not met.
-    const r = getProteinResult(179, 180);
+  it("swallows a within-tolerance shortfall (2% band)", () => {
+    // 2% of 180 ≈ 4g: gaps inside the estimation noise still count as met, but
+    // isPerfect stays exact.
+    const r = getProteinResult(176, 180); // 4g short, at the band edge
     expect(r.isPerfect).toBe(false);
-    expect(r.celebrated).toBe(false);
-    expect(getProteinResult(160, 180).celebrated).toBe(false);
+    expect(r.celebrated).toBe(true);
+    expect(getProteinResult(179, 180).celebrated).toBe(true); // 1g short → met
+  });
+
+  it("does not celebrate a real shortfall past the tolerance band", () => {
+    expect(getProteinResult(175, 180).celebrated).toBe(false); // 5g short
+    expect(getProteinResult(160, 180).celebrated).toBe(false); // 20g short
   });
 });
 

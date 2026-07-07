@@ -85,6 +85,18 @@ export interface ProteinResult {
   celebrated: boolean;
 }
 
+// The floor carries a small tolerance band: food/whey/label numbers all run
+// ±5–20%, so a gap smaller than the estimation error itself is false precision
+// — punishing it (amber, "3g short") implies a decision to eat more that
+// doesn't exist. We swallow gaps within 2% of the target and treat the day as
+// met. 2% (≈3g on a 160g floor) stays tighter than the measurement noise, so a
+// real shortfall (156/160) still reads as short. Redefining "met" here — not
+// just the copy — keeps it the single source of truth for tone, the double-hit
+// count, confetti, and monthly adherence (they all key off `celebrated`).
+export function proteinFloorTolerance(proteinTarget: number): number {
+  return Math.round(roundInt(proteinTarget) * 0.02);
+}
+
 export function getProteinResult(
   protein: number,
   proteinTarget: number = DEFAULTS.proteinTarget,
@@ -95,9 +107,9 @@ export function getProteinResult(
   return {
     isPerfect: p === target,
     progress: progressPercent(p, target),
-    // 100% floor, no grace: it's a floor, so it only counts once you hit it.
-    // Drives the green tone + double-hit + "Floor met" note, all at one line.
-    celebrated: gap === 0,
+    // Met once within the tolerance band — see proteinFloorTolerance. Drives
+    // the green tone + double-hit + "Floor met" note, all at one line.
+    celebrated: gap <= proteinFloorTolerance(target),
   };
 }
 
@@ -161,10 +173,11 @@ export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficit
 // "over" up as a delta — just how much more, or done.
 export function proteinNote(hasEntry: boolean, protNum: number, proteinTarget: number): string {
   if (!hasEntry) return "";
-  const gap = proteinTarget - protNum;
-  // 100% floor, no grace — matches getProteinResult.celebrated (green +
-  // double-hit also require the full floor), so colour and wording never differ.
-  return gap > 0 ? `${gap}g to floor` : "✓ Floor met";
+  const gap = Math.max(roundInt(proteinTarget - protNum), 0);
+  // Same tolerance band as getProteinResult.celebrated (green + double-hit),
+  // so colour and wording never differ: a within-tolerance day just reads as
+  // met, with no false-precision "3g to floor" nag.
+  return gap > proteinFloorTolerance(proteinTarget) ? `${gap}g to floor` : "✓ Floor met";
 }
 
 // ── Aggregations (weekly trend, monthly adherence) ─────────────────────────
