@@ -382,12 +382,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Note carries the tone too (not just the marker/pct): declining reads red,
+   plateau reads deep-amber — the whole row is legibly the same colour. */
+.ov-th-wrow-note--bad { color: var(--bad); }
+.ov-th-wrow-note--warn { color: var(--warn-ink); }
 .ov-th-wrow-pct {
   grid-column: 2;
   grid-row: 2;
   justify-self: end;
   font-family: var(--font-mono);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -447,13 +451,20 @@
   min-width: 0;
   font-size: var(--text-sm);
   font-weight: 500;
-  color: var(--ink-4);
+  /* Neutral by default: a fresh PR already carries its "good news" in the
+     🏆/💪 icon + "🔥 this week" chip, so the note stays a quiet caption. */
+  color: var(--ink-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* The 🔥 emoji carries the celebration colour (gold/red tokens stay off the text,
-   matching the summary-line convention). */
+/* Only Rebounding earns green (and bold): unlike a one-shot PR (celebrated by
+   emoji/chip), a climb-back is a standing positive *state* — green is its
+   signal, not gold (gold stays reserved for PR confetti/toast). */
+.ov-th-rrow-note--rebounding {
+  color: var(--good);
+  font-weight: 600;
+}
 .ov-th-rrow-chip {
   grid-column: 3;
   grid-row: 1 / span 2;

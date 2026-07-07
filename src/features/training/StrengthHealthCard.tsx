@@ -111,7 +111,7 @@ function WarningRow({
         <span className={`ov-th-wrow-marker ov-th-wrow-marker--${tone}`} aria-hidden>
           {acute ? "↓" : "●"}
         </span>
-        <span className="ov-th-wrow-note">{note}</span>
+        <span className={`ov-th-wrow-note ov-th-wrow-note--${tone}`}>{note}</span>
       </span>
       <span className={`ov-th-wrow-pct ov-th-wrow-pct--${tone}`}>{pct}%</span>
     </>
@@ -148,7 +148,7 @@ function RewardRow({
     <>
       <span className={`ov-th-rrow-icon${isPR ? "" : " ov-th-rrow-icon--up"}`} aria-hidden>{icon}</span>
       <span className="ov-th-rrow-name">{exercise.name}</span>
-      <span className="ov-th-rrow-note">{note}</span>
+      <span className={`ov-th-rrow-note${isPR ? "" : " ov-th-rrow-note--rebounding"}`}>{note}</span>
       {isPR ? (
         <span className="ov-th-rrow-chip">🔥 this week</span>
       ) : (
@@ -509,7 +509,7 @@ export function StrengthHealthCard({
         {warnings.length > 0 && (
           <div className="ov-th-section">
             <div className="ov-th-sect-head-row ov-th-sect-head-row--static">
-              <span className="ov-th-sect-head">Needs attention · {warnings.length}</span>
+              <span className="ov-th-sect-head">Needs attention</span>
             </div>
             {warnings.map((ex) => (
               <WarningRow key={ex.slug} exercise={ex} onJump={onJumpToExercise} />
