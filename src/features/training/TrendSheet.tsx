@@ -1,10 +1,10 @@
-import { useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
 import { defaultSetCount } from "./logFormHelpers";
-import { buildTrendSeries, windowTrend, type TrendPoint } from "./logic";
+import { buildTrendSeries, windowTrend, timelineDate, type TrendPoint } from "./logic";
 import { fmtWeightNum } from "./ExprDisplay";
 import { formatRepsDisplay } from "./parser";
 import type { Exercise, TrainingLog } from "./api";
@@ -12,9 +12,9 @@ import type { Exercise, TrainingLog } from "./api";
 const fmt1 = (v: number) => fmtWeightNum(Math.round(v * 10) / 10);
 
 /* Est-1RM progression line. Fills the sheet width; the peak (all-time within
-   the window) is ringed in gold, the latest session in accent — the two beads
-   the eye actually looks for. Not scrubbable: it's a glance at the shape of
-   progress, the stat row below carries the exact numbers. */
+   the window) is ringed in gold, the latest session in accent. Press-drag from
+   the last dot to scrub any point's date/value — the stat row below still
+   carries the resting (non-scrubbed) numbers. */
 function TrendChart({ points }: { points: TrendPoint[] }) {
   const W = 320;
   const H = 130;
@@ -38,47 +38,140 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
   const peak = coords[vals.indexOf(max)];
   const last = coords[coords.length - 1];
 
+  // Draw-in animation: measure the polyline's real length instead of using a
+  // normalized `pathLength`. `pathLength` + vector-effect:non-scaling-stroke +
+  // preserveAspectRatio="none" (our non-uniform viewBox stretch) miscomputes
+  // the dash pattern on WebKit and clips the final segment before the last
+  // dot. Real getTotalLength() is immune to that.
+  const lineRef = useRef<SVGPolylineElement>(null);
+  const [drawLen, setDrawLen] = useState<number | null>(null);
+  const [drawn, setDrawn] = useState(false);
+  useLayoutEffect(() => {
+    const len = lineRef.current?.getTotalLength() ?? 0;
+    setDrawLen(len);
+    setDrawn(false);
+    const id = requestAnimationFrame(() => setDrawn(true));
+    return () => cancelAnimationFrame(id);
+  }, [line]);
+
+  // Scrub: press-drag anywhere on the chart to inspect any point's date/value.
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [scrubIdx, setScrubIdx] = useState<number | null>(null);
+
+  const scrubToClientX = (clientX: number) => {
+    const svg = svgRef.current;
+    if (!svg || coords.length === 0) return;
+    const rect = svg.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const targetX = padX + ratio * innerW;
+    let nearest = 0;
+    let bestDist = Infinity;
+    coords.forEach((c, i) => {
+      const d = Math.abs(c.x - targetX);
+      if (d < bestDist) {
+        bestDist = d;
+        nearest = i;
+      }
+    });
+    setScrubIdx(nearest);
+  };
+
+  const onChartPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    scrubToClientX(e.clientX);
+  };
+  const onChartPointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+    if (scrubIdx == null) return;
+    scrubToClientX(e.clientX);
+  };
+  const endScrub = () => setScrubIdx(null);
+
+  const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
+  const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
+  const scrubDate = scrubPoint ? timelineDate(scrubPoint.date) : null;
+
   return (
-    <svg
-      className="trend-chart"
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="none"
-      role="img"
-      aria-label="Estimated one-rep-max over time"
-    >
-      <defs>
-        <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon className="trend-area" points={area} fill="url(#trend-fill)" />
-      <polyline
-        className="trend-line"
-        points={line}
-        fill="none"
-        stroke="var(--accent)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-        pathLength={1}
-      />
-      <circle
-        className="trend-dot trend-dot--peak"
-        cx={peak.x.toFixed(1)}
-        cy={peak.y.toFixed(1)}
-        r="4"
-        vectorEffect="non-scaling-stroke"
-      />
-      <circle
-        className="trend-dot trend-dot--last"
-        cx={last.x.toFixed(1)}
-        cy={last.y.toFixed(1)}
-        r="3.4"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
+    <div className="trend-chart-wrap">
+      <svg
+        ref={svgRef}
+        className="trend-chart"
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label="Estimated one-rep-max over time"
+        onPointerDown={onChartPointerDown}
+        onPointerMove={onChartPointerMove}
+        onPointerUp={endScrub}
+        onPointerCancel={endScrub}
+      >
+        <defs>
+          <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon className="trend-area" points={area} fill="url(#trend-fill)" />
+        <polyline
+          ref={lineRef}
+          className="trend-line"
+          points={line}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={
+            drawLen != null
+              ? { strokeDasharray: drawLen, strokeDashoffset: drawn ? 0 : drawLen }
+              : { visibility: "hidden" }
+          }
+        />
+        {scrubCoord && (
+          <line
+            className="trend-scrub-guide"
+            x1={scrubCoord.x.toFixed(1)}
+            y1={padY}
+            x2={scrubCoord.x.toFixed(1)}
+            y2={baseline}
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+        <circle
+          className="trend-dot trend-dot--peak"
+          cx={peak.x.toFixed(1)}
+          cy={peak.y.toFixed(1)}
+          r="4"
+          vectorEffect="non-scaling-stroke"
+        />
+        <circle
+          className="trend-dot trend-dot--last"
+          cx={last.x.toFixed(1)}
+          cy={last.y.toFixed(1)}
+          r="3.4"
+          vectorEffect="non-scaling-stroke"
+        />
+        {scrubCoord && (
+          <circle
+            className="trend-dot trend-dot--scrub"
+            cx={scrubCoord.x.toFixed(1)}
+            cy={scrubCoord.y.toFixed(1)}
+            r="4"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+      </svg>
+      {scrubPoint && scrubCoord && scrubDate && (
+        <div
+          className="trend-tooltip"
+          style={{ left: `${Math.min(92, Math.max(8, (scrubCoord.x / W) * 100))}%` }}
+        >
+          <span className="trend-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
+          <span className="trend-tooltip-val mono">
+            {fmt1(scrubPoint.e1rm)}kg · {fmtWeightNum(scrubPoint.weightKg)}×{formatRepsDisplay(scrubPoint.reps)}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 
