@@ -71,6 +71,11 @@ const WINDOW_DAYS = 21;
 export const MIN_TREND_POINTS = 5;
 /** kg/week deadband around the range edges so the status doesn't flap. */
 const STATUS_EPS = 0.02;
+/** Days a NEW calorie target must be held before the 21-day weight trend can be
+ *  a HIGH-confidence verdict on it. Below this, the trailing trend is still partly
+ *  the PRIOR target, and weight right after a deficit change carries transient
+ *  water/glycogen — so a fast rate reads as optimistic, not settled. */
+const FRESH_TARGET_DAYS = 14;
 
 /** Canonical weekly weight rate (kg/week) — the exact number the UI's "Trend"
  *  shows: a least-squares slope over the same trailing 21-day window `evaluate`
@@ -170,7 +175,15 @@ function computeConfidence(
     dataScore +
     // Lower scatter is better, so invert: <0.4 kg → 2, <0.8 kg → 1, else 0.
     (scatter < 0.4 ? 2 : scatter < 0.8 ? 1 : 0);
-  return score >= 5 ? "high" : score >= 3 ? "medium" : "low";
+  const base: Confidence = score >= 5 ? "high" : score >= 3 ? "medium" : "low";
+  // Hard cap on a FRESH target: however clean and dense the weight data, a 21-day
+  // trend on a target held < FRESH_TARGET_DAYS is still half the PRIOR target and
+  // carries transient water/glycogen from the deficit change — so a fast rate
+  // isn't yet a settled verdict on THIS target. Hold at medium ("Forming") until
+  // it's had ~2 weeks to express itself. This is why a strong data window right
+  // after a target change reads medium, not an over-confident high.
+  if (base === "high" && daysOnTarget < FRESH_TARGET_DAYS) return "medium";
+  return base;
 }
 
 export function evaluate(input: EvaluateInput): NutritionState {

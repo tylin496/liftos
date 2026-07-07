@@ -126,3 +126,17 @@ describe("evaluate — diagnostics", () => {
     expect(diagnostics.daysOnTarget).toBe(5);
   });
 });
+
+describe("evaluate — fresh-target confidence cap", () => {
+  // Same clean, dense, in-band series (would score "high" on data alone); only
+  // the target tenure differs.
+  it("caps a fresh target (held < 14 days) at medium, however clean the data", () => {
+    const { evaluation } = evaluate(input({ weightSeries: weightSeries(-0.55), daysOnTarget: 10 }));
+    expect(evaluation.confidence).toBe("medium");
+  });
+
+  it("allows high once the target has been held ≥ 14 days", () => {
+    const { evaluation } = evaluate(input({ weightSeries: weightSeries(-0.55), daysOnTarget: 30 }));
+    expect(evaluation.confidence).toBe("high");
+  });
+});
