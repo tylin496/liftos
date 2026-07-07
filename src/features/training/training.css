@@ -57,7 +57,14 @@
    vertical scroll native while the gesture's axis is still undetermined. */
 .tr-split-swipe {
   touch-action: pan-y;
-  overflow-x: hidden;
+  /* clip, NOT hidden: this wrapper only needs to hide the horizontal spill of
+     the live split-drag transform. `overflow-x: hidden` would force overflow-y
+     to compute to `auto` (a CSS rule: a non-visible value on one axis promotes a
+     `visible` other axis to `auto`), turning this into a vertical scroll
+     container — which flashes a stray scrollbar for ~1s during the skeleton→data
+     reflow. `clip` hides the x-spill without ever creating a scroll container,
+     so overflow-y stays visible and no scrollbar can appear. */
+  overflow-x: clip;
 }
 
 /* ── Exercise list ───────────────────────────────────────────────────────────*/
@@ -525,7 +532,10 @@
    tinted background for both together — a single element, so there's no
    two-layer transparency overlap or seam between row and strip. */
 .hist-entry.is-open {
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  /* Neutral raised panel, not a brand-orange wash: an expanded row is just
+     "open", not flagging anything — grey elevation reads calmer and leaves the
+     gold PR wash below as the only coloured open-state. */
+  background: var(--bg-soft);
   border-radius: var(--radius-sm);
 }
 
@@ -536,6 +546,11 @@
   border-left: 3px solid var(--gold);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   padding-left: calc(var(--space-2) - 3px);
+  /* Gold wash, not the base orange (--accent) one: a PR entry is gold-themed
+     (bar + badge + %), and the orange tint reads as a muddy red-brown against
+     it in dark mode. Bumped to 10% — gold reads lighter than the orange, so a
+     flat 6% under-tinted; 10% matches the base row's perceived strength. */
+  background: color-mix(in srgb, var(--gold) 10%, transparent);
 }
 
 .hist-entry.is-open .hist-row.is-pr {
