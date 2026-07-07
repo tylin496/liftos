@@ -583,15 +583,8 @@ export function ExerciseCard({
       <div className="ex-title-block">
         <div className="ex-title-row">
           <h3 className="ex-name">
-            <button
-              type="button"
-              className="ex-name-btn"
-              onClick={() => setTrendOpen(true)}
-              aria-label={`${exercise.name} — view strength trend`}
-            >
-              <span className="ex-name-text">{exercise.name}</span>
-              <ChartGlyph className="ex-name-trend" />
-            </button>
+            <span className="ex-name-text">{exercise.name}</span>
+            {editingMode !== "meta" && <ChartGlyph className="ex-name-trend" />}
           </h3>
           {exercise.target && (
             <span className="target-display mono">{exercise.target}</span>
@@ -635,6 +628,18 @@ export function ExerciseCard({
             <SmartImage src={imgSrc} alt="" className="ex-ident" />
           </div>
         </div>
+      )}
+
+      {/* Tap target: the whole header (title + PR/reps + image) opens the
+          strength trend sheet. A transparent overlay above the header content
+          so a tap anywhere in the top half reveals the sparkline. */}
+      {editingMode !== "meta" && (
+        <button
+          type="button"
+          className="ex-head-hit"
+          onClick={() => setTrendOpen(true)}
+          aria-label={`${exercise.name} — view strength trend`}
+        />
       )}
       </div>
 

@@ -241,6 +241,9 @@
 }
 
 .ex-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   font-size: var(--role-card-title-size);
   font-weight: var(--role-card-title-weight);
   letter-spacing: -0.01em;
@@ -251,43 +254,43 @@
   min-width: 0;
 }
 
-/* The title is the tap target for the trend sheet — an unstyled button that
-   inherits the h3's type, with the text truncating and the chart glyph pinned
-   beside it. */
-.ex-name-btn {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  max-width: 100%;
-  min-width: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  letter-spacing: inherit;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-  -webkit-tap-highlight-color: transparent;
-}
-
 .ex-name-text {
   min-width: 0;
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: opacity var(--dur-press) ease;
 }
 
+/* Accent-tinted so the sparkline affordance reads at a glance — the whole
+   header is the tap target (.ex-head-hit), this is just the visible cue. */
 .ex-name-trend {
   flex-shrink: 0;
   align-self: center;
-  color: var(--ink-4);
-  transition: color var(--dur-press) ease;
+  color: var(--accent);
+  transition: opacity var(--dur-press) ease;
 }
 
-.ex-name-btn:active .ex-name-trend {
-  color: var(--accent);
+/* Transparent overlay covering the header (title + PR/reps + image). Sits above
+   the header content so a tap anywhere in the top half opens the trend sheet. */
+.ex-head-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Press feedback for the large tap region — dim the title + affordance,
+   matching the opacity-on-press convention for oversized targets. */
+.ex-head:has(.ex-head-hit:active) .ex-name-text,
+.ex-head:has(.ex-head-hit:active) .ex-name-trend {
+  opacity: 0.6;
 }
 
 .rename-input {
