@@ -2333,7 +2333,6 @@
 .trend-tooltip {
   position: absolute;
   top: 2px;
-  transform: translateX(-50%);
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
@@ -2348,6 +2347,11 @@
   white-space: nowrap;
   pointer-events: none;
 }
+/* Anchor by edge near either end of the chart so a wide pill (long reps/note)
+   can't overhang the sheet — centered anchor only in the safe middle range. */
+.trend-tooltip--center { transform: translateX(-50%); }
+.trend-tooltip--start { transform: translateX(0); }
+.trend-tooltip--end { transform: translateX(-100%); }
 
 .trend-tooltip-date {
   color: var(--ink);

@@ -277,15 +277,19 @@
 }
 
 .ov-weight-spark-scrub-dot {
-  fill: var(--ink);
-  stroke: var(--bg-card);
-  stroke-width: 2;
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--bg-card);
+  pointer-events: none;
 }
 
 .ov-weight-spark-tooltip {
   position: absolute;
   top: calc(var(--space-4) + 2px);
-  transform: translateX(-50%);
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
@@ -300,6 +304,11 @@
   white-space: nowrap;
   pointer-events: none;
 }
+/* Anchor by edge near either end of the chart so a wide pill can't overhang
+   the card — centered anchor only in the safe middle range. */
+.ov-weight-spark-tooltip--center { transform: translateX(-50%); }
+.ov-weight-spark-tooltip--start { transform: translateX(0); }
+.ov-weight-spark-tooltip--end { transform: translateX(-100%); }
 
 .ov-weight-spark-tooltip-date {
   color: var(--ink);

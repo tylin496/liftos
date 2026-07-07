@@ -131,17 +131,25 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
           />
         )}
       </svg>
-      {scrubPoint && scrubCoord && scrubDate && (
-        <div
-          className="trend-tooltip"
-          style={{ left: `${Math.min(92, Math.max(8, (scrubCoord.x / W) * 100))}%` }}
-        >
-          <span className="trend-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
-          <span className="trend-tooltip-val mono">
-            {fmt1(scrubPoint.e1rm)}kg · {fmtWeightNum(scrubPoint.weightKg)}×{formatRepsDisplay(scrubPoint.reps)}
-          </span>
-        </div>
-      )}
+      {scrubPoint && scrubCoord && scrubDate && (() => {
+        // Anchor by edge, not just clamp the centered left%: a percentage clamp
+        // still centers the pill on that point, so a wide pill (long note/reps)
+        // can overhang the sheet edge regardless of the clamp range. Flipping
+        // the anchor near either edge keeps the whole pill on-screen instead.
+        const pct = (scrubCoord.x / W) * 100;
+        const anchor = pct < 20 ? "start" : pct > 80 ? "end" : "center";
+        return (
+          <div
+            className={`trend-tooltip trend-tooltip--${anchor}`}
+            style={{ left: `${pct}%` }}
+          >
+            <span className="trend-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
+            <span className="trend-tooltip-val mono">
+              {fmt1(scrubPoint.e1rm)}kg · {fmtWeightNum(scrubPoint.weightKg)}×{formatRepsDisplay(scrubPoint.reps)}
+            </span>
+          </div>
+        );
+      })()}
     </div>
   );
 }

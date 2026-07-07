@@ -642,25 +642,37 @@ function WeightSparkline({
             vectorEffect="non-scaling-stroke"
           />
         )}
-        {scrubCoord && (
-          <circle
-            className="ov-weight-spark-scrub-dot"
-            cx={scrubCoord.x.toFixed(1)}
-            cy={scrubCoord.y.toFixed(1)}
-            r="3.4"
-            vectorEffect="non-scaling-stroke"
-          />
-        )}
       </svg>
-      {scrubPoint && scrubCoord && scrubDate && (
+      {/* Rendered outside the SVG, not as a <circle>: the chart's viewBox is
+          stretched non-uniformly (W=100 vs a ~350px card, H fixed 1:1 at 80px),
+          so an in-SVG circle inherits that stretch and renders as a flat
+          ellipse. A fixed-size HTML dot stays round regardless. Left is a %
+          (matches the SVG's fluid width); top is px + the SVG's own
+          margin-top offset, since H maps 1:1 to its fixed 80px CSS height. */}
+      {scrubCoord && (
         <div
-          className="ov-weight-spark-tooltip"
-          style={{ left: `${Math.min(92, Math.max(8, (scrubCoord.x / W) * 100))}%` }}
-        >
-          <span className="ov-weight-spark-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
-          <span className="mono">{fmt1kg(scrubPoint.value)}kg</span>
-        </div>
+          className="ov-weight-spark-scrub-dot"
+          style={{
+            left: `${(scrubCoord.x / W) * 100}%`,
+            top: `calc(var(--space-4) + ${scrubCoord.y.toFixed(1)}px)`,
+          }}
+        />
       )}
+      {scrubPoint && scrubCoord && scrubDate && (() => {
+        // Anchor by edge, not just a clamped centered left% — a wide pill can
+        // still overhang the card edge under a percentage clamp alone.
+        const pct = (scrubCoord.x / W) * 100;
+        const anchor = pct < 20 ? "start" : pct > 80 ? "end" : "center";
+        return (
+          <div
+            className={`ov-weight-spark-tooltip ov-weight-spark-tooltip--${anchor}`}
+            style={{ left: `${pct}%` }}
+          >
+            <span className="ov-weight-spark-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
+            <span className="mono">{fmt1kg(scrubPoint.value)}kg</span>
+          </div>
+        );
+      })()}
     </div>
   );
 }
