@@ -81,6 +81,12 @@ export interface StrengthExercise {
    *  acute decline visible in the data. FLAGS the lift (unlike recovering, which
    *  rescues): fires immediately, without the stall-week gate or the watch gate. */
   declining: boolean;
+  /** Recent session e1RMs (ascending, up to 8) — the row's mini trend sparkline. */
+  recentBests: number[];
+  /** Whether the most recent PR (at `lastPRDate`) was a new e1RM ceiling
+   *  ("strength") or a weight-axis PR ("performance") — drives the 🏆 / 💪 reward
+   *  icon. Always set (the first-ever session counts as a strength PR). */
+  lastPRKind: "strength" | "performance";
 }
 
 export interface StrengthSummary {
@@ -163,11 +169,14 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
     let runMaxE1 = -Infinity;
     let runMaxWeight = -Infinity;
     let prDate = datedBests[0][0];
+    let lastPRKind: "strength" | "performance" = "strength"; // first-ever session = strength PR
     for (const [date, v] of datedBests) {
-      const isPR =
-        Math.round(v.e1rm * 10) / 10 > Math.round(runMaxE1 * 10) / 10 ||
-        v.weightKg > runMaxWeight;
-      if (isPR) prDate = date;
+      const newCeiling = Math.round(v.e1rm * 10) / 10 > Math.round(runMaxE1 * 10) / 10;
+      const newWeight = v.weightKg > runMaxWeight;
+      if (newCeiling || newWeight) {
+        prDate = date;
+        lastPRKind = newCeiling ? "strength" : "performance";
+      }
       if (v.e1rm > runMaxE1) runMaxE1 = v.e1rm;
       if (v.weightKg > runMaxWeight) runMaxWeight = v.weightKg;
     }
@@ -210,6 +219,8 @@ export function computeStrengthSummary(logsBySlug: LogsBySlug): StrengthSummary 
       needsAttention,
       recovering,
       declining,
+      recentBests: sessionBests.slice(-8),
+      lastPRKind,
     });
   }
 
