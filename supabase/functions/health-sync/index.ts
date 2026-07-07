@@ -256,7 +256,6 @@ Deno.serve(async (req) => {
 
   // POST = body metrics ingest (Apple Health → LiftOS).
   const body = await req.json().catch(() => null);
-  console.log(JSON.stringify(body, null, 2));
 
   const { record, error } = buildRecord(body);
   if (error) return json({ error }, 400);
