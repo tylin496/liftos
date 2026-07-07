@@ -401,13 +401,13 @@
   right: 0;
 }
 
-/* State caption — green when the marker sits in-band, gold when it's out. */
+/* Off-band caption — shown only when the marker sits out of range (it adds the
+   "why" the meter can't); the caution colour matches the off-band marker. */
 .ni-pace-note {
   margin: 0;
   font-size: var(--role-caption-size);
   font-weight: var(--role-caption-weight);
 }
-.ni-pace-note.is-in  { color: var(--good); }
 .ni-pace-note.is-off { color: var(--warn); }
 
 /* Tenure day count (today / N days) in the "On this target" line — darker ink +

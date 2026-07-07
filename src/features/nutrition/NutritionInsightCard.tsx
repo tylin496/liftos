@@ -99,11 +99,10 @@ function PaceMeter({
   const tone = inState ? "good" : "gold";
 
   const sign = observedRate < 0 ? "−" : observedRate > 0 ? "+" : "±";
-  const note = inState
-    ? "inside range"
-    : obs < lo
-      ? "below range — losing too slowly"
-      : "above range — losing too fast";
+  // Caption only fires off-band, where it adds the "why" the meter can't show;
+  // in-band it would just restate the marker sitting inside the green — dropped.
+  const note =
+    obs < lo ? "below range — losing too slowly" : "above range — losing too fast";
 
   return (
     <div className="ni-pace">
@@ -136,7 +135,7 @@ function PaceMeter({
         </div>
       </div>
 
-      <p className={`ni-pace-note ${inState ? "is-in" : "is-off"}`}>{note}</p>
+      {!inState && <p className="ni-pace-note is-off">{note}</p>}
     </div>
   );
 }
