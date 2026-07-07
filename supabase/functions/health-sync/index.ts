@@ -13,7 +13,12 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // Also accepts these camelCase aliases the iOS Shortcut's auto-generated variable names
 // sometimes use instead of the snake_case names above: exerciseMinutes / exercise_minutes / excercises_time
 // (exercise_time), sleepDuration (sleep_seconds), restingHeartRate (resting_heart_rate),
-// heartRateVariability / hrvSdnn (hrv).
+// heartRateVariability / hrvSdnn (hrv). All field names (including these aliases) are
+// matched case-insensitively, since Shortcuts derives variable names from step labels
+// and their capitalization isn't something the user reliably controls.
+// `date` is normally required, but a missing/blank one falls back to today in
+// LOCAL_TZ (not the server's) — a safety net for when the Shortcut's date step
+// glitches, not something to rely on.
 // Upserts one row per date into Supabase health_metrics. Empty/non-numeric
 // fields are OMITTED from the upsert (not written as null), so running the
 // Shortcut multiple times a day never overwrites a previously-synced value
@@ -32,6 +37,32 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 //   `x-sync-secret: <secret>` header or `?secret=<secret>` query param.
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Single-user personal app — hardcode the user's timezone so a missing `date`
+// defaults to the calendar day on their phone, not the server's (Deno Deploy
+// runs in UTC; near midnight Taipei time that's a different day).
+const LOCAL_TZ = "Asia/Taipei";
+
+/**
+ * Case-insensitive alias lookup. Shortcuts auto-generates variable names from
+ * step output labels, so the same field can arrive as `weight_kg`, `Weight_Kg`,
+ * or `WeightKG` depending on how the user built the shortcut. Normalizing once
+ * per request means every alias list below only needs to list spellings, not
+ * every capitalization of each spelling.
+ */
+function pick(keys: Map<string, unknown>, ...aliases: string[]): unknown {
+  for (const alias of aliases) {
+    const v = keys.get(alias.toLowerCase());
+    if (v !== undefined) return v;
+  }
+  return undefined;
+}
+
+function lowercaseKeys(body: Record<string, unknown>): Map<string, unknown> {
+  const map = new Map<string, unknown>();
+  for (const k of Object.keys(body)) map.set(k.toLowerCase(), body[k]);
+  return map;
+}
 
 /**
  * "" / null / undefined / non-numeric → null. Otherwise the number.
@@ -100,16 +131,17 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   if (!body || typeof body !== "object") {
     return { error: "Missing JSON body" };
   }
-  let rawDate = body.date;
+  const keys = lowercaseKeys(body);
+  let rawDate = pick(keys, "date");
   if (typeof rawDate !== "string" || rawDate.trim() === "") {
-    rawDate = new Date().toLocaleDateString("sv-SE");
+    rawDate = new Date().toLocaleDateString("sv-SE", { timeZone: LOCAL_TZ });
   }
 
   let metricDate: string;
-  if (DATE_RE.test(rawDate)) {
-    metricDate = rawDate;
+  if (DATE_RE.test(rawDate as string)) {
+    metricDate = rawDate as string;
   } else {
-    const parsed = new Date(rawDate);
+    const parsed = new Date(rawDate as string);
     if (Number.isNaN(parsed.getTime())) {
       return { error: "Invalid 'date'" };
     }
@@ -119,23 +151,20 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   // Only include fields that carry a real value — null/blank fields are
   // dropped so they don't overwrite an existing row's value on conflict.
   const record: Record<string, unknown> = { metric_date: metricDate };
-  const weight = num(body.weight_kg ?? body.weight);
+  const weight = num(pick(keys, "weight_kg", "weight"));
   if (weight !== null && weight > 0) record.weight_kg = round(weight, 2);
-  const bodyFat = num(body.body_fat ?? body.body_fat_pct ?? body.bodyFat);
+  const bodyFat = num(pick(keys, "body_fat", "body_fat_pct", "bodyFat"));
   if (bodyFat !== null && bodyFat > 0 && bodyFat < 100) record.body_fat_pct = round(bodyFat, 1);
-  const active = intOrNull(body.active_energy ?? body.activeEnergy);
+  const active = intOrNull(pick(keys, "active_energy", "activeEnergy"));
   if (active !== null) record.active_energy_kcal = active;
-  const resting = intOrNull(body.resting_energy ?? body.restingEnergy);
+  const resting = intOrNull(pick(keys, "resting_energy", "restingEnergy"));
   if (resting !== null) record.resting_energy_kcal = resting;
   const exerciseMinutes = intOrNull(
-    body.exercise_time ??
-    body.exercise_minutes ??
-    body.exerciseMinutes ??
-    body.excercises_time
+    pick(keys, "exercise_time", "exercise_minutes", "exerciseMinutes", "excercises_time")
   );
   if (exerciseMinutes !== null) record.exercise_minutes = exerciseMinutes;
 
-  const rawSleep = body.sleep_seconds ?? body.sleepDuration ?? body.sleepSeconds;
+  const rawSleep = pick(keys, "sleep_seconds", "sleepDuration", "sleepSeconds");
   let sleepSeconds = intOrNull(rawSleep);
 
   if (typeof rawSleep === "string") {
@@ -146,17 +175,9 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   }
 
   if (sleepSeconds !== null && sleepSeconds > 3600) record.sleep_seconds = sleepSeconds;
-  const restingHR = intOrNull(
-    body.resting_heart_rate ??
-    body.restingHeartRate
-  );
+  const restingHR = intOrNull(pick(keys, "resting_heart_rate", "restingHeartRate"));
   if (restingHR !== null && restingHR > 0) record.resting_heart_rate = restingHR;
-  const hrv = num(
-    body.hrv ??
-    body.hrv_sdnn_ms ??
-    body.heartRateVariability ??
-    body.hrvSdnn
-  );
+  const hrv = num(pick(keys, "hrv", "hrv_sdnn_ms", "heartRateVariability", "hrvSdnn"));
   if (hrv !== null && hrv > 0) record.hrv_sdnn_ms = round(hrv, 1);
 
   return { record };
