@@ -4,13 +4,16 @@ import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
 import { useCrossfade } from "@shared/hooks/useCrossfade";
 import { useActiveTargetRing } from "@shared/hooks/useActiveTargetRing";
-import { ActivityRing } from "@shared/components/ActivityRing";
+import { ActivityRing, OverflowRing } from "@shared/components/ActivityRing";
 import { progressColor } from "@shared/lib/progressColor";
 import "./pageTopBar.css";
 import "@shared/components/activityRing.css";
 
 const RING_SIZE = 42;
-const RING_STROKE = 4;
+// A true scaled-down copy of the Overview Active Target ring (108 / 11): the
+// stroke keeps the big ring's 11/108 band-to-diameter ratio so the small ring
+// reads as the same ring, just smaller — the diameter stays 42, not enlarged.
+const RING_STROKE = 4.3;
 
 export function PageTopBar({
   eyebrow,
@@ -115,15 +118,30 @@ export function PageTopBar({
               : "Settings"
           }
         >
-          <ActivityRing pct={ringPct ?? 0} size={RING_SIZE} strokeWidth={RING_STROKE} color={ringColor}>
-            <span className="page-topbar-avatar">
-              {avatar ? (
-                <img src={avatar} alt="" className="page-topbar-avatar-img" />
-              ) : (
-                <span className="page-topbar-avatar-fallback">{initial}</span>
-              )}
-            </span>
-          </ActivityRing>
+          {(() => {
+            const ratio = ringPct ?? 0;
+            const inner = (
+              <span className="page-topbar-avatar">
+                {avatar ? (
+                  <img src={avatar} alt="" className="page-topbar-avatar-img" />
+                ) : (
+                  <span className="page-topbar-avatar-fallback">{initial}</span>
+                )}
+              </span>
+            );
+            // Same render path as the Overview Active Target ring, just scaled
+            // down: over 100% it draws a second lap (OverflowRing) instead of
+            // clamping to solid gold, so the small ring matches the big one.
+            return ratio > 1 ? (
+              <OverflowRing ratio={ratio} size={RING_SIZE} strokeWidth={RING_STROKE} color={ringColor}>
+                {inner}
+              </OverflowRing>
+            ) : (
+              <ActivityRing pct={ratio} size={RING_SIZE} strokeWidth={RING_STROKE} color={ringColor}>
+                {inner}
+              </ActivityRing>
+            );
+          })()}
         </button>
       </div>
     </div>
