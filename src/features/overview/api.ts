@@ -120,11 +120,14 @@ export async function fetchOverview(): Promise<OverviewData> {
 
   // Primary Goal — computed entirely upstream in the Provider. The card only
   // renders the finished payload; swapping goal types never touches this call.
-  // Progress is anchored to the persisted cut baseline body fat.
+  // Progress and the goal weight are anchored to the persisted cut baseline
+  // (weight + body fat) — see goal.ts for why progress is weight-, not
+  // body-fat-, based.
   const goal = computeGoal(
     metrics as BodyMetric[],
     configRes.data?.target_body_fat_pct ?? null,
     configRes.data?.cut_start_body_fat_pct ?? null,
+    configRes.data?.cut_start_weight ?? null,
   );
 
   return {

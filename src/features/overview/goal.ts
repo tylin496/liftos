@@ -15,21 +15,24 @@ import type { BodyMetric } from "@features/health/api";
 export type GoalType = "fat_loss" | "lean_bulk" | "maintenance" | "recomp";
 
 export interface GoalEvaluation {
-  /** 0–100, how far along the fat-loss journey the smoothed body fat has come. */
+  /** 0–100, fraction of the weight gap (cut-start weight → goalWeight) closed
+   *  by the smoothed current weight. Body fat is reference-only — see the
+   *  progressPct comment in computeGoal for why it doesn't drive this. */
   progressPct: number;
-  /** Latest raw weight — the "where you are today" display value. */
+  /** 7-day smoothed weight — drives progressPct/remainingWeight/"Down" so a
+   *  single water-weight day can't jerk the bar. Not the raw daily reading. */
   currentWeight: number;
-  /** leanMass30dAvg / (1 − targetBodyFat/100). */
+  /** Frozen at the cut's start: leanMassAtStart / (1 − targetBodyFat/100). */
   goalWeight: number;
   /** currentWeight − goalWeight; positive = still to lose. */
   remainingWeight: number;
-  /** Latest raw body-fat % — display value. */
+  /** Latest raw body-fat % — reference display only, doesn't drive progress. */
   currentBodyFat: number;
   /** Target body-fat %, from config. */
   targetBodyFat: number;
-  /** 30-day average lean mass (kg) — drives goalWeight. */
+  /** 30-day average lean mass (kg) — fallback for goalWeight, pre-baseline only. */
   leanMass30dAvg: number;
-  /** 14-day average body fat (%) — drives progressPct. */
+  /** 14-day average body fat (%) — reference display only. */
   bodyFat14dAvg: number;
 }
 
@@ -81,6 +84,7 @@ export function computeGoal(
   metrics: BodyMetric[],
   targetBodyFat: number | null,
   cutStartBodyFat: number | null = null,
+  cutStartWeight: number | null = null,
 ): Goal | null {
   if (targetBodyFat == null) return null;
 
@@ -96,31 +100,42 @@ export function computeGoal(
 
   const leanMass30dAvg = rollingAvg(lmPts, 30, 0);
   const bodyFat14dAvg = rollingAvg(bfPts, 14, 0);
-  const currentWeight = wtPts.at(-1)?.value ?? null;
+  const weight7dAvg = rollingAvg(wtPts, 7, 0);
   const currentBodyFat = bfPts.at(-1)?.value ?? null;
 
-  if (leanMass30dAvg == null || bodyFat14dAvg == null || currentWeight == null || currentBodyFat == null) {
+  if (leanMass30dAvg == null || bodyFat14dAvg == null || weight7dAvg == null || currentBodyFat == null) {
     return null;
   }
 
-  const goalWeight = leanMass30dAvg / (1 - targetBodyFat / 100);
-  const remainingWeight = currentWeight - goalWeight;
+  // Goal weight is frozen at the cut's start — lean mass on day one, projected
+  // onto the target body-fat % — not recomputed from the live lean-mass trend.
+  // Falls back to the live 30-day average only pre-baseline (no cut_start_*
+  // persisted yet); that path never actually renders, since CutBaselineCard
+  // shows instead of this card until a baseline exists.
+  const leanMassAtStart =
+    cutStartWeight != null && cutStartBodyFat != null
+      ? cutStartWeight * (1 - cutStartBodyFat / 100)
+      : leanMass30dAvg;
+  const goalWeight = leanMassAtStart / (1 - targetBodyFat / 100);
+  const remainingWeight = weight7dAvg - goalWeight;
 
-  // Progress = fraction of the body-fat gap closed since the starting point.
-  // The start line is the fixed cut baseline persisted in config (`cutStartBodyFat`)
-  // — a value set once and never drifting. If it isn't set, fall back to the
-  // current 14-day average, which reads as 0% progress. Already-at-or-below-target
-  // reads as 100%.
-  const startBodyFat = cutStartBodyFat ?? bodyFat14dAvg;
-  const span = startBodyFat - targetBodyFat;
-  const progressPct = span > 0 ? clamp(((startBodyFat - bodyFat14dAvg) / span) * 100, 0, 100) : 100;
+  // Progress = fraction of the WEIGHT gap closed since the starting point,
+  // using a 7-day smoothed "today" weight so a single water-weight day can't
+  // jerk the bar. Deliberately not body-fat-based: body fat is too noisy a
+  // reading to anchor the headline % on, and a body-fat-based % has no
+  // algebraic relationship to the Down/Remaining kg shown right next to it —
+  // the two used to visibly disagree (e.g. 47% next to a 9.7/16.7 = 58% pair)
+  // even though neither was "wrong." Body fat stays a reference sub-label only.
+  const startWeight = cutStartWeight ?? weight7dAvg;
+  const span = startWeight - goalWeight;
+  const progressPct = span > 0 ? clamp(((startWeight - weight7dAvg) / span) * 100, 0, 100) : 100;
 
   return {
     type: "fat_loss",
     targetBodyFat,
     evaluation: {
       progressPct,
-      currentWeight,
+      currentWeight: weight7dAvg,
       goalWeight,
       remainingWeight,
       currentBodyFat,
