@@ -891,17 +891,42 @@ function WeightCard({
 
 /* ── Overview Page ─────────────────────────────────────────────────────── */
 
+// Module-scope, not component state: survives the full remount Shell does on
+// a "fresh" tab entry (first visit, deep-link, or a return after sitting idle
+// past REPLAY_IDLE_MS — see the tab-navigation-scroll skill). Without this,
+// every such remount resets `data` to null, so the whole page — despite every
+// card already having a proper in-place skeleton — flashes back through that
+// skeleton just to re-show numbers that (for a stale-but-recent visit) mostly
+// haven't changed. Seeding state from the last render instead means a fresh
+// remount shows the last-known snapshot immediately and refreshes it silently
+// underneath, exactly like a same-mount activity bump already does; only a
+// true first-ever load (nothing cached yet) still shows the skeleton.
+//
+// Keyed by user id: this app supports signed-in shared viewers (see
+// shared-read-only-access), so a sign-out/sign-in swap on the SAME tab must
+// never seed the next account's first render from the previous account's
+// cached numbers — a stale module var would leak across that swap since it
+// outlives the component unmount. A mismatched id is treated as empty.
+let lastOverviewData: OverviewData | null = null;
+let lastOverviewUserId: string | null = null;
+
 export function OverviewPage() {
-  const [data, setData] = useState<OverviewData | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const activity = useTabActivity();
   const nav = useNav();
   const user = useSessionUser();
   const readOnly = useIsReadOnly();
 
+  const cached = user && user.id === lastOverviewUserId ? lastOverviewData : null;
+  const [data, setData] = useState<OverviewData | null>(cached);
+  const [error, setError] = useState<string | null>(null);
+
   const load = () =>
     fetchOverview()
-      .then(setData)
+      .then((d) => {
+        lastOverviewData = d;
+        lastOverviewUserId = user?.id ?? null;
+        setData(d);
+      })
       .catch((e) => setError(String(e?.message ?? e)));
 
   useEffect(() => {
