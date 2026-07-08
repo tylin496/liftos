@@ -497,12 +497,30 @@ html.kb-open .tabbar {
 }
 
 .settings-sheet-header {
+  position: relative;
+  /* .settings-sheet-body has its own transform-based stacking context (iOS
+     repaint workaround below) — without an explicit z-index here, that body
+     paints on top of this header's ::after fade despite DOM order. */
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--space-5) var(--space-5) 0;
   flex-shrink: 0;
   touch-action: none;
+}
+
+/* Fades scrolled rows out under the header instead of a hard clip line —
+   matches the sheet's own frosted tint so the fade blends with the blur. */
+.settings-sheet-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: var(--space-6);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 70%, transparent) 0%, transparent 100%);
+  pointer-events: none;
 }
 
 .settings-sheet-title {
