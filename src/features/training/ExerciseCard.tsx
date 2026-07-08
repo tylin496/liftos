@@ -831,6 +831,16 @@ export function ExerciseCard({
                         {retention != null ? `${retention}%` : "—"}
                       </span>
                     </div>
+                    <div className="hist-detail">
+                      <span className="hist-detail-k">Volume</span>
+                      <span className="hist-detail-v mono">
+                        {entry && entry.weightKg > 0 && entry.totalReps > 0
+                          ? `${fmtWeightNum(
+                              Math.round(entry.weightKg * entry.totalReps),
+                            )} kg`
+                          : "—"}
+                      </span>
+                    </div>
                   </div>
                 )}
 

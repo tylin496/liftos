@@ -1033,33 +1033,6 @@
   box-shadow: var(--shadow-sm);
 }
 
-.chip-row.log-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  justify-content: center;
-}
-
-.chip {
-  padding: var(--space-1) 10px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-pill);
-  background: var(--bg-soft);
-  color: var(--ink-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  transition: background var(--dur-press), transform var(--dur-press) var(--ease-press);
-}
-
-.chip:active {
-  transform: scale(var(--tap-scale));
-}
-
-.chip:hover {
-  background: var(--rule);
-}
-
 /* ── Reps zone ───────────────────────────────────────────────────────────────*/
 .log-reps-zone {
   display: flex;
@@ -2322,22 +2295,35 @@
   animation: fade-in 500ms var(--ease-enter) 200ms forwards;
 }
 
+/* HTML dots, not in-SVG <circle>s: a non-uniform preserveAspectRatio="none"
+   stretch turns an in-SVG circle into an ellipse. Fixed pixel size stays
+   round regardless of chart width. */
+.trend-dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
 .trend-dot--peak {
-  fill: var(--bg-card);
-  stroke: var(--gold);
-  stroke-width: 2.4;
+  width: 10px;
+  height: 10px;
+  background: var(--bg-card);
+  border: 2.4px solid var(--gold);
 }
 
 .trend-dot--last {
-  fill: var(--bg-card);
-  stroke: var(--accent);
-  stroke-width: 2.4;
+  width: 9px;
+  height: 9px;
+  background: var(--bg-card);
+  border: 2.4px solid var(--accent);
 }
 
 .trend-dot--scrub {
-  fill: var(--accent);
-  stroke: var(--bg-card);
-  stroke-width: 2;
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  border: 2px solid var(--bg-card);
 }
 
 .trend-scrub-guide {

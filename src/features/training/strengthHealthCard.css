@@ -153,15 +153,14 @@
 .loading-card .ov-th-bar-seg::before { display: none; }
 
 /* Summary row — snapshot's one-line stand-in for the detail list. Reused as a
-   plain div (no fold button / chevron); the border-top gives the same
-   separation the fold used to. */
+   plain div (no fold button / chevron). A single margin-top keeps bar→fold on
+   the same rhythm as header→hero and hero→bar (one --space-4 step each). */
 .ov-th-fold {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
   margin-top: var(--space-4);
-  padding-top: var(--space-4);
   width: 100%;
   background: none;
   border: none;
@@ -430,6 +429,10 @@
   grid-column: 1;
   grid-row: 1 / span 2;
   align-self: center;
+  /* Fixed box so a wide 🏆/💪 emoji and the narrow ↑ arrow occupy the same
+     column width — every reward-row name lines up on one left edge. */
+  width: 1.5em;
+  text-align: center;
   font-size: var(--text-base);
   line-height: 1;
 }
@@ -509,16 +512,21 @@
   justify-content: space-between;
   width: 100%;
   gap: var(--space-2);
-  background: none;
+  /* Grey pill (unlike the hairline signal rows above): this row is a collapse
+     CONTROL, not another lift to scan — the fill sets it apart as "expandable,
+     nothing flagged here". Pure fill, no border — same soft-block language as
+     the app's other filled surfaces (menus, unit toggle, steppers). */
+  background: var(--bg-soft);
   border: none;
-  padding: 0;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 .ov-th-holding-label {
   font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-4);
+  font-weight: 600;
+  color: var(--ink-3);
 }
 .ov-th-holding-reveal {
   display: grid;

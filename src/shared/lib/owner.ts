@@ -26,6 +26,19 @@ export function emailIsViewer(email: string | null | undefined): boolean {
   return e !== OWNER_EMAIL.toLowerCase();
 }
 
+/** Per-account display-name overrides, keyed by lowercased email. When a signed-in
+ *  account is listed here, the UI greets them with this name instead of their
+ *  Google `full_name`. Everyone else falls back to their Google account name. */
+const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
+  [OWNER_EMAIL.toLowerCase()]: "Thomas",
+};
+
+/** Preferred first-name for an account, or `undefined` to fall back to the
+ *  Google `full_name` / email. */
+export function displayNameFor(email: string | null | undefined): string | undefined {
+  return DISPLAY_NAME_OVERRIDES[(email ?? "").toLowerCase()];
+}
+
 /** Async form for the data layer (no React context). Guards the auto-writes
  *  that would otherwise fire on load for a viewer. */
 export async function isViewer(): Promise<boolean> {

@@ -301,7 +301,7 @@ export function StrengthHealthCard({
       <>
         {skelHeader}
         <div className="ov-th-ret-hero">
-          <MetricValue size="lg">00%</MetricValue>
+          <MetricValue size={variant === "snapshot" ? "sm" : "lg"}>00%</MetricValue>
           <span className="ov-th-ret-count">0 of 0 tracked lifts on track</span>
         </div>
         <div className="ov-th-bar" aria-hidden>
@@ -421,7 +421,10 @@ export function StrengthHealthCard({
           on-track/attention verdict is already owned by the segmented bar +
           "N of M lifts" count below, so colouring the % too would double-
           encode it (invariant I3). */}
-      <MetricValue size="lg">
+      {/* Snapshot hero is one tier smaller than the full card's — the Overview
+          entry is a summary, not the detailed view, so it shouldn't carry the
+          same visual weight as the Training page it taps into. */}
+      <MetricValue size={variant === "snapshot" ? "sm" : "lg"}>
         {retentionPct !== null ? <RetentionPct target={retentionPct} /> : "—"}
       </MetricValue>
       {/* "tracked" qualifies M — only lifts with enough history (4+ logged

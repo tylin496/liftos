@@ -45,6 +45,11 @@ export function useSheetSwipe(
   function onPointerDown(e: ReactPointerEvent) {
     // Mouse: primary button only. Touch/pen report button 0 too.
     if (e.button > 0) return;
+    // Don't hijack a press that lands on an interactive control inside the
+    // draggable header (appearance toggle, close button). Capturing the pointer
+    // here retargets the follow-up click away from that control, so it never
+    // fires — leaving those buttons dead. Let the control handle its own press.
+    if ((e.target as Element).closest("button, input, a, select, textarea")) return;
     startY.current = prevY.current = lastY.current = e.clientY;
     prevT.current = lastT.current = e.timeStamp;
     dragging.current = true;

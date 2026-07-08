@@ -63,7 +63,7 @@ button {
 /* ── Toast tray ──────────────────────────────────────────────────────────────*/
 .toast-tray {
   position: fixed;
-  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-3));
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-1));
   left: 50%;
   transform: translateX(-50%);
   display: flex;

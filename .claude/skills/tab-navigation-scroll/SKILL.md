@@ -44,6 +44,8 @@ Every tab commit computes exactly one `landingRef` in `enterTab` (Shell.tsx), an
 
 **If you're adding a new kind of landing:** don't add a new ref/flag next to `landingRef`. Add a new tagged variant to the union and a branch in the layout effect. The whole point is that there's one place that decides where the tab lands.
 
+**Every `el.scrollTop = ...` write in this effect is guarded to skip a no-op** (`if (el.scrollTop !== target) el.scrollTop = target`). This isn't defensive paranoia — a plain resume's target usually already matches (the panel kept its scrollTop natively; the write is only a defensive belt-and-suspenders for a browser that drops it on `display:none`), and assigning the SAME value scrollTop already holds still counts as "a scroll happened" on some engines, notably iOS Safari — which briefly flashes its native overlay scroll indicator even though nothing actually moved (a real shipped bug: switching back to a tab flashed a scrollbar for about a second, 2026-07-08). If you add a new `el.scrollTop = ...` write anywhere in Shell, guard it the same way.
+
 ## 3. Fresh entry vs. resume — two counters, not one
 
 `tabVersions[tab]` and `tabActivity[tab]` are separate counters bumped by `enterTab`:

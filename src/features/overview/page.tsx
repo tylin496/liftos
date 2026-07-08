@@ -9,6 +9,7 @@ import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useInView } from "@shared/hooks/useInView";
 import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { progressColor } from "@shared/lib/progressColor";
+import { displayNameFor } from "@shared/lib/owner";
 import { timelineDate } from "@shared/lib/date";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
@@ -48,6 +49,7 @@ function greeting(user: ReturnType<typeof useSessionUser>): string {
   const time =
     hour < 5 ? "night" : hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
   const name =
+    displayNameFor(user?.email) ??
     (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??
     user?.email?.split("@")[0] ??
     "there";
@@ -188,7 +190,6 @@ function ActiveTargetCard({
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
         <span className="ov-active-target-head-right">
-          {sync && <span className="ov-active-target-sync">{sync}</span>}
           <span className="ov-active-target-goal-row">
             <span className="ov-active-target-goal">
               {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
@@ -196,6 +197,7 @@ function ActiveTargetCard({
             </span>
             <span className="ov-active-target-chevron" aria-hidden>›</span>
           </span>
+          {sync && <span className="ov-active-target-sync">{sync}</span>}
         </span>
       </div>
 

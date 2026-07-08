@@ -273,11 +273,6 @@ export function HistoryView({
               {`${fmtShortDay(trend7[0].date)} – ${fmtShortDay(trend7[6].date)}`}
             </span>
           </p>
-          <span
-            className={`hist-status${week.consistency ? ` hist-status-${week.consistency.toLowerCase()}` : " hist-status--empty"}`}
-          >
-            {week.consistency ?? "Stable"}
-          </span>
         </div>
 
         {/* KPI row — sits above the chart, unit-style copy */}

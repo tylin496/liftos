@@ -424,16 +424,27 @@
   animation: fade-in var(--dur-enter) var(--ease-enter) 200ms forwards;
 }
 
+/* Peak/last/scrub are HTML dots, not in-SVG <circle>s — see TrendChart's
+   comment for why (preserveAspectRatio="none" stretches an in-SVG circle into
+   an ellipse). Fixed pixel size stays round regardless of chart width. */
+.health-trend-sheet-dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--bg-card);
+  pointer-events: none;
+}
+
 .health-trend-sheet-dot--peak {
-  fill: var(--bg-card);
-  stroke: var(--gold);
-  stroke-width: 2.4;
+  width: 10px;
+  height: 10px;
+  border: 2.4px solid var(--gold);
 }
 
 .health-trend-sheet-dot--last {
-  fill: var(--bg-card);
-  stroke: currentColor;
-  stroke-width: 2.4;
+  width: 9px;
+  height: 9px;
+  border: 2.4px solid currentColor;
 }
 
 .health-trend-sheet-guide {
@@ -444,9 +455,6 @@
   pointer-events: none;
 }
 
-/* Rendered as an HTML dot, not an in-SVG <circle> — see TrendChart's comment
-   for why (preserveAspectRatio="none" stretches an in-SVG circle into an
-   ellipse). Fixed pixel size stays round regardless of chart width. */
 .health-trend-sheet-scrub-dot {
   position: absolute;
   width: 9px;
@@ -522,14 +530,18 @@
   color: var(--gold);
 }
 
+.health-trend-sheet-stat-v--low {
+  color: var(--bad);
+}
+
 .health-trend-sheet-stat-u {
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink-4);
 }
 
-.health-trend-sheet-delta--gain { color: var(--good); }
-.health-trend-sheet-delta--loss { color: var(--bad); }
+.health-trend-sheet-delta--good { color: var(--good); }
+.health-trend-sheet-delta--bad { color: var(--bad); }
 .health-trend-sheet-delta--flat { color: var(--ink-3); }
 
 .health-trend-sheet-empty {

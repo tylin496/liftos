@@ -107,30 +107,26 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
             vectorEffect="non-scaling-stroke"
           />
         )}
-        <circle
-          className="trend-dot trend-dot--peak"
-          cx={peak.x.toFixed(1)}
-          cy={peak.y.toFixed(1)}
-          r="4"
-          vectorEffect="non-scaling-stroke"
-        />
-        <circle
-          className="trend-dot trend-dot--last"
-          cx={last.x.toFixed(1)}
-          cy={last.y.toFixed(1)}
-          r="3.4"
-          vectorEffect="non-scaling-stroke"
-        />
-        {scrubCoord && (
-          <circle
-            className="trend-dot trend-dot--scrub"
-            cx={scrubCoord.x.toFixed(1)}
-            cy={scrubCoord.y.toFixed(1)}
-            r="4"
-            vectorEffect="non-scaling-stroke"
-          />
-        )}
       </svg>
+      {/* Peak/last/scrub dots are rendered outside the SVG, not as
+          <circle>s: a non-uniform preserveAspectRatio="none" stretch turns an
+          in-SVG circle into an ellipse (see overview/page.tsx's weight-spark
+          fix). Left is a % (the chart's width is fluid); top is px since H
+          maps 1:1 to its fixed 130px CSS height. */}
+      <div
+        className="trend-dot trend-dot--peak"
+        style={{ left: `${(peak.x / W) * 100}%`, top: `${peak.y.toFixed(1)}px` }}
+      />
+      <div
+        className="trend-dot trend-dot--last"
+        style={{ left: `${(last.x / W) * 100}%`, top: `${last.y.toFixed(1)}px` }}
+      />
+      {scrubCoord && (
+        <div
+          className="trend-dot trend-dot--scrub"
+          style={{ left: `${(scrubCoord.x / W) * 100}%`, top: `${scrubCoord.y.toFixed(1)}px` }}
+        />
+      )}
       {scrubPoint && scrubCoord && scrubDate && (() => {
         // Anchor by edge, not just clamp the centered left%: a percentage clamp
         // still centers the pill on that point, so a wide pill (long note/reps)

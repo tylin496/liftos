@@ -309,7 +309,10 @@
   --ink: #f5f5f7;
   --ink-2: #c7c7cc;
   --ink-3: #98989d;
-  --ink-4: #636366;
+  /* systemGray (was systemGray2 #636366): captions/labels — the darker grey
+     failed contrast on raised --bg-soft blocks in dark (~2.3:1). systemGray
+     lifts it to ~4.3:1 and stays symmetric with light-mode --ink-4. */
+  --ink-4: #8e8e93;
   --rule: rgba(235, 235, 245, 0.14);
   --rule-strong: rgba(235, 235, 245, 0.26);
   --accent-100: #3a1f12;

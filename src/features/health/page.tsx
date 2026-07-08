@@ -114,9 +114,9 @@ function Sparkline({
   // anchor. SPARK_POINTS keeps the beads from crowding.
   const svg = reduced ? (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
-      <polyline points={pts} fill="none" stroke="var(--ink-4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={pts} fill="none" stroke="var(--rule-strong)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       {coords.slice(0, -1).map((c, i) => (
-        <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--ink-4)" strokeWidth="1.4" />
+        <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--rule-strong)" strokeWidth="1.4" />
       ))}
       <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r={anchorDot} fill="var(--bg-card)" stroke={color} strokeWidth="2.4" />
     </svg>
@@ -140,7 +140,7 @@ function Sparkline({
               points={pts}
               pathLength={1}
               fill="none"
-              stroke="var(--ink-4)"
+              stroke="var(--rule-strong)"
               strokeWidth="1.6"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -154,7 +154,7 @@ function Sparkline({
                 cy={c.y.toFixed(1)}
                 r={dot}
                 fill="var(--bg-card)"
-                stroke="var(--ink-4)"
+                stroke="var(--rule-strong)"
                 strokeWidth="1.4"
                 style={{ animationDelay: `calc(${tierDelay} + ${((i / (n - 1)) * dur).toFixed(0)}ms)` }}
               />
@@ -422,7 +422,11 @@ export function HealthPage() {
       const prevWeek = rollingAvg(s, spec.bucket, spec.bucket);
       const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
       const bucketed = bucketSeries(s, { spanDays: spec.bucket * SPARK_POINTS, bucketDays: spec.bucket });
-      return { spec, bucketed, thisWeek, change, readingCount: s.length, raw: s };
+      // Full-range version for the big trend sheet: SAME bucket size (so a
+      // point still means "this card's own averaging window"), just spanning
+      // the whole fetched history instead of only the last SPARK_POINTS beads.
+      const full = bucketSeries(s, { spanDays: FIXED_DAYS, bucketDays: spec.bucket });
+      return { spec, bucketed, thisWeek, change, readingCount: s.length, full };
     });
   }, [data, metrics]);
 
@@ -434,6 +438,10 @@ export function HealthPage() {
     if (!data) return [];
     return bucketSeries(energyRaw, { spanDays: ENERGY_BUCKET * SPARK_POINTS, bucketDays: ENERGY_BUCKET });
   }, [data, energyRaw]);
+  const energyFull = useMemo(
+    () => bucketSeries(energyRaw, { spanDays: FIXED_DAYS, bucketDays: ENERGY_BUCKET }),
+    [energyRaw],
+  );
 
   const recovery = useMemo(() => {
     if (!data) return null;
@@ -454,7 +462,8 @@ export function HealthPage() {
     const change = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
     const lbmBucket = 14;
     const bucketed = bucketSeries(pts, { spanDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket });
-    return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS, raw: pts };
+    const full = bucketSeries(pts, { spanDays: FIXED_DAYS, bucketDays: lbmBucket });
+    return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS, full };
   }, [data, metrics]);
 
   // The big scrubbable trend sheet — one shared instance, driven by which
@@ -527,8 +536,10 @@ export function HealthPage() {
                 : undefined
             }
             onOpenTrend={
-              c && c.raw.length >= 2
-                ? () => openTrend({ label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color, points: c.raw })
+              c && c.full.length >= 2
+                // Weight and Body Fat are both down-good (matches the hardcoded
+                // down-good MetricDelta on the card above).
+                ? () => openTrend({ label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color, points: c.full, higherIsBetter: false })
                 : undefined
             }
           />
@@ -555,8 +566,8 @@ export function HealthPage() {
           ) : null
         }
         onOpenTrend={
-          lbmCard && lbmCard.raw.length >= 2
-            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.raw })
+          lbmCard && lbmCard.full.length >= 2
+            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.full, higherIsBetter: true })
             : undefined
         }
       />
@@ -624,8 +635,8 @@ export function HealthPage() {
                 minSpan={ENERGY_MIN_SPAN}
                 color="var(--accent)"
                 onOpen={
-                  energyRaw.length >= 2
-                    ? () => openTrend({ label: "Active", unit: " kcal", decimals: 0, color: "var(--accent)", points: energyRaw })
+                  energyFull.length >= 2
+                    ? () => openTrend({ label: "Active", unit: " kcal", decimals: 0, color: "var(--accent)", points: energyFull, higherIsBetter: true })
                     : undefined
                 }
               />
