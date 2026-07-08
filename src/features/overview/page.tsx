@@ -190,6 +190,7 @@ function ActiveTargetCard({
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
         <span className="ov-active-target-head-right">
+          {sync && <span className="ov-active-target-sync">{sync}</span>}
           <span className="ov-active-target-goal-row">
             <span className="ov-active-target-goal">
               {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
@@ -197,7 +198,6 @@ function ActiveTargetCard({
             </span>
             <span className="ov-active-target-chevron" aria-hidden>›</span>
           </span>
-          {sync && <span className="ov-active-target-sync">{sync}</span>}
         </span>
       </div>
 
@@ -532,8 +532,10 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 // Weight card carries two layers on purpose: the green down-good delta (this
 // week's drop — the direct "it's moving the right way" signal, same as Health)
 // AND the pace read (Trend rate + Status), which answers the deeper "am I losing
-// at the *right rate*". They can differ — down but slow reads green delta + gold
-// "Below pace" — and that pairing is the point, not a contradiction.
+// at the *right rate*". They can differ — down but slow reads green delta +
+// orange "Below pace" — and that pairing is the point, not a contradiction.
+// Gold is reserved for "Optimal" (on-target AND in the band's top slice, near
+// the safe max) — a celebration read, not just an absence of caution.
 // Full-width 14-day weight trend line. Line-only (no beads/labels) to keep the
 // Health-tab minimalism, but stretched edge-to-edge as the card's dominant
 // element. Smoothing stays honest — raw daily readings from `series`, same

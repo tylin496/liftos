@@ -281,7 +281,7 @@
   flex: none;
 }
 .ni-status-dot.status-good { background: var(--good); }
-.ni-status-dot.status-gold { background: var(--warn); }
+.ni-status-dot.status-gold { background: var(--gold); box-shadow: var(--gold-glow); }
 .ni-status-dot.status-warn { background: var(--warn); }
 .ni-status-dot.status-bad  { background: var(--bad); }
 
@@ -294,6 +294,7 @@
 .ni-pace-rate-arrow.is-good { color: var(--good); }
 .ni-pace-rate-arrow.is-warn { color: var(--warn); }
 .ni-pace-rate-arrow.is-bad  { color: var(--bad); }
+.ni-pace-rate-arrow.is-gold { color: var(--gold); text-shadow: var(--gold-glow); }
 
 /* ── Pace meter ─────────────────────────────────────────────────────────
    Replaces the paired Observed/Target tiles: the target band is drawn as a

@@ -145,14 +145,34 @@ export function paceLabel(evaluation: NutritionEvaluation): string {
   const noActiveTarget = evaluation.targetRange.min === evaluation.targetRange.max;
   if (noActiveTarget) return "Not tracked";
   if (evaluation.confidence === "low") return "Calibrating";
-  if (evaluation.status === "on_target") return "On pace";
+  if (evaluation.status === "on_target") return isOptimalPace(evaluation) ? "Optimal" : "On pace";
   if (evaluation.confidence !== "high") return "Forming";
   // Losing too fast is "Too fast", not "Above pace": on a cut it's a muscle risk
   // the Decision Engine wants corrected, not a lead to celebrate.
   return evaluation.status === "below_target" ? "Below pace" : "Too fast";
 }
 
-export type PaceTone = "good" | "warn" | "bad" | null;
+/** Top slice of the target band, in-range loss rates close to `max` count as
+ *  "optimal" — losing as fast as the plan safely allows, not just "in band
+ *  somewhere". Fraction of the band width, not a fixed kg margin, so a wide
+ *  band (aggressive cut) and a narrow one (gentle cut) both reserve the same
+ *  proportional top slice. */
+const OPTIMAL_BAND_FRACTION = 0.2;
+
+/** Is the observed loss rate on-target AND sitting in the top slice of the
+ *  band (closest to the safe max)? Shared by paceLabel/paceTone (the Pace
+ *  word) and rateTone (the Rate number) so both surfaces flip to gold
+ *  together — never one alone. No band (not tracked) → never optimal. */
+function isOptimalPace(evaluation: Pick<NutritionEvaluation, "status" | "observedRate" | "targetRange">): boolean {
+  if (evaluation.status !== "on_target") return false;
+  const { min, max } = evaluation.targetRange;
+  if (min === max) return false;
+  const loss = -evaluation.observedRate;
+  const threshold = max - (max - min) * OPTIMAL_BAND_FRACTION;
+  return loss >= threshold;
+}
+
+export type PaceTone = "good" | "warn" | "bad" | "gold" | null;
 
 /** Severity colour for the pace status word (COLOR-SYSTEM rule 3: status words
  *  carry severity colour whether badge or plain text). Only *on pace* is good;
@@ -166,7 +186,7 @@ export function paceTone(evaluation: NutritionEvaluation): PaceTone {
   const noActiveTarget = evaluation.targetRange.min === evaluation.targetRange.max;
   if (noActiveTarget) return null;                    // Not tracked
   if (evaluation.confidence === "low") return null;   // Calibrating
-  if (evaluation.status === "on_target") return "good"; // On pace
+  if (evaluation.status === "on_target") return isOptimalPace(evaluation) ? "gold" : "good"; // On pace
   if (evaluation.confidence !== "high") return null;  // Forming — not conclusive
   // Outside the band, either direction, is a caution — too fast (loss > band) is
   // a muscle risk, too slow (loss < band) is stalled progress. Only outright
@@ -174,7 +194,7 @@ export function paceTone(evaluation: NutritionEvaluation): PaceTone {
   return evaluation.observedRate > 0 ? "bad" : "warn";
 }
 
-export type RateTone = "good" | "warn" | "bad" | null;
+export type RateTone = "good" | "warn" | "bad" | "gold" | null;
 
 /** kg/week beyond a target-band edge before a rate reads as materially off
  *  rather than just outside-but-close. */
@@ -192,10 +212,17 @@ export function rateTone(
   evaluation: Pick<NutritionEvaluation, "observedRate" | "targetRange">,
 ): RateTone {
   const { observedRate, targetRange } = evaluation;
-  if (targetRange.min === targetRange.max) return null; // Not tracked
+  const { min, max } = targetRange;
+  if (min === max) return null; // Not tracked
   const loss = -observedRate;
-  if (loss >= targetRange.min && loss <= targetRange.max) return "good";
-  const distance = loss < targetRange.min ? targetRange.min - loss : loss - targetRange.max;
+  if (loss >= min && loss <= max) {
+    // Same top-slice-of-band rule as isOptimalPace (paceLabel/paceTone) — kept
+    // inline rather than sharing the helper since it doesn't need `status`
+    // here (already known in-band from the check above).
+    const threshold = max - (max - min) * OPTIMAL_BAND_FRACTION;
+    return loss >= threshold ? "gold" : "good";
+  }
+  const distance = loss < min ? min - loss : loss - max;
   return distance <= RATE_NEAR_MARGIN ? "warn" : "bad";
 }
 

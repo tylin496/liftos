@@ -262,6 +262,7 @@
 .ov-weight-val.is-good { color: var(--good); }
 .ov-weight-val.is-warn { color: var(--warn); }
 .ov-weight-val.is-bad  { color: var(--bad); }
+.ov-weight-val.is-gold { color: var(--gold); text-shadow: var(--gold-glow); }
 
 /* Delta arrow trailing the Rate value (app-wide delta-after-value convention,
    see .ov-weight-accel's margin-left below) — direction from the rate's sign,
@@ -274,6 +275,7 @@
 .ov-weight-rate-arrow.is-good { color: var(--good); }
 .ov-weight-rate-arrow.is-warn { color: var(--warn); }
 .ov-weight-rate-arrow.is-bad  { color: var(--bad); }
+.ov-weight-rate-arrow.is-gold { color: var(--gold); text-shadow: var(--gold-glow); }
 
 /* 14-day trend line — the card's dominant element. Fixed 80px height so the
    card never reflows between loading / empty / loaded (the SVG holds this space
@@ -419,6 +421,16 @@
 .ov-weight-status-pill.is-warn .ov-weight-status-dot { background: var(--warn); }
 .ov-weight-status-pill.is-bad { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
 .ov-weight-status-pill.is-bad .ov-weight-status-dot { background: var(--bad); }
+/* Optimal pace (top slice of the target band) is a celebration read, not just
+   a caution-free one — gold + halo, same treatment as PR badges/100% Cut
+   Progress, the app's other "you're doing this as well as it can be done"
+   moments. */
+.ov-weight-status-pill.is-gold {
+  background: color-mix(in srgb, var(--gold) 16%, transparent);
+  color: var(--gold);
+  text-shadow: var(--gold-glow);
+}
+.ov-weight-status-pill.is-gold .ov-weight-status-dot { background: var(--gold); }
 
 /* ─── System Card (top-priority recommendation) ──────────────────────────── */
 
