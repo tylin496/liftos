@@ -844,7 +844,8 @@ function WeightCard({
       >
         <span className="ov-weight-rate">
           <span className="ov-weight-key">Rate</span>{" "}
-          {/* The rate NUMBER stays neutral ink; the delta arrow ahead of it takes
+          {/* The rate NUMBER stays neutral ink; the delta arrow trailing it (app-wide
+              convention: delta-after-value, see .ov-weight-accel below) takes
               rateTone — band-aware severity (in band = green, near an edge =
               amber, far out = red), NOT sign-only colour, which read every loss
               as "good" even one the Decision Engine flags as too fast. With the
@@ -854,10 +855,10 @@ function WeightCard({
             {trend != null ? (
               rTone && trend !== 0 ? (
                 <>
+                  {fmtTrend(trend, false)}
                   <span className={`ov-weight-rate-arrow is-${rTone}`} aria-hidden>
                     {trend < 0 ? "▼" : "▲"}
                   </span>
-                  {fmtTrend(trend, false)}
                 </>
               ) : (
                 fmtTrend(trend)
