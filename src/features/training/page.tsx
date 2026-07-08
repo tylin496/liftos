@@ -893,10 +893,11 @@ function TrainingPageInner() {
   const strengthHealth = useMemo(() => {
     const archivedSlugs = new Set((exercises ?? []).filter((e) => e.archived).map((e) => e.slug));
     const compoundSlugs = new Set((exercises ?? []).filter((e) => e.compound).map((e) => e.slug));
+    const namesBySlug = Object.fromEntries((exercises ?? []).map((e) => [e.slug, e.name]));
     const activeLogs = Object.fromEntries(
       Object.entries(logs).filter(([slug]) => !archivedSlugs.has(slug)),
     );
-    return { strength: computeStrengthSummary(activeLogs, compoundSlugs) };
+    return { strength: computeStrengthSummary(activeLogs, compoundSlugs, namesBySlug) };
   }, [logs, exercises]);
 
   // Every distinct log date on record, any exercise — feeds the session-count

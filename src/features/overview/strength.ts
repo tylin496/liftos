@@ -141,6 +141,11 @@ export function computeStrengthSummary(
    *  milestone.ts). Optional: callers that don't render the reward chip (the
    *  Decision Engine slice, the data export) omit it and no milestone is set. */
   compoundSlugs?: Set<string>,
+  /** slug → the exercise's real stored name (e.g. "RDL", not the derived
+   *  "Rdl"). Optional: callers without the exercise list handy fall back to
+   *  title-casing the slug, which is only an approximation — it can't recover
+   *  intentional casing like an acronym. */
+  namesBySlug?: Record<string, string>,
 ): StrengthSummary {
   const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, attention: 0, total: 0, exercises: [] };
 
@@ -299,7 +304,7 @@ export function computeStrengthSummary(
 
     strength.exercises.push({
       slug,
-      name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      name: namesBySlug?.[slug] ?? slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
       status,
       latestE1RM,
       prE1RM,

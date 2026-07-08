@@ -69,7 +69,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     // All exercises' flags: `archived` (excluded from the strength watch list —
     // retired, not stalled) and `compound` (earns round-weight milestones on the
     // reward row). Fetched together to avoid a second round trip.
-    supabase.from("exercises").select("slug, archived, compound"),
+    supabase.from("exercises").select("slug, name, archived, compound"),
     // Shared nutrition state — a plain read; recompute happens on data change.
     getNutritionState(),
     // Goal Provider config: the target plus the persisted cut baseline
@@ -112,13 +112,14 @@ export async function fetchOverview(): Promise<OverviewData> {
   // archived exercises — they're retired, not stalled.
   const archivedSlugs = new Set((exercisesRes.data ?? []).filter((e) => e.archived).map((e) => e.slug));
   const compoundSlugs = new Set((exercisesRes.data ?? []).filter((e) => e.compound).map((e) => e.slug));
+  const namesBySlug = Object.fromEntries((exercisesRes.data ?? []).map((e) => [e.slug, e.name]));
   const bySlug: Record<string, typeof logs> = {};
   for (const l of logs) {
     if (!l.exercise_slug || archivedSlugs.has(l.exercise_slug)) continue;
     (bySlug[l.exercise_slug] ??= []).push(l);
   }
 
-  const strength = computeStrengthSummary(bySlug, compoundSlugs);
+  const strength = computeStrengthSummary(bySlug, compoundSlugs, namesBySlug);
 
   // Primary Goal — computed entirely upstream in the Provider. The card only
   // renders the finished payload; swapping goal types never touches this call.
