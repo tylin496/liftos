@@ -33,10 +33,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
 }
 
 .ov-active-target-goal {
+  align-self: flex-end;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -74,9 +74,21 @@
 
 .ov-active-target-ring-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: var(--space-3);
   margin-top: var(--vr-loose);
+}
+
+/* Right side spans the ring's full height: caption pinned to the top, TDEE
+   goal pushed into the bottom-right corner — filling the dead space beside the
+   ring instead of adding a footer row below it. */
+.ov-active-target-ring-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--vr-snug);
 }
 
 .ov-active-target-ring-center {
@@ -579,6 +591,11 @@
 .goal-lost b {
   color: var(--ink-2);
   font-weight: 600;
+}
+
+/* Quiet "as of N days ago" suffix — only when the weigh-in behind Down-X-kg is stale. */
+.goal-lost-stale {
+  opacity: 0.75;
 }
 
 .goal-detail {

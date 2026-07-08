@@ -149,16 +149,18 @@ function ActiveTargetCard({
         <div className="ov-active-target-head">
           <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
           <div className="ov-active-target-head-right">
-            <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
             {syncedTime && <span className="page-topbar-sync-note">{syncedTime}</span>}
             <span className="ov-active-target-chevron" aria-hidden>›</span>
           </div>
         </div>
         <div className="ov-active-target-ring-row">
           <ActiveTargetRingBody shown={null} target={0} />
-          <div className="ov-active-target-ring-caption">
-            <span className="ov-active-target-ring-title">Today's active target</span>
-            <span className="ov-active-target-ring-sub">Loading…</span>
+          <div className="ov-active-target-ring-body">
+            <div className="ov-active-target-ring-caption">
+              <span className="ov-active-target-ring-title">Today's active target</span>
+              <span className="ov-active-target-ring-sub">Loading…</span>
+            </div>
+            <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
           </div>
         </div>
       </button>
@@ -192,10 +194,6 @@ function ActiveTargetCard({
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
         <div className="ov-active-target-head-right">
-          <span className="ov-active-target-goal">
-            {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
-            {targetTdee.toLocaleString()} TDEE
-          </span>
           {syncedTime && <span className="page-topbar-sync-note">{syncedTime}</span>}
           <span className="ov-active-target-chevron" aria-hidden>›</span>
         </div>
@@ -209,16 +207,22 @@ function ActiveTargetCard({
               target={view.today.target}
               synced={view.today.synced}
             />
-            <div className="ov-active-target-ring-caption">
-              <span className="ov-active-target-ring-title">Today's active target</span>
-              <span className="ov-active-target-ring-sub">
-                {ratio > 1.05
-                  ? `Closed — ${Math.round(ratio * 100)}% of target`
-                  : position === "behind"
-                    ? <><span className="is-behind">Behind</span> this week — raised from your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>
-                    : position === "ahead"
-                      ? <><span className="is-ahead">Ahead</span> this week — eased below your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>
-                      : <><span className="is-on">On pace</span> — about your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>}
+            <div className="ov-active-target-ring-body">
+              <div className="ov-active-target-ring-caption">
+                <span className="ov-active-target-ring-title">Today's active target</span>
+                <span className="ov-active-target-ring-sub">
+                  {ratio > 1.05
+                    ? `Closed — ${Math.round(ratio * 100)}% of target`
+                    : position === "behind"
+                      ? <><span className="is-behind">Behind</span> this week — raised from your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>
+                      : position === "ahead"
+                        ? <><span className="is-ahead">Ahead</span> this week — eased below your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>
+                        : <><span className="is-on">On pace</span> — about your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>}
+                </span>
+              </div>
+              <span className="ov-active-target-goal">
+                {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
+                {targetTdee.toLocaleString()} TDEE
               </span>
             </div>
           </div>
