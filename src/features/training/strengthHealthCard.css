@@ -45,7 +45,7 @@
 .ov-th-summary {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
   width: 100%;
   text-align: left;
   background: none;
@@ -99,7 +99,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
 }
 
 .ov-th-ret-count {
@@ -114,7 +114,7 @@
 .ov-th-bar {
   display: flex;
   gap: 3px;
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
 }
 
 .ov-th-bar-seg {
@@ -160,7 +160,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
   padding-top: var(--space-4);
   width: 100%;
   background: none;
@@ -248,7 +248,7 @@
   gap: var(--space-2);
   /* Breathing room below the section title so it reads as a heading capping the
      block, not another row jammed against the first entry. */
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--vr-loose);
   background: none;
   border: none;
   padding: 0;
@@ -324,7 +324,7 @@
   grid-template-rows: auto auto;
   align-items: center;
   column-gap: 10px;
-  row-gap: 2px;
+  row-gap: var(--vr-hairline);
   padding: 10px 0;
   border-bottom: 1px solid var(--rule);
 }
@@ -408,7 +408,7 @@
   grid-template-rows: auto auto;
   align-items: center;
   column-gap: var(--space-2);
-  row-gap: 2px;
+  row-gap: var(--vr-hairline);
   padding: 10px 0;
   border-bottom: 1px solid var(--rule);
 }

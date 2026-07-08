@@ -71,7 +71,7 @@
 .tr-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
 }
 
 /* ── Exercise card ───────────────────────────────────────────────────────────*/
@@ -230,14 +230,14 @@
 /* ── Exercise title block ────────────────────────────────────────────────────*/
 .ex-title-block {
   margin-right: var(--space-8);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--vr-loose);
 }
 
 /* Note row already adds its own line height above this margin — shrink the
    margin so a card with a note isn't pushed noticeably further from the PR
    row than one without. */
 .ex-title-block:has(.ex-meta-row) {
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--vr-tight);
 }
 
 .ex-title-row {
@@ -336,7 +336,7 @@
 }
 
 .ex-meta-row {
-  margin-top: 2px;
+  margin-top: var(--vr-hairline);
 }
 
 .meta-input.note {
@@ -355,7 +355,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--vr-block);
 }
 
 .ex-body-content {
@@ -395,7 +395,7 @@
 
 /* ── PR display ──────────────────────────────────────────────────────────────*/
 .ex-pr-inline {
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--vr-tight);
   transition: background var(--dur-press);
   border-radius: var(--radius-sm);
   padding: var(--space-1) 0;
@@ -634,7 +634,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: var(--vr-hairline);
   min-width: 0;
 }
 
@@ -743,7 +743,7 @@
 .hist-assisted-wrap {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vr-hairline);
   /* Match the normal row's .hist-expr-row sizing — without this the assisted
      primary line inherits the larger card base font and reads oversized. */
   font-size: var(--text-sm);
@@ -810,7 +810,7 @@
    stays glued to the primary weight instead of wrapping away from it. */
 .expr-wrap-badge {
   flex-wrap: wrap;
-  row-gap: 2px;
+  row-gap: var(--vr-hairline);
 }
 
 .expr-kg-hint {
@@ -860,7 +860,7 @@
 .hist-detail {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vr-hairline);
 }
 
 .hist-detail-k {
@@ -896,10 +896,10 @@
 .add-form.log-redesign {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
   padding-top: var(--space-3);
   border-top: 1px solid var(--rule);
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
   animation: add-form-in var(--dur-enter) var(--ease-enter) both;
   transform-origin: top center;
 }
@@ -948,7 +948,7 @@
 .log-weight-zone {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--vr-loose);
 }
 
 .log-hero-row {
@@ -1037,7 +1037,7 @@
 .log-reps-zone {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--vr-loose);
 }
 
 .log-reps-label {
@@ -1229,7 +1229,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
 }
 
 .log-delete-link {
@@ -1260,7 +1260,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
   padding-top: var(--space-2);
   border-top: 1px solid var(--rule);
 }
@@ -1368,7 +1368,7 @@
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
 }
 
 .add-ex-head {
@@ -1395,13 +1395,13 @@
 .add-ex-fields {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--vr-loose);
 }
 
 .add-ex-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--vr-tight);
 }
 
 .add-ex-label {
@@ -1513,7 +1513,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--vr-tight);
 }
 
 .archived-name {
@@ -1573,7 +1573,7 @@
 .stretches {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
 }
 
 .stretch-grid {
@@ -1595,7 +1595,7 @@
   aspect-ratio: 16/9;
   object-fit: cover;
   display: block;
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
 }
 
 .stretch-card-body {
@@ -1612,7 +1612,7 @@
 .stretch-note {
   font-size: var(--text-2xs);
   color: var(--ink-3);
-  margin-top: 2px;
+  margin-top: var(--vr-hairline);
   line-height: 1.3;
 }
 
@@ -1650,7 +1650,7 @@
   padding: var(--space-2);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--vr-loose);
 }
 
 .stretch-edit-form input {
@@ -1700,7 +1700,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--vr-tight);
 }
 
 .tr-top-row .seg {
@@ -1739,7 +1739,7 @@
   flex-wrap: nowrap;
   column-gap: var(--space-2);
   margin-bottom: 0;
-  margin-top: 4px;
+  margin-top: var(--vr-tight);
   user-select: none;
   width: max-content;
 }
@@ -1821,9 +1821,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: var(--vr-hairline);
   padding-top: var(--space-1);
-  margin-top: 3px;
+  margin-top: var(--vr-tight);
   animation: stagnation-reason-in var(--dur-press) var(--ease-press) both;
 }
 @keyframes stagnation-reason-in {
@@ -1879,7 +1879,7 @@
   font-weight: var(--role-caption-weight);
   color: var(--role-caption-color);
   letter-spacing: 0.01em;
-  margin-top: 2px;
+  margin-top: var(--vr-hairline);
 }
 .stagnation-hint-review { color: var(--bad); }
 
@@ -1887,9 +1887,9 @@
 .data-check-detail {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vr-hairline);
   padding-top: var(--space-1);
-  margin-top: 3px;
+  margin-top: var(--vr-tight);
   border-top: 1px solid var(--rule);
 }
 .data-check-label {
@@ -1911,7 +1911,7 @@
 .upload-error {
   font-size: var(--text-2xs);
   color: var(--bad);
-  margin-bottom: 4px;
+  margin-bottom: var(--vr-tight);
 }
 
 /* ── ImageWell (photo editor) ─────────────────────────────────────────────────*/
@@ -1919,8 +1919,8 @@
 .image-well {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  gap: var(--vr-loose);
+  margin-bottom: var(--vr-block);
 }
 
 .image-well-container {
@@ -1956,7 +1956,7 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  gap: var(--space-1);
+  gap: var(--vr-tight);
   color: var(--ink-4);
 }
 
@@ -2049,7 +2049,7 @@
   padding: var(--space-3) 0 0 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
   animation: add-form-in var(--dur-enter) var(--ease-enter) both;
 }
 
@@ -2093,7 +2093,7 @@
 .edit-exercise-fields {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--vr-loose);
 }
 
 .field-input {
@@ -2190,7 +2190,7 @@
   text-underline-offset: 3px;
   transition: color var(--dur-press);
   padding: 0;
-  margin-top: var(--space-1);
+  margin-top: var(--vr-tight);
 }
 
 .edit-exercise-archive-link:hover {
@@ -2225,7 +2225,7 @@
   border-radius: var(--radius-card);
   cursor: pointer;
   transition: border-color var(--dur-press), color var(--dur-press);
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -2252,7 +2252,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
 }
 
 .trend-window {
@@ -2375,7 +2375,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vr-hairline);
   min-width: 0;
 }
 

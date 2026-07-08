@@ -61,7 +61,7 @@
   display: block;
   width: 100%;
   text-align: left;
-  margin-top: 6px;
+  margin-top: var(--vr-snug);
   border: none;
   background: transparent;
   padding: 0;
@@ -75,7 +75,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
 }
 
 .ov-active-target-ring-center {
@@ -102,7 +102,7 @@
 .ov-active-target-ring-caption {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--vr-tight);
   min-width: 0;
 }
 
@@ -124,16 +124,10 @@
 
 .ov-active-target-avg-muted { opacity: 0.6; }
 
-.ov-active-target-ring-stale {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  color: var(--warn);
-}
-
 .ov-active-target-foot-rule {
   height: 1px;
   background: var(--rule);
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
 }
 
 .ov-active-target-foot {
@@ -141,7 +135,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
 }
 
 .ov-no-entry {
@@ -156,7 +150,7 @@
 .ov-weight {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--vr-loose);
   width: 100%;
   text-align: left;
   cursor: pointer;
@@ -209,7 +203,7 @@
   flex-direction: column;
   /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   gap: 11px; /* per design spec: optical spacing between Trend/Status rows */
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
 }
@@ -284,7 +278,7 @@
   display: block;
   width: 100%;
   height: 80px;
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
   cursor: grab;
   touch-action: none;
 }
@@ -441,7 +435,7 @@
   border-radius: var(--radius-card);
   box-shadow: none;
   padding: var(--space-4);
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-press) var(--ease-press), box-shadow var(--dur-press);
@@ -468,7 +462,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--vr-tight);
 }
 
 .ov-system-label {
@@ -566,7 +560,7 @@
   height: 10px;
   border-radius: var(--radius-pill);
   background: var(--bg-soft);
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
   overflow: hidden;
 }
 
@@ -583,7 +577,7 @@
 .goal-lost {
   font-size: var(--text-2xs);
   color: var(--ink-3);
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
 }
 
 .goal-lost b {
@@ -594,7 +588,7 @@
 .goal-detail {
   display: flex;
   align-items: stretch;
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
 }
 
 .goal-row {
@@ -634,13 +628,13 @@
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   color: var(--ink-3);
-  margin-bottom: 6px;
+  margin-bottom: var(--vr-snug);
 }
 
 .goal-sub {
   font-size: var(--text-2xs);
   color: var(--ink-3);
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
 }
 
 /* ─── 100% completion state ──────────────────────────────────────────────── */
@@ -709,8 +703,8 @@
 .goal-init-field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-4);
+  gap: var(--vr-tight);
+  margin-top: var(--vr-section);
   font-size: var(--role-field-label-size);
   font-weight: var(--role-field-label-weight);
   color: var(--role-field-label-color);
@@ -744,7 +738,7 @@
 }
 
 .goal-init-save {
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
   padding: var(--space-4);
   border: none;
   border-radius: var(--radius-sm);

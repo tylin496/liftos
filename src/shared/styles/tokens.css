@@ -203,6 +203,20 @@
   --space-6: 24px;
   --space-8: 32px;
 
+  /* ── Vertical rhythm ──────────────────────────────────────────────────
+     The vertical analog of the --role-* type tokens: one named scale for the
+     space BETWEEN stacked text/blocks inside a card. Type hierarchy was
+     tokenised (colour + size) but its spacing wasn't, so every card hand-picked
+     a margin/gap and the values drifted (2/3/4/6/8/11/12/16). These six steps
+     name the de-facto scale so a card declares intent, not a number.
+     Use for margin-top/bottom and flex-COLUMN gap only — never horizontal gap. */
+  --vr-hairline: 2px;            /* numeric two-line: a value stacked over its own label */
+  --vr-tight: var(--space-1);    /* 4px  — caption stack: eyebrow → title → sub, one unit */
+  --vr-snug: 6px;                /* 6px  — labeled-component stack: small label ↔ its value */
+  --vr-loose: var(--space-2);    /* 8px  — loose stack / first breath of a sub-block */
+  --vr-block: var(--space-3);    /* 12px — block-to-block within a card */
+  --vr-section: var(--space-4);  /* 16px — major section break / footer divider */
+
   /* ── Radii & shadows ──────────────────────────────────────────────── */
   --radius: 18px;      /* modals, sheets, large floating surfaces */
   --radius-card: 14px; /* content cards — page-card, ex-card */

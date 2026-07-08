@@ -40,7 +40,7 @@
 .nutri {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
 }
 
 /* ── Nutrition Insight (v2 evaluation card) ──────────────────────────── */
@@ -49,7 +49,7 @@
 .ni-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--vr-section);
   /* Deep-link target (Overview → Nutrition): land with a breath. Shell owns
      the scroll and pins it through the skeleton→data shift. */
   scroll-margin-top: var(--space-4);
@@ -59,7 +59,7 @@
 .ni-rec {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
 }
 
 .ni-rec-headline {
@@ -198,7 +198,7 @@
 .ni-evidence {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
 }
@@ -207,7 +207,7 @@
 .ni-group {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--vr-loose);
 }
 
 /* Each evidence cell is a --bg-soft rounded cell, not a floating label/value —
@@ -215,7 +215,7 @@
 .ni-cell {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vr-hairline);
   padding: var(--space-3);
   /* Lighter panel in light mode — nudge --bg-soft toward the white card so the
      grey reads cleaner/less heavy. Dark mode keeps --bg-soft (see override). */
@@ -304,7 +304,7 @@
 .ni-pace {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
   padding: var(--space-4);
   /* Lighter panel in light mode (see .ni-cell); dark keeps --bg-soft. */
   background: color-mix(in srgb, var(--bg-soft), var(--bg-card) 40%);
@@ -335,7 +335,7 @@
 .ni-meter {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--vr-snug);
 }
 
 /* Track — left = slower (smaller magnitude), right = faster. */
@@ -488,7 +488,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-4);
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
   font-size: var(--text-2xs);
   color: var(--ink-3);
 }
@@ -581,7 +581,7 @@
 
 /* ── Form ────────────────────────────────────────────────────────────── */
 .nutri-save {
-  margin-top: var(--space-1);
+  margin-top: var(--vr-tight);
   padding: var(--space-4);
   border: none;
   border-radius: var(--radius-sm);
@@ -657,7 +657,7 @@
 .ncal-header {
   display: flex;
   align-items: center;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--vr-section);
 }
 
 .ncal-month-label {
@@ -710,7 +710,7 @@
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--vr-block);
 }
 
 .ncal-weekdays span {
@@ -736,7 +736,7 @@
 .ncal-grid-inner {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--vr-snug);
 }
 
 .ncal-week {
@@ -808,14 +808,14 @@
      card edge and clip it. */
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
 }
 
 .nutri-trend-col {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--vr-tight);
 }
 
 .nutri-trend-bars {
@@ -850,13 +850,13 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-2);
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
 }
 
 .nutri-kpi {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vr-hairline);
 }
 
 /* KPI value + unit now render via the shared <MetricValue size="md">. */
@@ -890,7 +890,7 @@
   display: flex;
   justify-content: flex-start;
   gap: var(--space-4);
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
 }
 
 .nutri-trend-legend-item {
@@ -920,7 +920,7 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-2);
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
 }
 
 /* Columns must be able to shrink below their content's natural width, and
@@ -986,7 +986,7 @@
   padding: var(--space-4) var(--space-5);
 }
 .daily-card.is-compact .daily-card-top {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--vr-block);
 }
 
 /* Card heading row: "INTAKE" eyebrow on the left, an optional badge ("No entry"
@@ -997,7 +997,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--vr-block);
   /* Reserve the badge's line box (.status-text is --text-base) so the card
      doesn't grow the ~4px difference when a "Double Hit" / "No entry" badge
      appears next to the smaller INTAKE eyebrow. */
@@ -1054,7 +1054,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--vr-tight);
   transition: transform var(--dur-press) var(--ease-press);
   -webkit-tap-highlight-color: transparent;
 }
@@ -1085,7 +1085,7 @@
   gap: 1px;
   min-height: 28px;
   justify-content: flex-end;
-  margin-bottom: 3px;
+  margin-bottom: var(--vr-tight);
 }
 
 /* The value block is an entrance GATE: it fades in on the SAME delayed clock as

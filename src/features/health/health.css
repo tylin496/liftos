@@ -28,7 +28,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--vr-tight);
 }
 
 .health-trend-stat {
@@ -148,7 +148,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
   padding-top: var(--space-3);
   border-top: 1px solid var(--rule);
 }
@@ -210,7 +210,7 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
-  margin-top: 6px;
+  margin-top: var(--vr-snug);
   line-height: 1;
 }
 
@@ -222,7 +222,7 @@
 .health-tdee-components {
   display: flex;
   gap: var(--space-6);
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
 }
@@ -230,7 +230,7 @@
 .health-tdee-component {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--vr-snug);
 }
 
 .health-tdee-component-label {
@@ -255,7 +255,7 @@
    the row below, bottom-aligned like the mock — no absolute positioning. */
 .health-energy .health-trend-head {
   align-items: flex-end;
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
 }
 
 /* The whole card is the tap target (role="button" in JSX) — the chevron is
@@ -301,7 +301,7 @@
   overflow: hidden;
   display: flex;
   gap: var(--space-8);
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
 }
 
 .health-energy-model-item {
@@ -309,7 +309,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--vr-snug);
 }
 
 .health-energy-metric-label {
@@ -328,7 +328,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: var(--vr-tight);
 }
 
 .health-recovery-status {
@@ -339,7 +339,7 @@
 .health-recovery-rows {
   display: flex;
   flex-direction: column;
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
 }
 
 .health-recovery-row {
@@ -400,7 +400,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
 }
 
 .health-trend-sheet-window {
@@ -521,7 +521,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vr-hairline);
   min-width: 0;
 }
 

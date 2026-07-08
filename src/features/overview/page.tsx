@@ -226,13 +226,6 @@ function ActiveTargetCard({
               {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
               {targetTdee.toLocaleString()} TDEE
             </span>
-            {!view.today.synced && (
-              <span className="ov-active-target-ring-stale">
-                {view.today.lastSyncDate
-                  ? `Not synced — last reading ${view.today.lastSyncDate}`
-                  : "Not synced yet"}
-              </span>
-            )}
           </div>
         </>
       ) : (
