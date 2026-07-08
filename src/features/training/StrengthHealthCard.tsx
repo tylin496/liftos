@@ -163,10 +163,12 @@ function RewardRow({
         ) : (
           <span className="ov-th-rrow-chip">🔥 this week</span>
         )
-      ) : (
+      ) : exercise.recentBests.length >= 2 ? (
         <span className="ov-th-rrow-right">
           <Sparkline bests={exercise.recentBests} tone="good" />
         </span>
+      ) : (
+        <span className="ov-th-rrow-chip ov-th-rrow-chip--rebounding">↑ climbing back</span>
       )}
     </>
   );
@@ -392,7 +394,7 @@ export function StrengthHealthCard({
       )
     : null;
 
-  const emptyMsg = "No recent records to analyze yet";
+  const emptyMsg = "No lifts tracked yet — log a few sessions to see this";
   if (!hasData) {
     return variant === "snapshot" ? (
       <button
@@ -499,7 +501,7 @@ export function StrengthHealthCard({
               </>
             )}
             {highlight.kind === "clear" && (
-              <span className="ov-th-fold-text">All tracked lifts on track</span>
+              <span className="ov-th-fold-text">Nothing needs attention</span>
             )}
             {highlight.kind === "attention" && (
               <>
@@ -534,7 +536,7 @@ export function StrengthHealthCard({
         {rewards.length > 0 && (
           <div className="ov-th-section">
             <div className="ov-th-sect-head-row ov-th-sect-head-row--static">
-              <span className="ov-th-sect-head">Wins</span>
+              <span className="ov-th-sect-head">Recent wins</span>
             </div>
             {freshPRs.map((ex) => (
               <RewardRow key={ex.slug} exercise={ex} rewardKind="pr" onJump={onJumpToExercise} />

@@ -608,6 +608,23 @@
   flex-direction: column;
 }
 
+/* Value + its qualifier (e.g. "12% body fat") on one line instead of stacked —
+   the qualifier reads as metadata of the number beside it, not a caption row. */
+.goal-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.goal-value-row .goal-sub {
+  margin-top: 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .goal-divider {
   width: 1px;
   align-self: stretch;

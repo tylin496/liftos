@@ -398,8 +398,10 @@ function CutProgressCard({
         <div className="goal-detail">
           <div className="goal-row">
             <div className="goal-col-label">Goal</div>
-            <MetricValue size="md" unit="kg">00.0</MetricValue>
-            <div className="goal-sub">00% body fat</div>
+            <span className="goal-value-row">
+              <MetricValue size="md" unit="kg">00.0</MetricValue>
+              <div className="goal-sub">00% body fat</div>
+            </span>
           </div>
           <div className="goal-divider" aria-hidden />
           <div className="goal-row">
@@ -455,14 +457,18 @@ function CutProgressCard({
       <div className="goal-detail">
         <div className="goal-row">
           <div className="goal-col-label">Goal</div>
-          <MetricValue size="md" unit="kg">{e.goalWeight.toFixed(1)}</MetricValue>
-          <div className="goal-sub">{e.targetBodyFat}% body fat</div>
+          <span className="goal-value-row">
+            <MetricValue size="md" unit="kg">{e.goalWeight.toFixed(1)}</MetricValue>
+            <div className="goal-sub">{e.targetBodyFat}% body fat</div>
+          </span>
         </div>
         <div className="goal-divider" aria-hidden />
         <div className="goal-row">
           <div className="goal-col-label">Remaining</div>
-          <MetricValue size="md" unit="kg">{e.remainingWeight.toFixed(1)}</MetricValue>
-          {eta && <div className="goal-sub">{eta}</div>}
+          <span className="goal-value-row">
+            <MetricValue size="md" unit="kg">{e.remainingWeight.toFixed(1)}</MetricValue>
+            {eta && <div className="goal-sub">{eta}</div>}
+          </span>
         </div>
       </div>
     </button>

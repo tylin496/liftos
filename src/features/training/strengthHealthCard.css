@@ -176,7 +176,7 @@
   min-width: 0;
 }
 
-/* Red count chip — status signal, one of the four colorable roles. */
+/* Amber count chip — chronic plateau signal (never renders alongside acute decline). */
 .ov-th-fold-chip {
   display: inline-flex;
   align-items: center;
@@ -185,7 +185,7 @@
   height: 17px;
   padding: 0 6px;
   border-radius: var(--radius-pill);
-  background: var(--bad);
+  background: var(--warn);
   color: #fff;
   font-size: var(--text-2xs);
   font-weight: 700;
@@ -486,6 +486,12 @@
   color: var(--gold);
   font-weight: 600;
   text-shadow: var(--gold-glow);
+}
+/* Rebounding fallback when recentBests can't fill a sparkline (<2 points) —
+   text keeps the row's green climb-back signal instead of collapsing empty. */
+.ov-th-rrow-chip--rebounding {
+  color: var(--good);
+  font-weight: 600;
 }
 .ov-th-rrow-right {
   grid-column: 3;
