@@ -7,7 +7,7 @@
 // the training parser/e1RM, nothing else.
 
 import { parse, score } from "@features/training/parser";
-import { epley1RM, maxReps } from "@features/training/logic";
+import { epley1RM, maxReps, totalReps } from "@features/training/logic";
 import { milestoneReached } from "@features/training/milestone";
 
 export type StrengthStatus = "improving" | "stable" | "watch";
@@ -139,7 +139,7 @@ export function computeStrengthSummary(
     // Group by date (a day = one session); keep the best on BOTH axes — max e1RM
     // (the status/retention number) and max completed weight (the Performance-PR
     // axis, used only to reset the stall clock below).
-    const byDate: Record<string, { e1rm: number; weightKg: number; topReps: number }> = {};
+    const byDate: Record<string, { e1rm: number; weightKg: number; topReps: number; ceilingReps: number }> = {};
     for (const l of slugLogs) {
       if (!l.log_date || !l.raw) continue;
       const p = parse(l.raw);
@@ -147,12 +147,19 @@ export function computeStrengthSummary(
       const w = score(p);
       if (!Number.isFinite(w)) continue;
       const e = epley1RM(w, p.reps);
-      const cur = byDate[l.log_date] ?? { e1rm: 0, weightKg: 0, topReps: 0 };
+      // setCount-free total reps: a drop-set ("8/8/8") sums its segments without a
+      // set count; a lone bare number counts as one set (rare here). Enough for the
+      // reps-tiebreak axis, which only compares sessions of the SAME lift.
+      const tr = totalReps(p.reps, 1);
+      const cur = byDate[l.log_date] ?? { e1rm: 0, weightKg: 0, topReps: 0, ceilingReps: 0 };
       const heavier = w > cur.weightKg; // track reps of the HEAVIEST set (the PR detail)
       byDate[l.log_date] = {
         e1rm: Math.max(cur.e1rm, e),
         weightKg: heavier ? w : cur.weightKg,
         topReps: heavier ? maxReps(p.reps) : cur.topReps,
+        // Total reps of the set that hit the day's e1RM ceiling — the reps-tiebreak
+        // axis. A higher-e1RM set takes over; a tie keeps the larger rep total.
+        ceilingReps: e > cur.e1rm ? tr : e === cur.e1rm ? Math.max(cur.ceilingReps, tr) : cur.ceilingReps,
       };
     }
     // Sort ascending by date so recent/prior slices are correct regardless of
@@ -179,18 +186,18 @@ export function computeStrengthSummary(
     else if (pct >= 0.94) { strength.stable++; status = "stable"; }    // holding
     else { strength.watch++; status = "watch"; }                      // real drop below PR
 
-    // Weeks stalled: span from the last session that set a PR on EITHER axis to
-    // the most recent session. "Either axis" mirrors classifyPR's first two
-    // branches (training/logic.ts) — a new rounded-e1RM ceiling OR a new heaviest
-    // completed weight — so a heavier top set that Epley rates flat (77kg×7 ≈
-    // 75kg×8, a Performance PR) still resets the clock. That keeps a lift making
-    // real weight-axis progress OUT of the Decision Engine's "declining" read
-    // (buildTrainingEvaluation gates decline on stalledWeeks ≥ 3). The reps-
-    // tiebreak third branch needs setCount (not threaded here) and is left out —
-    // see docs/PERFORMANCE-PR.md. Status/retention stay pure e1RM (above); only
-    // the stall clock gains the weight axis.
+    // Weeks stalled: span from the last session that set a PR on ANY axis to the
+    // most recent session. Mirrors classifyPR (training/logic.ts) in full now: a
+    // new rounded-e1RM ceiling (strength), a new heaviest completed weight, OR —
+    // at a TIED ceiling — more total reps (the Performance reps tiebreak). All
+    // three keep a lift making real progress OUT of the Decision Engine's
+    // "declining" read (buildTrainingEvaluation gates decline on stalledWeeks ≥ 3).
+    // The reps axis is setCount-free (drop-set reps already sum without a set
+    // count), so it computes locally here — no caller threading. Status/retention
+    // stay pure e1RM (above); only the stall clock gains the weight + reps axes.
     let runMaxE1 = -Infinity;
     let runMaxWeight = -Infinity;
+    let runMaxCeilingReps = -Infinity; // most total reps seen AT the current e1RM ceiling
     let prDate = datedBests[0][0];
     let lastPRKind: "strength" | "performance" = "strength"; // first-ever session = strength PR
     // Round-weight milestone crossed at the LAST PR session (compound only). Set
@@ -200,13 +207,22 @@ export function computeStrengthSummary(
     const isCompound = compoundSlugs?.has(slug) ?? false;
     let lastPRMilestone: number | null = null;
     for (const [date, v] of datedBests) {
-      const newCeiling = Math.round(v.e1rm * 10) / 10 > Math.round(runMaxE1 * 10) / 10;
+      const roundedE1 = Math.round(v.e1rm * 10) / 10;
+      const newCeiling = roundedE1 > Math.round(runMaxE1 * 10) / 10;
       const newWeight = v.weightKg > runMaxWeight;
-      if (newCeiling || newWeight) {
+      // Reps tiebreak: at a TIED e1RM ceiling, beating the most total reps ever
+      // done at that ceiling is a Performance PR too — resets the clock.
+      const tiedCeiling = !newCeiling && roundedE1 === Math.round(runMaxE1 * 10) / 10;
+      const newReps = tiedCeiling && v.ceilingReps > runMaxCeilingReps;
+      if (newCeiling || newWeight || newReps) {
         prDate = date;
         lastPRKind = newCeiling ? "strength" : "performance";
         lastPRMilestone = isCompound ? milestoneReached(v.weightKg, runMaxWeight) : null;
       }
+      // Track the running ceiling reps: a new ceiling adopts this session's reps;
+      // a tie keeps the max. (runMaxE1 stays the raw max, as before.)
+      if (newCeiling) runMaxCeilingReps = v.ceilingReps;
+      else if (tiedCeiling) runMaxCeilingReps = Math.max(runMaxCeilingReps, v.ceilingReps);
       if (v.e1rm > runMaxE1) runMaxE1 = v.e1rm;
       if (v.weightKg > runMaxWeight) runMaxWeight = v.weightKg;
     }

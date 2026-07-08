@@ -36,6 +36,25 @@ describe("computeStrengthSummary — two-axis stall clock", () => {
     expect(bench.stalledWeeks).toBeGreaterThanOrEqual(6);
   });
 
+  it("a tied-ceiling session with more total reps (reps PR) resets the clock", () => {
+    // 75×8/6/4 sets the ceiling e1RM (95.0) at 18 total reps. Later 75×8/8/8 ties
+    // that ceiling (still top-8 at 75 kg) AND the heaviest weight (75), so only
+    // the reps axis can catch it — 24 > 18 total reps is a Performance PR. Without
+    // the reps axis the lift reads stalled ~7 weeks against progress it's making.
+    const summary = computeStrengthSummary({
+      bench: [
+        log("2026-01-01", "75*8/6/4"), // ceiling 95.0, 18 total reps
+        log("2026-01-08", "70*8/8/8"), // below the ceiling — no reset
+        log("2026-01-15", "72*8/6/4"), // below the ceiling — no reset
+        log("2026-02-19", "75*8/8/8"), // ties ceiling + weight, 24 > 18 reps → reset
+      ],
+    });
+    const bench = summary.exercises.find((e) => e.slug === "bench")!;
+    expect(bench.stalledWeeks).toBe(0);
+    expect(bench.lastPRDate).toBe("2026-02-19");
+    expect(bench.lastPRKind).toBe("performance"); // reps tiebreak, not a new ceiling
+  });
+
   it("the two-axis reset flows through to the Decision Engine's training verdict", () => {
     // The plateau lift is watch + stalled → contributes to a 'declining' verdict.
     const plateau = computeStrengthSummary({
