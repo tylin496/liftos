@@ -29,8 +29,10 @@ export function ActivityRing({
   const maskId = useId();
   // At 100% the ring IS the celebration gold — give it the shared gold halo,
   // same as every other celebration-gold element. Consumers pass exactly
-  // var(--progress-complete) at completion, so match on that.
-  const goldGlow = color === "var(--progress-complete)" ? "drop-shadow(var(--gold-glow))" : undefined;
+  // var(--progress-complete) at completion, so match on that. The halo is a
+  // CSS box-shadow on the wrapper (`.is-gold`), not an SVG filter — see
+  // activityRing.css for why.
+  const isGold = color === "var(--progress-complete)";
   // The fill stays the saturated base colour and only lightens over a fixed window
   // (FADE_DEG) right at the leading tip — not the whole arc, so most of the ring
   // reads solid. The tip's paleness also grows with fill (k), so a small fill stays
@@ -46,8 +48,8 @@ export function ActivityRing({
   const fill = `conic-gradient(from -90deg, ${color} 0deg, ${color} ${fadeStart}deg, ${tipLight} ${tipDeg}deg, ${color} 360deg)`;
 
   return (
-    <div className="activity-ring" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ filter: goldGlow }}>
+    <div className={`activity-ring${isGold ? " is-gold" : ""}`} style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
           <mask id={maskId}>
             <circle
@@ -106,8 +108,9 @@ export function OverflowRing({
   const tailClipId = useId();
   const bandClipId = useId();
   // Overflow only ever renders past 100%, where the ring is the completion gold —
-  // give it the same gold halo as ActivityRing at 100%.
-  const goldGlow = color === "var(--progress-complete)" ? "drop-shadow(var(--gold-glow))" : undefined;
+  // give it the same gold halo as ActivityRing at 100% (CSS box-shadow on the
+  // wrapper — see activityRing.css for why not an SVG filter).
+  const isGold = color === "var(--progress-complete)";
   // Tail = the leading end of the second lap; the shadow is revealed only here.
   const tailAngle = overflowFrac * 2 * Math.PI - Math.PI / 2;
   const tailX = c + r * Math.cos(tailAngle);
@@ -139,21 +142,25 @@ export function OverflowRing({
     transform: `rotate(-90 ${c} ${c})`,
   };
   return (
-    <div className="activity-ring" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ filter: goldGlow }}>
+    <div className={`activity-ring${isGold ? " is-gold" : ""}`} style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
-          <clipPath id={tailClipId}>
-            <circle cx={tailX} cy={tailY} r={strokeWidth * 1.6} />
-          </clipPath>
-          <clipPath id={bandClipId}>
-            <path d={bandPath} clipRule="evenodd" fillRule="evenodd" />
-          </clipPath>
+          {/* `mask`, not `clipPath` — iOS Safari clips an SVG `filter` to the
+             bounding box of an ancestor `clipPath`, which silently killed the
+             tail's drop-shadow (the "overlap" cue) on iOS. Masks composite
+             after filtering, so they don't have that bug. */}
+          <mask id={tailClipId}>
+            <circle cx={tailX} cy={tailY} r={strokeWidth * 1.6} fill="#fff" />
+          </mask>
+          <mask id={bandClipId}>
+            <path d={bandPath} clipRule="evenodd" fillRule="evenodd" fill="#fff" />
+          </mask>
         </defs>
         <circle cx={c} cy={c} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={strokeWidth} />
         <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} />
         {overflowFrac > 0 && (
-          <g clipPath={`url(#${tailClipId})`}>
-            <g clipPath={`url(#${bandClipId})`}>
+          <g mask={`url(#${tailClipId})`}>
+            <g mask={`url(#${bandClipId})`}>
               <circle {...overflowArc} style={{ filter: "drop-shadow(0 1px 2.5px rgba(0,0,0,.5)) drop-shadow(0 2px 4px rgba(0,0,0,.3))" }} />
             </g>
           </g>

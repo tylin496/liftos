@@ -6,6 +6,14 @@
   flex-shrink: 0;
 }
 
+/* Gold halo lives here as a box-shadow, not an SVG `filter: drop-shadow()` on
+   the <svg> — iOS Safari hard-clips SVG filter regions to a rectangle instead
+   of fading them out, which reads as a square halo around a round ring. */
+.activity-ring.is-gold {
+  border-radius: 50%;
+  box-shadow: var(--gold-glow);
+}
+
 .activity-ring-center {
   position: absolute;
   inset: 0;
