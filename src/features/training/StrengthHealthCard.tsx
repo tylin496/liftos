@@ -188,11 +188,13 @@ function HoldingPeak({
   exercises,
   open,
   onToggle,
+  onOpened,
   onJump,
 }: {
   exercises: StrengthExercise[];
   open: boolean;
   onToggle: () => void;
+  onOpened?: () => void;
   onJump?: (slug: string) => void;
 }) {
   return (
@@ -206,7 +208,12 @@ function HoldingPeak({
           <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
-      <div className={`ov-th-holding-reveal${open ? " open" : ""}`}>
+      <div
+        className={`ov-th-holding-reveal${open ? " open" : ""}`}
+        onTransitionEnd={(e) => {
+          if (open && e.propertyName === "grid-template-rows") onOpened?.();
+        }}
+      >
         <div className="ov-th-holding-chips">
           {exercises.map((e) =>
             onJump ? (
@@ -346,17 +353,14 @@ export function StrengthHealthCard({
   const highlight = snapshotHighlight(strength.exercises, attention, nowMs);
 
   // Expanding On Track drops rows below the fold, where the floating tabbar can
-  // clip them — nudge the section into view once the rows have rendered.
-  const toggleHolding = () =>
-    setTrackOpen((v) => {
-      const next = !v;
-      if (next) {
-        requestAnimationFrame(() =>
-          trackSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
-        );
-      }
-      return next;
-    });
+  // clip them. The reveal animates its height (grid-template-rows 0fr→1fr), so
+  // scrolling on the toggle would land at the collapsed height and leave the
+  // grown rows clipped — HoldingPeak fires revealHolding on transitionend, once
+  // the rows have reached full height. block:"nearest" honours the section's
+  // scroll-margin-bottom to clear the tabbar without over-scrolling.
+  const toggleHolding = () => setTrackOpen((v) => !v);
+  const revealHolding = () =>
+    trackSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
   // Categorise every lift into ONE of: warning (acute ↓ decline, then chronic ●
   // plateau), reward (fresh PR, then rebounding), or holding-peak (no signal).
@@ -548,7 +552,7 @@ export function StrengthHealthCard({
         )}
         {holdingPeak.length > 0 && (
           <div className="ov-th-section" ref={trackSectionRef}>
-            <HoldingPeak exercises={holdingPeak} open={trackOpen} onToggle={toggleHolding} onJump={onJumpToExercise} />
+            <HoldingPeak exercises={holdingPeak} open={trackOpen} onToggle={toggleHolding} onOpened={revealHolding} onJump={onJumpToExercise} />
           </div>
         )}
       </div>

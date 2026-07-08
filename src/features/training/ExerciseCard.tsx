@@ -178,6 +178,21 @@ export function ExerciseCard({
 
   const [submitting, setSubmitting] = useState(false);
 
+  // Toggle a history row's detail drawer. On open, nudge the entry into view so
+  // the drawer — which on the last card drops below the fold — lands above the
+  // floating tabbar instead of clipped behind it. block:"nearest" leaves rows
+  // that are already fully visible untouched (no jump on mid-card taps).
+  const toggleExpanded = (logId: string, entryEl: HTMLElement | null) =>
+    setExpandedLogId((cur) => {
+      const next = cur === logId ? null : logId;
+      if (next && entryEl) {
+        requestAnimationFrame(() =>
+          entryEl.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+        );
+      }
+      return next;
+    });
+
   const menuRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -766,15 +781,15 @@ export function ExerciseCard({
                   role="button"
                   tabIndex={0}
                   aria-expanded={isExpanded}
-                  onClick={() => {
+                  onClick={(e) => {
                     if (isEditing) return;
-                    setExpandedLogId((cur) => (cur === log.id ? null : log.id));
+                    toggleExpanded(log.id, e.currentTarget.parentElement);
                   }}
                   onKeyDown={(e) => {
                     if (isEditing) return;
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setExpandedLogId((cur) => (cur === log.id ? null : log.id));
+                      toggleExpanded(log.id, e.currentTarget.parentElement);
                     }
                   }}
                 >
