@@ -19,7 +19,14 @@ React / Vite / TypeScript + Supabase (Postgres + RLS + Auth)。4 tabs = 4 個獨
 | Health 體重/體脂 | `health/page.tsx` |
 | Shell / TabBar | `app/layout/Shell.tsx`（**先載入 `tab-navigation-scroll` skill**）|
 | 顏色 / 間距 / 字級 | `src/shared/styles/tokens.css`；全域 reset/animations `global.css` |
-| 找 CSS class | `training.css` / `nutrition.css` 頂部有區塊目錄（附行號），先看 TOC 跳行，別整檔讀 |
+| 找 CSS class | 大 CSS 檔（training / nutrition / layout / overview）頂部有 TOC（附行號），先看 TOC 跳行 |
+
+## Token 節約守則（讀檔紀律）
+- **>600 行的檔案不要整檔讀**：`training/page.tsx`(1091)、`overview/page.tsx`(976)、`ExerciseCard.tsx`(942)、`layout.css`(927)、`copyAllData.ts`(802)、`Shell.tsx`(782)、`LogForms.tsx`、`today.tsx`。先 `grep -n` 定位符號，再用 Read 的 offset/limit 讀該區段。
+- 大 CSS 檔先讀前 ~30 行的 TOC，直接跳行號。
+- `database.types.ts` 是生成檔：grep table 名即可，永遠不要整檔讀。
+- `docs/*.md` 只在任務直接相關時讀（如動 Decision Engine 才讀 DECISION-ENGINE.md）。
+- 驗證 build：`npx tsc --noEmit` + `npm run lint:css`，輸出用 tail 截尾；UI/視覺改動不用 preview 驗證（tsc/lint 過了就交給使用者看）。
 | 動畫 / 過場 / count-up | **先載入 `motion` skill**；只用 `--dur-*` / `--ease-*` role token |
 
 Shell 結構：`App.tsx → AuthGate → Shell（Header + TabBar + feature page）`。`NavContext` 管當前 tab，`TabActivityContext` 追蹤各 tab 最後活躍時間。
