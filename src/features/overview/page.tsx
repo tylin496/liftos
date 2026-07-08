@@ -347,6 +347,7 @@ function CutProgressCard({
   goal,
   cutStartDate,
   cutStartWeight,
+  weightLatestDate,
   state,
   onNav,
   loading = false,
@@ -354,6 +355,9 @@ function CutProgressCard({
   goal?: Goal | null;
   cutStartDate: string | null;
   cutStartWeight: number | null;
+  /** Date of the latest weigh-in — the "Down X kg" stat is only as current as
+   *  this, so a stale reading gets an "as of N days ago" note. */
+  weightLatestDate?: string | null;
   state: NutritionStateFull | null;
   onNav: () => void;
   loading?: boolean;
@@ -419,6 +423,7 @@ function CutProgressCard({
   // rides in the header next to the day count. Only shown once there's a real
   // loss to report (guards the +noise case where current briefly reads higher).
   const lost = cutStartWeight != null ? cutStartWeight - e.currentWeight : null;
+  const lostStale = isStale("weight", weightLatestDate ?? null);
 
   return (
     <button
@@ -448,6 +453,9 @@ function CutProgressCard({
       {lost != null && lost >= 0.1 && (
         <div className="goal-lost">
           Down <b>{lost.toFixed(1)}</b> kg
+          {lostStale && weightLatestDate && (
+            <span className="goal-lost-stale"> · as of {formatAgo(weightLatestDate)}</span>
+          )}
         </div>
       )}
       <div className="goal-detail">
@@ -1005,6 +1013,7 @@ export function OverviewPage() {
           goal={data?.goal}
           cutStartDate={data?.cutStartDate ?? null}
           cutStartWeight={data?.cutStartWeight ?? null}
+          weightLatestDate={data ? (series(data.metrics, "weight_kg").at(-1)?.date ?? null) : null}
           state={data?.nutritionState ?? null}
           onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />
