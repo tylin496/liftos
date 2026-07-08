@@ -22,6 +22,7 @@ import {
 } from "./logic";
 import { timelineDate } from "@shared/lib/date";
 import { milestoneReached } from "./milestone";
+import { sessionMilestoneReached } from "./sessionMilestone";
 import { useToast } from "@shared/components/Toast";
 import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import { defaultSetCount } from "./logFormHelpers";
@@ -116,6 +117,10 @@ export interface ExerciseCardProps {
   setExpandedLogId: (id: string | null | ((cur: string | null) => string | null)) => void;
   onLogged: () => void;
   onLogAdded: (log: TrainingLog) => void;
+  // Every distinct log date on record account-wide (any exercise), as of
+  // before this save — used to detect a session-count milestone (every 100th
+  // training day). Not scoped to this exercise's own `logs`.
+  priorSessionDates: ReadonlySet<string>;
   onUpdate: (patch: Partial<Exercise>) => void;
   onMoveUp?: () => Promise<void>;
   onMoveDown?: () => Promise<void>;
@@ -134,6 +139,7 @@ export function ExerciseCard({
   setExpandedLogId,
   onLogged,
   onLogAdded,
+  priorSessionDates,
   onUpdate,
   onMoveUp,
   onMoveDown,
@@ -292,6 +298,10 @@ export function ExerciseCard({
       // round-weight rung is the bigger moment. It implies a weight-axis PR, so
       // it only ever pre-empts, never hides, a real PR.
       const milestone = exercise.compound ? milestoneReached(newScore, prevBests.weightKg) : null;
+      // Account-wide, exercise-agnostic — checked regardless of milestone/PR so
+      // it only ever surfaces via the final else-if below (a PR or round-weight
+      // milestone on the same save always outranks it).
+      const sessionMilestone = sessionMilestoneReached(priorSessionDates, date);
       const wStr = newParsed ? `${fmtWeightNum(newScore)} kg` : "";
       if (milestone != null) {
         setPrFlash(true);
@@ -306,6 +316,9 @@ export function ExerciseCard({
       } else if (prKind === "performance") {
         haptic("success");
         toast(wStr ? `Performance PR · heaviest yet at ${wStr}` : "Performance PR · heaviest yet", "success");
+      } else if (sessionMilestone != null) {
+        haptic("success");
+        celebration.celebrate({ variant: "session", title: `${sessionMilestone} Sessions`, sub: "Training milestone" });
       } else {
         haptic("tap");
         toast("Set logged", "success");

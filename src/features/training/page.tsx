@@ -899,6 +899,17 @@ function TrainingPageInner() {
     return { strength: computeStrengthSummary(activeLogs, compoundSlugs) };
   }, [logs, exercises]);
 
+  // Every distinct log date on record, any exercise — feeds the session-count
+  // milestone (every 100th training day) in ExerciseCard. A log can only ever
+  // add one new date, so callers compare against this set as of before the add.
+  const allLogDates = useMemo(() => {
+    const dates = new Set<string>();
+    for (const arr of Object.values(logs)) {
+      for (const l of arr) if (l.log_date) dates.add(l.log_date);
+    }
+    return dates;
+  }, [logs]);
+
   return (
     <div className="page tr-page" ref={pageRootRef}>
       <div className="shell-header">
@@ -985,6 +996,7 @@ function TrainingPageInner() {
               setExpandedLogId={setExpandedLogId}
               onLogged={reloadLogs}
               onLogAdded={onLogAdded}
+              priorSessionDates={allLogDates}
               onUpdate={(patch) =>
                 setExercises((prev) =>
                   (prev ?? []).map((e) =>
