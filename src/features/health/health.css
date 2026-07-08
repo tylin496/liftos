@@ -25,6 +25,13 @@
   gap: var(--space-4);
 }
 
+/* Right cluster: freshness tag sits just left of the expand chevron. */
+.health-tdee-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 /* ── Trend cards (Weight / Body Fat / Lean Mass) ─────────────────────── */
 .health-trend-head {
   display: flex;
@@ -334,6 +341,13 @@
 }
 
 /* ── Recovery card ───────────────────────────────────────────────────── */
+/* Right cluster: freshness tag sits just left of the readiness status. */
+.health-recovery-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .health-recovery-head {
   display: flex;
   align-items: baseline;

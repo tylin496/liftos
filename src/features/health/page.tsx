@@ -8,13 +8,11 @@ import {
   sanitizeMetrics,
   countSkippedBodyFat,
   RECOVERY_STATUS_COLOR,
-  syncLabel,
-  latestFullSync,
   type MetricKey,
   type ChartPoint,
   type RecoverySnapshot,
 } from "./math";
-import { formatAgo, type MetricKind } from "@shared/lib/freshness";
+import { type MetricKind } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { ErrorState } from "@shared/components/ErrorState";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
@@ -272,10 +270,13 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
       <section className="page-card health-recovery">
         <div className="health-recovery-head">
           <span className="health-card-eyebrow">Recovery</span>
-          <span className="health-recovery-status is-stale">Can’t assess</span>
+          <span className="health-recovery-head-right">
+            <FreshnessTag date={snap.date} kind="recovery" />
+            <span className="health-recovery-status is-stale">Can’t assess</span>
+          </span>
         </div>
         <p className="health-recovery-footer">
-          Readiness needs recent sleep &amp; HRV — last synced {formatAgo(snap.date)}.
+          Readiness needs a recent sleep &amp; HRV reading.
         </p>
       </section>
     );
@@ -298,7 +299,10 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
     <section className="page-card health-recovery">
       <div className="health-recovery-head">
         <span className="health-card-eyebrow">Recovery</span>
-        <span className="health-recovery-status" style={{ color }}>{snap.status}</span>
+        <span className="health-recovery-head-right">
+          <FreshnessTag date={snap.date} kind="recovery" />
+          <span className="health-recovery-status" style={{ color }}>{snap.status}</span>
+        </span>
       </div>
       <div className="health-recovery-rows">
         <RecoveryRow label="Sleep" value={snap.sleepHours} unit="h"   delta={sleepDelta} direction="up-good" />
@@ -414,18 +418,6 @@ export function HealthPage() {
   }, [activity]);
 
   const metrics = useMemo(() => (data ? sanitizeMetrics(data.metrics) : []), [data]);
-  const lastSynced = useMemo(() => syncLabel(latestFullSync(metrics)), [metrics]);
-  // Rendered beside the page title (Shell's PageTopBar). Memoised so the header
-  // effect only re-fires when the label actually changes, not every render.
-  const syncNote = useMemo(
-    () =>
-      lastSynced ? (
-        <span className={`page-topbar-sync-note${lastSynced.tone === "bad" ? " is-bad" : ""}`}>
-          {lastSynced.text}
-        </span>
-      ) : undefined,
-    [lastSynced],
-  );
   const skippedBodyFatCount = useMemo(
     () => (data ? countSkippedBodyFat(data.metrics) : 0),
     [data],
@@ -509,7 +501,7 @@ export function HealthPage() {
 
   const header = (
     <div className="shell-header">
-      <PageTopBar eyebrow="HEALTH" title="Trends" onCopy={copyHealthData} note={syncNote} />
+      <PageTopBar eyebrow="HEALTH" title="Trends" onCopy={copyHealthData} />
     </div>
   );
 
@@ -640,10 +632,13 @@ export function HealthPage() {
       >
         <div className="health-tdee-head">
           <span className="health-card-eyebrow">Active</span>
-          <span className={`health-energy-chevron${energyExpanded ? " is-open" : ""}`} aria-hidden>
-            <svg width="13" height="8" viewBox="0 0 12 7" fill="none">
-              <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+          <span className="health-tdee-head-right">
+            {data && <FreshnessTag date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null} kind="sync" />}
+            <span className={`health-energy-chevron${energyExpanded ? " is-open" : ""}`} aria-hidden>
+              <svg width="13" height="8" viewBox="0 0 12 7" fill="none">
+                <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
           </span>
         </div>
         {!data ? (
