@@ -610,6 +610,14 @@ export function Shell({ session }: { session: Session }) {
       axisLocked.current = null;
       dragTo.current = null;
       mCancelled = false;
+      // Same marker onTouchStart checks (see touchOwnedElsewhere) — but this
+      // gate matters MORE on mouse: a chart's stopPropagation on its Pointer
+      // events does nothing for the browser's separate, parallel native
+      // `mousedown`/`mousemove` stream (a different event type entirely, not
+      // stopped by stopping a different one), so without this check a mouse
+      // drag starting on the chart would still reach here and arm Shell's
+      // window-level mousemove tracking regardless.
+      if ((e.target as Element)?.closest?.('[data-own-gesture="true"]')) return;
       if (slideRef.current?.settling || pullRefreshing.current) return;
       mouseActive = true;
       touchStartX.current = e.clientX;
