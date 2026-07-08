@@ -42,6 +42,20 @@
   color: var(--ink-4);
 }
 
+/* Lean Mass 14-day change — deliberately NOT a MetricDelta: no arrow, no
+   good/bad tone. Some lean loss is normal on a cut and the value rides the
+   unreliable BIA body-fat reading, so this is context, not a verdict (the
+   Decision Engine's LeanMassEvaluation owns "losing muscle"). Same type
+   treatment as a delta so it sits flush beside the hero number. */
+.health-lbm-change {
+  font-family: var(--font-mono);
+  font-size: var(--metric-delta);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink-3);
+}
+
 .health-sparkline-wrap {
   flex-shrink: 0;
 }

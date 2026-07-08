@@ -561,13 +561,24 @@ export function HealthPage() {
         rangeDays={lbmCard ? lbmCard.rangeDays : 14 * SPARK_POINTS}
         color="var(--health-measurement)"
         delta={
-          lbmCard && lbmCard.change != null && lbmCard.readingCount >= 2 ? (
-            <MetricDelta value={lbmCard.change} direction="up-good" decimals={1} unit="kg" />
+          // Neutral on purpose, NOT a MetricDelta: a 14-day lean-mass move isn't
+          // judgeable at face value. Some lean loss is expected on any cut (what
+          // matters is its share of total loss), and the number itself is derived
+          // from the unreliable BIA body-fat reading — so an up-good red here
+          // mostly flags normal cutting. The real "losing muscle" verdict is the
+          // Decision Engine's LeanMassEvaluation (60-day fit + SE gate), which
+          // fires the protect-muscle directive when the slide is statistically real.
+          lbmCard && lbmCard.change != null && lbmCard.readingCount >= 2 &&
+          Number(Math.abs(lbmCard.change).toFixed(1)) !== 0 ? (
+            <span className="health-lbm-change">
+              {lbmCard.change > 0 ? "+" : "−"}
+              {Math.abs(lbmCard.change).toFixed(1)} kg
+            </span>
           ) : null
         }
         onOpenTrend={
           lbmCard && lbmCard.full.length >= 2
-            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.full, higherIsBetter: true })
+            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.full, higherIsBetter: true, judgeDelta: false })
             : undefined
         }
       />

@@ -21,6 +21,12 @@ export interface HealthTrendConfig {
       extreme is the milestone. Weight / Body Fat are false (down-good, so the
       LOW is the win); Lean Mass / Active are true (up-good, so the peak is). */
   higherIsBetter: boolean;
+  /** false → the Since-start delta renders neutral (ink, no good/bad tone) while
+      higherIsBetter still frames the milestone (Peak/Low). For Lean Mass: some
+      lean loss is expected on a cut and the value rides the unreliable BIA
+      body-fat reading, so a raw down-move isn't a judgeable "bad" — the Decision
+      Engine's LeanMassEvaluation owns that verdict. Default true. */
+  judgeDelta?: boolean;
 }
 
 const fmt = (v: number, d: number) =>
@@ -174,7 +180,7 @@ function SheetInner({
   onClose: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const { label, unit, decimals, color, points, higherIsBetter } = config;
+  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true } = config;
 
   const first = points[0];
   const latest = points[points.length - 1];
@@ -185,11 +191,12 @@ function SheetInner({
   const bestLabel = higherIsBetter ? "Peak" : "Low";
   const delta = first && latest ? latest.value - first.value : 0;
   // Colour is judged by the metric's own good direction (NOT raw up=green):
-  // a −1.0 kg move is a WIN for Weight but a loss for Lean Mass. The +/− sign
-  // and arrow still follow the raw value; only the tone flips.
+  // a −1.0 kg move is a WIN for Weight. A metric that opted out of judgment
+  // (judgeDelta false, e.g. Lean Mass) shows the signed value in neutral ink —
+  // the "flat" tone — instead of a verdict colour.
   const isFlat = Math.abs(delta) < 0.05;
   const deltaGood = higherIsBetter ? delta > 0 : delta < 0;
-  const deltaCls = isFlat ? "flat" : deltaGood ? "good" : "bad";
+  const deltaCls = isFlat || !judgeDelta ? "flat" : deltaGood ? "good" : "bad";
 
   // Focus trap + Escape-to-close — the page behind the scrim is inert.
   useFocusTrap(sheetRef, onClose);
