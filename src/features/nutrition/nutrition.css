@@ -282,7 +282,18 @@
 }
 .ni-status-dot.status-good { background: var(--good); }
 .ni-status-dot.status-gold { background: var(--warn); }
+.ni-status-dot.status-warn { background: var(--warn); }
 .ni-status-dot.status-bad  { background: var(--bad); }
+
+/* Observed-rate delta arrow — trails the value (app-wide delta-after-value
+   convention, matches the Overview Weight card's Rate arrow) and shares its
+   rateTone source, so the two never disagree on how far off the number is. */
+.ni-pace-rate-arrow {
+  margin-left: 2px; /* optical: snug the glyph to its number */
+}
+.ni-pace-rate-arrow.is-good { color: var(--good); }
+.ni-pace-rate-arrow.is-warn { color: var(--warn); }
+.ni-pace-rate-arrow.is-bad  { color: var(--bad); }
 
 /* ── Pace meter ─────────────────────────────────────────────────────────
    Replaces the paired Observed/Target tiles: the target band is drawn as a

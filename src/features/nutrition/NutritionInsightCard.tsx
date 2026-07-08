@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS } from "./evaluation";
-import { nutritionDecision } from "./recommendation";
+import { nutritionDecision, rateTone } from "./recommendation";
 import "./nutrition.css";
 
 /* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
@@ -96,7 +96,11 @@ function PaceMeter({
   // "pinned past the edge" without being clipped.
   const markerPct = clamp(((obs - domainMin) / span) * 100, 4, 96);
   const inState = obs >= lo && obs <= hi;
-  const tone = inState ? "good" : "gold";
+  // Same rateTone the Overview Weight card's Rate arrow uses (band-aware
+  // severity, not just in/off) — one source, so the dot, the arrow, and
+  // Overview never disagree on how far off this number is.
+  const rTone = rateTone({ observedRate, targetRange: { min: lo, max: hi } });
+  const tone = rTone ?? "good";
 
   const sign = observedRate < 0 ? "−" : observedRate > 0 ? "+" : "±";
   // Caption only fires off-band, where it adds the "why" the meter can't show;
@@ -112,6 +116,13 @@ function PaceMeter({
           <span className={`ni-status-dot status-${tone}`} aria-hidden="true" />
           {sign}
           {obs.toFixed(2)} kg/wk
+          {/* Trails the value (app-wide delta-after-value convention, matches the
+              Overview Weight card's Rate arrow) — same rateTone, same glyphs. */}
+          {rTone && observedRate !== 0 && (
+            <span className={`ni-pace-rate-arrow is-${rTone}`} aria-hidden>
+              {observedRate < 0 ? "▼" : "▲"}
+            </span>
+          )}
         </span>
       </div>
 
