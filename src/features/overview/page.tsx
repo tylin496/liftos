@@ -127,14 +127,12 @@ function ActiveTargetCard({
   view,
   targetTdee,
   currentTdee,
-  sync,
   onNav,
   loading = false,
 }: {
   view: ActiveTargetView | null;
   targetTdee: number | null;
   currentTdee: number | null;
-  sync: string | null;
   onNav: () => void;
   loading?: boolean;
 }) {
@@ -190,7 +188,6 @@ function ActiveTargetCard({
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
         <span className="ov-active-target-head-right">
-          {sync && <span className="ov-active-target-sync">{sync}</span>}
           <span className="ov-active-target-goal-row">
             <span className="ov-active-target-goal">
               {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
@@ -944,15 +941,17 @@ export function OverviewPage() {
   // (no separate skeleton subtree to unmount, so the entrance never replays).
   const loading = !data;
 
-  // Today's sync time lives on the Active Target card (above the goal it feeds),
-  // not the topbar — the ring only accrues as fast as the health sync, so the
-  // time belongs with the number it qualifies. Only today's reading carries a
-  // clock time; staleness is surfaced by the ring's own note.
+  // Only today's reading carries a clock time; staleness is surfaced by the
+  // Active Target ring's own "not synced" note, so this is just a same-day
+  // freshness stamp beside the greeting.
   const syncedTime = useMemo(() => syncTime(data?.metrics.at(-1) ?? null), [data]);
+  const syncNote = syncedTime ? (
+    <span className="page-topbar-sync-note">{syncedTime}</span>
+  ) : undefined;
 
   const header = (
     <div className="shell-header">
-      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} />
+      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} note={syncNote} />
     </div>
   );
 
@@ -986,7 +985,6 @@ export function OverviewPage() {
         view={data?.activeTarget ?? null}
         targetTdee={data?.targetTdee ?? null}
         currentTdee={data?.currentTdee ?? null}
-        sync={syncedTime}
         onNav={() => nav("health", { scrollTo: "health-energy-card" })}
       />
 

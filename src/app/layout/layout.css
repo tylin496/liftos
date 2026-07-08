@@ -15,6 +15,7 @@
      L801  Brand splash / cold-start
    ───────────────────────────────────────────────────────────────────────────── */
 .shell {
+  position: relative;
   height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -22,6 +23,24 @@
      so a tab keeps its scroll position while another is on screen. The header
      and tab bar stay put; only panel content scrolls. */
   overflow: hidden;
+}
+
+/* Sits over the iOS status bar (which the app renders under, via
+   apple-mobile-web-app-status-bar-style=black-translucent in index.html).
+   Content scrolling in .tab-panel passes directly underneath the status
+   bar with no background of its own — without this, text gets hard-clipped
+   by the status bar's bottom edge mid-scroll. This fades it to --bg first
+   instead, so it reads as "scrolled past" rather than "cut off". Purely
+   visual: pointer-events none so it never blocks the header beneath it. */
+.status-bar-scrim {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--safe-top) + var(--space-8));
+  background: linear-gradient(to bottom, var(--bg) 0%, var(--bg) 40%, transparent 100%);
+  pointer-events: none;
+  z-index: var(--z-raised);
 }
 
 /* ── Dev-only phone frame ───────────────────────────────────────────────

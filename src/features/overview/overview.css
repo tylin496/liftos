@@ -26,8 +26,7 @@
 .ov-active-target-head {
   display: flex;
   /* Baseline (not top): aligns the eyebrow's baseline with the goal number on
-     the right — the head-right column's baseline is its first item (goal-row),
-     so ACTIVE TARGET and 2,672 / 2,750 TDEE sit on one line, time tucked below. */
+     the right, so ACTIVE TARGET and 2,672 / 2,750 TDEE sit on one line. */
   align-items: baseline;
   justify-content: space-between;
 }
@@ -43,15 +42,6 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-/* Today's sync time, tucked below the goal as its qualifier — the ring only
-   accrues as fast as the health sync, so the timestamp reads as metadata of the
-   number right above it, not a second heading beside the eyebrow. Shown only for
-   a same-day reading, so it's always fresh (no stale tone needed). */
-.ov-active-target-sync {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
 }
 
 .ov-active-target-goal {
