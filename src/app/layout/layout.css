@@ -497,30 +497,12 @@ html.kb-open .tabbar {
 }
 
 .settings-sheet-header {
-  position: relative;
-  /* .settings-sheet-body has its own transform-based stacking context (iOS
-     repaint workaround below) — without an explicit z-index here, that body
-     paints on top of this header's ::after fade despite DOM order. */
-  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--space-5) var(--space-5) 0;
   flex-shrink: 0;
   touch-action: none;
-}
-
-/* Fades scrolled rows out under the header instead of a hard clip line —
-   matches the sheet's own frosted tint so the fade blends with the blur. */
-.settings-sheet-header::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  height: var(--space-6);
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 70%, transparent) 0%, transparent 100%);
-  pointer-events: none;
 }
 
 .settings-sheet-title {
@@ -618,6 +600,14 @@ html.kb-open .tabbar {
      Forcing this into its own compositing layer avoids the stale paint. */
   -webkit-transform: translate3d(0, 0, 0);
   transform: translate3d(0, 0, 0);
+  /* Fades scrolled rows out under the header instead of a hard clip line.
+     Masking the body's own content (rather than painting a tinted overlay)
+     avoids any mismatch with --bg-card, which differs from --bg per theme.
+     Sized to the top padding so it only ever fades blank space at rest —
+     the first label/row is at full opacity until it actually scrolls up
+     into that band. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--space-4));
+  mask-image: linear-gradient(to bottom, transparent, black var(--space-4));
 }
 
 .settings-section-label {
