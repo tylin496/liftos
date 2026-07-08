@@ -585,7 +585,7 @@ export function TodayView({
         <div className="daily-card-top">
           <p className="page-eyebrow">Intake</p>
           {!isEditing && !hasEntry && <Badge tone="neutral">No entry</Badge>}
-          {!isEditing && showDoubleHit && <Badge tone="gold">Double Hit</Badge>}
+          {!isEditing && showDoubleHit && <Badge tone="gold" pill>Double Hit</Badge>}
         </div>
 
         {isEditing ? (

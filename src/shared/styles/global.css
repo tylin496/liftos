@@ -316,6 +316,7 @@ button {
 
 .save-celebration.is-gold strong {
   color: var(--gold);
+  text-shadow: var(--gold-glow);
 }
 
 .celeb-confetti {

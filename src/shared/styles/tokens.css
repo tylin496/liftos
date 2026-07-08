@@ -78,8 +78,12 @@
   --gold: #d4af37;   /* trophy gold — the classic metallic gold (warm ~46°, luminous, not lemon-yellow) */
   /* Celebration halo — a soft gold glow marking the special/celebration gold
      (PR badges, 100% completion, Double Hit). References --gold so it tracks the
-     theme; shows as a real glow on dark, a faint warm haze on light. Applied as
-     text-shadow on gold text and box-shadow on gold fills. */
+     theme; shows as a real glow on dark, a faint warm haze on light.
+     CONVENTION: every element that sets `color: var(--gold)` on text/icons
+     must pair it with `text-shadow: var(--gold-glow)` — gold text never
+     appears without its glow. Solid gold-filled surfaces (e.g. a filled gold
+     button) are the one exception, since a glow would just look like a shadow
+     smudged onto the fill rather than a halo. */
   --gold-glow: 0 0 10px color-mix(in srgb, var(--gold) 55%, transparent);
   --blue: #007eae;   /* Cyan — neutral series/identity colour, never a status verdict */
 

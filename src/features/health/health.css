@@ -542,6 +542,7 @@
 
 .health-trend-sheet-stat-v--peak {
   color: var(--gold);
+  text-shadow: var(--gold-glow);
 }
 
 .health-trend-sheet-stat-v--low {

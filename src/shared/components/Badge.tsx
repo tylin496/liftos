@@ -5,15 +5,25 @@ export type BadgeTone = "gold" | "good" | "bad" | "neutral";
 
 export function Badge({
   tone = "neutral",
+  pill = false,
   className,
   children,
 }: {
   tone?: BadgeTone;
+  pill?: boolean;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <span className={["status-text", `status-text--${tone}`, className ?? ""].filter(Boolean).join(" ")}>
+    <span
+      className={[
+        "status-text",
+        `status-text--${tone}`,
+        pill ? "status-text--pill" : "",
+        className ?? "",
+      ].filter(Boolean).join(" ")}
+    >
+      {pill && <span className="status-text-dot" />}
       {children}
     </span>
   );
