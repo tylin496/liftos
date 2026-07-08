@@ -31,14 +31,6 @@ function AnimatedInt({ value }: { value: number; delayMs?: number }) {
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
 
-// Leading status dot before the Confidence value — a glance-only mark that
-// mirrors the confidence level's good/gold/bad language.
-const CONFIDENCE_DOT: Record<string, "good" | "gold" | "bad"> = {
-  high: "good",
-  medium: "gold",
-  low: "bad",
-};
-
 // Reading-order weight, not layout: the four cells are analysis (Observed →
 // Est. intake → Confidence) plus one constant (Target pace), so the constant
 // is the only one dropped a tier below the shared default.
@@ -307,11 +299,11 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
         {/* Confidence — meta tier, sinks to the bottom as a closing stamp
             rather than a fourth parallel number. The "why capped" tap-reason was
             dropped: its only content was the target's tenure, which the always-on
-            "On this target · N days" line above now states plainly. */}
+            "On this target · N days" line above now states plainly. Neutral, no
+            dot — a descriptor, not a good/bad verdict (see colour rules). */}
         <EvidenceCell
           label="Confidence"
           value={!noData && !loading ? (CONFIDENCE_LABEL[e!.confidence] ?? e!.confidence) : "—"}
-          dot={!noData && !loading && e ? CONFIDENCE_DOT[e.confidence] : undefined}
           emphasis="tertiary"
           full
         />
