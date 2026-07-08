@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git diff *)",
+      "Bash(npx tsc --noEmit*)",
+      "Bash(npm run lint:css*)",
+      "Bash(git log *)",
+      "Bash(npm test*)",
+      "Bash(git show *)",
+      "Bash(npx vitest run*)"
+    ]
+  }
+}

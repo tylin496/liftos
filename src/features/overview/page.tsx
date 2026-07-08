@@ -145,12 +145,7 @@ function ActiveTargetCard({
       <button type="button" className="page-card ov-active-target loading-card" onClick={onNav}>
         <div className="ov-active-target-head">
           <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
-          <span className="ov-active-target-head-right">
-            <span className="ov-active-target-goal-row">
-              <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
-              <span className="ov-active-target-chevron" aria-hidden>›</span>
-            </span>
-          </span>
+          <span className="ov-active-target-chevron" aria-hidden>›</span>
         </div>
         <div className="ov-active-target-ring-row">
           <ActiveTargetRingBody shown={null} target={0} />
@@ -158,6 +153,10 @@ function ActiveTargetCard({
             <span className="ov-active-target-ring-title">Today's active target</span>
             <span className="ov-active-target-ring-sub">Loading…</span>
           </div>
+        </div>
+        <div className="ov-active-target-foot-rule" />
+        <div className="ov-active-target-foot">
+          <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
         </div>
       </button>
     );
@@ -187,15 +186,7 @@ function ActiveTargetCard({
     <button type="button" className="page-card ov-active-target" onClick={onNav}>
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
-        <span className="ov-active-target-head-right">
-          <span className="ov-active-target-goal-row">
-            <span className="ov-active-target-goal">
-              {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
-              {targetTdee.toLocaleString()} TDEE
-            </span>
-            <span className="ov-active-target-chevron" aria-hidden>›</span>
-          </span>
-        </span>
+        <span className="ov-active-target-chevron" aria-hidden>›</span>
       </div>
 
       {view ? (
@@ -217,16 +208,22 @@ function ActiveTargetCard({
                       ? <><span className="is-ahead">Ahead</span> this week — eased below your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>
                       : <><span className="is-on">On pace</span> — about your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>}
               </span>
-              {!view.today.synced && (
-                <span className="ov-active-target-ring-stale">
-                  {view.today.lastSyncDate
-                    ? `Not synced today — last reading ${view.today.lastSyncDate}`
-                    : "Not synced yet"}
-                </span>
-              )}
             </div>
           </div>
-
+          <div className="ov-active-target-foot-rule" />
+          <div className="ov-active-target-foot">
+            <span className="ov-active-target-goal">
+              {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
+              {targetTdee.toLocaleString()} TDEE
+            </span>
+            {!view.today.synced && (
+              <span className="ov-active-target-ring-stale">
+                {view.today.lastSyncDate
+                  ? `Not synced — last reading ${view.today.lastSyncDate}`
+                  : "Not synced yet"}
+              </span>
+            )}
+          </div>
         </>
       ) : (
         <p className="page-note">

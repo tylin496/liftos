@@ -7,7 +7,9 @@ import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { timelineDate } from "@shared/lib/date";
 
 export interface HealthTrendPoint {
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD — representative (middle) day of the bucket
+  dateStart?: string; // first day covered by this point's bucket
+  dateEnd?: string; // last day covered by this point's bucket
   value: number;
 }
 
@@ -17,6 +19,11 @@ export interface HealthTrendConfig {
   decimals: number;
   color: string;
   points: HealthTrendPoint[];
+  /** Days each point averages over (7 for Weight, 14 for Body Fat/Lean Mass,
+      ENERGY_BUCKET for Active). Drives the scrub tooltip: >1 shows the day
+      range the point covers instead of a single date, since the value is a
+      multi-day average, not one reading. */
+  bucketDays: number;
   /** Which way is "good" for this metric — drives the delta colour AND which
       extreme is the milestone. Weight / Body Fat are false (down-good, so the
       LOW is the win); Lean Mass / Active are true (up-good, so the peak is). */
@@ -35,7 +42,7 @@ const fmt = (v: number, d: number) =>
 /* Daily-reading progression line. Same shape as Training's exercise trend
    chart (measured getTotalLength() draw-in, press-drag scrub anywhere) —
    this is the "big graph" a Sparkline tap opens. */
-function TrendChart({ points, color, unit, decimals, higherIsBetter }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean }) {
+function TrendChart({ points, color, unit, decimals, higherIsBetter, bucketDays }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean; bucketDays: number }) {
   const W = 320;
   const H = 130;
   const padX = 10;
@@ -82,7 +89,14 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter }: { points:
 
   const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
   const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
+  // Bucketed points (bucketDays > 1) are multi-day averages, not single
+  // readings — the tooltip shows the day span the average covers, not just
+  // its representative middle date.
   const scrubDate = scrubPoint ? timelineDate(scrubPoint.date) : null;
+  const scrubDateStart =
+    scrubPoint?.dateStart && bucketDays > 1 ? timelineDate(scrubPoint.dateStart) : null;
+  const scrubDateEnd =
+    scrubPoint?.dateEnd && bucketDays > 1 ? timelineDate(scrubPoint.dateEnd) : null;
 
   return (
     <div className="health-trend-sheet-chart-wrap">
@@ -161,7 +175,11 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter }: { points:
             className={`health-trend-sheet-tooltip health-trend-sheet-tooltip--${anchor}`}
             style={{ left: `${pct}%` }}
           >
-            <span className="health-trend-sheet-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
+            <span className="health-trend-sheet-tooltip-date">
+              {scrubDateStart && scrubDateEnd
+                ? `${scrubDateStart.mon} ${scrubDateStart.day}–${scrubDateEnd.mon === scrubDateStart.mon ? "" : `${scrubDateEnd.mon} `}${scrubDateEnd.day}`
+                : `${scrubDate.mon} ${scrubDate.day}`}
+            </span>
             <span className="mono">{fmt(scrubPoint.value, decimals)}{unit}</span>
           </div>
         );
@@ -180,7 +198,7 @@ function SheetInner({
   onClose: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true } = config;
+  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true, bucketDays } = config;
 
   const first = points[0];
   const latest = points[points.length - 1];
@@ -246,10 +264,12 @@ function SheetInner({
           ) : (
             <>
               <div className="health-trend-sheet-meta-row">
-                <span className="health-trend-sheet-window">Last {points.length} readings</span>
+                <span className="health-trend-sheet-window">
+                  Last {points.length} {bucketDays > 1 ? `${bucketDays}-day averages` : "readings"}
+                </span>
               </div>
 
-              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} />
+              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} bucketDays={bucketDays} />
 
               <div className="health-trend-sheet-stats">
                 <div className="health-trend-sheet-stat">

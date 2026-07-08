@@ -463,7 +463,7 @@ export function HealthPage() {
     const lbmBucket = 14;
     const bucketed = bucketSeries(pts, { spanDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket });
     const full = bucketSeries(pts, { spanDays: FIXED_DAYS, bucketDays: lbmBucket });
-    return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS, full };
+    return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket, full };
   }, [data, metrics]);
 
   // The big scrubbable trend sheet — one shared instance, driven by which
@@ -539,7 +539,7 @@ export function HealthPage() {
               c && c.full.length >= 2
                 // Weight and Body Fat are both down-good (matches the hardcoded
                 // down-good MetricDelta on the card above).
-                ? () => openTrend({ label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color, points: c.full, higherIsBetter: false })
+                ? () => openTrend({ label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color, points: c.full, higherIsBetter: false, bucketDays: spec.bucket })
                 : undefined
             }
           />
@@ -578,7 +578,7 @@ export function HealthPage() {
         }
         onOpenTrend={
           lbmCard && lbmCard.full.length >= 2
-            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.full, higherIsBetter: true, judgeDelta: false })
+            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.full, higherIsBetter: true, judgeDelta: false, bucketDays: lbmCard.bucketDays })
             : undefined
         }
       />
@@ -647,7 +647,7 @@ export function HealthPage() {
                 color="var(--accent)"
                 onOpen={
                   energyFull.length >= 2
-                    ? () => openTrend({ label: "Active", unit: " kcal", decimals: 0, color: "var(--accent)", points: energyFull, higherIsBetter: true })
+                    ? () => openTrend({ label: "Active", unit: " kcal", decimals: 0, color: "var(--accent)", points: energyFull, higherIsBetter: true, bucketDays: ENERGY_BUCKET })
                     : undefined
                 }
               />

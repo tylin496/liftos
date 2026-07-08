@@ -25,23 +25,8 @@
 
 .ov-active-target-head {
   display: flex;
-  /* Baseline (not top): aligns the eyebrow's baseline with the goal number on
-     the right, so ACTIVE TARGET and 2,672 / 2,750 TDEE sit on one line. */
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.ov-active-target-head-right {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.ov-active-target-goal-row {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
 }
 
 .ov-active-target-goal {
@@ -135,7 +120,22 @@
 
 .ov-active-target-ring-stale {
   font-size: var(--text-2xs);
+  font-weight: 600;
   color: var(--warn);
+}
+
+.ov-active-target-foot-rule {
+  height: 1px;
+  background: var(--rule);
+  margin-top: var(--space-4);
+}
+
+.ov-active-target-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 .ov-no-entry {
