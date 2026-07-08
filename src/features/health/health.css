@@ -8,6 +8,16 @@
   color: var(--role-eyebrow-color);
 }
 
+/* Card title row — eyebrow left, freshness tag pinned top-right. Shared by every
+   Health card so the recency indicator always sits in the same corner. */
+.health-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--vr-tight);
+}
+
 .health-tdee-head {
   display: flex;
   align-items: center;

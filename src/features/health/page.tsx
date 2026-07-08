@@ -14,7 +14,8 @@ import {
   type ChartPoint,
   type RecoverySnapshot,
 } from "./math";
-import { formatAgo } from "@shared/lib/freshness";
+import { formatAgo, type MetricKind } from "@shared/lib/freshness";
+import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { ErrorState } from "@shared/components/ErrorState";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
@@ -323,6 +324,8 @@ function TrendCard({
   rangeDays,
   color,
   onOpenTrend,
+  freshnessKind,
+  syncDate,
 }: {
   label: string;
   avgLabel: string;
@@ -332,6 +335,10 @@ function TrendCard({
   delta: ReactNode;
   points: ChartPoint[];
   loading?: boolean;
+  /** Which freshness cadence this card's metric follows — drives the top-right tag. */
+  freshnessKind: MetricKind;
+  /** Date of this metric's latest real reading (not the bucketed point). */
+  syncDate: string | null;
   /** Data-quality caveat for this card only — e.g. samples ignored as
       implausible. Rendered under the range line, not shimmer'd. */
   note?: string;
@@ -347,9 +354,12 @@ function TrendCard({
 }) {
   return (
     <section className={`page-card health-trend${loading ? " loading-card" : ""}`}>
+      <div className="health-card-top">
+        <span className="health-card-eyebrow">{label}</span>
+        {!loading && <FreshnessTag date={syncDate} kind={freshnessKind} />}
+      </div>
       <div className="health-trend-head">
         <div className="health-trend-info">
-          <span className="health-card-eyebrow">{label}</span>
           <div className="health-trend-stat">
             {loading ? (
               <MetricValue size="lg" unit={unit}>00.0</MetricValue>
@@ -483,7 +493,7 @@ export function HealthPage() {
     const lbmBucket = 14;
     const bucketed = bucketSeries(pts, { spanDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket });
     const full = bucketSeries(pts, { spanDays: FIXED_DAYS, bucketDays: lbmBucket });
-    return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket, full };
+    return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket, full, lastDate: pts.at(-1)?.date ?? null };
   }, [data, metrics]);
 
   // The big scrubbable trend sheet — one shared instance, driven by which
@@ -540,6 +550,8 @@ export function HealthPage() {
             minSpan={spec.minSpan}
             rangeDays={spec.bucket * SPARK_POINTS}
             color={spec.color}
+            freshnessKind={spec.key === "weight_kg" ? "weight" : "bodyComp"}
+            syncDate={series(metrics, spec.key).at(-1)?.date ?? null}
             delta={
               // Both Weight and Body Fat are down-good on a cut — this page is the
               // body-composition trend view, so each carries its own coloured
@@ -580,6 +592,8 @@ export function HealthPage() {
         minSpan={2}
         rangeDays={lbmCard ? lbmCard.rangeDays : 14 * SPARK_POINTS}
         color="var(--health-measurement)"
+        freshnessKind="bodyComp"
+        syncDate={lbmCard?.lastDate ?? null}
         delta={
           // Neutral on purpose, NOT a MetricDelta: a 14-day lean-mass move isn't
           // judgeable at face value. Some lean loss is expected on any cut (what

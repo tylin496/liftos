@@ -1,0 +1,13 @@
+/* Data-recency tag — quiet in a card's top-right corner, warn-toned when stale.
+   Never red: staleness is a heads-up, not an alarm (see data-freshness model). */
+.freshness-tag {
+  font-size: var(--role-secondary-size);
+  font-weight: var(--role-secondary-weight);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.freshness-tag.is-stale {
+  color: var(--warn);
+}
