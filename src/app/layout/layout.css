@@ -826,18 +826,18 @@ html.kb-open .tabbar {
   transform: translate(-50%, -50%);
   background: radial-gradient(circle, var(--accent-glow), transparent 62%);
   filter: blur(8px);
+  opacity: 0.5;
 }
-.splash-mark {
-  width: 96px;
-  height: 96px;
+.splash-trace {
   z-index: 1;
-  animation: mark-in var(--dur-enter) var(--ease-enter) both;
 }
-.splash-mark img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 8px 26px var(--accent-glow));
+.splash-trace-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 700;
 }
 .splash-word {
   font-size: var(--text-3xl);
@@ -875,19 +875,14 @@ html.kb-open .tabbar {
   border-radius: 50%;
   background: var(--accent);
 }
-@keyframes mark-in {
-  from { opacity: 0; transform: scale(0.82) translateY(6px); }
-  to { opacity: 1; transform: none; }
-}
 @keyframes word-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
 
-/* Breathing glow on the held frame — signals progress without a spinner */
+/* Trace-line draw signals progress without a spinner */
 @media (prefers-reduced-motion: no-preference) {
-  .splash::after { animation: splash-glow 4200ms ease-in-out infinite; }
-  .splash--static .splash-mark { animation: splash-float 3200ms ease-in-out infinite; }
+  .splash-trace-path { animation: trace-draw var(--dur-ambient) ease-in-out infinite; }
   /* Dots breathe on the shared ambient clock; the nth-child delays sit AFTER the
      shorthand so they survive it (the shorthand would otherwise zero the delay).
      Gated here → static, non-pulsing dots under reduced-motion. */
@@ -895,16 +890,21 @@ html.kb-open .tabbar {
   .splash-dots span:nth-child(2) { animation-delay: 220ms; }
   .splash-dots span:nth-child(3) { animation-delay: 440ms; }
 }
-/* Brightness-only breath — no scale, so the glow settles instead of pulsing in
-   size. The base ::after keeps its translate centering (this keyframe only
-   touches opacity). */
-@keyframes splash-glow {
-  0%, 100% { opacity: 0.4; }
-  50%      { opacity: 0.72; }
+@media (prefers-reduced-motion: reduce) {
+  .splash-trace-path {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
 }
-@keyframes splash-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+@keyframes trace-draw {
+  0%    { stroke-dashoffset: 700; opacity: 0; }
+  6%    { opacity: 1; }
+  50%   { stroke-dashoffset: 0; opacity: 1; }
+  70%   { stroke-dashoffset: 0; opacity: 1; }
+  85%   { opacity: 0; }
+  85.1% { stroke-dashoffset: 700; }
+  100%  { stroke-dashoffset: 700; opacity: 0; }
 }
 @keyframes dots-appear {
   from { opacity: 0; transform: translateY(6px); }
