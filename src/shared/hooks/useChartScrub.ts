@@ -64,6 +64,15 @@ export function useChartScrub(xs: number[], viewBoxWidth: number) {
     cleanupRef.current = null;
     elRef.current = el;
     if (!el) return;
+    // Belt-and-suspenders alongside the stopPropagation below: Shell's own
+    // touchstart handler checks for this marker and refuses to even START
+    // tracking a swipe for a touch that begins here — so this doesn't depend
+    // solely on winning a propagation race. (WebKit's native gesture
+    // recognizer can in rare cases claim a fast/flicked touch before a JS
+    // stopPropagation has any effect, since it runs on a separate
+    // recognition path — this second, independent check doesn't have that
+    // failure mode, since Shell reads the touch's target directly.)
+    el.dataset.ownGesture = "true";
     const stop = (e: TouchEvent) => e.stopPropagation();
     el.addEventListener("touchstart", stop, { passive: true });
     el.addEventListener("touchmove", stop, { passive: true });

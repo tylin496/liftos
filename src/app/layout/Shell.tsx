@@ -416,6 +416,15 @@ export function Shell({ session }: { session: Session }) {
   const touchStartY = useRef(0);
   const axisLocked = useRef<"h" | "v" | null>(null);
   const dragTo = useRef<TabId | null>(null);
+  // True for the duration of a touch that started on an element owning its own
+  // horizontal gesture (e.g. a chart's press-drag-to-scrub, see useChartScrub) —
+  // set from the touch's target at touchstart, independent of that element's
+  // own stopPropagation calls. A second, independent line of defense: WebKit's
+  // native gesture recognizer can occasionally claim a fast/flicked touch before
+  // a JS stopPropagation takes effect (a separate recognition path), so this
+  // gate is checked directly against the touch's target rather than relying
+  // solely on the event having been stopped before reaching here.
+  const touchOwnedElsewhere = useRef(false);
 
   // Pull-to-refresh: a downward drag from the very top of the page (any tab)
   // re-bumps the current tab's activity version, which the render below
@@ -465,6 +474,12 @@ export function Shell({ session }: { session: Session }) {
       axisLocked.current = null;
       dragTo.current = null;
       pullActive.current = false;
+      // A touch starting on a self-owned-gesture element (e.g. a chart scrub)
+      // never engages the tab swipe, for this touch's whole lifetime — checked
+      // here from the target directly, not left to stopPropagation alone (see
+      // touchOwnedElsewhere's declaration for why).
+      touchOwnedElsewhere.current = !!(e.target as Element)?.closest?.('[data-own-gesture="true"]');
+      if (touchOwnedElsewhere.current) return;
       if (slideRef.current?.settling || pullRefreshing.current) return; // ignore during a settle/refresh animation
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;
@@ -473,6 +488,7 @@ export function Shell({ session }: { session: Session }) {
     }
 
     function onTouchMove(e: TouchEvent) {
+      if (touchOwnedElsewhere.current) return;
       if (slideRef.current?.settling || pullRefreshing.current) return;
       if (e.touches.length !== 1) return; // ignore multi-touch (pinch/zoom)
       const dx = e.touches[0].clientX - touchStartX.current;
@@ -521,6 +537,7 @@ export function Shell({ session }: { session: Session }) {
     }
 
     function onTouchEnd(e: TouchEvent) {
+      if (touchOwnedElsewhere.current) return; // axisLocked never got set for this touch
       if (axisLocked.current === "v") {
         if (pullActive.current) {
           pullActive.current = false;
