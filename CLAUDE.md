@@ -19,6 +19,7 @@ React / Vite / TypeScript + Supabase (Postgres + RLS + Auth)。4 tabs = 4 個獨
 | Health 體重/體脂 | `health/page.tsx` |
 | Shell / TabBar | `app/layout/Shell.tsx`（**先載入 `tab-navigation-scroll` skill**）|
 | 顏色 / 間距 / 字級 | `src/shared/styles/tokens.css`；全域 reset/animations `global.css` |
+| 找 CSS class | `training.css` / `nutrition.css` 頂部有區塊目錄（附行號），先看 TOC 跳行，別整檔讀 |
 | 動畫 / 過場 / count-up | **先載入 `motion` skill**；只用 `--dur-*` / `--ease-*` role token |
 
 Shell 結構：`App.tsx → AuthGate → Shell（Header + TabBar + feature page）`。`NavContext` 管當前 tab，`TabActivityContext` 追蹤各 tab 最後活躍時間。
