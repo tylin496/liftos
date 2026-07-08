@@ -1,5 +1,5 @@
 import type { BodyMetric } from "./api";
-import { localDateStr } from "@shared/lib/date";
+import { daysSince } from "@shared/lib/freshness";
 
 // Sync freshness for the header note. Shared by both the Health tab (freshness of
 // the metrics every card anchors on) and Overview (freshness of the topbar
@@ -11,7 +11,7 @@ export function syncLabel(
   latest: Pick<BodyMetric, "metric_date" | "updated_at"> | null,
 ): { text: string; tone: "normal" | "bad" } | null {
   if (!latest) return null;
-  const daysAgo = Math.round((Date.parse(localDateStr()) - Date.parse(latest.metric_date)) / 86400000);
+  const daysAgo = daysSince(latest.metric_date);
   if (daysAgo <= 0) {
     const t = new Date(latest.updated_at);
     if (!Number.isNaN(t.getTime())) {
@@ -41,13 +41,15 @@ const FULL_SYNC_FIELDS = [
  *  anchors every card on the complete dataset, so its freshness note must track
  *  the last full sync — NOT a partial live write, which lands a fresher
  *  timestamp on a today-dated but mostly-empty row. Overview intentionally does
- *  the opposite (it shows the live active-energy write via `.at(-1)`). Falls
- *  back to the newest row if no full sync exists in range. */
+ *  the opposite (it shows the live active-energy write via `.at(-1)`). Returns
+ *  null when NO full sync exists in range — never a partial live row, which would
+ *  falsely read as "Synced today" off a mostly-empty write (freshness must not
+ *  be faked; a genuinely never-synced dataset shows no sync note at all). */
 export function latestFullSync(metrics: BodyMetric[]): BodyMetric | null {
   for (let i = metrics.length - 1; i >= 0; i--) {
     if (FULL_SYNC_FIELDS.some((f) => metrics[i][f] != null)) return metrics[i];
   }
-  return metrics.at(-1) ?? null;
+  return null;
 }
 
 /** Just the clock time (HH:MM) of the latest sync, and only when it landed
@@ -57,7 +59,7 @@ export function syncTime(
   latest: Pick<BodyMetric, "metric_date" | "updated_at"> | null,
 ): string | null {
   if (!latest) return null;
-  const daysAgo = Math.round((Date.parse(localDateStr()) - Date.parse(latest.metric_date)) / 86400000);
+  const daysAgo = daysSince(latest.metric_date);
   if (daysAgo > 0) return null;
   const t = new Date(latest.updated_at);
   if (Number.isNaN(t.getTime())) return null;
