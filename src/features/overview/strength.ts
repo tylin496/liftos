@@ -222,6 +222,13 @@ export function computeStrengthSummary(
     // that biased sample as decline even while they're holding. Judging purely
     // by "how far below PR is the last recorded session" makes maintenance the
     // healthy default and only flags a genuine, meaningful drop.
+    // Cutoffs (product judgment, not outcome-calibrated):
+    //  0.997 → "at PR": within 0.3% of the ceiling — smaller than the lightest
+    //    plate you can add (a 0.5 kg microplate on a 100 kg lift is 0.5%), so the
+    //    gap is below the resolution of the barbell and reads as a tie/new PR.
+    //  0.94  → "holding" floor: a ~6% drop off PR, comfortably outside the ±2%
+    //    e1RM noise band (RECOVERY_MIN_RATIO) — roughly a genuine set regression
+    //    (a lost rep or one increment down), not float scatter. Below it = "watch".
     const pct = prE1RM > 0 ? latestE1RM / prE1RM : 0;
     let status: StrengthStatus;
     if (pct >= 0.997) { strength.improving++; status = "improving"; }  // at / new PR

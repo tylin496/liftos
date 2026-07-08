@@ -127,12 +127,14 @@ function ActiveTargetCard({
   view,
   targetTdee,
   currentTdee,
+  syncedTime,
   onNav,
   loading = false,
 }: {
   view: ActiveTargetView | null;
   targetTdee: number | null;
   currentTdee: number | null;
+  syncedTime?: string | null;
   onNav: () => void;
   loading?: boolean;
 }) {
@@ -145,7 +147,10 @@ function ActiveTargetCard({
       <button type="button" className="page-card ov-active-target loading-card" onClick={onNav}>
         <div className="ov-active-target-head">
           <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
-          <span className="ov-active-target-chevron" aria-hidden>›</span>
+          <div className="ov-active-target-head-right">
+            {syncedTime && <span className="page-topbar-sync-note">{syncedTime}</span>}
+            <span className="ov-active-target-chevron" aria-hidden>›</span>
+          </div>
         </div>
         <div className="ov-active-target-ring-row">
           <ActiveTargetRingBody shown={null} target={0} />
@@ -186,7 +191,10 @@ function ActiveTargetCard({
     <button type="button" className="page-card ov-active-target" onClick={onNav}>
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
-        <span className="ov-active-target-chevron" aria-hidden>›</span>
+        <div className="ov-active-target-head-right">
+          {syncedTime && <span className="page-topbar-sync-note">{syncedTime}</span>}
+          <span className="ov-active-target-chevron" aria-hidden>›</span>
+        </div>
       </div>
 
       {view ? (
@@ -939,16 +947,12 @@ export function OverviewPage() {
   const loading = !data;
 
   // Only today's reading carries a clock time; staleness is surfaced by the
-  // Active Target ring's own "not synced" note, so this is just a same-day
-  // freshness stamp beside the greeting.
+  // Active Target ring's own "not synced" note.
   const syncedTime = useMemo(() => syncTime(data?.metrics.at(-1) ?? null), [data]);
-  const syncNote = syncedTime ? (
-    <span className="page-topbar-sync-note">{syncedTime}</span>
-  ) : undefined;
 
   const header = (
     <div className="shell-header">
-      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} note={syncNote} />
+      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} />
     </div>
   );
 
@@ -982,6 +986,7 @@ export function OverviewPage() {
         view={data?.activeTarget ?? null}
         targetTdee={data?.targetTdee ?? null}
         currentTdee={data?.currentTdee ?? null}
+        syncedTime={syncedTime}
         onNav={() => nav("health", { scrollTo: "health-energy-card" })}
       />
 

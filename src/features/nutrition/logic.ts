@@ -7,6 +7,12 @@ export const DEFAULTS = {
   deficitTarget: 500,
 } as const;
 
+// Names a cut by its daily deficit. The cutpoints track weekly fat-loss regimes
+// via the ~7700 kcal/kg rule (weekly loss ≈ deficit × 7 / 7700):
+//   <200  Maintenance  (<~0.18 kg/wk — inside daily TDEE-estimate error, not really cutting)
+//   <500  Cruise       (~0.18–0.45 kg/wk — gentle, lean-mass-sparing)
+//   <800  Moderate Cut (~0.45–0.73 kg/wk)
+//   ≥800  Aggressive   (>~0.73 kg/wk)
 export function phaseFromDeficit(deficit: number): string {
   if (deficit < 200) return "Maintenance";
   if (deficit < 500) return "Cruise";
@@ -62,6 +68,10 @@ export function getCalorieResult(
     state = "on-plan";
   } else {
     const ratio = deficit / target;
+    // Symmetric ±25% band around the target deficit (target 500 → on-plan 375–625).
+    // Wide enough that ordinary food-logging error (±5–20%, see the protein-floor
+    // note below) and normal day-to-day intake swing read as on-plan rather than a
+    // miss; the ±25% width itself is a product judgment, not outcome-calibrated.
     if (ratio < 0.75) state = "over";           // small deficit = ate over budget
     else if (ratio <= 1.25) state = "on-plan";
     else state = "low-intake";                  // bigger deficit = ate under budget
@@ -214,6 +224,8 @@ export function weeklyStats(days: DayInput[]): WeeklyStats {
   } else if (nets.length >= 3) {
     const avg = mean(nets);
     const mad = mean(nets.map((n) => Math.abs(n - avg)));
+    // MAD of daily net kcal. 250 / 500 are round, hand-picked bands (≈ half a meal /
+    // a full meal of day-to-day swing) — not calibrated against outcomes.
     consistency = mad < 250 ? "Stable" : mad < 500 ? "Moderate" : "Variable";
   }
 

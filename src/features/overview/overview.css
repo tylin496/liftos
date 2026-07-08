@@ -29,6 +29,12 @@
   justify-content: space-between;
 }
 
+.ov-active-target-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .ov-active-target-goal {
   display: inline-flex;
   align-items: center;
