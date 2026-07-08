@@ -25,7 +25,7 @@ import { useNav } from "@app/layout/NavContext";
 import { useSessionUser, useIsReadOnly } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS, FRESH_TARGET_DAYS } from "@features/nutrition/evaluation";
-import { paceLabel, paceTone, cutEtaLabel } from "@features/nutrition/recommendation";
+import { paceLabel, paceTone, rateTone, cutEtaLabel } from "@features/nutrition/recommendation";
 import type { Recommendation } from "@features/overview/recommendations";
 import type { Goal } from "./goal";
 import type { TabId } from "@app/layout/TabBar";
@@ -709,6 +709,9 @@ function WeightCard({
       : null;
   const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
+  // Band-aware severity of the rate NUMBER itself (distance from the target
+  // band, confidence-free) — drives the delta arrow beside the Rate value.
+  const rTone = state ? rateTone(state.evaluation) : null;
   // Only a conclusive verdict (tone set) carries the cut baseline day count; an
   // inconclusive read ("Forming"/"Calibrating") is just the word, no suffix.
   const { ref, inView } = useInView<HTMLDivElement>();
@@ -841,11 +844,28 @@ function WeightCard({
       >
         <span className="ov-weight-rate">
           <span className="ov-weight-key">Rate</span>{" "}
-          {/* Rate is neutral: its signed value shows direction, and the status
-              pill carries the band-aware pace verdict (On pace / Too fast /
-              Below pace). A sign-only colour here read every loss as "good" —
-              even one the Decision Engine is flagging as too fast. */}
-          <span className="ov-weight-val">{trend != null ? fmtTrend(trend) : "—"}</span>
+          {/* The rate NUMBER stays neutral ink; the delta arrow ahead of it takes
+              rateTone — band-aware severity (in band = green, near an edge =
+              amber, far out = red), NOT sign-only colour, which read every loss
+              as "good" even one the Decision Engine flags as too fast. With the
+              arrow carrying direction, the value drops its sign (fmtTrend
+              signed=false). No band / no fit → signed value, no arrow. */}
+          <span className="ov-weight-val">
+            {trend != null ? (
+              rTone && trend !== 0 ? (
+                <>
+                  <span className={`ov-weight-rate-arrow is-${rTone}`} aria-hidden>
+                    {trend < 0 ? "▼" : "▲"}
+                  </span>
+                  {fmtTrend(trend, false)}
+                </>
+              ) : (
+                fmtTrend(trend)
+              )
+            ) : (
+              "—"
+            )}
+          </span>
           {accel && (
             <span
               className={`ov-weight-accel is-${accel.direction}${accel.strong ? " is-strong" : ""}${
