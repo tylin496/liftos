@@ -251,3 +251,19 @@ describe("computeStrengthSummary — milestoneKg (reward-row 🎯 chip)", () => 
     expect(s.exercises.find((e) => e.slug === "squat")!.milestoneKg).toBeUndefined();
   });
 });
+
+describe("computeStrengthSummary — display name", () => {
+  const logs = {
+    rdl: [log("2026-01-01", "80*8"), log("2026-01-08", "80*8"), log("2026-01-15", "80*8"), log("2026-01-22", "80*8")],
+  };
+
+  it("uses the real stored name when a slug->name map is supplied, even an all-caps acronym", () => {
+    const s = computeStrengthSummary(logs, undefined, { rdl: "RDL" });
+    expect(s.exercises.find((e) => e.slug === "rdl")!.name).toBe("RDL");
+  });
+
+  it("falls back to title-casing the slug when no name map is supplied", () => {
+    const s = computeStrengthSummary(logs);
+    expect(s.exercises.find((e) => e.slug === "rdl")!.name).toBe("Rdl");
+  });
+});
