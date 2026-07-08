@@ -336,6 +336,11 @@
   font-weight: var(--role-card-headline-weight);
 }
 
+/* Stale readiness: neutral, de-emphasised — never a semantic status colour. */
+.health-recovery-status.is-stale {
+  color: var(--role-secondary-color);
+}
+
 .health-recovery-rows {
   display: flex;
   flex-direction: column;

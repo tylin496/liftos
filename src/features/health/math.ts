@@ -1,5 +1,5 @@
 import type { BodyMetric } from "./api";
-import { daysSince } from "@shared/lib/freshness";
+import { daysSince, isStale } from "@shared/lib/freshness";
 
 // Sync freshness for the header note. Shared by both the Health tab (freshness of
 // the metrics every card anchors on) and Overview (freshness of the topbar
@@ -216,6 +216,10 @@ export interface RecoverySnapshot {
   insight: string | null;
   /** date string of the most recent reading used */
   date: string | null;
+  /** true when `date` is past the recovery freshness window — the reading is too
+   *  old to assess readiness from. Consumers show a neutral "can't assess" state
+   *  (never vanish, never alarm) and the engine treats recovery as unknown. */
+  stale: boolean;
 }
 
 export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
@@ -288,8 +292,9 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   const dates = [sleepPts.at(-1)?.date, hrvPts.at(-1)?.date, rhrPts.at(-1)?.date]
     .filter((d): d is string => d != null);
   const date = dates.length ? dates.sort().at(-1)! : null;
+  const stale = isStale("recovery", date);
 
-  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, score, status, insight, date };
+  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, score, status, insight, date, stale };
 }
 
 // A day counts as "trained" at ≥20 exercise minutes; ≥2 such days in the trailing
@@ -324,6 +329,11 @@ export interface RecoveryEvaluation {
 
 export function buildRecoveryEvaluation(metrics: BodyMetric[]): RecoveryEvaluation {
   const rec = computeRecovery(metrics);
+  // Recency gate: a stale readiness reading (past the recovery freshness window)
+  // is reported as unknown, so no directive fires off week-old HRV/sleep/RHR. The
+  // engine's "no data → no bad news" path then suppresses it — we never assert a
+  // readiness verdict from data too old to trust.
+  if (rec.stale) return { status: null, score: 0, trainingLoad: recentTrainingLoad(metrics) };
   return { status: rec.status, score: rec.score, trainingLoad: recentTrainingLoad(metrics) };
 }
 

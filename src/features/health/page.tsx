@@ -14,6 +14,7 @@ import {
   type ChartPoint,
   type RecoverySnapshot,
 } from "./math";
+import { formatAgo } from "@shared/lib/freshness";
 import { ErrorState } from "@shared/components/ErrorState";
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
@@ -256,6 +257,25 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
             </div>
           ))}
         </div>
+      </section>
+    );
+  }
+
+  // Stale readiness — the latest sleep/HRV/RHR reading is past the freshness
+  // window, so we don't assert a status off an old reading. Show a neutral
+  // "can't assess" note instead of vanishing or alarming (decision B of the
+  // freshness model). The Decision Engine independently treats stale recovery as
+  // unknown, so the two surfaces agree: no verdict from data too old to trust.
+  if (snap?.stale && snap.date) {
+    return (
+      <section className="page-card health-recovery">
+        <div className="health-recovery-head">
+          <span className="health-card-eyebrow">Recovery</span>
+          <span className="health-recovery-status is-stale">Can’t assess</span>
+        </div>
+        <p className="health-recovery-footer">
+          Readiness needs recent sleep &amp; HRV — last synced {formatAgo(snap.date)}.
+        </p>
       </section>
     );
   }
