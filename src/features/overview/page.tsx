@@ -84,14 +84,14 @@ function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { show
   // (--progress-complete), never a ramp stop.
   const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
   return ratio > 1 ? (
-    <OverflowRing ratio={ratio} size={108} strokeWidth={11} color={ringColor}>
+    <OverflowRing ratio={ratio} size={96} strokeWidth={10} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
       </div>
     </OverflowRing>
   ) : (
-    <ActivityRing pct={ratio} size={108} strokeWidth={11} color={ringColor} transition="none">
+    <ActivityRing pct={ratio} size={96} strokeWidth={10} color={ringColor} transition="none">
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
