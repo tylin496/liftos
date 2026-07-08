@@ -33,6 +33,13 @@ export interface NutritionDiagnostics {
   estimatedIntake: number;
   /** estimatedIntake − calorieTarget. Descriptive; never triggers a change. */
   intakeDifference: number;
+  /** Mean daily logged intake over the window, kcal/day (null = too few logged
+   *  days to compare). The food-log counterpart to estimatedIntake. Descriptive. */
+  loggedIntake: number | null;
+  /** estimatedIntake − loggedIntake, kcal/day (null when loggedIntake is null). A
+   *  large magnitude means the weight trend and the food log disagree → confidence
+   *  is capped below high. Descriptive; the cap itself lives on `confidence`. */
+  intakeGap: number | null;
   calorieTarget: number;
   cutMode: string;
   windowDays: number;
@@ -58,12 +65,16 @@ export interface EvaluateInput {
   estimatedTdee: number;
   /** Trailing consecutive days logged at the current calorie target. */
   daysOnTarget: number;
+  /** Mean daily logged intake (kcal) over the trend window, or null when too few
+   *  days are logged to compare. Lets a food-log ↔ weight-trend disagreement
+   *  temper confidence; null = no food-log signal, no effect. */
+  loggedIntake?: number | null;
   /** Injected for determinism/testability. */
   now: Date;
 }
 
 const KCAL_PER_KG = 7700;
-const WINDOW_DAYS = 21;
+export const WINDOW_DAYS = 21;
 /** Minimum weight readings in the window before a trend can be fit (mirrors
  *  regressionSlope's own guard). Below this, `evaluate` falls back to
  *  observedRate = 0 — a placeholder, not a measurement — so surfaces should
@@ -76,6 +87,13 @@ const STATUS_EPS = 0.02;
  *  the PRIOR target, and weight right after a deficit change carries transient
  *  water/glycogen — so a fast rate reads as optimistic, not settled. */
 export const FRESH_TARGET_DAYS = 14;
+
+/** kcal/day the weight-implied intake may differ from the logged intake before
+ *  the two sources are "materially disagreeing". A large gap means the trend
+ *  isn't a settled read of *this* intake (transient water, mis-logging, or TDEE
+ *  drift), so it can't stand as a HIGH-confidence verdict. Conservative,
+ *  uncalibrated default — no nutrition export on hand to tune it against yet. */
+const INTAKE_DIVERGENCE_KCAL = 200;
 
 /** Canonical weekly weight rate (kg/week) — the exact number the UI's "Trend"
  *  shows: a least-squares slope over the same trailing 21-day window `evaluate`
@@ -161,6 +179,7 @@ function computeConfidence(
   weightDataPoints: number,
   gapDays: number,
   scatter: number,
+  intakeGap: number | null,
 ): Confidence {
   // Data signal answers "enough data AND spread across the window?": the point
   // count, capped by the largest hole. A dense window straddling a two-week gap
@@ -183,11 +202,18 @@ function computeConfidence(
   // it's had ~2 weeks to express itself. This is why a strong data window right
   // after a target change reads medium, not an over-confident high.
   if (base === "high" && daysOnTarget < FRESH_TARGET_DAYS) return "medium";
+  // Food-log divergence cap: when the logged intake and the weight-implied intake
+  // disagree by more than INTAKE_DIVERGENCE_KCAL, the trend isn't a settled read
+  // of this intake — hold at medium even on a clean, dense weight window. Null
+  // gap (too few logged days) = no food-log signal, so no effect.
+  if (base === "high" && intakeGap != null && Math.abs(intakeGap) >= INTAKE_DIVERGENCE_KCAL) {
+    return "medium";
+  }
   return base;
 }
 
 export function evaluate(input: EvaluateInput): NutritionState {
-  const { weightSeries, cutMode, calorieTarget, estimatedTdee, daysOnTarget, now } = input;
+  const { weightSeries, cutMode, calorieTarget, estimatedTdee, daysOnTarget, now, loggedIntake = null } = input;
   const evaluatedAt = now.toISOString();
   const range = CUT_MODE_TARGET_RANGES[cutMode] ?? null;
 
@@ -200,10 +226,14 @@ export function evaluate(input: EvaluateInput): NutritionState {
   // balance from the trend (observedRate kg/wk × 7700 kcal/kg ÷ 7 days) added to
   // TDEE gives the estimated actual daily intake.
   const estimatedIntake = Math.round(estimatedTdee + (observedRate * KCAL_PER_KG) / 7);
+  const loggedIntakeRounded = loggedIntake != null ? Math.round(loggedIntake) : null;
+  const intakeGap = loggedIntakeRounded != null ? estimatedIntake - loggedIntakeRounded : null;
   const diagnostics: NutritionDiagnostics = {
     estimatedTdee: Math.round(estimatedTdee),
     estimatedIntake,
     intakeDifference: Math.round(estimatedIntake - calorieTarget),
+    loggedIntake: loggedIntakeRounded,
+    intakeGap,
     calorieTarget: Math.round(calorieTarget),
     cutMode,
     windowDays: WINDOW_DAYS,
@@ -240,6 +270,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
     weightDataPoints,
     gapDays,
     trendScatter(weightSeries, WINDOW_DAYS, slope),
+    intakeGap,
   );
 
   return {

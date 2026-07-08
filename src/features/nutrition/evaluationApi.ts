@@ -20,11 +20,31 @@ import { targetsFromConfig, type NutritionConfig } from "./api";
 import { DEFAULTS, phaseFromDeficit } from "./logic";
 import {
   evaluate,
+  WINDOW_DAYS,
   type NutritionEvaluation,
   type NutritionDiagnostics,
   type EvalStatus,
   type Confidence,
 } from "./evaluation";
+
+/** Min logged days in the trend window before the mean logged intake is trusted
+ *  enough to compare against the weight-implied intake. Below this the food-log
+ *  signal is too sparse — pass null so it has no effect on confidence. */
+const MIN_LOGGED_DAYS = 10;
+
+/** Mean of the logged daily calories inside the trailing WINDOW_DAYS, or null
+ *  when fewer than MIN_LOGGED_DAYS are logged. Matches the weight-trend window so
+ *  the two intakes describe the same period. */
+function windowedLoggedIntake(
+  entries: { entry_date: string; calories: number | null }[],
+): number | null {
+  const cutoff = localDateStrDaysAgo(WINDOW_DAYS);
+  const cals = entries
+    .filter((e) => e.entry_date >= cutoff && e.calories != null)
+    .map((e) => e.calories as number);
+  if (cals.length < MIN_LOGGED_DAYS) return null;
+  return cals.reduce((s, c) => s + c, 0) / cals.length;
+}
 import { topRecommendation, type Recommendation, type RecSource } from "@features/overview/recommendations";
 
 type Row = Database["public"]["Tables"]["nutrition_evaluations"]["Row"];
@@ -72,9 +92,11 @@ function rowToState(row: Row): NutritionStateFull {
     cutMode: row.cut_mode ?? "",
     windowDays: row.window_days ?? 0,
     weightDataPoints: row.weight_data_points ?? 0,
-    // Not persisted (debug-only input to the confidence score, whose result is
-    // already stored on `confidence`); the live `evaluate` path recomputes it.
+    // Not persisted (debug-only inputs to the confidence score, whose result is
+    // already stored on `confidence`); the live `evaluate` path recomputes them.
     longestGap: 0,
+    loggedIntake: null,
+    intakeGap: null,
     daysOnTarget: row.days_on_target ?? 0,
   };
   const recommendation: Recommendation | null = row.rec_title
@@ -149,7 +171,7 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
     supabase.from("nutrition_config").select("*").maybeSingle(),
     supabase
       .from("nutrition_entries")
-      .select("entry_date, calorie_target")
+      .select("entry_date, calorie_target, calories")
       .gte("entry_date", localDateStrDaysAgo(60))
       .order("entry_date", { ascending: true }),
     // Training + archived exercises for the Decision Engine's training slice.
@@ -186,6 +208,7 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
 
   const weightSeries = series(metrics, "weight_kg");
   const daysOnTarget = trailingDaysOnTarget(entries, calorieTarget);
+  const loggedIntake = windowedLoggedIntake(entries);
 
   const { evaluation, diagnostics } = evaluate({
     weightSeries,
@@ -193,6 +216,7 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
     calorieTarget,
     estimatedTdee,
     daysOnTarget,
+    loggedIntake,
     now: new Date(),
   });
 

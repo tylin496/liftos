@@ -140,3 +140,33 @@ describe("evaluate — fresh-target confidence cap", () => {
     expect(evaluation.confidence).toBe("high");
   });
 });
+
+describe("evaluate — food-log divergence confidence cap", () => {
+  // Same clean, dense, ≥14-day series that scores "high" on its own (estimated
+  // intake ≈ 2195 kcal); only the logged intake's agreement with it varies.
+  it("caps at medium when the logged intake disagrees with the weight-implied intake", () => {
+    const { evaluation, diagnostics } = evaluate(
+      input({ weightSeries: weightSeries(-0.55), daysOnTarget: 30, loggedIntake: 2450 }),
+    );
+    expect(diagnostics.loggedIntake).toBe(2450);
+    expect(diagnostics.intakeGap).toBe(diagnostics.estimatedIntake - 2450);
+    expect(Math.abs(diagnostics.intakeGap!)).toBeGreaterThanOrEqual(200);
+    expect(evaluation.confidence).toBe("medium");
+  });
+
+  it("stays high when the logged intake agrees with the weight-implied intake", () => {
+    const { evaluation } = evaluate(
+      input({ weightSeries: weightSeries(-0.55), daysOnTarget: 30, loggedIntake: 2195 }),
+    );
+    expect(evaluation.confidence).toBe("high");
+  });
+
+  it("has no effect when too few days are logged (null gap)", () => {
+    const { evaluation, diagnostics } = evaluate(
+      input({ weightSeries: weightSeries(-0.55), daysOnTarget: 30 }),
+    );
+    expect(diagnostics.loggedIntake).toBeNull();
+    expect(diagnostics.intakeGap).toBeNull();
+    expect(evaluation.confidence).toBe("high");
+  });
+});

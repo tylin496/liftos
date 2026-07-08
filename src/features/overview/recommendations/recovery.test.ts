@@ -31,6 +31,8 @@ function nutritionCtx(): RecContext["nutrition"] {
     windowDays: 21,
     weightDataPoints: 21,
     longestGap: 1,
+    loggedIntake: null,
+    intakeGap: null,
     daysOnTarget: 30,
   };
   return { evaluation, diagnostics };

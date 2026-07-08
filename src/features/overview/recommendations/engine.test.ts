@@ -37,6 +37,8 @@ function nutrition(
     windowDays: 21,
     weightDataPoints: 21,
     longestGap: 1,
+    loggedIntake: null,
+    intakeGap: null,
     daysOnTarget: over.daysOnTarget ?? 30,
   };
   return { evaluation, diagnostics };
