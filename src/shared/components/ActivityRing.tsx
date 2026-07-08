@@ -141,6 +141,15 @@ export function OverflowRing({
     strokeDasharray: `${overflowLength} ${circumference}`,
     transform: `rotate(-90 ${c} ${c})`,
   };
+  // Flat offset stroke instead of `filter: drop-shadow()` — iOS Safari silently
+  // drops/clips SVG filters even inside a mask (the same bug that produced the
+  // hard-edged halo), so a blurred shadow never rendered there. A solid,
+  // downward-nudged dark copy reads as a cast shadow without any filter.
+  const shadowArc = {
+    ...overflowArc,
+    stroke: "rgba(0,0,0,.45)",
+    transform: `translate(0 1.5) rotate(-90 ${c} ${c})`,
+  };
   return (
     <div className={`activity-ring${isGold ? " is-gold" : ""}`} style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
@@ -161,7 +170,7 @@ export function OverflowRing({
         {overflowFrac > 0 && (
           <g mask={`url(#${tailClipId})`}>
             <g mask={`url(#${bandClipId})`}>
-              <circle {...overflowArc} style={{ filter: "drop-shadow(0 1px 2.5px rgba(0,0,0,.5)) drop-shadow(0 2px 4px rgba(0,0,0,.3))" }} />
+              <circle {...shadowArc} />
             </g>
           </g>
         )}
