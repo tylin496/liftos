@@ -703,15 +703,15 @@ function WeightCard({
 }) {
   // observedRate is a real 0-fallback when no trend could be fit (<5 readings in
   // the window). Present that as "—" rather than a fabricated "±0.00 kg/week".
-  const trend =
+  const rate =
     state != null && state.diagnostics.weightDataPoints >= MIN_TREND_POINTS
       ? state.evaluation.observedRate
       : null;
   const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
   // Band-aware severity of the rate NUMBER itself (distance from the target
-  // band, confidence-free) — drives the delta arrow beside the Rate value.
-  const rTone = state ? rateTone(state.evaluation) : null;
+  // band, confidence-free) — drives the arrow beside the Rate value.
+  const rateArrowTone = state ? rateTone(state.evaluation) : null;
   // Only a conclusive verdict (tone set) carries the cut baseline day count; an
   // inconclusive read ("Forming"/"Calibrating") is just the word, no suffix.
   const { ref, inView } = useInView<HTMLDivElement>();
@@ -844,7 +844,7 @@ function WeightCard({
       >
         <span className="ov-weight-rate">
           <span className="ov-weight-key">Rate</span>{" "}
-          {/* The rate NUMBER stays neutral ink; the delta arrow trailing it (app-wide
+          {/* The rate NUMBER stays neutral ink; the arrow trailing it (app-wide
               convention: delta-after-value, see .ov-weight-accel below) takes
               rateTone — band-aware severity (in band = green, near an edge =
               amber, far out = red), NOT sign-only colour, which read every loss
@@ -852,16 +852,16 @@ function WeightCard({
               arrow carrying direction, the value drops its sign (fmtTrend
               signed=false). No band / no fit → signed value, no arrow. */}
           <span className="ov-weight-val">
-            {trend != null ? (
-              rTone && trend !== 0 ? (
+            {rate != null ? (
+              rateArrowTone && rate !== 0 ? (
                 <>
-                  {fmtTrend(trend, false)}
-                  <span className={`ov-weight-rate-arrow is-${rTone}`} aria-hidden>
-                    {trend < 0 ? "▼" : "▲"}
+                  {fmtTrend(rate, false)}
+                  <span className={`ov-weight-rate-arrow is-${rateArrowTone}`} aria-hidden>
+                    {rate < 0 ? "▼" : "▲"}
                   </span>
                 </>
               ) : (
-                fmtTrend(trend)
+                fmtTrend(rate)
               )
             ) : (
               "—"
