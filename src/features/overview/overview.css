@@ -33,6 +33,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .ov-active-target-goal {
@@ -124,20 +125,6 @@
 
 .ov-active-target-avg-muted { opacity: 0.6; }
 
-.ov-active-target-foot-rule {
-  height: 1px;
-  background: var(--rule);
-  margin-top: var(--vr-section);
-}
-
-.ov-active-target-foot {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-top: var(--vr-block);
-}
-
 .ov-no-entry {
   font-size: var(--text-sm);
   color: var(--ink-4);
@@ -182,6 +169,15 @@
   align-items: baseline;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* Quiet "last weighed N days ago" note — only shown when the reading is stale. */
+.ov-weight-stale {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--role-secondary-size);
+  font-weight: var(--role-secondary-weight);
+  color: var(--role-secondary-color);
 }
 
 .ov-weight-label {

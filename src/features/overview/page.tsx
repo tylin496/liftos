@@ -4,6 +4,7 @@ import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
 import { series, rollingAvg, syncTime, weightAcceleration } from "@features/health/math";
+import { isStale, formatAgo } from "@shared/lib/freshness";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useInView } from "@shared/hooks/useInView";
@@ -148,6 +149,7 @@ function ActiveTargetCard({
         <div className="ov-active-target-head">
           <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
           <div className="ov-active-target-head-right">
+            <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
             {syncedTime && <span className="page-topbar-sync-note">{syncedTime}</span>}
             <span className="ov-active-target-chevron" aria-hidden>›</span>
           </div>
@@ -158,10 +160,6 @@ function ActiveTargetCard({
             <span className="ov-active-target-ring-title">Today's active target</span>
             <span className="ov-active-target-ring-sub">Loading…</span>
           </div>
-        </div>
-        <div className="ov-active-target-foot-rule" />
-        <div className="ov-active-target-foot">
-          <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
         </div>
       </button>
     );
@@ -194,6 +192,10 @@ function ActiveTargetCard({
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
         <div className="ov-active-target-head-right">
+          <span className="ov-active-target-goal">
+            {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
+            {targetTdee.toLocaleString()} TDEE
+          </span>
           {syncedTime && <span className="page-topbar-sync-note">{syncedTime}</span>}
           <span className="ov-active-target-chevron" aria-hidden>›</span>
         </div>
@@ -219,13 +221,6 @@ function ActiveTargetCard({
                       : <><span className="is-on">On pace</span> — about your <span className="ov-active-target-avg-muted">{dailyAvg.toLocaleString()}/day baseline</span></>}
               </span>
             </div>
-          </div>
-          <div className="ov-active-target-foot-rule" />
-          <div className="ov-active-target-foot">
-            <span className="ov-active-target-goal">
-              {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
-              {targetTdee.toLocaleString()} TDEE
-            </span>
           </div>
         </>
       ) : (
@@ -752,6 +747,11 @@ function WeightCard({
   // 7-day average vs the prior 7 days — same signal the Health weight card
   // shows; down = good on a cut. Threshold-suppressed when within noise.
   const weightPts = series(metrics, "weight_kg");
+  // Honest freshness: if the last weigh-in is past the weight cadence window,
+  // note how long ago it was so a days-old number doesn't read as today's. Never
+  // an alarm — just a quiet caption; stays hidden entirely if you weigh regularly.
+  const weightDate = weightPts.at(-1)?.date ?? null;
+  const weightStale = isStale("weight", weightDate);
   const thisWeek = rollingAvg(weightPts, 7, 0);
   const prevWeek = rollingAvg(weightPts, 7, 7);
   const weightDelta = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
@@ -836,6 +836,9 @@ function WeightCard({
         </MetricValue>
         <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
       </div>
+      {weightStale && weightDate && (
+        <span className="ov-weight-stale">Last weighed {formatAgo(weightDate)}</span>
+      )}
 
       <WeightSparkline points={sparkPoints} tone={sparkTone} />
 
