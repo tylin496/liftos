@@ -196,13 +196,16 @@ export function ExerciseCard({
 
   useEffect(() => {
     if (!menuOpen) return;
+    // click, not mousedown: closing on mousedown unmounts the menu before the
+    // trailing synthetic click fires on iOS Safari, so that click falls through
+    // to whatever is now underneath the tap.
     function onDown(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
     }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("click", onDown);
+    return () => document.removeEventListener("click", onDown);
   }, [menuOpen]);
 
   // On unmount (e.g. switching splits inside the undo window), flush pending log
