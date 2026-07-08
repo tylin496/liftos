@@ -10,6 +10,18 @@ import { parse, score } from "@features/training/parser";
 import { epley1RM, maxReps, totalReps } from "@features/training/logic";
 import { milestoneReached } from "@features/training/milestone";
 
+/** Reps for the local reps-tiebreak — NOT training/logic.ts's totalReps, which
+ *  multiplies a bare number ("7") by the exercise's real set count. This module
+ *  never receives set count, so a bare number is left as-is (one set); a
+ *  drop-set ("8/8/8") still sums its segments. Only ever compares sessions of
+ *  the SAME lift against each other, so the missing set-count expansion cancels
+ *  out — but it's a genuinely different number from logic.ts's totalReps for
+ *  the same reps string, so it gets its own name to avoid the two being read as
+ *  interchangeable. */
+function sessionReps(repsStr: string): number {
+  return totalReps(repsStr, 1);
+}
+
 export type StrengthStatus = "improving" | "stable" | "watch";
 
 /** A `watch` lift (latest session below 94% of PR) only counts as "needs
@@ -147,19 +159,21 @@ export function computeStrengthSummary(
       const w = score(p);
       if (!Number.isFinite(w)) continue;
       const e = epley1RM(w, p.reps);
-      // setCount-free total reps: a drop-set ("8/8/8") sums its segments without a
-      // set count; a lone bare number counts as one set (rare here). Enough for the
-      // reps-tiebreak axis, which only compares sessions of the SAME lift.
-      const tr = totalReps(p.reps, 1);
+      const tr = sessionReps(p.reps);
       const cur = byDate[l.log_date] ?? { e1rm: 0, weightKg: 0, topReps: 0, ceilingReps: 0 };
       const heavier = w > cur.weightKg; // track reps of the HEAVIEST set (the PR detail)
+      // Round to the same 1-decimal precision the PR loop below compares at
+      // (roundedE1) — a raw-float tie check here could split what that loop
+      // treats as one ceiling into two, silently dropping the earlier set's reps.
+      const eR = Math.round(e * 10) / 10;
+      const curE1R = Math.round(cur.e1rm * 10) / 10;
       byDate[l.log_date] = {
         e1rm: Math.max(cur.e1rm, e),
         weightKg: heavier ? w : cur.weightKg,
         topReps: heavier ? maxReps(p.reps) : cur.topReps,
         // Total reps of the set that hit the day's e1RM ceiling — the reps-tiebreak
         // axis. A higher-e1RM set takes over; a tie keeps the larger rep total.
-        ceilingReps: e > cur.e1rm ? tr : e === cur.e1rm ? Math.max(cur.ceilingReps, tr) : cur.ceilingReps,
+        ceilingReps: eR > curE1R ? tr : eR === curE1R ? Math.max(cur.ceilingReps, tr) : cur.ceilingReps,
       };
     }
     // Sort ascending by date so recent/prior slices are correct regardless of
