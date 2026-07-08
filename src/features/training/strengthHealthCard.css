@@ -550,7 +550,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding-top: var(--space-3);
+  padding: var(--space-3) var(--space-4) 0;
 }
 .ov-th-chip {
   font-size: var(--text-2xs);
