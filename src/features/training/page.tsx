@@ -482,7 +482,7 @@ function ArchivedSection({
           {exercises.map((ex) => {
             const exLogs = logs[ex.slug] ?? [];
             const logsAsc = [...exLogs].reverse();
-            const stats = computeStats(logsAsc, defaultSetCount(ex));
+            const stats = computeStats(logsAsc, defaultSetCount(ex), ex.compound ? "compound" : "isolation");
             const best = stats.best;
             const bestParsed = best?.log.raw ? parse(best.log.raw) : null;
             const prStr = bestParsed

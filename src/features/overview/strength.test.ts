@@ -146,6 +146,73 @@ describe("computeStrengthSummary — needs-attention gating (recent-PR grace)", 
   });
 });
 
+describe("computeStrengthSummary — isolation scores on tonnage, not e1RM", () => {
+  // The motivating bug: a lateral raise PRs at 14×12 (e1RM 19.6, tonnage 168),
+  // then the user deliberately shifts to a higher-rep block, 10×16 (e1RM ~15.3,
+  // tonnage 160). On e1RM that's 78% retention → watch/declining — a FALSE
+  // positive from a programming change. On tonnage it's ~95% → still on track.
+  const isoLogs = {
+    lateral: [
+      log("2026-05-01", "12*12"),
+      log("2026-05-15", "13*12"),
+      log("2026-06-01", "14*12"), // PR: e1RM 19.6, tonnage 168
+      log("2026-07-01", "10*16"), // rep-target change: e1RM ~15.3, tonnage 160
+    ],
+  };
+
+  it("isolation (not in the compound set) is NOT flagged for a rep-target change", () => {
+    const s = computeStrengthSummary(isoLogs, new Set()); // lateral = isolation
+    const lat = s.exercises.find((e) => e.slug === "lateral")!;
+    expect(lat.trend).toBeGreaterThan(0.94); // ~0.95 tonnage retention → stable
+    expect(lat.status).not.toBe("watch");
+    expect(lat.needsAttention).toBe(false);
+    expect(lat.declining).toBe(false);
+  });
+
+  it("the SAME logs, judged as compound (e1RM), DO read as a drop", () => {
+    const s = computeStrengthSummary(isoLogs, new Set(["lateral"]));
+    const lat = s.exercises.find((e) => e.slug === "lateral")!;
+    expect(lat.trend).toBeLessThan(0.94); // e1RM retention tanks on the rep shift
+    expect(lat.status).toBe("watch");
+  });
+
+  it("a new best-set tonnage ceiling is a Hypertrophy PR that resets the clock", () => {
+    const s = computeStrengthSummary(
+      {
+        lateral: [
+          log("2026-05-01", "10*15"), // tonnage 150
+          log("2026-05-15", "10*12"), // 120 — below
+          log("2026-06-01", "10*13"), // 130 — below
+          log("2026-07-01", "12*15"), // tonnage 180 → new ceiling, latest session
+        ],
+      },
+      new Set(), // isolation
+    );
+    const lat = s.exercises.find((e) => e.slug === "lateral")!;
+    expect(lat.lastPRKind).toBe("hypertrophy");
+    expect(lat.lastPRDate).toBe("2026-07-01");
+    expect(lat.stalledWeeks).toBe(0);
+    expect(lat.status).toBe("improving");
+  });
+
+  it("a real isolation drop (tonnage falls well below peak) still flags", () => {
+    const s = computeStrengthSummary(
+      {
+        lateral: [
+          log("2026-05-01", "12*15"), // tonnage 180 (PR)
+          log("2026-05-15", "10*14"), // 140
+          log("2026-06-01", "9*12"), // 108
+          log("2026-07-01", "8*10"), // 80 — a genuine collapse, ~44% of peak
+        ],
+      },
+      new Set(),
+    );
+    const lat = s.exercises.find((e) => e.slug === "lateral")!;
+    expect(lat.status).toBe("watch");
+    expect(lat.declining).toBe(true); // consecutive tonnage slide → acute flag
+  });
+});
+
 describe("computeStrengthSummary — milestoneKg (reward-row 🎯 chip)", () => {
   // The last session crosses 100 kg (heaviest ever, new rung) AND raises the
   // e1RM ceiling — the classic Strength PR + milestone the gold chip is for.

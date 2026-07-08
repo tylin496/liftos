@@ -7,7 +7,7 @@
 // the training parser/e1RM, nothing else.
 
 import { parse, score } from "@features/training/parser";
-import { epley1RM, maxReps, totalReps } from "@features/training/logic";
+import { epley1RM, maxReps, totalReps, type ScoreMode } from "@features/training/logic";
 import { milestoneReached } from "@features/training/milestone";
 
 /** Reps for the local reps-tiebreak — NOT training/logic.ts's totalReps, which
@@ -96,10 +96,11 @@ export interface StrengthExercise {
   declining: boolean;
   /** Recent session e1RMs (ascending, up to 8) — the row's mini trend sparkline. */
   recentBests: number[];
-  /** Whether the most recent PR (at `lastPRDate`) was a new e1RM ceiling
-   *  ("strength") or a weight-axis PR ("performance") — drives the 🏆 / 💪 reward
-   *  icon. Always set (the first-ever session counts as a strength PR). */
-  lastPRKind: "strength" | "performance";
+  /** Which kind of PR the most recent one (at `lastPRDate`) was — drives the
+   *  reward icon/label. Compound: new e1RM ceiling ("strength", 🏆) or weight-axis
+   *  ("performance", 💪). Isolation: new best-set tonnage ceiling ("hypertrophy",
+   *  🏆). Always set (the first-ever session PRs on its mode's ceiling axis). */
+  lastPRKind: "strength" | "performance" | "hypertrophy";
   /** The PR session's heaviest set as "77 kg × 7" — the concrete detail for a
    *  Performance PR reward row. */
   lastPRDetail: string;
@@ -148,10 +149,24 @@ export function computeStrengthSummary(
     if (slugLogs.length < 4) continue;
     strength.total++;
 
-    // Group by date (a day = one session); keep the best on BOTH axes — max e1RM
-    // (the status/retention number) and max completed weight (the Performance-PR
-    // axis, used only to reset the stall clock below).
-    const byDate: Record<string, { e1rm: number; weightKg: number; topReps: number; ceilingReps: number }> = {};
+    // Two separate concerns keyed off `compoundSlugs`:
+    //  • Score mode — compound → e1RM (heavy/low-rep is the goal); isolation →
+    //    best-set tonnage (weight × reps), which holds when load is traded for
+    //    reps, so a deliberate rep-target change isn't misread as a regression.
+    //    An OMITTED set = a legacy caller that doesn't split → judge on e1RM (the
+    //    pre-tonnage behavior). A PROVIDED set is authoritative: members compound,
+    //    everything else isolation. Mirrors logic.ts's ScoreMode so the card and
+    //    the log-time toast never disagree.
+    //  • Milestone gate — `isCompound` stays explicit-membership-only (a round-
+    //    weight rung is compound-only, and absence must not spam rungs).
+    const inCompoundSet = compoundSlugs?.has(slug) ?? false;
+    const mode: ScoreMode = compoundSlugs ? (inCompoundSet ? "compound" : "isolation") : "compound";
+    const isCompound = inCompoundSet;
+
+    // Group by date (a day = one session); keep the best on every axis — max e1RM,
+    // max best-set tonnage (the two candidate score axes), and max completed weight
+    // (the compound Performance-PR axis, used only to reset the stall clock below).
+    const byDate: Record<string, { e1rm: number; tonnage: number; weightKg: number; topReps: number; ceilingReps: number }> = {};
     for (const l of slugLogs) {
       if (!l.log_date || !l.raw) continue;
       const p = parse(l.raw);
@@ -159,8 +174,9 @@ export function computeStrengthSummary(
       const w = score(p);
       if (!Number.isFinite(w)) continue;
       const e = epley1RM(w, p.reps);
+      const tng = w > 0 ? w * maxReps(p.reps) : 0; // uncapped reps — matches logic.ts toLogEntry
       const tr = sessionReps(p.reps);
-      const cur = byDate[l.log_date] ?? { e1rm: 0, weightKg: 0, topReps: 0, ceilingReps: 0 };
+      const cur = byDate[l.log_date] ?? { e1rm: 0, tonnage: 0, weightKg: 0, topReps: 0, ceilingReps: 0 };
       const heavier = w > cur.weightKg; // track reps of the HEAVIEST set (the PR detail)
       // Round to the same 1-decimal precision the PR loop below compares at
       // (roundedE1) — a raw-float tie check here could split what that loop
@@ -169,6 +185,7 @@ export function computeStrengthSummary(
       const curE1R = Math.round(cur.e1rm * 10) / 10;
       byDate[l.log_date] = {
         e1rm: Math.max(cur.e1rm, e),
+        tonnage: Math.max(cur.tonnage, tng),
         weightKg: heavier ? w : cur.weightKg,
         topReps: heavier ? maxReps(p.reps) : cur.topReps,
         // Total reps of the set that hit the day's e1RM ceiling — the reps-tiebreak
@@ -182,9 +199,15 @@ export function computeStrengthSummary(
     const datedBests = Object.entries(byDate)
       .filter(([, v]) => v.e1rm > 0)
       .sort(([a], [b]) => a.localeCompare(b));
-    const sessionBests = datedBests.map(([, v]) => v.e1rm);
+    // The score axis per mode: e1RM (compound) or best-set tonnage (isolation).
+    // Everything below — retention, status, the PR clock's ceiling — reads this
+    // one series, so switching the mode switches the whole verdict coherently.
+    const scoreOf = (v: { e1rm: number; tonnage: number }) => (mode === "isolation" ? v.tonnage : v.e1rm);
+    const sessionBests = datedBests.map(([, v]) => scoreOf(v));
     if (sessionBests.length < 4) { strength.total--; continue; }
 
+    // latestE1RM / prE1RM carry the mode's SCORE (e1RM or tonnage) — the field
+    // names predate the isolation axis; the values are always the right yardstick.
     const latestE1RM = sessionBests[sessionBests.length - 1];
     const prE1RM = Math.max(...sessionBests);
 
@@ -200,44 +223,50 @@ export function computeStrengthSummary(
     else if (pct >= 0.94) { strength.stable++; status = "stable"; }    // holding
     else { strength.watch++; status = "watch"; }                      // real drop below PR
 
-    // Weeks stalled: span from the last session that set a PR on ANY axis to the
-    // most recent session. Mirrors classifyPR (training/logic.ts) in full now: a
-    // new rounded-e1RM ceiling (strength), a new heaviest completed weight, OR —
-    // at a TIED ceiling — more total reps (the Performance reps tiebreak). All
-    // three keep a lift making real progress OUT of the Decision Engine's
-    // "declining" read (buildTrainingEvaluation gates decline on stalledWeeks ≥ 3).
-    // The reps axis is setCount-free (drop-set reps already sum without a set
-    // count), so it computes locally here — no caller threading. Status/retention
-    // stay pure e1RM (above); only the stall clock gains the weight + reps axes.
-    let runMaxE1 = -Infinity;
+    // Weeks stalled: span from the last session that set a PR on the mode's axes
+    // to the most recent session. Mirrors classifyPR (training/logic.ts): compound
+    // resets on a new rounded-e1RM ceiling (strength), a new heaviest completed
+    // weight, OR — at a TIED ceiling — more total reps (the Performance reps
+    // tiebreak); isolation resets on a new best-set tonnage ceiling (a single
+    // Hypertrophy PR — one metric, one celebration). A reset keeps a lift making
+    // real progress OUT of the Decision Engine's "declining" read (decline gates
+    // on stalledWeeks ≥ 3). Reads the same `scoreOf` series as status/retention.
+    let runMaxScore = -Infinity; // ceiling on the mode's score axis (e1RM or tonnage)
     let runMaxWeight = -Infinity;
-    let runMaxCeilingReps = -Infinity; // most total reps seen AT the current e1RM ceiling
+    let runMaxCeilingReps = -Infinity; // most total reps seen AT the current e1RM ceiling (compound)
     let prDate = datedBests[0][0];
-    let lastPRKind: "strength" | "performance" = "strength"; // first-ever session = strength PR
+    // First-ever session PRs on its mode's ceiling axis.
+    let lastPRKind: StrengthExercise["lastPRKind"] = mode === "isolation" ? "hypertrophy" : "strength";
     // Round-weight milestone crossed at the LAST PR session (compound only). Set
     // alongside prDate/lastPRKind so it always describes the reward row's PR, not
     // an earlier one. runMaxWeight here still holds the heaviest weight from PRIOR
     // sessions (it's updated below the check) — exactly milestoneReached's prevBest.
-    const isCompound = compoundSlugs?.has(slug) ?? false;
     let lastPRMilestone: number | null = null;
     for (const [date, v] of datedBests) {
-      const roundedE1 = Math.round(v.e1rm * 10) / 10;
-      const newCeiling = roundedE1 > Math.round(runMaxE1 * 10) / 10;
-      const newWeight = v.weightKg > runMaxWeight;
-      // Reps tiebreak: at a TIED e1RM ceiling, beating the most total reps ever
-      // done at that ceiling is a Performance PR too — resets the clock.
-      const tiedCeiling = !newCeiling && roundedE1 === Math.round(runMaxE1 * 10) / 10;
-      const newReps = tiedCeiling && v.ceilingReps > runMaxCeilingReps;
-      if (newCeiling || newWeight || newReps) {
-        prDate = date;
-        lastPRKind = newCeiling ? "strength" : "performance";
-        lastPRMilestone = isCompound ? milestoneReached(v.weightKg, runMaxWeight) : null;
+      const scoreVal = scoreOf(v);
+      const newCeiling = Math.round(scoreVal * 10) / 10 > Math.round(runMaxScore * 10) / 10;
+      if (mode === "isolation") {
+        // Single-tier: a new tonnage ceiling is THE Hypertrophy PR. (Tied-tonnage
+        // weight/reps tiebreaks that cmpStrength would honour are negligibly rare;
+        // the ceiling is the event, and it never crosses a compound milestone.)
+        if (newCeiling) { prDate = date; lastPRMilestone = null; }
+      } else {
+        const newWeight = v.weightKg > runMaxWeight;
+        // Reps tiebreak: at a TIED e1RM ceiling, beating the most total reps ever
+        // done at that ceiling is a Performance PR too — resets the clock.
+        const tiedCeiling = !newCeiling && Math.round(scoreVal * 10) / 10 === Math.round(runMaxScore * 10) / 10;
+        const newReps = tiedCeiling && v.ceilingReps > runMaxCeilingReps;
+        if (newCeiling || newWeight || newReps) {
+          prDate = date;
+          lastPRKind = newCeiling ? "strength" : "performance";
+          lastPRMilestone = isCompound ? milestoneReached(v.weightKg, runMaxWeight) : null;
+        }
+        // Track the running ceiling reps: a new ceiling adopts this session's reps;
+        // a tie keeps the max. (runMaxScore stays the raw max, as before.)
+        if (newCeiling) runMaxCeilingReps = v.ceilingReps;
+        else if (tiedCeiling) runMaxCeilingReps = Math.max(runMaxCeilingReps, v.ceilingReps);
       }
-      // Track the running ceiling reps: a new ceiling adopts this session's reps;
-      // a tie keeps the max. (runMaxE1 stays the raw max, as before.)
-      if (newCeiling) runMaxCeilingReps = v.ceilingReps;
-      else if (tiedCeiling) runMaxCeilingReps = Math.max(runMaxCeilingReps, v.ceilingReps);
-      if (v.e1rm > runMaxE1) runMaxE1 = v.e1rm;
+      if (scoreVal > runMaxScore) runMaxScore = scoreVal;
       if (v.weightKg > runMaxWeight) runMaxWeight = v.weightKg;
     }
     const lastDate = datedBests[datedBests.length - 1][0];

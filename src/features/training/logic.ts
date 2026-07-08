@@ -5,12 +5,24 @@ import { parse, score } from "./parser";
 
 export type TimeFilter = "3mo" | "year" | "all";
 
+/** How a lift is scored — the single switch the whole training pipeline reads so
+ *  the card, the log-time toast, and the export never disagree. `compound` judges
+ *  on estimated 1RM (heavy, low-rep = the goal); `isolation` judges on best-set
+ *  tonnage (weight × reps), which stays flat when you trade load for reps — so a
+ *  deliberate rep-target change (12→16) reads as maintained work, not a regression.
+ *  Maps 1:1 off `exercises.compound`: `compound` ? "compound" : "isolation". */
+export type ScoreMode = "compound" | "isolation";
+
 export interface LogEntry {
   log: TrainingLog;
   weightKg: number;
   reps: string;
   e1rm: number;
   totalReps: number;
+  /** Best-set tonnage: top-set weight × its reps (set-count-free, like e1rm).
+   *  The isolation score axis — folds weight and reps into one hypertrophy number
+   *  the way e1rm folds them into one strength number. */
+  tonnage: number;
 }
 
 // ─── Time filter ─────────────────────────────────────────────────────────────
@@ -89,6 +101,11 @@ export function toLogEntry(log: TrainingLog, setCount: number): LogEntry | null 
     reps: parsed.reps,
     e1rm: epley1RM(weightKg, parsed.reps),
     totalReps: totalReps(parsed.reps, setCount),
+    // Best-set tonnage = top-set weight × its reps, UNCAPPED (unlike e1rm, which
+    // caps reps at 12 because Epley degrades past that). For hypertrophy the high
+    // reps ARE the stimulus — capping here would score 10×16 as 10×12 and re-open
+    // the very false-positive tonnage exists to close (10×16=160 must stay 160).
+    tonnage: weightKg > 0 ? weightKg * maxReps(parsed.reps) : 0,
   };
 }
 
@@ -105,7 +122,22 @@ export function toLogEntry(log: TrainingLog, setCount: number): LogEntry | null 
  * the caller keeps whoever came first. Returns >0 when `a` beats `b`, <0
  * when weaker, 0 when equal.
  */
-export function cmpStrength(a: Pick<LogEntry, "e1rm" | "totalReps">, b: Pick<LogEntry, "e1rm" | "totalReps">): number {
+type CmpFields = Pick<LogEntry, "e1rm" | "totalReps" | "tonnage" | "weightKg">;
+
+export function cmpStrength(a: CmpFields, b: CmpFields, mode: ScoreMode): number {
+  if (mode === "isolation") {
+    // Total work first (tonnage folds weight × reps); at a tie, higher mechanical
+    // tension wins (heavier load), then more reps. The tie-break defines a
+    // philosophy — tonnage already credits reps, so equal tonnage tips to load —
+    // even though it almost never fires in practice.
+    const at = Math.round(a.tonnage * 10) / 10;
+    const bt = Math.round(b.tonnage * 10) / 10;
+    if (at !== bt) return at - bt;
+    const aw = Math.round(a.weightKg * 10) / 10;
+    const bw = Math.round(b.weightKg * 10) / 10;
+    if (aw !== bw) return aw - bw;
+    return a.totalReps - b.totalReps;
+  }
   const ae1 = Math.round(a.e1rm * 10) / 10;
   const be1 = Math.round(b.e1rm * 10) / 10;
   if (ae1 !== be1) return ae1 - be1;
@@ -114,10 +146,11 @@ export function cmpStrength(a: Pick<LogEntry, "e1rm" | "totalReps">, b: Pick<Log
 
 /** Does `a` set a new record over `best`? No existing best always counts as new. */
 export function beatsBest(
-  a: Pick<LogEntry, "e1rm" | "totalReps">,
-  best: Pick<LogEntry, "e1rm" | "totalReps"> | null,
+  a: CmpFields,
+  best: CmpFields | null,
+  mode: ScoreMode,
 ): boolean {
-  return !best || cmpStrength(a, best) > 0;
+  return !best || cmpStrength(a, best, mode) > 0;
 }
 
 // ─── PR classification (log-time feedback only) ──────────────────────────────
@@ -137,40 +170,52 @@ export interface PRBests {
   e1rm: number;
   /** Heaviest weight actually completed across the history (kg). */
   weightKg: number;
+  /** Highest best-set tonnage across the history (kg·reps) — the isolation axis. */
+  tonnage: number;
 }
 
-/** The two PR axes' all-time bests from a set of logs. Pass the history the new
+/** The PR axes' all-time bests from a set of logs. Pass the history the new
  *  set is measured against — i.e. excluding the set being classified. */
 export function computePRBests(logs: TrainingLog[], setCount: number): PRBests {
   let e1rm = 0;
   let weightKg = 0;
+  let tonnage = 0;
   for (const l of logs) {
     const e = toLogEntry(l, setCount);
     if (!e) continue;
     if (e.e1rm > e1rm) e1rm = e.e1rm;
     if (e.weightKg > weightKg) weightKg = e.weightKg;
+    if (e.tonnage > tonnage) tonnage = e.tonnage;
   }
-  return { e1rm, weightKg };
+  return { e1rm, weightKg, tonnage };
 }
 
-export type PRKind = "strength" | "performance" | null;
+/** The gold moment, split by lift type: `strength` = new e1RM ceiling (compound),
+ *  `hypertrophy` = new best-set tonnage ceiling (isolation), `performance` = the
+ *  compound consolation (heaviest weight / more reps at a tied e1RM ceiling). */
+export type PRKind = "strength" | "hypertrophy" | "performance" | null;
 
-/** Classify a freshly-logged set against the prior bests. A new rounded-e1RM
- *  ceiling is a Strength PR; otherwise a new heaviest completed weight — or more
- *  total reps than the record at a tied ceiling — is a Performance PR; anything
- *  else is not a PR. e1RM is rounded to the same 1-decimal the UI shows, so a
- *  set that only *displays* as tying the ceiling isn't mislabelled a Strength
- *  PR. The first-ever set (empty history) counts as a Strength PR. */
+/** Classify a freshly-logged set against the prior bests, per the lift's
+ *  ScoreMode. Isolation: any new cmpStrength best (led by a new tonnage ceiling)
+ *  is a single Hypertrophy PR — one metric, one celebration, no sub-tier.
+ *  Compound (unchanged): a new rounded-e1RM ceiling is a Strength PR; else a new
+ *  heaviest completed weight, or more reps at a tied ceiling, is a Performance PR.
+ *  Values are rounded to the 1-decimal the UI shows so a set that only *displays*
+ *  as tying isn't mislabelled. The first-ever set (empty history) always PRs. */
 export function classifyPR(
-  entry: Pick<LogEntry, "e1rm" | "weightKg" | "totalReps">,
+  entry: Pick<LogEntry, "e1rm" | "weightKg" | "totalReps" | "tonnage">,
   prev: PRBests,
-  prevBest: Pick<LogEntry, "e1rm" | "totalReps"> | null,
+  prevBest: Pick<LogEntry, "e1rm" | "totalReps" | "tonnage" | "weightKg"> | null,
+  mode: ScoreMode,
 ): PRKind {
+  if (mode === "isolation") {
+    return beatsBest(entry, prevBest, mode) ? "hypertrophy" : null;
+  }
   const e1 = Math.round(entry.e1rm * 10) / 10;
   const prevE1 = Math.round(prev.e1rm * 10) / 10;
   if (e1 > prevE1) return "strength";
   if (entry.weightKg > prev.weightKg) return "performance";
-  if (prevBest && cmpStrength(entry, prevBest) > 0) return "performance";
+  if (prevBest && cmpStrength(entry, prevBest, mode) > 0) return "performance";
   return null;
 }
 
@@ -183,16 +228,16 @@ export interface Stats {
 }
 
 /** logs should be sorted chronological ascending (oldest first). */
-export function computeStats(logs: TrainingLog[], setCount: number): Stats {
+export function computeStats(logs: TrainingLog[], setCount: number, mode: ScoreMode): Stats {
   const entries = logs.map((l) => toLogEntry(l, setCount)).filter((e): e is LogEntry => e !== null);
   if (!entries.length) return { best: null, prIndex: -1, latest: null };
 
-  // PR = strongest set by cmpStrength (e1RM, then reps). Strict > with the
-  // ascending order means on a full tie the earliest entry keeps the PR —
-  // whoever hit it first owns the record.
+  // PR = strongest set by cmpStrength (per mode: e1RM or tonnage, then tie-breaks).
+  // Strict > with the ascending order means on a full tie the earliest entry keeps
+  // the PR — whoever hit it first owns the record.
   let best = entries[0];
   for (const e of entries) {
-    if (cmpStrength(e, best) > 0) best = e;
+    if (cmpStrength(e, best, mode) > 0) best = e;
   }
 
   const prIndex = logs.indexOf(best.log);
@@ -204,7 +249,8 @@ export function computeStats(logs: TrainingLog[], setCount: number): Stats {
 
 export interface TrendPoint {
   date: string; // YYYY-MM-DD
-  e1rm: number; // Epley 1RM in kg — the app's canonical strength number
+  e1rm: number; // Epley 1RM in kg — the compound (strength) trend number
+  tonnage: number; // best-set weight × reps — the isolation (hypertrophy) trend number
   weightKg: number;
   reps: string;
 }
@@ -221,7 +267,7 @@ export function buildTrendSeries(logsAsc: TrainingLog[], setCount: number): Tren
     if (!log.log_date) continue;
     const e = toLogEntry(log, setCount);
     if (!e || !(e.e1rm > 0)) continue;
-    pts.push({ date: log.log_date, e1rm: e.e1rm, weightKg: e.weightKg, reps: e.reps });
+    pts.push({ date: log.log_date, e1rm: e.e1rm, tonnage: e.tonnage, weightKg: e.weightKg, reps: e.reps });
   }
   // logsAsc arrives chronological, but an edited log_date can reorder it — a
   // defensive sort keeps the line reading left→right in real time order.
@@ -277,6 +323,7 @@ export function computeHistDelta(
   curr: TrainingLog,
   prev: TrainingLog,
   setCount: number,
+  mode: ScoreMode,
 ): HistDelta | null {
   if (!curr.raw || !prev.raw) return null;
   const cp = parse(curr.raw);
@@ -300,8 +347,9 @@ export function computeHistDelta(
   const cE1 = epley1RM(cKg, cp.reps);
   const pE1 = epley1RM(pKg, pp.reps);
   const cmp = cmpStrength(
-    { e1rm: cE1, totalReps: totalReps(cp.reps, setCount) },
-    { e1rm: pE1, totalReps: totalReps(pp.reps, setCount) },
+    { e1rm: cE1, totalReps: totalReps(cp.reps, setCount), tonnage: cKg * maxReps(cp.reps), weightKg: cKg },
+    { e1rm: pE1, totalReps: totalReps(pp.reps, setCount), tonnage: pKg * maxReps(pp.reps), weightKg: pKg },
+    mode,
   );
   let direction: "gain" | "loss";
   if (cmp !== 0) {

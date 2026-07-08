@@ -181,7 +181,10 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
       .from("training_logs")
       .select("exercise_slug, raw, log_date")
       .order("log_date", { ascending: true }),
-    supabase.from("exercises").select("slug").eq("archived", true),
+    // slug + archived + compound: archived filters the training slice, compound
+    // picks the score axis (e1RM vs tonnage) so the engine's decline verdict
+    // matches the Training Health card instead of judging isolation lifts on e1RM.
+    supabase.from("exercises").select("slug, archived, compound"),
     // Prior surfaced recommendation — feeds the engine's exit-hysteresis so a
     // marginal signal wobble can't flip the weekly directive. A plain read; null
     // before the first evaluation ever ran.
@@ -232,13 +235,18 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
   // training as "no info", never a bad-news signal).
   let training = null;
   if (!logsRes.error && !archivedRes.error) {
-    const archivedSlugs = new Set((archivedRes.data ?? []).map((e) => e.slug));
+    const archivedSlugs = new Set(
+      (archivedRes.data ?? []).filter((e) => e.archived).map((e) => e.slug),
+    );
+    const compoundSlugs = new Set(
+      (archivedRes.data ?? []).filter((e) => e.compound).map((e) => e.slug),
+    );
     const bySlug: Record<string, { log_date: string | null; raw: string | null }[]> = {};
     for (const l of logsRes.data ?? []) {
       if (!l.exercise_slug || archivedSlugs.has(l.exercise_slug)) continue;
       (bySlug[l.exercise_slug] ??= []).push(l);
     }
-    training = buildTrainingEvaluation(computeStrengthSummary(bySlug));
+    training = buildTrainingEvaluation(computeStrengthSummary(bySlug, compoundSlugs));
   }
 
   const recommendation = topRecommendation(

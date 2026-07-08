@@ -18,7 +18,9 @@ import {
   computePRBests,
   classifyPR,
   totalReps,
+  maxReps,
   type TimeFilter,
+  type ScoreMode,
 } from "./logic";
 import { timelineDate } from "@shared/lib/date";
 import { milestoneReached } from "./milestone";
@@ -235,9 +237,12 @@ export function ExerciseCard({
     [effectiveLogsAsc, timeFilter],
   );
   const sc = defaultSetCount(exercise);
+  // Score mode: compound lifts judge on e1RM, isolation on best-set tonnage — the
+  // one switch every strength read (PR badge, confetti, history delta) flows from.
+  const mode: ScoreMode = exercise.compound ? "compound" : "isolation";
   // Stats use ALL logs (unfiltered, undeleted) so the PR badge/confetti reflect
   // the all-time record, not just what's inside the current time-filter window.
-  const stats = useMemo(() => computeStats(effectiveLogsAsc, sc), [effectiveLogsAsc, sc]);
+  const stats = useMemo(() => computeStats(effectiveLogsAsc, sc, mode), [effectiveLogsAsc, sc, mode]);
   // Index of the all-time-best log within the currently displayed (filtered) window,
   // so the history list can still highlight it when it's visible.
   const prIndexInFiltered = useMemo(
@@ -290,9 +295,10 @@ export function ExerciseCard({
       const newE1RM = epley1RM(newScore, newReps);
       const prevBests = computePRBests(effectiveLogsAsc, sc);
       const prKind = classifyPR(
-        { e1rm: newE1RM, weightKg: newScore, totalReps: totalReps(newReps, sc) },
+        { e1rm: newE1RM, weightKg: newScore, totalReps: totalReps(newReps, sc), tonnage: newScore * maxReps(newReps) },
         prevBests,
         oldBest,
+        mode,
       );
       // Milestone (compound lifts only) outranks a Strength/Performance PR — a
       // round-weight rung is the bigger moment. It implies a weight-axis PR, so
@@ -303,6 +309,7 @@ export function ExerciseCard({
       // milestone on the same save always outranks it).
       const sessionMilestone = sessionMilestoneReached(priorSessionDates, date);
       const wStr = newParsed ? `${fmtWeightNum(newScore)} kg` : "";
+      const setStr = newParsed ? `${fmtWeightNum(newScore)} kg × ${maxReps(newReps)}` : "";
       if (milestone != null) {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), 1100);
@@ -313,6 +320,13 @@ export function ExerciseCard({
         setTimeout(() => setPrFlash(false), 1100);
         haptic("success");
         celebration.celebrate({ variant: "pr", title: "Strength PR", sub: wStr || "New estimated 1RM" });
+      } else if (prKind === "hypertrophy") {
+        // Isolation's gold moment — a new best-set tonnage ceiling. Same confetti
+        // tier as a compound Strength PR; the sub shows the set that set it.
+        setPrFlash(true);
+        setTimeout(() => setPrFlash(false), 1100);
+        haptic("success");
+        celebration.celebrate({ variant: "pr", title: "Hypertrophy PR", sub: setStr || "New best volume" });
       } else if (prKind === "performance") {
         haptic("success");
         toast(wStr ? `Performance PR · heaviest yet at ${wStr}` : "Performance PR · heaviest yet", "success");
@@ -359,9 +373,10 @@ export function ExerciseCard({
       const prKind = isReigningBest
         ? null
         : classifyPR(
-            { e1rm: newE1RM, weightKg: editScore, totalReps: totalReps(parsed.reps, sc) },
+            { e1rm: newE1RM, weightKg: editScore, totalReps: totalReps(parsed.reps, sc), tonnage: editScore * maxReps(parsed.reps) },
             editPrevBests,
-            computeStats(priorAsc, sc).best,
+            computeStats(priorAsc, sc, mode).best,
+            mode,
           );
       const milestone =
         !isReigningBest && exercise.compound ? milestoneReached(editScore, editPrevBests.weightKg) : null;
@@ -389,6 +404,11 @@ export function ExerciseCard({
         setTimeout(() => setPrFlash(false), 1100);
         haptic("success");
         celebration.celebrate({ variant: "pr", title: "Strength PR", sub: `${fmtWeightNum(editScore)} kg` });
+      } else if (prKind === "hypertrophy") {
+        setPrFlash(true);
+        setTimeout(() => setPrFlash(false), 1100);
+        haptic("success");
+        celebration.celebrate({ variant: "pr", title: "Hypertrophy PR", sub: `${fmtWeightNum(editScore)} kg × ${maxReps(parsed.reps)}` });
       } else if (prKind === "performance") {
         haptic("success");
         toast(`Performance PR · heaviest yet at ${fmtWeightNum(editScore)} kg`, "success");
@@ -699,17 +719,20 @@ export function ExerciseCard({
             const prevLog = visible[vi + 1] ?? null;
             // Only the newest entry gets a vs-last badge — older rows stay quiet.
             const delta =
-              isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog, sc);
+              isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog, sc, mode);
             const isAssisted = log.kind === "assisted";
             const isExpanded = expandedLogId === log.id && !isEditing;
-            // Tap-to-reveal: this set's estimated 1RM and how much of the
-            // all-time PR (best e1RM) it holds. Compared against stats.best —
-            // the same all-time record the PR badge marks — so "of PR" and the
-            // gold row never disagree.
+            // Tap-to-reveal: this set's score and how much of the all-time PR it
+            // holds — on the lift's OWN axis (compound → e1RM, isolation → best-set
+            // tonnage). Numerator and denominator read the same axis as the gold
+            // PR badge (stats.best is mode-picked too), so "of PR" and the gold row
+            // never disagree — including for isolation lifts.
             const entry = toLogEntry(log, sc);
+            const entryScore = entry ? (mode === "isolation" ? entry.tonnage : entry.e1rm) : 0;
+            const bestScore = stats.best ? (mode === "isolation" ? stats.best.tonnage : stats.best.e1rm) : 0;
             const retention =
-              entry && entry.e1rm > 0 && stats.best && stats.best.e1rm > 0
-                ? Math.round((entry.e1rm / stats.best.e1rm) * 100)
+              entryScore > 0 && bestScore > 0
+                ? Math.round((entryScore / bestScore) * 100)
                 : null;
 
             return (
@@ -827,10 +850,16 @@ export function ExerciseCard({
                 {isExpanded && (
                   <div className="hist-detail-drawer">
                     <div className="hist-detail">
-                      <span className="hist-detail-k">Est. 1RM</span>
+                      {/* Compound shows Est. 1RM (kg); isolation shows best-set
+                          Volume (weight × reps) — the axis it's actually judged on.
+                          Tonnage is a kg·reps product, not a weight, so it is NOT
+                          run through fmtWeightNum's lb conversion. */}
+                      <span className="hist-detail-k">{mode === "isolation" ? "Volume" : "Est. 1RM"}</span>
                       <span className="hist-detail-v mono">
-                        {entry && entry.e1rm > 0
-                          ? `${fmtWeightNum(Math.round(entry.e1rm * 10) / 10)} kg`
+                        {entryScore > 0
+                          ? mode === "isolation"
+                            ? `${Math.round(entryScore)} vol`
+                            : `${fmtWeightNum(Math.round(entryScore * 10) / 10)} kg`
                           : "—"}
                       </span>
                     </div>

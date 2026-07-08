@@ -2,6 +2,18 @@
 
 把「新紀錄」拆成兩軸,讓 e1RM 看不見的「更重的真實工作」也被認可,**同時不動 e1RM status 模型**。
 
+## ⭐ ScoreMode：每個動作有「一個 primary 評分指標」（2026-07-08）
+
+**每個動作依 `exercises.compound` 決定 primary metric：複合 = e1RM，孤立 = Volume（best-set tonnage = 重量 × 次數，kg·reps）。** `type ScoreMode = "compound" | "isolation"` 在 `logic.ts`，`cmpStrength(a, b, mode)` 依此切軸——**它仍是唯一比較器**，只是被 mode 參數化。下面整份文件「純 e1RM」的敘述,對**孤立動作**一律換成 tonnage（複合維持原樣）。
+
+**為什麼：** Epley e1RM 結構性地獎勵低 reps。孤立動作刻意改高 rep block（側平舉 14×12 → 10×16）會讓 e1RM 掉 ~28%（19.6→14）被誤判成退步,但 tonnage 幾乎不動（168→160，~95%）。這是換一把更合適的尺,不是補破洞。孤立動作的 PR 也收斂成單一 🏆 **Hypertrophy PR**（新 tonnage 天花板）。細節見 memory `compound-isolation-score-mode`。
+
+**「primary」是關鍵字：** `metric` 指的是**評分採用哪一個**,不是唯一存在的。e1RM 對孤立動作仍算得出來（只是不拿來評分）,未來也可能再加 relative strength / velocity 等——它們不會取代 primary。
+
+**匯出 schema 2.6（`copyAllData.ts`）：** 每個動作帶一個 `metric: "e1rm" | "volume"`,並用**具體欄位名**（`bestE1RM`/`bestVolume`、`pr.e1rm`/`pr.volume`、`logs[].e1rm`/`logs[].volume`）而非抽象 `best`+`metric` 查表,讓 JSON self-describing。`units.volume = "kg·reps"`（不是 `"kg"`）。一句話定義：
+
+> **Exactly one primary metric exists per exercise.** Compound lifts use e1RM; isolation lifts use Volume (kg·reps). `retentionPct`, `status`, and PR calculations always reference the exercise's primary metric. e1RM is still computable for isolation lifts but is not their scoring axis.
+
 ## 問題
 
 Training status/PR 原本 100% 靠 e1RM(Epley)。Epley 把 `77kg×7 ≈ 75kg×8` 評成同一個 e1RM,所以真的更重的一組會被當成**沒進步**、默默記下。拆兩軸讓更重的真實工作被看見。
@@ -35,7 +47,7 @@ else                            → null
 
 ## 🔒 不可破壞的 invariant
 
-`cmpStrength`(e1RM → totalReps tiebreak)是**唯一**餵 status / retention / trend / 歷史列 PR 標記的比較器。Performance PR **只**活在 log-time feedback。歷史列**只顯示一個** PR 標記(產品約束)。**別讓 performance 軸滲進 status 比較器。**
+`cmpStrength` 是**唯一**餵 status / retention / trend / 歷史列 PR 標記的比較器（自 2026-07-08 起依 ScoreMode 切軸：複合 e1RM→totalReps、孤立 tonnage→重量→reps，見頂端 ScoreMode 段）。Performance PR **只**活在 log-time feedback。歷史列**只顯示一個** PR 標記(產品約束)。**別讓 performance 軸滲進 status 比較器。**
 
 ## 🔗 Engine coupling（已實作,連到 `DECISION-ENGINE.md`）
 
@@ -49,7 +61,7 @@ exercises.filter(e => e.status === "watch" && e.stalledWeeks >= 3)
 **已做:`computeStrengthSummary` 的 `stalledWeeks` 改成兩軸。** 現在 stall clock 在「任一軸 PR」時重置——mirror `classifyPR` 的前兩支(新 rounded-e1RM 天花板 **或** 新史上最重),所以一個 Epley-flat 的更重頂組(Performance PR)也會重置。效果:一個在**重量軸**有真進步的 lift 不會被 engine 讀成 declining。`buildTrainingEvaluation` 不用改,透明變準。測試在 `overview/strength.test.ts`。
 
 **刻意留下的兩點(守 invariant):**
-- **status / hero retention % 維持純 e1RM。** 兩軸只加進 `stalledWeeks`,只會**移除誤判的 decline,永遠不造出 improvement**。`IMPROVING`(→ engine Tier 4「Push for a PR」)也維持純 e1RM。
+- **status / hero retention % 維持動作 primary metric（複合 e1RM、孤立 tonnage）。** 兩軸只加進 `stalledWeeks`,只會**移除誤判的 decline,永遠不造出 improvement**。`IMPROVING`(→ engine Tier 4「Push for a PR」)同樣走 primary metric。（原文寫「純 e1RM」——2026-07-08 ScoreMode 後對孤立動作是 tonnage。）
 - **reps-tiebreak 第三支未納入 stall clock。** 它需要 `setCount`(目前沒 thread 進 `computeStrengthSummary`);heaviest-weight 那支已涵蓋主要案例(77kg)。要完全忠實需把 setCount 傳進來——見下方「未建」。
 
 > ⚠️ 注意:`computeStrengthSummary` 已從 `overview/api.ts` **搬到 `overview/strength.ts`**(api.ts re-export)。舊 handoff 指向 api.ts,現以 strength.ts 為準,`buildTrainingEvaluation` 就在隔壁。

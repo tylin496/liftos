@@ -137,12 +137,16 @@ function RewardRow({
   onJump?: (slug: string) => void;
 }) {
   const isPR = rewardKind === "pr";
-  const strong = exercise.lastPRKind === "strength";
-  const icon = isPR ? (strong ? "🏆" : "💪") : "↑";
+  // Gold moments: a compound Strength PR (new e1RM) and an isolation Hypertrophy
+  // PR (new best-set tonnage) share the 🏆 tier; a compound Performance PR is 💪.
+  const gold = exercise.lastPRKind === "strength" || exercise.lastPRKind === "hypertrophy";
+  const icon = isPR ? (gold ? "🏆" : "💪") : "↑";
   const note = isPR
-    ? strong
+    ? exercise.lastPRKind === "strength"
       ? "Strength PR · new best e1RM"
-      : `Performance PR · ${exercise.lastPRDetail}`
+      : exercise.lastPRKind === "hypertrophy"
+        ? "Hypertrophy PR · new best volume"
+        : `Performance PR · ${exercise.lastPRDetail}`
     : "Rebounding · climbing back";
   const body = (
     <>
@@ -154,7 +158,7 @@ function RewardRow({
         // (the log-time milestone toast, remembered). Only on the strength row:
         // its note ("new best e1RM") carries no weight, so the rung adds a
         // concrete number — a Performance row already prints its weight in the note.
-        strong && exercise.milestoneKg != null ? (
+        exercise.lastPRKind === "strength" && exercise.milestoneKg != null ? (
           <span className="ov-th-rrow-chip ov-th-rrow-chip--milestone">🎯 {exercise.milestoneKg} kg</span>
         ) : (
           <span className="ov-th-rrow-chip">🔥 this week</span>

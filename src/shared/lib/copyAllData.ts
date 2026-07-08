@@ -5,7 +5,7 @@ import { getNutritionState } from "@features/nutrition/evaluationApi";
 import { weeklyWeightRate } from "@features/nutrition/evaluation";
 import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
-import { computeStats, epley1RM } from "@features/training/logic";
+import { computeStats, epley1RM, maxReps } from "@features/training/logic";
 import { computeStrengthSummary, type StrengthExercise } from "@features/overview/api";
 import { defaultSetCount } from "@features/training/logFormHelpers";
 import { SPLITS } from "@features/training/seed";
@@ -67,6 +67,7 @@ const UNIT: Record<string, string> = {
   protein: "g",
   height: "cm",
   e1rm: "kg",
+  volume: "kg·reps", // best-set tonnage (weight × reps) — the isolation score axis
 };
 function unitsFor(keys: string[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -75,8 +76,8 @@ function unitsFor(keys: string[]): Record<string, string> {
 }
 const HEALTH_UNIT_KEYS = [...Object.values(COPY_KEY), "tdee"];
 const NUTRITION_UNIT_KEYS = ["calories", "protein", "tdee"];
-const TRAINING_UNIT_KEYS = ["weight", "e1rm"];
-const OVERVIEW_UNIT_KEYS = [...HEALTH_UNIT_KEYS, "calories", "protein", "e1rm", "height"];
+const TRAINING_UNIT_KEYS = ["weight", "e1rm", "volume"];
+const OVERVIEW_UNIT_KEYS = [...HEALTH_UNIT_KEYS, "calories", "protein", "e1rm", "volume", "height"];
 
 // computeRecovery returns raw rolling averages (many decimals). Round at the
 // export boundary — the UI keeps the full-precision source for its own
@@ -366,6 +367,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           .filter((e) => !e.archived)
           .map((e) => [e.slug, (allLogsBySlug[e.slug] ?? []).map((x) => x.log)]),
       ),
+      new Set(exercises.filter((e) => e.compound).map((e) => e.slug)),
     ).exercises.map((x) => [x.slug, x]),
   );
   const nameBySlug = new Map(exercises.map((e) => [e.slug, e.name]));
@@ -410,7 +412,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         // PR uses all logs; export slice uses the limit
         const allRaw = allParsed.map((e) => e.log);
         const setCount = defaultSetCount(ex);
-        const stats = computeStats(allRaw, setCount);
+        const stats = computeStats(allRaw, setCount, ex.compound ? "compound" : "isolation");
         const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
 
         // allParsed is ascending (oldest→newest); take the tail for the most
@@ -426,18 +428,33 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         sliced.sort((a, b) => (a.log.log_date ?? "").localeCompare(b.log.log_date ?? ""));
 
         const se = strengthBySlug.get(ex.slug);
-        const bestE1RM = stats.best ? +stats.best.e1rm.toFixed(1) : null;
-        const currentE1RM = stats.latest ? +stats.latest.e1rm.toFixed(1) : null;
+        // Compound exports e1RM; isolation exports best-set tonnage (volume) — the
+        // axis each lift is judged on, so no field contradicts retentionPct.
+        // Concrete keys (bestE1RM vs bestVolume) keep the JSON self-describing;
+        // `metric` is the one-glance hint. Volume is a kg·reps product, NOT a
+        // weight, so it's never run through a lb conversion. (schema 2.6)
+        const isVol = !ex.compound;
+        const scoreStats = isVol
+          ? {
+              bestVolume: stats.best ? +stats.best.tonnage.toFixed(1) : null,
+              currentVolume: stats.latest ? +stats.latest.tonnage.toFixed(1) : null,
+            }
+          : {
+              bestE1RM: stats.best ? +stats.best.e1rm.toFixed(1) : null,
+              currentE1RM: stats.latest ? +stats.latest.e1rm.toFixed(1) : null,
+            };
         const sessionDates = [...new Set(allRaw.map((l) => l.log_date).filter(Boolean))].sort();
         const lastSession = sessionDates.at(-1) ?? null;
 
         return {
           name: ex.name,
           target: ex.target ?? null,
+          // Primary (scoring) metric — which axis retention/status/PR reference,
+          // NOT the only one computable (e1RM still exists for isolation lifts).
+          metric: isVol ? "volume" : "e1rm",
           stats: {
             sessions: sessionDates.length,
-            bestE1RM,
-            currentE1RM,
+            ...scoreStats,
             // PR-distance model (see strengthBySlug above): retention = latest ÷ PR,
             // weeksSincePR = whole weeks since the last new best. Null when the
             // exercise has too few sessions to qualify.
@@ -447,7 +464,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           },
           pr: pr
             ? {
-                e1rm: +epley1RM(score(pr), pr.reps).toFixed(1),
+                ...(isVol
+                  ? { volume: +(score(pr) * maxReps(pr.reps)).toFixed(1) }
+                  : { e1rm: +epley1RM(score(pr), pr.reps).toFixed(1) }),
                 bestSet: stats.best?.log.raw ?? null,
               }
             : null,
@@ -456,7 +475,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
             raw: l.raw,
             weight: w,
             reps: p?.reps ?? null,
-            e1rm: p && w != null ? +epley1RM(w, p.reps).toFixed(1) : null,
+            ...(isVol
+              ? { volume: p && w != null ? +(w * maxReps(p.reps)).toFixed(1) : null }
+              : { e1rm: p && w != null ? +epley1RM(w, p.reps).toFixed(1) : null }),
           })),
         };
       });
@@ -485,7 +506,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 2.5,
+    schema: 2.6,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
     dataSpan: overviewWindow, // total span of ALL data (see windowOf); distinct from per-section windowDays
     summary: {
@@ -725,6 +746,7 @@ export async function buildTrainingJson(): Promise<string> {
       Object.fromEntries(
         exercises.filter((e) => !e.archived).map((e) => [e.slug, logsBySlug[e.slug] ?? []]),
       ),
+      new Set(exercises.filter((e) => e.compound).map((e) => e.slug)),
     ).exercises.map((x) => [x.slug, x]),
   );
 
@@ -739,25 +761,43 @@ export async function buildTrainingJson(): Promise<string> {
       // fetchLogsBySlug is newest-first; reverse to ascending for stats/logs.
       const ascLogs = [...(logsBySlug[ex.slug] ?? [])].reverse();
       const setCount = defaultSetCount(ex);
-      const stats = computeStats(ascLogs, setCount);
+      const stats = computeStats(ascLogs, setCount, ex.compound ? "compound" : "isolation");
       const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
       const se = strengthBySlug.get(ex.slug);
       const sessionDates = [...new Set(ascLogs.map((l) => l.log_date).filter(Boolean))].sort();
 
+      // Compound → e1RM, isolation → best-set tonnage (volume); concrete keys +
+      // a `metric` hint keep the JSON self-describing and off-contradiction with
+      // retentionPct. (schema 2.6 — mirrors buildAllDataJson.)
+      const isVol = !ex.compound;
+      const scoreStats = isVol
+        ? {
+            bestVolume: stats.best ? +stats.best.tonnage.toFixed(1) : null,
+            currentVolume: stats.latest ? +stats.latest.tonnage.toFixed(1) : null,
+          }
+        : {
+            bestE1RM: stats.best ? +stats.best.e1rm.toFixed(1) : null,
+            currentE1RM: stats.latest ? +stats.latest.e1rm.toFixed(1) : null,
+          };
+
       return {
         name: ex.name,
         target: ex.target ?? null,
+        // Primary (scoring) metric — the axis retention/status/PR reference,
+        // NOT the only one computable (e1RM still exists for isolation lifts).
+        metric: isVol ? "volume" : "e1rm",
         stats: {
           sessions: sessionDates.length,
-          bestE1RM: stats.best ? +stats.best.e1rm.toFixed(1) : null,
-          currentE1RM: stats.latest ? +stats.latest.e1rm.toFixed(1) : null,
+          ...scoreStats,
           retentionPct: se ? +(se.trend * 100).toFixed(1) : null,
           weeksSincePR: se ? se.stalledWeeks : null,
           lastSession: sessionDates.at(-1) ?? null,
         },
         pr: pr
           ? {
-              e1rm: +epley1RM(score(pr), pr.reps).toFixed(1),
+              ...(isVol
+                ? { volume: +(score(pr) * maxReps(pr.reps)).toFixed(1) }
+                : { e1rm: +epley1RM(score(pr), pr.reps).toFixed(1) }),
               bestSet: stats.best?.log.raw ?? null,
             }
           : null,
@@ -776,7 +816,9 @@ export async function buildTrainingJson(): Promise<string> {
             raw: l.raw,
             weight: w,
             reps: p?.reps ?? null,
-            e1rm: p && w != null ? +epley1RM(w, p.reps).toFixed(1) : null,
+            ...(isVol
+              ? { volume: p && w != null ? +(w * maxReps(p.reps)).toFixed(1) : null }
+              : { e1rm: p && w != null ? +epley1RM(w, p.reps).toFixed(1) : null }),
           };
         }),
       };
@@ -786,7 +828,7 @@ export async function buildTrainingJson(): Promise<string> {
 
   const payload = {
     source: "LiftOS",
-    schema: 2.5,
+    schema: 2.6,
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
     dataSpan: windowOf(

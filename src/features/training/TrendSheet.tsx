@@ -13,17 +13,24 @@ import type { Exercise, TrainingLog } from "./api";
 
 const fmt1 = (v: number) => fmtWeightNum(Math.round(v * 10) / 10);
 
-/* Est-1RM progression line. Fills the sheet width; the peak (all-time within
-   the window) is ringed in gold, the latest session in accent. Press-drag from
-   the last dot to scrub any point's date/value — the stat row below still
-   carries the resting (non-scrubbed) numbers. */
-function TrendChart({ points }: { points: TrendPoint[] }) {
+// The trend axis follows the lift's ScoreMode: compound plots Est-1RM (kg),
+// isolation plots best-set tonnage (a kg·reps volume — NOT a weight, so it never
+// goes through fmtWeightNum's lb conversion). One accessor + formatter keeps the
+// chart, tooltip, and stat row on the same axis as the Training Health verdict.
+const trendVal = (p: TrendPoint, isVol: boolean) => (isVol ? p.tonnage : p.e1rm);
+const fmtVal = (v: number, isVol: boolean) => (isVol ? String(Math.round(v)) : fmt1(v));
+
+/* Score progression line (Est-1RM for compound, volume for isolation). Fills the
+   sheet width; the peak (all-time within the window) is ringed in gold, the
+   latest session in accent. Press-drag from the last dot to scrub any point's
+   date/value — the stat row below still carries the resting numbers. */
+function TrendChart({ points, isVol }: { points: TrendPoint[]; isVol: boolean }) {
   const W = 320;
   const H = 130;
   const padX = 10;
   const padY = 14;
 
-  const vals = points.map((p) => p.e1rm);
+  const vals = points.map((p) => trendVal(p, isVol));
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   const span = max - min || 1;
@@ -33,7 +40,7 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
 
   const coords = points.map((p, i) => ({
     x: padX + (points.length === 1 ? 0.5 : i / (points.length - 1)) * innerW,
-    y: padY + (1 - (p.e1rm - min) / span) * innerH,
+    y: padY + (1 - (trendVal(p, isVol) - min) / span) * innerH,
   }));
   const line = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const area = `${coords[0].x.toFixed(1)},${baseline} ${line} ${coords[coords.length - 1].x.toFixed(1)},${baseline}`;
@@ -72,7 +79,7 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         role="img"
-        aria-label="Estimated one-rep-max over time"
+        aria-label={isVol ? "Training volume over time" : "Estimated one-rep-max over time"}
         {...scrubHandlers}
       >
         <defs>
@@ -141,7 +148,7 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
           >
             <span className="trend-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
             <span className="trend-tooltip-val mono">
-              {fmt1(scrubPoint.e1rm)}kg · {fmtWeightNum(scrubPoint.weightKg)}×{formatRepsDisplay(scrubPoint.reps)}
+              {fmtVal(trendVal(scrubPoint, isVol), isVol)}{isVol ? " vol" : "kg"} · {fmtWeightNum(scrubPoint.weightKg)}×{formatRepsDisplay(scrubPoint.reps)}
             </span>
           </div>
         );
@@ -170,13 +177,18 @@ function SheetInner({
     return { full: series, win: windowTrend(series) };
   }, [logs, setCount]);
 
+  // Isolation lifts trend on volume (tonnage), compound on Est-1RM — same axis
+  // as the Training Health card, so the chart can't contradict the verdict.
+  const isVol = !exercise.compound;
   const points = win.points;
   const first = points[0];
   const latest = points[points.length - 1];
-  const peakVal = points.length ? Math.max(...points.map((p) => p.e1rm)) : 0;
-  const delta = first && latest ? latest.e1rm - first.e1rm : 0;
+  const peakVal = points.length ? Math.max(...points.map((p) => trendVal(p, isVol))) : 0;
+  const latestVal = latest ? trendVal(latest, isVol) : 0;
+  const delta = first && latest ? trendVal(latest, isVol) - trendVal(first, isVol) : 0;
   const deltaDir = delta > 0.05 ? "gain" : delta < -0.05 ? "loss" : "flat";
   const windowLabel = win.clipped ? "Last 365 days" : "All time";
+  const unit = isVol ? "vol" : "kg";
 
   // Focus trap + Escape-to-close — the page behind the scrim is inert.
   useFocusTrap(sheetRef, onClose);
@@ -232,13 +244,13 @@ function SheetInner({
                 <span className="trend-count">{points.length} sessions</span>
               </div>
 
-              <TrendChart points={points} />
+              <TrendChart points={points} isVol={isVol} />
 
               <div className="trend-stats">
                 <div className="trend-stat">
-                  <span className="trend-stat-k">Est. 1RM</span>
+                  <span className="trend-stat-k">{isVol ? "Volume" : "Est. 1RM"}</span>
                   <span className="trend-stat-v">
-                    {fmt1(latest.e1rm)}<span className="trend-stat-u">kg</span>
+                    {fmtVal(latestVal, isVol)}<span className="trend-stat-u">{unit}</span>
                   </span>
                   <span className="trend-stat-sub mono">
                     {fmtWeightNum(latest.weightKg)}×{formatRepsDisplay(latest.reps)}
@@ -247,14 +259,14 @@ function SheetInner({
                 <div className="trend-stat">
                   <span className="trend-stat-k">Peak</span>
                   <span className="trend-stat-v trend-stat-v--peak">
-                    {fmt1(peakVal)}<span className="trend-stat-u">kg</span>
+                    {fmtVal(peakVal, isVol)}<span className="trend-stat-u">{unit}</span>
                   </span>
                 </div>
                 <div className="trend-stat">
                   <span className="trend-stat-k">Since start</span>
                   <span className={`trend-stat-v trend-delta trend-delta--${deltaDir}`}>
-                    {deltaDir === "flat" ? "—" : `${delta > 0 ? "+" : "−"}${fmt1(Math.abs(delta))}`}
-                    {deltaDir !== "flat" && <span className="trend-stat-u">kg</span>}
+                    {deltaDir === "flat" ? "—" : `${delta > 0 ? "+" : "−"}${fmtVal(Math.abs(delta), isVol)}`}
+                    {deltaDir !== "flat" && <span className="trend-stat-u">{unit}</span>}
                   </span>
                 </div>
               </div>
