@@ -184,6 +184,8 @@ function ActiveTargetCard({
   // ahead → lower. A small deadband keeps it from flickering near equality.
   const dailyAvg = view?.activeTargetPerDay ?? 0;
   const diff = view ? view.today.target - dailyAvg : 0;
+  // 30 kcal ≈ a couple of minutes of movement — negligible; the deadband is
+  // purely anti-flicker (see above), not a meaningful "close enough" bar.
   const position = Math.abs(diff) <= 30 ? "on" : diff > 0 ? "behind" : "ahead";
   const ratio = view ? view.today.accrued / Math.max(1, view.today.target) : 0;
 
