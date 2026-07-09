@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluate, type EvaluateInput } from "./evaluation";
+import { evaluate, tdeeCalibration, type EvaluateInput } from "./evaluation";
 
 const NOW = new Date("2026-07-01T08:00:00Z");
 
@@ -168,5 +168,84 @@ describe("evaluate — food-log divergence confidence cap", () => {
     expect(diagnostics.loggedIntake).toBeNull();
     expect(diagnostics.intakeGap).toBeNull();
     expect(evaluation.confidence).toBe("high");
+  });
+});
+
+describe("tdeeCalibration — inform-only cross-check", () => {
+  const base = {
+    assumedTdee: 2250,
+    estimatedTdee: 2800,
+    loggedIntake: 2300,
+    observedRate: -0.5, // impliedFromLog = 2300 + 0.5*1100 = 2850
+    weightTrustworthy: true,
+  };
+
+  it("claims 'under' when BOTH sources agree the assumed TDEE is too low (the #5 case)", () => {
+    // dHealth = 2800−2250 = +550; dLog = 2850−2250 = +600 → both clear, agree.
+    const c = tdeeCalibration(base)!;
+    expect(c.status).toBe("under");
+    expect(c.measuredLogTdee).toBe(2850);
+    // Conservative: the SMALLER-magnitude of the two deltas, never the rosier one.
+    expect(c.delta).toBe(550);
+  });
+
+  it("claims 'over' when both sources agree the assumed TDEE is too high", () => {
+    // assumed 2800; health 2450 (−350); log: 2000 + 0.3*1100 = 2330 → −470.
+    const c = tdeeCalibration({
+      assumedTdee: 2800,
+      estimatedTdee: 2450,
+      loggedIntake: 2000,
+      observedRate: -0.3,
+      weightTrustworthy: true,
+    })!;
+    expect(c.status).toBe("over");
+    expect(c.delta).toBe(-350);
+  });
+
+  it("stays 'aligned' when both deltas are within the bar", () => {
+    // assumed 2800; health 2750 (−50); log 2200 + 550 = 2750 (−50).
+    const c = tdeeCalibration({
+      assumedTdee: 2800,
+      estimatedTdee: 2750,
+      loggedIntake: 2200,
+      observedRate: -0.5,
+      weightTrustworthy: true,
+    })!;
+    expect(c.status).toBe("aligned");
+    expect(c.delta).toBe(0);
+  });
+
+  it("stays 'unclear' when only one source crosses the bar", () => {
+    // health clears (+300) but log doesn't (−90) → no corroboration.
+    const c = tdeeCalibration({
+      assumedTdee: 2700,
+      estimatedTdee: 3000,
+      loggedIntake: 2500,
+      observedRate: -0.1,
+      weightTrustworthy: true,
+    })!;
+    expect(c.status).toBe("unclear");
+    expect(c.delta).toBe(0);
+  });
+
+  it("stays 'unclear' when both cross but disagree in direction", () => {
+    // health +300, log −380 → both clear, opposite signs → no claim.
+    const c = tdeeCalibration({
+      assumedTdee: 2600,
+      estimatedTdee: 2900,
+      loggedIntake: 2000,
+      observedRate: -0.2,
+      weightTrustworthy: true,
+    })!;
+    expect(c.status).toBe("unclear");
+    expect(c.delta).toBe(0);
+  });
+
+  it("returns null with no food-log signal (single source can't corroborate)", () => {
+    expect(tdeeCalibration({ ...base, loggedIntake: null })).toBeNull();
+  });
+
+  it("returns null when the weight trend isn't trustworthy enough to imply a TDEE", () => {
+    expect(tdeeCalibration({ ...base, weightTrustworthy: false })).toBeNull();
   });
 });

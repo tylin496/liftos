@@ -30,12 +30,12 @@ import {
 /** Min logged days in the trend window before the mean logged intake is trusted
  *  enough to compare against the weight-implied intake. Below this the food-log
  *  signal is too sparse — pass null so it has no effect on confidence. */
-const MIN_LOGGED_DAYS = 10;
+export const MIN_LOGGED_DAYS = 10;
 
 /** Mean of the logged daily calories inside the trailing WINDOW_DAYS, or null
  *  when fewer than MIN_LOGGED_DAYS are logged. Matches the weight-trend window so
  *  the two intakes describe the same period. */
-function windowedLoggedIntake(
+export function windowedLoggedIntake(
   entries: { entry_date: string; calories: number | null }[],
 ): number | null {
   const cutoff = localDateStrDaysAgo(WINDOW_DAYS);

@@ -1,8 +1,9 @@
 import { fetchHealthData } from "@features/health/api";
 import { getConfig, getEntries, targetsFromConfig, type NutritionEntry } from "@features/nutrition/api";
 import { monthlyStats, weeklyStats, trainingMonthsFromStart, phaseFromDeficit } from "@features/nutrition/logic";
-import { getNutritionState } from "@features/nutrition/evaluationApi";
-import { weeklyWeightRate } from "@features/nutrition/evaluation";
+import { getNutritionState, windowedLoggedIntake, type NutritionStateFull } from "@features/nutrition/evaluationApi";
+import { weeklyWeightRate, tdeeCalibration, MIN_TREND_POINTS, type TdeeCalibration } from "@features/nutrition/evaluation";
+import { nutritionDecision } from "@features/nutrition/recommendation";
 import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
 import { computeStats, epley1RM, maxReps } from "@features/training/logic";
@@ -413,7 +414,6 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         const allRaw = allParsed.map((e) => e.log);
         const setCount = defaultSetCount(ex);
         const stats = computeStats(allRaw, setCount, ex.compound ? "compound" : "isolation");
-        const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
 
         // allParsed is ascending (oldest→newest); take the tail for the most
         // recent sessions, plus the PR session if it fell outside that window —
@@ -428,21 +428,13 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         sliced.sort((a, b) => (a.log.log_date ?? "").localeCompare(b.log.log_date ?? ""));
 
         const se = strengthBySlug.get(ex.slug);
-        // Compound exports e1RM; isolation exports best-set tonnage (volume) — the
-        // axis each lift is judged on, so no field contradicts retentionPct.
-        // Concrete keys (bestE1RM vs bestVolume) keep the JSON self-describing;
-        // `metric` is the one-glance hint. Volume is a kg·reps product, NOT a
-        // weight, so it's never run through a lb conversion. (schema 2.6)
+        // `metric` names the scoring axis (compound → e1RM, isolation → best-set
+        // tonnage/volume), so stats.best/current are generic — the reader keys off
+        // `metric` for the unit. Volume is a kg·reps product, never lb-converted.
+        // (schema 2.7)
         const isVol = !ex.compound;
-        const scoreStats = isVol
-          ? {
-              bestVolume: stats.best ? +stats.best.tonnage.toFixed(1) : null,
-              currentVolume: stats.latest ? +stats.latest.tonnage.toFixed(1) : null,
-            }
-          : {
-              bestE1RM: stats.best ? +stats.best.e1rm.toFixed(1) : null,
-              currentE1RM: stats.latest ? +stats.latest.e1rm.toFixed(1) : null,
-            };
+        const scoreVal = (s: (typeof stats)["best"]) =>
+          s ? +(isVol ? s.tonnage : s.e1rm).toFixed(1) : null;
         const sessionDates = [...new Set(allRaw.map((l) => l.log_date).filter(Boolean))].sort();
         const lastSession = sessionDates.at(-1) ?? null;
 
@@ -454,23 +446,25 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           metric: isVol ? "volume" : "e1rm",
           stats: {
             sessions: sessionDates.length,
-            ...scoreStats,
-            // PR-distance model (see strengthBySlug above): retention = latest ÷ PR,
-            // weeksSincePR = whole weeks since the last new best. Null when the
-            // exercise has too few sessions to qualify.
+            best: scoreVal(stats.best),
+            current: scoreVal(stats.latest),
+            // PR-distance model (see strengthBySlug above): retention = latest ÷ PR.
+            // status is the settled verdict (improving/stable/watch). weeksSincePR is
+            // dropped — derivable from pr.date + lastSession.
             retentionPct: se ? +(se.trend * 100).toFixed(1) : null,
-            weeksSincePR: se ? se.stalledWeeks : null,
+            status: se ? se.status : null,
+            // Trend layer: which way / how fast / how trustworthy the recent
+            // window reads — separate from retention (distance-from-PR).
+            trajectory: se ? se.trajectory : null,
             lastSession,
           },
-          pr: pr
-            ? {
-                ...(isVol
-                  ? { volume: +(score(pr) * maxReps(pr.reps)).toFixed(1) }
-                  : { e1rm: +epley1RM(score(pr), pr.reps).toFixed(1) }),
-                bestSet: stats.best?.log.raw ?? null,
-              }
+          // The PR number equals stats.best, so pr carries only what's unique: the
+          // date and the exact set. bestSet is canonical (parser rebuilds weight/reps).
+          pr: stats.best
+            ? { date: stats.best.log.log_date ?? null, bestSet: stats.best.log.raw ?? null }
             : null,
           logs: sliced.map(({ log: l, parsed: p, w }) => ({
+            id: l.id,
             date: l.log_date,
             raw: l.raw,
             weight: w,
@@ -506,7 +500,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 2.6,
+    schema: 2.7,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
     dataSpan: overviewWindow, // total span of ALL data (see windowOf); distinct from per-section windowDays
     summary: {
@@ -632,7 +626,42 @@ export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> 
   return JSON.stringify(payload, null, 2);
 }
 
-/** Nutrition tab: targets, persisted evaluation, adherence stats, full entries. */
+/** The nutrition engine's read, shaped for audit rather than obedience: the
+ *  evaluation (reality), the diagnostics that set its confidence, and the
+ *  decision those rules produced — labelled a hypothesis, not ground truth, so a
+ *  reviewing LLM challenges it against the facts instead of deferring to a
+ *  one-liner. Every field comes straight from the engine; nothing is authored
+ *  here. nutritionDecision reads only persisted fields, so it matches the app. */
+function engineHypothesis(
+  state: NutritionStateFull | null,
+  calibration: TdeeCalibration | null,
+) {
+  if (!state) return null;
+  const d = nutritionDecision(state.evaluation, state.diagnostics);
+  return {
+    engine: "LiftOS",
+    version: 2.5,
+    note: "LiftOS's current hypothesis from its own rules — audit it against the data above; don't assume it's correct.",
+    evaluation: state.evaluation,
+    // The inputs behind evaluation.confidence, so a reviewer can re-derive (or
+    // dispute) it rather than take the label at face value.
+    diagnostics: state.diagnostics,
+    // Inform-only cross-check: is the TDEE the target is built on still consistent
+    // with measured burn AND the food-log/weight-implied TDEE? Claims "under"/"over"
+    // only when both independent sources corroborate. null = not enough to judge.
+    // Never proposes a calorie change — the reader decides.
+    tdeeCalibration: calibration,
+    decision: {
+      action: d.action,
+      headline: d.actionHeadline,
+      reason: d.reason,
+      currentTarget: d.currentTarget,
+      proposedTarget: d.proposedTarget,
+    },
+  };
+}
+
+/** Nutrition tab: targets, engine hypothesis, adherence stats, full entries. */
 export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<string> {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
@@ -679,6 +708,22 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
     ...weeklyStats(byWeek.get(wk)!),
   }));
 
+  // TDEE calibration cross-check (inform-only): compare the TDEE the target is
+  // built on (config.tdee) against measured burn + the log/weight-implied TDEE.
+  // loggedIntake reuses the engine's own windowed mean so the two never drift.
+  const calibration: TdeeCalibration | null =
+    config && state
+      ? tdeeCalibration({
+          assumedTdee: config.tdee,
+          estimatedTdee: state.diagnostics.estimatedTdee,
+          loggedIntake: windowedLoggedIntake(sorted),
+          observedRate: state.evaluation.observedRate,
+          weightTrustworthy:
+            state.diagnostics.weightDataPoints >= MIN_TREND_POINTS &&
+            state.evaluation.confidence !== "low",
+        })
+      : null;
+
   const payload = {
     source: "LiftOS",
     schema: 2.5,
@@ -700,7 +745,7 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
     // which calorie/protein goal was in force over which dates. See
     // buildTargetPhases: judge each day's intake against its day's target.
     phases,
-    evaluation: state,
+    engine: engineHypothesis(state, calibration),
     summary: {
       periodDays: days,
       days: sorted.length,
@@ -762,23 +807,17 @@ export async function buildTrainingJson(): Promise<string> {
       const ascLogs = [...(logsBySlug[ex.slug] ?? [])].reverse();
       const setCount = defaultSetCount(ex);
       const stats = computeStats(ascLogs, setCount, ex.compound ? "compound" : "isolation");
-      const pr = stats.best?.log.raw ? parse(stats.best.log.raw) : null;
       const se = strengthBySlug.get(ex.slug);
       const sessionDates = [...new Set(ascLogs.map((l) => l.log_date).filter(Boolean))].sort();
 
-      // Compound → e1RM, isolation → best-set tonnage (volume); concrete keys +
-      // a `metric` hint keep the JSON self-describing and off-contradiction with
-      // retentionPct. (schema 2.6 — mirrors buildAllDataJson.)
+      // `metric` names the scoring axis (compound → e1RM, isolation → volume), so
+      // stats.best/current are generic and the reader keys off `metric` for the
+      // unit. status folds in from the old `strength` block (which just duplicated
+      // stats); weeksSincePR is dropped — derive from pr.date + lastSession.
+      // (schema 2.7 — mirrors buildAllDataJson.)
       const isVol = !ex.compound;
-      const scoreStats = isVol
-        ? {
-            bestVolume: stats.best ? +stats.best.tonnage.toFixed(1) : null,
-            currentVolume: stats.latest ? +stats.latest.tonnage.toFixed(1) : null,
-          }
-        : {
-            bestE1RM: stats.best ? +stats.best.e1rm.toFixed(1) : null,
-            currentE1RM: stats.latest ? +stats.latest.e1rm.toFixed(1) : null,
-          };
+      const scoreVal = (s: (typeof stats)["best"]) =>
+        s ? +(isVol ? s.tonnage : s.e1rm).toFixed(1) : null;
 
       return {
         name: ex.name,
@@ -788,30 +827,22 @@ export async function buildTrainingJson(): Promise<string> {
         metric: isVol ? "volume" : "e1rm",
         stats: {
           sessions: sessionDates.length,
-          ...scoreStats,
+          best: scoreVal(stats.best),
+          current: scoreVal(stats.latest),
           retentionPct: se ? +(se.trend * 100).toFixed(1) : null,
-          weeksSincePR: se ? se.stalledWeeks : null,
+          status: se ? se.status : null,
+          trajectory: se ? se.trajectory : null,
           lastSession: sessionDates.at(-1) ?? null,
         },
-        pr: pr
-          ? {
-              ...(isVol
-                ? { volume: +(score(pr) * maxReps(pr.reps)).toFixed(1) }
-                : { e1rm: +epley1RM(score(pr), pr.reps).toFixed(1) }),
-              bestSet: stats.best?.log.raw ?? null,
-            }
-          : null,
-        strength: se
-          ? {
-              status: se.status,
-              retentionPct: +(se.trend * 100).toFixed(1),
-              weeksSincePR: se.stalledWeeks,
-            }
+        // PR number equals stats.best; pr carries only what's unique: date + set.
+        pr: stats.best
+          ? { date: stats.best.log.log_date ?? null, bestSet: stats.best.log.raw ?? null }
           : null,
         logs: ascLogs.map((l) => {
           const p = l.raw ? parse(l.raw) : null;
           const w = p ? +score(p).toFixed(2) : null;
           return {
+            id: l.id,
             date: l.log_date,
             raw: l.raw,
             weight: w,
@@ -828,7 +859,7 @@ export async function buildTrainingJson(): Promise<string> {
 
   const payload = {
     source: "LiftOS",
-    schema: 2.6,
+    schema: 2.7,
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
     dataSpan: windowOf(

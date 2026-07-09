@@ -212,6 +212,83 @@ function computeConfidence(
   return base;
 }
 
+export interface TdeeCalibration {
+  /** The TDEE the calorie target is built on (config.tdee). */
+  assumedTdee: number;
+  /** HealthKit-measured TDEE (30d resting + 14d active) — independent of the food log. */
+  measuredHealthTdee: number;
+  /** TDEE implied by the food log + weight trend: loggedIntake − the trend's energy
+   *  balance. Independent of HealthKit, so it corroborates (or disputes) it. */
+  measuredLogTdee: number;
+  /** Conservative signed miscalibration (kcal/day): the smaller-magnitude of the two
+   *  corroborating deltas. +ve = you burn MORE than the target assumes (real deficit
+   *  is bigger than planned); −ve = you burn less. 0 unless both sources corroborate. */
+  delta: number;
+  /** "under"/"over" only when BOTH independent sources agree in direction AND both
+   *  clear TDEE_MISCALIBRATION_KCAL. "aligned" = both within the bar (assumed TDEE
+   *  looks right). "unclear" = they disagree or only one crosses — not enough to claim. */
+  status: "aligned" | "under" | "over" | "unclear";
+}
+
+/** kcal/day a MEASURED TDEE must exceed the target's assumed TDEE before we'll
+ *  surface a miscalibration claim. Deliberately above INTAKE_DIVERGENCE_KCAL (the
+ *  confidence-cap bar): capping trust is cheap, but *telling* the user the target is
+ *  built on a wrong number should need a wider, corroborated gap. */
+export const TDEE_MISCALIBRATION_KCAL = 250;
+
+/** Is the target's assumed TDEE (config.tdee) still consistent with reality?
+ *  Compares it against two INDEPENDENT measured estimates — HealthKit burn, and the
+ *  TDEE implied by (food log + weight trend) — and only claims a miscalibration when
+ *  BOTH agree in direction and both clear TDEE_MISCALIBRATION_KCAL. Requiring
+ *  corroboration is the guard against a single fat logging week or a HealthKit blip
+ *  moving the verdict. Inform-only: never proposes a calorie change — it hands the
+ *  numbers to the reader (the AI export's audit). Returns null when there isn't
+ *  enough to judge: no trusted weight trend, or no food-log signal. */
+export function tdeeCalibration(input: {
+  assumedTdee: number;
+  estimatedTdee: number;
+  loggedIntake: number | null;
+  observedRate: number | null;
+  /** Weight trend is dense/clean enough to imply a TDEE (else the log-implied number
+   *  is noise). Caller passes weightDataPoints ≥ MIN_TREND_POINTS && confidence != low. */
+  weightTrustworthy: boolean;
+}): TdeeCalibration | null {
+  const { assumedTdee, estimatedTdee, loggedIntake, observedRate, weightTrustworthy } = input;
+  // The log-implied TDEE needs BOTH a trusted weight trend and a food-log signal;
+  // it's also the corroborating second source. Missing either → no independent
+  // cross-check, so stay silent rather than claim on one source.
+  if (!weightTrustworthy || loggedIntake == null || observedRate == null) return null;
+
+  const impliedFromLog = loggedIntake - (observedRate * KCAL_PER_KG) / 7;
+  const dHealth = estimatedTdee - assumedTdee;
+  const dLog = impliedFromLog - assumedTdee;
+
+  const bothClear =
+    Math.abs(dHealth) >= TDEE_MISCALIBRATION_KCAL && Math.abs(dLog) >= TDEE_MISCALIBRATION_KCAL;
+  const agree = Math.sign(dHealth) === Math.sign(dLog);
+  const bothSmall =
+    Math.abs(dHealth) < TDEE_MISCALIBRATION_KCAL && Math.abs(dLog) < TDEE_MISCALIBRATION_KCAL;
+
+  let delta = 0;
+  let status: TdeeCalibration["status"];
+  if (bothClear && agree) {
+    // Report the smaller-magnitude delta — "off by AT LEAST this", never the rosier
+    // of the two estimates.
+    delta = Math.abs(dHealth) <= Math.abs(dLog) ? dHealth : dLog;
+    status = delta > 0 ? "under" : "over";
+  } else {
+    status = bothSmall ? "aligned" : "unclear";
+  }
+
+  return {
+    assumedTdee: Math.round(assumedTdee),
+    measuredHealthTdee: Math.round(estimatedTdee),
+    measuredLogTdee: Math.round(impliedFromLog),
+    delta: Math.round(delta),
+    status,
+  };
+}
+
 export function evaluate(input: EvaluateInput): NutritionState {
   const { weightSeries, cutMode, calorieTarget, estimatedTdee, daysOnTarget, now, loggedIntake = null } = input;
   const evaluatedAt = now.toISOString();
