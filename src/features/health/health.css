@@ -614,13 +614,13 @@
   gap: 2px;
 }
 
-.health-trend-sheet-stat-v--peak {
+/* Both are the metric's best extreme for its own polarity (peak for up-good,
+   low for down-good — see TrendSheet's bestLabel) — same gold as the chart's
+   peak dot, never --bad. */
+.health-trend-sheet-stat-v--peak,
+.health-trend-sheet-stat-v--low {
   color: var(--gold);
   text-shadow: var(--gold-glow);
-}
-
-.health-trend-sheet-stat-v--low {
-  color: var(--bad);
 }
 
 .health-trend-sheet-stat-u {

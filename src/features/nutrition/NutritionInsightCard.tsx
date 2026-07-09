@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS } from "./evaluation";
-import { nutritionDecision, rateTone } from "./recommendation";
+import { nutritionDecision, rateTone, OPTIMAL_BAND_FRACTION } from "./recommendation";
 import "./nutrition.css";
 
 /* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
@@ -93,6 +93,12 @@ function PaceMeter({
   // Overview never disagree on how far off this number is.
   const rTone = rateTone({ observedRate, targetRange: { min: lo, max: hi } });
   const tone = rTone ?? "good";
+  // Top slice of the band (same OPTIMAL_BAND_FRACTION rateTone/paceTone use)
+  // rendered as a gold slice on the track itself, so the meter shows *where*
+  // optimal is, not just the marker's colour when it lands there. Independent
+  // of lo/hi: the band is always the fixed middle third [33.33%, 66.67%], so
+  // the slice reduces to a constant fraction of that.
+  const optimalPct = ((2 - OPTIMAL_BAND_FRACTION) / 3) * 100;
 
   const sign = observedRate < 0 ? "−" : observedRate > 0 ? "+" : "±";
   // Caption only fires off-band, where it adds the "why" the meter can't show;
@@ -109,9 +115,13 @@ function PaceMeter({
           {sign}
           {obs.toFixed(2)} kg/wk
           {/* Trails the value (app-wide delta-after-value convention, matches the
-              Overview Weight card's Rate arrow) — same rateTone, same glyphs. */}
+              Overview Weight card's Rate arrow). The arrow is a DIRECTION glyph
+              (which way weight is moving), so it carries only the good/warn/bad
+              severity — never gold. Gold means "this value sits in the optimal
+              top-slice", a property of the value, not of its direction; it stays
+              on the dot/marker/band, not the arrow. */}
           {rTone && observedRate !== 0 && (
-            <span className={`ni-pace-rate-arrow is-${rTone}`} aria-hidden>
+            <span className={`ni-pace-rate-arrow is-${rTone === "gold" ? "good" : rTone}`} aria-hidden>
               {observedRate < 0 ? "▼" : "▲"}
             </span>
           )}
@@ -120,9 +130,13 @@ function PaceMeter({
 
       <div className="ni-meter">
         <div className="ni-meter-track">
-          <div className={`ni-meter-band ${inState ? "is-in" : "is-off"}`} />
+          <div className={`ni-meter-band ${inState ? `is-in status-${tone}` : "is-off"}`} />
           <div
-            className={`ni-meter-marker ${inState ? "is-in" : "is-off"}`}
+            className={`ni-meter-band-optimal ${inState ? "is-in" : "is-off"}`}
+            style={{ left: `${optimalPct}%` }}
+          />
+          <div
+            className={`ni-meter-marker status-${tone}`}
             style={{ left: `${markerPct}%` }}
           />
         </div>

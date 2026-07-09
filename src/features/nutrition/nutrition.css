@@ -366,9 +366,33 @@
 /* Weakened when the marker isn't inside it — the band recedes, the off-band
    marker carries the attention. */
 .ni-meter-band.is-off { background: color-mix(in srgb, var(--good) 14%, transparent); }
+/* Marker sitting in the band's own optimal top slice — whole band tints gold
+   to match, not just the marker/dot. Higher specificity than .is-in wins. */
+.ni-meter-band.is-in.status-gold {
+  background: color-mix(in srgb, var(--gold) 26%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent);
+}
+
+/* Top slice of the band — same OPTIMAL_BAND_FRACTION rateTone/paceTone use —
+   tinted gold so the track itself shows where optimal sits, not just the
+   marker when it lands there. Sits above the band fill, below the marker. */
+.ni-meter-band-optimal {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  right: 33.33%;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+}
+.ni-meter-band-optimal.is-in  { background: color-mix(in srgb, var(--gold) 26%, transparent); }
+/* Off-band the whole meter recedes so the red marker + caption carry the "get
+   back in range" story — the gold optimal zone must recede too (matches the
+   band's is-in→is-off weakening), or it's the one thing left shouting when the
+   reading is nowhere near optimal. */
+.ni-meter-band-optimal.is-off { background: color-mix(in srgb, var(--gold) 12%, transparent); }
 
 /* Marker — a raised dot with a card-coloured gap ring so it reads as floating
-   above the track. */
+   above the track. Colour follows the same rateTone as the status dot above
+   the meter, so marker and dot never disagree. */
 .ni-meter-marker {
   position: absolute;
   top: 50%;
@@ -379,13 +403,21 @@
   box-sizing: border-box;
   transform: translate(-50%, -50%);
 }
-.ni-meter-marker.is-in {
+.ni-meter-marker.status-good {
   background: var(--good);
   box-shadow: 0 0 0 1px var(--good), 0 0 8px color-mix(in srgb, var(--good) 55%, transparent);
 }
-.ni-meter-marker.is-off {
+.ni-meter-marker.status-gold {
+  background: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), var(--gold-glow);
+}
+.ni-meter-marker.status-warn {
   background: var(--warn);
   box-shadow: 0 0 0 1px var(--warn), 0 0 8px color-mix(in srgb, var(--warn) 55%, transparent);
+}
+.ni-meter-marker.status-bad {
+  background: var(--bad);
+  box-shadow: 0 0 0 1px var(--bad), 0 0 8px color-mix(in srgb, var(--bad) 55%, transparent);
 }
 
 /* Scale row — band-edge values under the band boundaries, slower/faster at the
