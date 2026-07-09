@@ -1283,7 +1283,9 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
-  margin-top: var(--vr-loose);
+  /* Subordinate to the CTA: cancel the form's block gap so this link row
+     hugs the primary button instead of reading as its own section. */
+  margin-top: calc(var(--vr-tight) - var(--vr-block));
 }
 
 .log-delete-link {
