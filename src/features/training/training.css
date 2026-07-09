@@ -889,11 +889,29 @@
   color: var(--ink-3);
 }
 
-/* ── Editor drawer ───────────────────────────────────────────────────────────*/
+/* ── Editor drawer ───────────────────────────────────────────────────────────
+   Collapses via a grid-rows trick (1fr → 0fr) rather than unmounting outright,
+   so closing it (save/cancel/delete) doesn't instantly snap the card content
+   below it upward — that abrupt collapse read as the view jumping to the next
+   exercise card. */
 .ex-editor-drawer {
+  display: grid;
+  grid-template-rows: 1fr;
   margin: 0 calc(-1 * var(--space-5));
-  padding: var(--space-3) var(--space-5);
+  padding: 0 var(--space-5);
   background: transparent;
+  transition: grid-template-rows var(--dur-exit) var(--ease-move);
+}
+
+.ex-editor-drawer.is-closing {
+  grid-template-rows: 0fr;
+  pointer-events: none;
+}
+
+.ex-editor-drawer-inner {
+  overflow: hidden;
+  min-height: 0;
+  padding: var(--space-3) 0;
 }
 
 /* ── History row detail (tap to reveal) ──────────────────────────────────────

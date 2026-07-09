@@ -243,6 +243,17 @@ export function ExerciseCard({
   // Keep the menu mounted through its exit animation.
   const menuT = useExitTransition(menuOpen, 120);
 
+  // Keep the inline-edit drawer mounted through its collapse so closing it
+  // (save/cancel/delete) doesn't instantly snap the layout below it upward —
+  // that abrupt collapse read as the view jumping to the next exercise card.
+  // Only one row can be editing at a time, so a single hook call at the card
+  // level (rather than one per mapped row, which would break the rules of
+  // hooks) is enough; closingLogId remembers which row to keep rendering
+  // while it plays the exit animation.
+  const editorT = useExitTransition(editingLogId != null, 200);
+  const closingLogIdRef = useRef<string | null>(null);
+  if (editingLogId != null) closingLogIdRef.current = editingLogId;
+
   // logs come newest-first from Supabase; reverse for stats (asc)
   // Exclude optimistically-deleted entries from display
   const effectiveLogs = useMemo(
@@ -930,29 +941,36 @@ export function ExerciseCard({
                   </div>
                 )}
 
-                {isEditing && (
-                  <div className="ex-editor-drawer">
-                    {isAssisted ? (
-                      <InlineEditAssistedEntry
-                        log={log}
-                        setCount={sc}
-                        onSave={(raw, date, note) =>
-                          handleEdit(log, raw, date, note)
-                        }
-                        onCancel={() => setEditingLogId(null)}
-                        onDelete={() => handleDelete(log)}
-                      />
-                    ) : (
-                      <InlineEditEntry
-                        log={log}
-                        setCount={sc}
-                        onSave={(raw, date, note) =>
-                          handleEdit(log, raw, date, note)
-                        }
-                        onCancel={() => setEditingLogId(null)}
-                        onDelete={() => handleDelete(log)}
-                      />
-                    )}
+                {(isEditing ||
+                  (editorT.closing && closingLogIdRef.current === log.id)) && (
+                  <div
+                    className={`ex-editor-drawer${
+                      !isEditing && editorT.closing ? " is-closing" : ""
+                    }`}
+                  >
+                    <div className="ex-editor-drawer-inner">
+                      {isAssisted ? (
+                        <InlineEditAssistedEntry
+                          log={log}
+                          setCount={sc}
+                          onSave={(raw, date, note) =>
+                            handleEdit(log, raw, date, note)
+                          }
+                          onCancel={() => setEditingLogId(null)}
+                          onDelete={() => handleDelete(log)}
+                        />
+                      ) : (
+                        <InlineEditEntry
+                          log={log}
+                          setCount={sc}
+                          onSave={(raw, date, note) =>
+                            handleEdit(log, raw, date, note)
+                          }
+                          onCancel={() => setEditingLogId(null)}
+                          onDelete={() => handleDelete(log)}
+                        />
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

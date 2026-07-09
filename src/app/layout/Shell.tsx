@@ -140,6 +140,11 @@ export function Shell({ session }: { session: Session }) {
   // not tied to an effect's cleanup, so a superseding nav cancels the prior
   // observer explicitly rather than a state change tearing it down mid-flight.
   const alignRef = useRef<{ cancel: () => void } | null>(null);
+  // Set when a "re-tap active tab to go home" lands mid-slide (the tab bar
+  // already highlights `next`, but its slide hasn't settled yet — see
+  // switchTab). Consumed by scheduleFinalize once the slide commits, so the
+  // scroll-to-top still fires instead of being silently swallowed.
+  const pendingHomeScrollRef = useRef<TabId | null>(null);
 
   // Position a tab's own scroll container the moment it's on screen. Because
   // each panel scrolls independently, there's nothing to restore for a plain
@@ -274,6 +279,10 @@ export function Shell({ session }: { session: Session }) {
       const s = slideRef.current;
       if (s && s.dx !== 0) commitTab(s.to);
       setSlide(null);
+      if (s && pendingHomeScrollRef.current === s.to) {
+        pendingHomeScrollRef.current = null;
+        panelRefs.current[s.to]?.scrollTo({ top: 0, behavior: "smooth" });
+      }
     }, SLIDE_MS + 20);
   }
 
@@ -340,9 +349,15 @@ export function Shell({ session }: { session: Session }) {
       return;
     }
     if (slideRef.current) {
-      // A tap on the tab we're already animating toward is a no-op — let the
-      // in-flight animation finish instead of snapping it to completion.
-      if (slideRef.current.to === next) return;
+      // A tap on the tab we're already animating toward — let the in-flight
+      // animation finish instead of snapping it to completion. The tab bar
+      // already highlights `next` at this point (see setHighlight below), so
+      // this reads to the user as "tapping the active tab" — honor the same
+      // go-home scroll-to-top once the slide settles (scheduleFinalize).
+      if (slideRef.current.to === next) {
+        pendingHomeScrollRef.current = next;
+        return;
+      }
       if (options?.scrollTo && options.expand) setPendingExpand(options.scrollTo);
       // Cancel the in-flight slide's pending finalize and clear the slide state
       // itself. Otherwise the stale timer fires later and commits the OLD slide

@@ -94,10 +94,24 @@ export function useHorizontalSwipe<T extends HTMLElement>(
       featureHSwipeActive = false;
     }
 
+    // A touch/drag that starts on a form control (typing, cursor placement,
+    // text selection, a stepper button) must never be hijacked into a page
+    // swipe — a stray horizontal wobble while editing a value would otherwise
+    // page the whole split away mid-edit. Only the START point is checked
+    // (matches Shell's data-own-gesture convention): once a gesture is
+    // already tracking, later moves over a control are fine to ignore.
+    function startsOnFormControl(target: EventTarget | null): boolean {
+      return target instanceof Element && target.closest("input, textarea, select") != null;
+    }
+
     function onTouchStart(e: TouchEvent) {
       // Second finger down mid-gesture: bail rather than let touches[0] swap
       // out from under us and produce a jumped delta.
       if (e.touches.length !== 1) {
+        cancelled = true;
+        return;
+      }
+      if (startsOnFormControl(e.target)) {
         cancelled = true;
         return;
       }
@@ -179,6 +193,7 @@ export function useHorizontalSwipe<T extends HTMLElement>(
     function onMouseDown(e: MouseEvent) {
       if (e.button !== 0) return; // left button only
       if (optsRef.current.enabled === false) return;
+      if (startsOnFormControl(e.target)) return; // see onTouchStart
       mouseDown = true;
       startX = e.clientX;
       startY = e.clientY;
