@@ -9,11 +9,11 @@ import { progressColor } from "@shared/lib/progressColor";
 import "./pageTopBar.css";
 import "@shared/components/activityRing.css";
 
-const RING_SIZE = 38;
+const RING_SIZE = 42;
 // A true scaled-down copy of the Overview Active Target ring (108 / 11): the
 // stroke keeps the big ring's 11/108 band-to-diameter ratio so the small ring
-// reads as the same ring, just smaller (38 * 11/108 ≈ 3.9).
-const RING_STROKE = 3.9;
+// reads as the same ring, just smaller — the diameter stays 42, not enlarged.
+const RING_STROKE = 4.3;
 
 export function PageTopBar({
   eyebrow,

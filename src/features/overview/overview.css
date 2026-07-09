@@ -234,22 +234,28 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Current weight, demoted to a trailing context number on the verdict line now
-   that the rate is the hero. Mono + tabular like every metric number, but
-   caption-scale and muted so it reads as context, not a headline. */
-.ov-weight-context {
+.ov-weight-key {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.ov-weight-val {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--ink-3);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.ov-weight-context-num {
-  color: var(--ink-2);
 }
 
-/* Delta arrow trailing the rate value (app-wide delta-after-value convention,
+/* Only the Status verdict is coloured by pace severity (COLOR-SYSTEM: colour
+   lives on the change/verdict). Trend is a plain rate number and stays
+   neutral ink, matching the latest-weight number above. */
+.ov-weight-val.is-good { color: var(--good); }
+.ov-weight-val.is-warn { color: var(--warn); }
+.ov-weight-val.is-bad  { color: var(--bad); }
+.ov-weight-val.is-gold { color: var(--gold); text-shadow: var(--gold-glow); }
+
+/* Delta arrow trailing the Rate value (app-wide delta-after-value convention,
    see .ov-weight-accel's margin-left below) — direction from the rate's sign,
    colour from rateTone (band-aware severity of the number: in band / near an
    edge / far out). The number itself stays neutral ink; the pill still owns
@@ -261,13 +267,6 @@
 .ov-weight-rate-arrow.is-warn { color: var(--warn); }
 .ov-weight-rate-arrow.is-bad  { color: var(--bad); }
 .ov-weight-rate-arrow.is-gold { color: var(--gold); text-shadow: var(--gold-glow); }
-
-/* At hero scale the arrow sits beside the 28px rate number — size it up from
-   the old inline text-sm so it reads as part of the headline, not a footnote. */
-.ov-weight-rate-arrow--hero {
-  font-size: var(--metric-md);
-  margin-left: var(--space-2);
-}
 
 /* 14-day trend line — the card's dominant element. Fixed 80px height so the
    card never reflows between loading / empty / loaded (the SVG holds this space
@@ -354,6 +353,10 @@
   gap: var(--space-4);
 }
 
+.ov-weight-rate {
+  font-size: var(--text-sm);
+}
+
 /* Acceleration read trailing the Rate: is the loss slowing or speeding up? A
    small inline label (not a second pill — the status pill owns that slot). Amber
    for slowing (approaching a plateau, worth attention); muted for faster, since
@@ -371,6 +374,12 @@
    chip and pill agree instead of the chip staying silent. */
 .ov-weight-accel.is-faster.is-risk { color: var(--warn); }
 .ov-weight-accel.is-strong  { font-weight: 700; }
+
+/* Arrow-only delta trails the number (delta-after-value, app-wide), carrying
+   the up/down direction on its own — a hairline gap keeps it off the glyphs. */
+.ov-weight-rate .metric-delta {
+  margin-left: 3px;
+}
 
 .ov-weight-status-pill {
   display: inline-flex;
@@ -446,7 +455,7 @@
   background: var(--accent);
   box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
   align-self: flex-start;
-  margin-top: 6px; /* optical: align dot with the title's cap height */
+  margin-top: 4px;
 }
 
 .ov-system-body {
@@ -455,6 +464,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--vr-tight);
+}
+
+.ov-system-label {
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
+  text-transform: uppercase;
+  color: var(--role-eyebrow-color);
 }
 
 .ov-system-title {
@@ -752,7 +769,7 @@
    Training so loading feels consistent across tabs. */
 .loading-card .metric-val,
 .loading-card .metric-caption,
-.loading-card .ov-weight-context-num,
+.loading-card .ov-weight-val,
 .loading-card .ov-th-fold-text {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
