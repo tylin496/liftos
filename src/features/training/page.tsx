@@ -932,6 +932,24 @@ function TrainingPageInner() {
     return { splitId, daysAgo: daysSince(latest.log_date) };
   }, [logs, exercises]);
 
+  // First-time default: with no remembered split, land on the one trained last
+  // (the ✓-marked split) once logs load — where the user left off. Runs once;
+  // a manual switch writes tr-split via changeSplit and locks this out, so the
+  // session memory still wins from then on. setSplit (not changeSplit) keeps the
+  // entrance cascade and leaves tr-split unset, so it stays a recomputed default.
+  const defaultAppliedRef = useRef(false);
+  useEffect(() => {
+    if (defaultAppliedRef.current) return;
+    if (sessionStorage.getItem("tr-split")) {
+      defaultAppliedRef.current = true;
+      return;
+    }
+    if (lastTrained?.splitId) {
+      defaultAppliedRef.current = true;
+      setSplit(lastTrained.splitId as SplitId);
+    }
+  }, [lastTrained]);
+
   const lastLoggedNote = lastTrained && (
     <span className={`page-topbar-sync-note${lastTrained.daysAgo >= 2 ? " is-bad" : ""}`}>
       Trained{" "}
