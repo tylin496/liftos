@@ -109,6 +109,18 @@
   transition: color var(--dur-press) var(--ease-press), background var(--dur-press) var(--ease-press);
 }
 
+/* Copy-all is a secondary utility action — mute it to --ink-3 so it recedes
+   behind the page title instead of competing at full ink; brighten on hover. */
+.copy-all-data-btn {
+  color: var(--ink-3);
+}
+
+@media (hover: hover) {
+  .copy-all-data-btn:hover {
+    color: var(--ink-2);
+  }
+}
+
 .copy-phase-header-btn:active {
   transform: scale(var(--tap-scale));
 }
@@ -168,8 +180,8 @@ button.copy-all-data-btn {
 }
 
 .page-topbar-avatar {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: grid;
   place-items: center;
