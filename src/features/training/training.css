@@ -488,6 +488,11 @@
   font-weight: 600;
   color: var(--ink-3);
   white-space: nowrap;
+  /* inline-flex + 2px gap so the expr-star × lands at the same 4px spacing as
+     every other × on screen (matches .expr in ExprDisplay). */
+  display: inline-flex;
+  align-items: baseline;
+  column-gap: 2px;
 }
 
 .pr-empty {
@@ -789,23 +794,20 @@
   opacity: 1;
 }
 
-/* Assist (hero, bold) + the "= lifted kg ×reps" read-out on one line. The
-   read-out is literal text with a tight × (like the PR row's "= 75 ×10"), so
-   every × on the card follows one spacing convention. --space-2 gap between
-   the assist and the read-out mirrors the PR row's .pr-weight-group gap. */
+/* Assist (hero, bold) + the "= lifted kg × reps" read-out on one line, built
+   from the same .expr primitives (expr-weight-primary / expr-unit-tag /
+   expr-star / expr-reps) as a normal history row, so the × spacing (4px) and
+   character spacing match every other row exactly. 2px column-gap mirrors
+   .expr's optical gap; nowrap keeps the read-out beside the assist. */
 .hist-assisted-wrap {
   display: flex;
   align-items: baseline;
-  column-gap: var(--space-2);
+  column-gap: 2px;
   flex-wrap: nowrap;
   white-space: nowrap;
   font-size: var(--text-sm);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-}
-
-.hist-assist-readout {
-  color: var(--ink-3);
 }
 
 .empty-row {

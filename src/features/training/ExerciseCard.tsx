@@ -665,13 +665,15 @@ export function ExerciseCard({
                       />{" "}
                       {bestParsed.assisted ? "kg" : isLbUnit(bestParsed.unit) ? "lb" : "kg"}
                     </span>
-                    {/* assisted: hero is the assist "19 kg"; the "= lifted ×reps"
-                        read-out reuses .pr-meta so it matches a normal PR's ×reps
-                        exactly. Unit stays on the hero — not repeated here. */}
+                    {/* assisted: hero is the assist "19 kg"; the "= lifted × reps"
+                        read-out reuses .pr-meta (unit stays on the hero). expr-star
+                        gives the × the same 4px spacing as every other × on screen. */}
                     <span className="pr-meta mono">
-                      {bestParsed.assisted
-                        ? `= ${fmtWeightNum(score(bestParsed))} ×${formatRepsDisplay(bestParsed.reps)}`
-                        : `×${formatRepsDisplay(bestParsed.reps)}`}
+                      {bestParsed.assisted && (
+                        <span className="expr-sep">= {fmtWeightNum(score(bestParsed))}</span>
+                      )}
+                      <span className="expr-star">×</span>
+                      <span>{formatRepsDisplay(bestParsed.reps)}</span>
                     </span>
                   </span>
                 </div>
@@ -814,14 +816,12 @@ export function ExerciseCard({
                   <span className="hist-expr">
                     {histBw != null && histAssist != null ? (
                       <span className="hist-assisted-wrap">
-                        <strong>{fmtWeightNum(histAssist)}</strong>
-                        {/* Literal text (not expr-star) so the × hugs the reps
-                            exactly like the PR row's "= 75 ×10" — one × spacing
-                            convention across the whole card. */}
-                        <span className="hist-assist-readout">
-                          = {fmtWeightNum(histBw - histAssist)} kg ×
-                          {formatRepsDisplay(log.reps ?? assistedParse?.reps ?? "")}
-                        </span>
+                        <strong className="expr-weight-primary">{fmtWeightNum(histAssist)}</strong>
+                        <span className="expr-sep">=</span>
+                        <span className="expr-unit-tag">{fmtWeightNum(histBw - histAssist)}</span>
+                        <span className="expr-unit-tag">kg</span>
+                        <span className="expr-star">×</span>
+                        <span className="expr-reps">{formatRepsDisplay(log.reps ?? assistedParse?.reps ?? "")}</span>
                       </span>
                     ) : (
                       <span className="hist-expr-row">
