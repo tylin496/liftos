@@ -1,6 +1,7 @@
 export interface Env {
   GITHUB_TOKEN: string;
   SUPABASE_JWT_SECRET: string;
+  SUPABASE_URL: string;
   GITHUB_REPO: string;
   OWNER_EMAIL: string;
 }
@@ -37,14 +38,23 @@ function base64UrlToBytes(b64url: string): Uint8Array {
   return bytes;
 }
 
-async function verifySupabaseJWT(
-  token: string,
-  secret: string,
-): Promise<{ role?: string; email?: string; sub?: string } | null> {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  const [headerB64, payloadB64, sigB64] = parts;
+// JWKS is small and rotates rarely; cache it for the life of the isolate.
+let jwksCache: { keys: JsonWebKey[] } | null = null;
 
+async function fetchJwks(supabaseUrl: string): Promise<{ keys: JsonWebKey[] }> {
+  if (jwksCache) return jwksCache;
+  const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/.well-known/jwks.json`);
+  if (!res.ok) throw new Error(`JWKS fetch failed: ${res.status}`);
+  jwksCache = (await res.json()) as { keys: JsonWebKey[] };
+  return jwksCache;
+}
+
+async function verifyHS256(
+  headerB64: string,
+  payloadB64: string,
+  signature: Uint8Array,
+  secret: string,
+): Promise<boolean> {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -52,9 +62,62 @@ async function verifySupabaseJWT(
     false,
     ["verify"],
   );
-  const signature = base64UrlToBytes(sigB64);
   const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
-  const valid = await crypto.subtle.verify("HMAC", key, signature, data);
+  return crypto.subtle.verify("HMAC", key, signature, data);
+}
+
+async function verifyES256(
+  headerB64: string,
+  payloadB64: string,
+  signature: Uint8Array,
+  kid: string | undefined,
+  env: Env,
+): Promise<boolean> {
+  const { keys } = await fetchJwks(env.SUPABASE_URL);
+  const jwk = keys.find((k) => (k as { kid?: string }).kid === kid) ?? keys[0];
+  if (!jwk) return false;
+  const key = await crypto.subtle.importKey(
+    "jwk",
+    jwk,
+    { name: "ECDSA", namedCurve: "P-256" },
+    false,
+    ["verify"],
+  );
+  const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
+  return crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, signature, data);
+}
+
+// Verifies the token against whichever algorithm the header declares. Supabase
+// projects on asymmetric signing keys issue ES256 (verified via JWKS); legacy
+// projects issue HS256 (verified with the shared JWT secret).
+async function verifySupabaseJWT(
+  token: string,
+  env: Env,
+): Promise<{ role?: string; email?: string; sub?: string } | null> {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [headerB64, payloadB64, sigB64] = parts;
+
+  let header: { alg?: string; kid?: string };
+  try {
+    header = JSON.parse(new TextDecoder().decode(base64UrlToBytes(headerB64)));
+  } catch {
+    return null;
+  }
+
+  const signature = base64UrlToBytes(sigB64);
+  let valid: boolean;
+  try {
+    if (header.alg === "ES256") {
+      valid = await verifyES256(headerB64, payloadB64, signature, header.kid, env);
+    } else if (header.alg === "HS256") {
+      valid = await verifyHS256(headerB64, payloadB64, signature, env.SUPABASE_JWT_SECRET);
+    } else {
+      return null;
+    }
+  } catch {
+    return null;
+  }
   if (!valid) return null;
 
   const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64)));
@@ -127,7 +190,7 @@ export default {
     const token = authHeader.replace(/^Bearer\s+/i, "");
     if (!token) return json({ error: "Missing Authorization" }, 401);
 
-    const payload = await verifySupabaseJWT(token, env.SUPABASE_JWT_SECRET);
+    const payload = await verifySupabaseJWT(token, env);
     if (!payload) return json({ error: "Invalid or expired token" }, 401);
     if (payload.role !== "authenticated") return json({ error: "Not authenticated" }, 403);
     if ((payload.email ?? "").toLowerCase() !== env.OWNER_EMAIL.toLowerCase()) {
