@@ -1,29 +1,5 @@
 import type { BodyMetric } from "./api";
-import { daysSince, isStale } from "@shared/lib/freshness";
-
-// Sync freshness for the header note. Shared by both the Health tab (freshness of
-// the metrics every card anchors on) and Overview (freshness of the topbar
-// activity ring, which only accrues as fast as the health sync). With multiple
-// sync methods now (scheduled runs, on-open), today shows the actual clock time
-// of the last write so you can tell how fresh it is; yesterday reads plainly;
-// two-plus days is a real staleness problem, so it flags bad.
-export function syncLabel(
-  latest: Pick<BodyMetric, "metric_date" | "updated_at"> | null,
-): { text: string; tone: "normal" | "bad" } | null {
-  if (!latest) return null;
-  const daysAgo = daysSince(latest.metric_date);
-  if (daysAgo <= 0) {
-    const t = new Date(latest.updated_at);
-    if (!Number.isNaN(t.getTime())) {
-      const hh = String(t.getHours()).padStart(2, "0");
-      const mm = String(t.getMinutes()).padStart(2, "0");
-      return { text: `Synced ${hh}:${mm}`, tone: "normal" };
-    }
-    return { text: "Synced today", tone: "normal" };
-  }
-  if (daysAgo === 1) return { text: "Synced yesterday", tone: "normal" };
-  return { text: `Synced ${daysAgo} days ago`, tone: "bad" };
-}
+import { isStale } from "@shared/lib/freshness";
 
 // The live shortcut only writes weight / body_fat / active_energy on a
 // today-dated row; the nightly shortcut writes the full day summary (all
@@ -50,22 +26,6 @@ export function latestFullSync(metrics: BodyMetric[]): BodyMetric | null {
     if (FULL_SYNC_FIELDS.some((f) => metrics[i][f] != null)) return metrics[i];
   }
   return null;
-}
-
-/** Just the clock time (HH:MM) of the latest sync, and only when it landed
- *  today — older readings carry no meaningful time-of-day, so this returns null
- *  and the caller shows nothing (staleness is surfaced elsewhere). */
-export function syncTime(
-  latest: Pick<BodyMetric, "metric_date" | "updated_at"> | null,
-): string | null {
-  if (!latest) return null;
-  const daysAgo = daysSince(latest.metric_date);
-  if (daysAgo > 0) return null;
-  const t = new Date(latest.updated_at);
-  if (Number.isNaN(t.getTime())) return null;
-  const hh = String(t.getHours()).padStart(2, "0");
-  const mm = String(t.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
 }
 
 export type MetricKey =
