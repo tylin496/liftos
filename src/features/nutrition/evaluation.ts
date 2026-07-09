@@ -171,16 +171,53 @@ function longestGap(pts: { date: string; value: number }[], days: number): numbe
   return max;
 }
 
+/** Continuous 0–1 per-source confidence signals — the same inputs the low/medium/
+ *  high label is built from, but un-bucketed so an LLM (the AI export's reader) can
+ *  weigh them. Each answers "how much does THIS signal support trusting the weight
+ *  verdict?". Descriptive only; the discrete `label` is what gates the decision. */
+export interface ConfidenceComponents {
+  /** Days held on the current target — a fresh target's trend is half the prior
+   *  one, so it earns confidence only as it settles (0 = just changed → 1 = ≥14d). */
+  freshness: number;
+  /** Enough, well-distributed weight readings — the point count, dragged down by
+   *  the largest interior gap (a hole makes the fit a two-cluster lever arm). */
+  weightData: number;
+  /** Trend cleanliness — low scatter around the fitted line (1 = dead-on linear). */
+  trend: number;
+  /** Food-log ↔ weight-implied intake agreement (1 = agree → 0 as they diverge).
+   *  null = too few logged days to compare, so it doesn't count toward the score. */
+  intake: number | null;
+}
+
+export interface ConfidenceBreakdown {
+  /** The discrete label that actually gates the decision — the single source of
+   *  truth (`computeConfidence` returns exactly this). */
+  label: Confidence;
+  components: ConfidenceComponents;
+  /** Mean of the present components (0–1) BEFORE the hard caps — "what the raw
+   *  signals alone would give". A cap can hold `label` below what this implies. */
+  rawScore: number;
+  /** Which hard cap (if any) pulled the label below the raw signals — the reason a
+   *  strong-looking window still reads medium. Invaluable for an LLM audit. */
+  caps: { freshTarget: boolean; intakeDivergence: boolean };
+}
+
+const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
+const round2 = (x: number): number => +x.toFixed(2);
+
 /** Confidence combines three signals (each 0–2): how long the user has held the
- *  current target, how much *well-distributed* weight data backs the trend, and
- *  how clean the trend is. Sum 0–6 → low / medium / high. */
-function computeConfidence(
+ *  current target, how much *well-distributed* weight data backs the trend, and how
+ *  clean the trend is. Sum 0–6 → low / medium / high, then two hard caps. Returns
+ *  BOTH the gating label (unchanged behaviour) and the continuous per-source vector
+ *  the AI export exposes. */
+export function confidenceBreakdown(
   daysOnTarget: number,
   weightDataPoints: number,
   gapDays: number,
   scatter: number,
   intakeGap: number | null,
-): Confidence {
+): ConfidenceBreakdown {
+  // ── Discrete score (the gating label) — integer buckets, behaviour-preserving ──
   // Data signal answers "enough data AND spread across the window?": the point
   // count, capped by the largest hole. A dense window straddling a two-week gap
   // is a two-cluster lever-arm fit, not that many honest days — so a ≤3-day gap
@@ -195,21 +232,74 @@ function computeConfidence(
     // Lower scatter is better, so invert: <0.4 kg → 2, <0.8 kg → 1, else 0.
     (scatter < 0.4 ? 2 : scatter < 0.8 ? 1 : 0);
   const base: Confidence = score >= 5 ? "high" : score >= 3 ? "medium" : "low";
+
   // Hard cap on a FRESH target: however clean and dense the weight data, a 21-day
   // trend on a target held < FRESH_TARGET_DAYS is still half the PRIOR target and
   // carries transient water/glycogen from the deficit change — so a fast rate
   // isn't yet a settled verdict on THIS target. Hold at medium ("Forming") until
-  // it's had ~2 weeks to express itself. This is why a strong data window right
-  // after a target change reads medium, not an over-confident high.
-  if (base === "high" && daysOnTarget < FRESH_TARGET_DAYS) return "medium";
+  // it's had ~2 weeks to express itself.
+  const freshCap = base === "high" && daysOnTarget < FRESH_TARGET_DAYS;
   // Food-log divergence cap: when the logged intake and the weight-implied intake
   // disagree by more than INTAKE_DIVERGENCE_KCAL, the trend isn't a settled read
-  // of this intake — hold at medium even on a clean, dense weight window. Null
-  // gap (too few logged days) = no food-log signal, so no effect.
-  if (base === "high" && intakeGap != null && Math.abs(intakeGap) >= INTAKE_DIVERGENCE_KCAL) {
-    return "medium";
-  }
-  return base;
+  // of this intake — hold at medium even on a clean, dense weight window. Null gap
+  // (too few logged days) = no food-log signal, so no effect.
+  const intakeCap =
+    base === "high" && intakeGap != null && Math.abs(intakeGap) >= INTAKE_DIVERGENCE_KCAL;
+  const label: Confidence = base === "high" && (freshCap || intakeCap) ? "medium" : base;
+
+  // ── Continuous vector (descriptive) — smooth versions of the same signals ──────
+  const freshness = clamp01(daysOnTarget / FRESH_TARGET_DAYS);
+  // Count ramps to 1 at 14 readings; a gap linearly discounts it (≤3d none, ≥7d
+  // everything) — the smooth twin of the min(count, gapBucket) rule above.
+  const weightData = Math.min(clamp01(weightDataPoints / 14), clamp01((7 - gapDays) / 4));
+  // scatter 0 → 1, 0.8 kg → 0 (the outer bucket edge).
+  const trend = clamp01(1 - scatter / 0.8);
+  // gap 0 → 1, twice the divergence bar → 0 (so the cap edge sits at 0.5).
+  const intake =
+    intakeGap == null ? null : clamp01(1 - Math.abs(intakeGap) / (2 * INTAKE_DIVERGENCE_KCAL));
+
+  const present = [freshness, weightData, trend, ...(intake == null ? [] : [intake])];
+  const rawScore = present.reduce((s, v) => s + v, 0) / present.length;
+
+  return {
+    label,
+    components: {
+      freshness: round2(freshness),
+      weightData: round2(weightData),
+      trend: round2(trend),
+      intake: intake == null ? null : round2(intake),
+    },
+    rawScore: round2(rawScore),
+    caps: { freshTarget: freshCap, intakeDivergence: intakeCap },
+  };
+}
+
+/** The gating label alone (the decision path only needs this). */
+function computeConfidence(
+  daysOnTarget: number,
+  weightDataPoints: number,
+  gapDays: number,
+  scatter: number,
+  intakeGap: number | null,
+): Confidence {
+  return confidenceBreakdown(daysOnTarget, weightDataPoints, gapDays, scatter, intakeGap).label;
+}
+
+/** Confidence breakdown recomputed straight from a weight series — the export's
+ *  entry point, so it can surface the full vector without the persisted row (which
+ *  stores only the collapsed label). Mirrors `evaluate`'s own derivation of slope /
+ *  scatter / gap exactly, so the label it reports matches the app's. `intakeGap` is
+ *  the food-log ↔ weight-implied disagreement (null when too few logged days). */
+export function confidenceBreakdownFromSeries(
+  weightSeries: { date: string; value: number }[],
+  daysOnTarget: number,
+  intakeGap: number | null,
+): ConfidenceBreakdown {
+  const slope = regressionSlope(weightSeries, WINDOW_DAYS);
+  const weightDataPoints = windowPoints(weightSeries, WINDOW_DAYS).length;
+  const gapDays = longestGap(weightSeries, WINDOW_DAYS);
+  const scatter = slope == null ? Infinity : trendScatter(weightSeries, WINDOW_DAYS, slope);
+  return confidenceBreakdown(daysOnTarget, weightDataPoints, gapDays, scatter, intakeGap);
 }
 
 export interface TdeeCalibration {

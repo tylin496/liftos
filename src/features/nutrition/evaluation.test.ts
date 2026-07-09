@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluate, tdeeCalibration, type EvaluateInput } from "./evaluation";
+import { evaluate, tdeeCalibration, confidenceBreakdown, type EvaluateInput } from "./evaluation";
 
 const NOW = new Date("2026-07-01T08:00:00Z");
 
@@ -247,5 +247,47 @@ describe("tdeeCalibration — inform-only cross-check", () => {
 
   it("returns null when the weight trend isn't trustworthy enough to imply a TDEE", () => {
     expect(tdeeCalibration({ ...base, weightTrustworthy: false })).toBeNull();
+  });
+});
+
+describe("confidenceBreakdown — continuous vector + caps", () => {
+  it("a settled, clean, dense window is high with all signals strong", () => {
+    // daysOnTarget 30, 18 pts, gap 1, scatter 0.1, no food-log signal.
+    const c = confidenceBreakdown(30, 18, 1, 0.1, null);
+    expect(c.label).toBe("high");
+    expect(c.components.freshness).toBe(1);
+    expect(c.components.weightData).toBe(1);
+    expect(c.components.trend).toBeGreaterThan(0.8);
+    expect(c.components.intake).toBeNull();
+    expect(c.caps).toEqual({ freshTarget: false, intakeDivergence: false });
+  });
+
+  it("a fresh target caps a would-be-high window to medium and flags the reason", () => {
+    // daysOnTarget 10 (<14) still scores high on the raw buckets → freshTarget cap.
+    const c = confidenceBreakdown(10, 18, 1, 0.1, null);
+    expect(c.label).toBe("medium");
+    expect(c.caps.freshTarget).toBe(true);
+    expect(c.caps.intakeDivergence).toBe(false);
+    expect(c.components.freshness).toBeLessThan(1);
+  });
+
+  it("a large food-log divergence caps to medium and shows a low intake score", () => {
+    const c = confidenceBreakdown(30, 18, 1, 0.1, 300); // 300 ≥ 200 bar
+    expect(c.label).toBe("medium");
+    expect(c.caps.intakeDivergence).toBe(true);
+    expect(c.components.intake).toBeLessThan(0.5);
+  });
+
+  it("a gappy window discounts weightData even with a high point count", () => {
+    const dense = confidenceBreakdown(30, 18, 1, 0.1, null).components.weightData;
+    const gappy = confidenceBreakdown(30, 18, 8, 0.1, null).components.weightData;
+    expect(gappy).toBeLessThan(dense);
+    expect(gappy).toBe(0); // gap ≥7 → the min() drops it to zero, mirroring the label rule
+  });
+
+  it("a thin, noisy window is low and rawScore reflects the weak signals", () => {
+    const c = confidenceBreakdown(3, 5, 4, 0.9, null);
+    expect(c.label).toBe("low");
+    expect(c.rawScore).toBeLessThan(0.5);
   });
 });
