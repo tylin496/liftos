@@ -160,6 +160,16 @@ function Sparkline({
               />
             ))}
             <circle
+              className="health-spark-anchor-ring"
+              cx={last.x.toFixed(1)}
+              cy={last.y.toFixed(1)}
+              r={anchorDot}
+              fill="none"
+              stroke={color}
+              strokeWidth="1.5"
+              style={{ animationDelay: `calc(${tierDelay} + ${dur}ms)` }}
+            />
+            <circle
               className="health-spark-bead health-spark-bead--anchor"
               cx={last.x.toFixed(1)}
               cy={last.y.toFixed(1)}

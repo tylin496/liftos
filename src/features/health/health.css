@@ -160,6 +160,21 @@
   }
 }
 
+/* One-shot ring that expands off the anchor the instant the line lands — a
+   quiet "you are here" ping (handoff 3.2). Reserved for the anchor; history
+   beads stay calm. Same 320ms as the anchor pop so ring + dot land together. */
+.health-spark-anchor-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: health-spark-ring 320ms ease-out forwards;
+}
+
+@keyframes health-spark-ring {
+  0%   { opacity: 0.6; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(2.3); }
+}
+
 .health-trend-foot {
   display: flex;
   align-items: baseline;
