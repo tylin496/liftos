@@ -286,7 +286,7 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
             <FreshnessTag date={snap.date} kind="recovery" updatedAt={snap.updatedAt} />
           </span>
         </div>
-        <p className="health-recovery-footer">
+        <p className="health-recovery-footer health-recovery-footer--flush">
           Readiness needs a recent sleep &amp; HRV reading.
         </p>
       </section>

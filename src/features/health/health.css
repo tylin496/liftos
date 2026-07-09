@@ -420,6 +420,14 @@
   border-top: 1px solid var(--rule);
 }
 
+/* Stale readiness note sits right under the card head with no rows in
+   between — nothing for a divider to separate. */
+.health-recovery-footer--flush {
+  margin-top: var(--vr-tight);
+  padding-top: 0;
+  border-top: none;
+}
+
 .health-tdee-component-window {
   font-size: var(--text-sm);
   color: var(--ink-3);
