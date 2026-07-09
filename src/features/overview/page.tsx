@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type Ref } from "react";
+import { useEffect, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type Ref } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { series, rollingAvg, syncTime, weightAcceleration } from "@features/health/math";
+import { series, rollingAvg, weightAcceleration } from "@features/health/math";
 import { isStale, formatAgo } from "@shared/lib/freshness";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
@@ -128,14 +128,12 @@ function ActiveTargetCard({
   view,
   targetTdee,
   currentTdee,
-  syncedTime,
   onNav,
   loading = false,
 }: {
   view: ActiveTargetView | null;
   targetTdee: number | null;
   currentTdee: number | null;
-  syncedTime?: string | null;
   onNav: () => void;
   loading?: boolean;
 }) {
@@ -149,7 +147,6 @@ function ActiveTargetCard({
         <div className="ov-active-target-head">
           <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
           <div className="ov-active-target-head-right">
-            {syncedTime && <span className="page-topbar-sync-note">{syncedTime}</span>}
             <span className="ov-active-target-chevron" aria-hidden>›</span>
           </div>
         </div>
@@ -194,7 +191,6 @@ function ActiveTargetCard({
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
         <div className="ov-active-target-head-right">
-          {syncedTime && <span className="page-topbar-sync-note">{syncedTime}</span>}
           <span className="ov-active-target-chevron" aria-hidden>›</span>
         </div>
       </div>
@@ -956,10 +952,6 @@ export function OverviewPage() {
   // (no separate skeleton subtree to unmount, so the entrance never replays).
   const loading = !data;
 
-  // Only today's reading carries a clock time; staleness is surfaced by the
-  // Active Target ring's own "not synced" note.
-  const syncedTime = useMemo(() => syncTime(data?.metrics.at(-1) ?? null), [data]);
-
   const header = (
     <div className="shell-header">
       <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} />
@@ -996,7 +988,6 @@ export function OverviewPage() {
         view={data?.activeTarget ?? null}
         targetTdee={data?.targetTdee ?? null}
         currentTdee={data?.currentTdee ?? null}
-        syncedTime={syncedTime}
         onNav={() => nav("health", { scrollTo: "health-energy-card" })}
       />
 
