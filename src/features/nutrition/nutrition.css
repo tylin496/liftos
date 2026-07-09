@@ -239,10 +239,14 @@
   gap: var(--space-3);
 }
 
+/* These are the labels for the evidence values beside them, not footnotes —
+   secondary text (13), not the 11px caption tier they were on (too small on
+   phones). The value keeps the row (mono, ≥15, 600, ink) so the label stays
+   subordinate by weight + colour even at the larger size. */
 .ni-cell-label {
-  font-size: var(--role-caption-size);
-  font-weight: var(--role-caption-weight);
-  color: var(--role-caption-color);
+  font-size: var(--role-secondary-size);
+  font-weight: var(--role-secondary-weight);
+  color: var(--role-secondary-color);
 }
 
 .ni-cell-value {
