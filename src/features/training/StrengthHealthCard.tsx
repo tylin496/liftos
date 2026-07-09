@@ -4,6 +4,8 @@ import { MetricValue } from "@shared/components/Metric";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import type { StrengthSummary, StrengthExercise } from "../overview/api";
+import { suggestDeload } from "./deload";
+import { computeMuscleClusters, suggestClusterFatigue } from "./muscleCluster";
 import "./strengthHealthCard.css";
 
 // On-track rows show "% of all-time PR" (how close to your best). Flagged
@@ -101,6 +103,11 @@ function WarningRow({
   const note = acute
     ? "Declining · last 3 sessions"
     : `Stalled · ${wk} ${wk === 1 ? "wk" : "wks"} since PR`;
+  // The note is "what happened"; this is the "so what should I do" — the single
+  // deterministic next step (deload/rebuild). Every warning row is `needsAttention`,
+  // so the suggestion is always present. Read the sentence-cased action as the row's
+  // answer line, muted so the name/note stay the scan anchors.
+  const suggestion = suggestDeload(exercise);
   const body = (
     <>
       <span className="ov-th-wrow-name">{exercise.name}</span>
@@ -114,6 +121,14 @@ function WarningRow({
         <span className={`ov-th-wrow-note ov-th-wrow-note--${tone}`}>{note}</span>
       </span>
       <span className={`ov-th-wrow-pct ov-th-wrow-pct--${tone}`}>{pct}%</span>
+      {suggestion && (
+        <span className="ov-th-wrow-action">
+          <span className={`ov-th-wrow-action-arrow ov-th-wrow-action-arrow--${tone}`} aria-hidden>
+            →
+          </span>
+          {suggestion.action}
+        </span>
+      )}
     </>
   );
   return onJump ? (
@@ -382,6 +397,14 @@ export function StrengthHealthCard({
     .sort(byRetention);
   const rewards = [...freshPRs, ...rebounding];
 
+  // Muscle-level fatigue: several lifts of one muscle sliding together in the
+  // same block — a systemic read the per-lift rows can't show. Muscle inferred
+  // from name/slug (no split here — it's only the fallback); rides on trajectory.
+  const nameOf = (slug: string) => strength.exercises.find((e) => e.slug === slug)?.name ?? slug;
+  const muscleFatigue = computeMuscleClusters(strength.exercises)
+    .map((c) => suggestClusterFatigue(c, nameOf))
+    .filter((a): a is NonNullable<typeof a> => a !== null);
+
   const signalSlugs = new Set([...warnings, ...rewards].map((e) => e.slug));
   const holdingPeak = strength.exercises.filter((e) => !signalSlugs.has(e.slug));
   const onTrackCount = strength.total - warnings.length;
@@ -532,6 +555,12 @@ export function StrengthHealthCard({
             <div className="ov-th-sect-head-row ov-th-sect-head-row--static">
               <span className="ov-th-sect-head">Needs attention</span>
             </div>
+            {muscleFatigue.map((f) => (
+              <div key={f.muscle} className="ov-th-cluster">
+                <span className="ov-th-cluster-marker" aria-hidden>⚠</span>
+                <span className="ov-th-cluster-text">{f.action}</span>
+              </div>
+            ))}
             {warnings.map((ex) => (
               <WarningRow key={ex.slug} exercise={ex} onJump={onJumpToExercise} />
             ))}

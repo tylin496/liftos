@@ -321,7 +321,7 @@
 .ov-th-wrow--tap {
   display: grid;
   grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto auto auto;
   align-items: center;
   column-gap: 10px;
   row-gap: var(--vr-hairline);
@@ -398,6 +398,49 @@
 }
 .ov-th-wrow-pct--bad { color: var(--bad); }
 .ov-th-wrow-pct--warn { color: var(--warn-ink); }
+
+/* Action line — the "so what should I do" step, full width beneath the note.
+   Muted ink so it reads as the answer without competing with the name/note for
+   the scan; the tone-coloured arrow ties it back to the row's severity. */
+.ov-th-wrow-action {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: var(--vr-hairline);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.ov-th-wrow-action-arrow {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+.ov-th-wrow-action-arrow--bad { color: var(--bad); }
+.ov-th-wrow-action-arrow--warn { color: var(--warn); }
+
+/* Muscle-cluster fatigue — a muscle-level callout above the per-lift warning
+   rows: several lifts of one muscle sliding together in the same block. Passive
+   surface (--bg-soft, no border, per the grey-surface rule); coral ink carries
+   the fatigue tone. Summarises the rows beneath it, so it leads the section. */
+.ov-th-cluster {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px;
+  margin-bottom: var(--space-3);
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--warn-ink);
+}
+.ov-th-cluster-marker {
+  flex-shrink: 0;
+  color: var(--warn);
+  font-weight: 700;
+}
 
 /* ── Reward row — two lines: name (top), note (bottom); icon + chip/spark
    span both rows, vertically centered — same shape as the warning row. ── */

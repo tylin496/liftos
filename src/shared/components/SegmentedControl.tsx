@@ -5,6 +5,8 @@ export interface SegmentedOption {
   id: string;
   label: string;
   count?: number;
+  /** Prefix ✓ — "this one was completed last" (e.g. most recent trained split). */
+  marked?: boolean;
 }
 
 export function SegmentedControl({
@@ -32,6 +34,11 @@ export function SegmentedControl({
           className={`seg-item${opt.id === value ? " is-active" : ""}`}
           onClick={() => onChange(opt.id)}
         >
+          {opt.marked && (
+            <span className="seg-check" aria-hidden>
+              ✓
+            </span>
+          )}
           {opt.label}
           {opt.count != null && opt.count > 0 && <span className="seg-count">{opt.count}</span>}
         </button>

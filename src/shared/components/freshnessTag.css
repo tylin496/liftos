@@ -8,6 +8,13 @@
   white-space: nowrap;
 }
 
+/* Bare clock reading (HH:MM) — matches every other number in the app, which
+   is set in the mono face (see metric.css). The word variants (Today / N days
+   ago) stay in the UI font; only digits switch. */
+.freshness-tag.is-clock {
+  font-family: var(--font-mono);
+}
+
 .freshness-tag.is-stale {
   color: var(--warn);
 }

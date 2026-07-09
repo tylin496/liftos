@@ -25,11 +25,15 @@ export function FreshnessTag({
   const days = daysSince(date);
 
   let text: string;
+  let isClock = false; // a bare HH:MM reading — wear the app's mono number face
   if (days <= 0 && updatedAt) {
     const t = new Date(updatedAt);
-    text = Number.isNaN(t.getTime())
-      ? "Today"
-      : `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+    if (Number.isNaN(t.getTime())) {
+      text = "Today";
+    } else {
+      text = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+      isClock = true;
+    }
   } else if (days <= 0) {
     text = "Today";
   } else {
@@ -37,5 +41,9 @@ export function FreshnessTag({
     text = rel.charAt(0).toUpperCase() + rel.slice(1);
   }
 
-  return <span className={`freshness-tag${stale ? " is-stale" : ""}`}>{text}</span>;
+  return (
+    <span className={`freshness-tag${isClock ? " is-clock" : ""}${stale ? " is-stale" : ""}`}>
+      {text}
+    </span>
+  );
 }

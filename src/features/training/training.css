@@ -494,14 +494,9 @@
   font-size: var(--text-sm);
   color: var(--ink-4);
   font-family: var(--font-mono);
-}
-
-/* Qualifies the assisted hero number — the big figure is the machine assist, not
-   the lifted load (which now trails as the muted .pr-kg-hint "= X kg lifted"). */
-.pr-assist-tag {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  color: var(--ink-4);
+  /* Drop the assist hint to its own line below the PR number+reps — the
+     .pr-top-row is flex-wrap, so a full-basis item wraps onto a fresh line. */
+  flex-basis: 100%;
 }
 
 .pr-empty {

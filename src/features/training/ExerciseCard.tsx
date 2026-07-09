@@ -661,15 +661,14 @@ export function ExerciseCard({
                   <span className="pr-weight-group">
                     <span className="pr-weight">
                       <AnimatedWeight
-                        value={bestParsed.assisted ? bestParsed.assisted.assist : bestParsed.weight}
+                        value={bestParsed.assisted ? score(bestParsed) : bestParsed.weight}
                       />{" "}
                       {bestParsed.assisted ? "kg" : isLbUnit(bestParsed.unit) ? "lb" : "kg"}
                     </span>
-                    {bestParsed.assisted && <span className="pr-assist-tag">assist</span>}
                     <span className="pr-meta mono">×{formatRepsDisplay(bestParsed.reps)}</span>
                   </span>
                   {bestParsed.assisted && (
-                    <span className="pr-kg-hint">{fmtWeightNum(score(bestParsed))} kg lifted</span>
+                    <span className="pr-kg-hint">{fmtWeightNum(bestParsed.assisted.assist)} kg assist</span>
                   )}
                 </div>
               ) : (

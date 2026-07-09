@@ -915,10 +915,11 @@ function TrainingPageInner() {
     return dates;
   }, [logs]);
 
-  // Header note: the split of the single most recent log across all splits,
-  // not just the one currently open — each slug's array is already
-  // newest-first, so only its head needs checking.
-  const lastLoggedNote = useMemo(() => {
+  // The split of the single most recent log across all splits, not just the
+  // one currently open — each slug's array is already newest-first, so only
+  // its head needs checking. Feeds the segmented-control ✓ (which split was
+  // trained last) and the header note (how long ago).
+  const lastTrained = useMemo(() => {
     const splitBySlug = new Map((exercises ?? []).map((e) => [e.slug, e.split]));
     let latest: TrainingLog | null = null;
     for (const arr of Object.values(logs)) {
@@ -926,16 +927,21 @@ function TrainingPageInner() {
       if (head && (!latest || head.log_date > latest.log_date)) latest = head;
     }
     if (!latest) return undefined;
-    const splitName = SPLITS.find((s) => s.id === splitBySlug.get(latest!.exercise_slug))?.name;
-    if (!splitName) return undefined;
-    const daysAgo = daysSince(latest.log_date);
-    const when = daysAgo <= 0 ? "today" : daysAgo === 1 ? "yesterday" : `${daysAgo}d ago`;
-    return (
-      <span className={`page-topbar-sync-note${daysAgo >= 2 ? " is-bad" : ""}`}>
-        {splitName} · {when}
-      </span>
-    );
+    const splitId = splitBySlug.get(latest.exercise_slug);
+    if (!splitId) return undefined;
+    return { splitId, daysAgo: daysSince(latest.log_date) };
   }, [logs, exercises]);
+
+  const lastLoggedNote = lastTrained && (
+    <span className={`page-topbar-sync-note${lastTrained.daysAgo >= 2 ? " is-bad" : ""}`}>
+      Trained{" "}
+      {lastTrained.daysAgo <= 0
+        ? "today"
+        : lastTrained.daysAgo === 1
+          ? "yesterday"
+          : `${lastTrained.daysAgo}d ago`}
+    </span>
+  );
 
   return (
     <div className="page tr-page" ref={pageRootRef}>
@@ -954,6 +960,7 @@ function TrainingPageInner() {
             id: s.id,
             label: s.name,
             count: (exercises ?? []).filter((e) => e.split === s.id && !e.archived).length,
+            marked: s.id === lastTrained?.splitId,
           }))}
           value={split}
           onChange={(id) => changeSplit(id as SplitId)}

@@ -7,6 +7,7 @@ import {
   computeRecovery,
   sanitizeMetrics,
   countSkippedBodyFat,
+  latestUpdatedAt,
   RECOVERY_STATUS_COLOR,
   type MetricKey,
   type ChartPoint,
@@ -281,7 +282,7 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
         <div className="health-recovery-head">
           <span className="health-card-eyebrow">Recovery</span>
           <span className="health-recovery-head-right">
-            <FreshnessTag date={snap.date} kind="recovery" />
+            <FreshnessTag date={snap.date} kind="recovery" updatedAt={snap.updatedAt} />
             <span className="health-recovery-status is-stale">Can’t assess</span>
           </span>
         </div>
@@ -310,7 +311,7 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
       <div className="health-recovery-head">
         <span className="health-card-eyebrow">Recovery</span>
         <span className="health-recovery-head-right">
-          <FreshnessTag date={snap.date} kind="recovery" />
+          <FreshnessTag date={snap.date} kind="recovery" updatedAt={snap.updatedAt} />
           <span className="health-recovery-status" style={{ color }}>{snap.status}</span>
         </span>
       </div>
@@ -340,6 +341,7 @@ function TrendCard({
   onOpenTrend,
   freshnessKind,
   syncDate,
+  updatedAt,
 }: {
   label: string;
   avgLabel: string;
@@ -353,6 +355,8 @@ function TrendCard({
   freshnessKind: MetricKind;
   /** Date of this metric's latest real reading (not the bucketed point). */
   syncDate: string | null;
+  /** Sync-write timestamp of that reading — shows a clock time for same-day data. */
+  updatedAt?: string | null;
   /** Data-quality caveat for this card only — e.g. samples ignored as
       implausible. Rendered under the range line, not shimmer'd. */
   note?: string;
@@ -370,7 +374,7 @@ function TrendCard({
     <section className={`page-card health-trend${loading ? " loading-card" : ""}`}>
       <div className="health-card-top">
         <span className="health-card-eyebrow">{label}</span>
-        {!loading && <FreshnessTag date={syncDate} kind={freshnessKind} />}
+        {!loading && <FreshnessTag date={syncDate} kind={freshnessKind} updatedAt={updatedAt} />}
       </div>
       <div className="health-trend-head">
         <div className="health-trend-info">
@@ -458,7 +462,8 @@ export function HealthPage() {
       // point still means "this card's own averaging window"), just spanning
       // the whole fetched history instead of only the last SPARK_POINTS beads.
       const full = bucketSeries(s, { spanDays: FIXED_DAYS, bucketDays: spec.bucket });
-      return { spec, bucketed, thisWeek, change, readingCount: s.length, full };
+      const updatedAt = latestUpdatedAt(metrics, spec.key);
+      return { spec, bucketed, thisWeek, change, readingCount: s.length, full, updatedAt };
     });
   }, [data, metrics]);
 
@@ -482,12 +487,11 @@ export function HealthPage() {
 
   const lbmCard = useMemo(() => {
     if (!data) return null;
-    const pts = metrics
-      .filter((m) => m.weight_kg != null && m.body_fat_pct != null)
-      .map((m) => ({
-        date: m.metric_date,
-        value: m.weight_kg! * (1 - m.body_fat_pct! / 100),
-      }));
+    const rows = metrics.filter((m) => m.weight_kg != null && m.body_fat_pct != null);
+    const pts = rows.map((m) => ({
+      date: m.metric_date,
+      value: m.weight_kg! * (1 - m.body_fat_pct! / 100),
+    }));
     if (!pts.length) return null;
     const thisWeek = rollingAvg(pts, 14, 0);
     const prevWeek = rollingAvg(pts, 14, 14);
@@ -495,7 +499,12 @@ export function HealthPage() {
     const lbmBucket = 14;
     const bucketed = bucketSeries(pts, { spanDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket });
     const full = bucketSeries(pts, { spanDays: FIXED_DAYS, bucketDays: lbmBucket });
-    return { thisWeek, change, bucketed, readingCount: pts.length, rangeDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket, full, lastDate: pts.at(-1)?.date ?? null };
+    return {
+      thisWeek, change, bucketed, readingCount: pts.length,
+      rangeDays: lbmBucket * SPARK_POINTS, bucketDays: lbmBucket, full,
+      lastDate: pts.at(-1)?.date ?? null,
+      updatedAt: rows.at(-1)?.updated_at ?? null,
+    };
   }, [data, metrics]);
 
   // The big scrubbable trend sheet — one shared instance, driven by which
@@ -554,6 +563,7 @@ export function HealthPage() {
             color={spec.color}
             freshnessKind={spec.key === "weight_kg" ? "weight" : "bodyComp"}
             syncDate={series(metrics, spec.key).at(-1)?.date ?? null}
+            updatedAt={c?.updatedAt ?? null}
             delta={
               // Both Weight and Body Fat are down-good on a cut — this page is the
               // body-composition trend view, so each carries its own coloured
@@ -596,6 +606,7 @@ export function HealthPage() {
         color="var(--health-measurement)"
         freshnessKind="bodyComp"
         syncDate={lbmCard?.lastDate ?? null}
+        updatedAt={lbmCard?.updatedAt ?? null}
         delta={
           // Neutral on purpose, NOT a MetricDelta: a 14-day lean-mass move isn't
           // judgeable at face value. Some lean loss is expected on any cut (what
@@ -643,7 +654,13 @@ export function HealthPage() {
         <div className="health-tdee-head">
           <span className="health-card-eyebrow">Active</span>
           <span className="health-tdee-head-right">
-            {data && <FreshnessTag date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null} kind="sync" />}
+            {data && (
+              <FreshnessTag
+                date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null}
+                kind="sync"
+                updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
+              />
+            )}
             <span className={`health-energy-chevron${energyExpanded ? " is-open" : ""}`} aria-hidden>
               <svg width="13" height="8" viewBox="0 0 12 7" fill="none">
                 <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

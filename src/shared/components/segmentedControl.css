@@ -49,6 +49,15 @@
   transition-duration: var(--dur-press);
 }
 
+/* "last completed" mark — quiet done-signal ahead of the label */
+.seg-check {
+  margin-right: var(--space-1);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--good);
+  line-height: 1;
+}
+
 .seg-count {
   margin-left: var(--space-1);
   font-size: var(--text-2xs);

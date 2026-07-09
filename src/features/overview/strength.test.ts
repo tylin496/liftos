@@ -79,6 +79,57 @@ describe("computeStrengthSummary — two-axis stall clock", () => {
   });
 });
 
+describe("computeStrengthSummary — trajectory (trend layer)", () => {
+  it("a flat lift at PR reads status 'improving' but trajectory 'stable' (velocity 0)", () => {
+    // Every session ties the ceiling → pct = 1.0 → status improving. But nothing
+    // is climbing: the trajectory must say so, not inherit the status's optimism.
+    const s = computeStrengthSummary({
+      bench: [log("2026-01-01", "70*8"), log("2026-01-08", "70*8"), log("2026-01-15", "70*8"), log("2026-01-22", "70*8")],
+    });
+    const bench = s.exercises.find((e) => e.slug === "bench")!;
+    expect(bench.status).toBe("improving"); // at PR every session
+    expect(bench.trajectory.direction).toBe("stable");
+    expect(bench.trajectory.velocity).toBe(0); // no trusted run → no slope
+  });
+
+  it("a monotonic climb reads 'recovering' with positive velocity, even while at PR", () => {
+    // Direction is a superset of the `recovering` FIELD: the field is gated on
+    // watch (false here — the lift is at PR each session), the trajectory still
+    // reports the climb.
+    const s = computeStrengthSummary({
+      bench: [log("2026-01-01", "70*8"), log("2026-01-08", "72*8"), log("2026-01-15", "74*8"), log("2026-01-22", "76*8")],
+    });
+    const bench = s.exercises.find((e) => e.slug === "bench")!;
+    expect(bench.recovering).toBe(false); // field is watch-gated
+    expect(bench.trajectory.direction).toBe("recovering");
+    expect(bench.trajectory.velocity).toBeGreaterThan(0);
+  });
+
+  it("a consecutive slide reads 'declining' with negative velocity", () => {
+    const s = computeStrengthSummary({
+      bench: [log("2026-01-01", "80*8"), log("2026-01-08", "78*8"), log("2026-01-15", "76*8"), log("2026-01-22", "74*8")],
+    });
+    const bench = s.exercises.find((e) => e.slug === "bench")!;
+    expect(bench.trajectory.direction).toBe("declining");
+    expect(bench.trajectory.velocity).toBeLessThan(0);
+    expect(bench.declining).toBe(true); // agrees with the flag
+  });
+
+  it("confidence rewards dense cadence and penalises sparse logging", () => {
+    // Same climb, same 4 sessions — only the spacing differs. Weekly logging is a
+    // trustworthy window; the same lift touched every ~7 weeks is not.
+    const dense = computeStrengthSummary({
+      bench: [log("2026-01-01", "70*8"), log("2026-01-08", "72*8"), log("2026-01-15", "74*8"), log("2026-01-22", "76*8")],
+    }).exercises.find((e) => e.slug === "bench")!;
+    const sparse = computeStrengthSummary({
+      bench: [log("2026-01-01", "70*8"), log("2026-02-15", "72*8"), log("2026-04-01", "74*8"), log("2026-05-20", "76*8")],
+    }).exercises.find((e) => e.slug === "bench")!;
+    expect(dense.trajectory.confidence).toBeGreaterThan(sparse.trajectory.confidence);
+    expect(sparse.trajectory.confidence).toBeLessThan(0.5);
+    expect(dense.trajectory.confidence).toBeGreaterThan(0.7);
+  });
+});
+
 describe("computeStrengthSummary — needs-attention gating (recent-PR grace)", () => {
   it("a watch lift that PR'd within the grace window is NOT flagged (the Assisted Pullup case)", () => {
     const s = computeStrengthSummary({

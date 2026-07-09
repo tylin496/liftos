@@ -24,6 +24,36 @@ function sessionReps(repsStr: string): number {
 
 export type StrengthStatus = "improving" | "stable" | "watch";
 
+export type TrendDirection = "recovering" | "stable" | "declining";
+
+/** The trend-layer read for one lift — the trajectory of the recent LOGGED
+ *  sessions, kept DISTINCT from `trend` (the distance-from-PR ratio that drives
+ *  `status`). `status` answers "how far below the ceiling is the last session";
+ *  this answers "which way, how fast, how sure" over the recent window. Built
+ *  entirely from data the engine already holds (recentBests + session dates),
+ *  and — critically — it never manufactures the untrustworthy number `status`
+ *  deliberately avoids: a fuzzy regression slope over asymmetrically-logged
+ *  sessions. Direction only fires off the same trusted consecutive-run
+ *  predicates the flags use; velocity is 0 unless one of those runs is present. */
+export interface StrengthTrajectory {
+  /** Recovering/declining come from the SAME trusted consecutive-run predicates
+   *  as the flags (isRecovering/isDeclining), so direction never contradicts
+   *  them. "recovering" here is a superset of the `recovering` FIELD: the field
+   *  is gated on `watch` (it only rescues a lift from intervention), whereas the
+   *  trajectory reports a climb even when the lift is already at/near PR. */
+  direction: TrendDirection;
+  /** Signed per-run fractional change measured across the trusted last-3 run
+   *  (+climb off the trough / −slide off the peak). Exactly 0 when direction is
+   *  "stable" — we never emit a slope we don't trust. */
+  velocity: number;
+  /** 0..1 — how much the recent window can back the read, from the session
+   *  dates alone: cadence (sessions/week) × sample depth. Sparse or shallow
+   *  history reads low; a densely, deeply logged lift reads high. Recency /
+   *  staleness is NOT folded in (it lives on `lastLogDate`, surfaced by the
+   *  card) so it isn't double-counted here. */
+  confidence: number;
+}
+
 /** A `watch` lift (latest session below 94% of PR) only counts as "needs
  *  intervention" once it's been stuck this many weeks. A recent PR on either axis
  *  (small stalledWeeks) means one lighter session isn't a plateau — so it buys a
@@ -69,6 +99,52 @@ function isDeclining(sessionBests: number[]): boolean {
   return twoStepSlide && meaningful;
 }
 
+/** Sessions/week over the recent window that earns full cadence credit — ~once
+ *  a fortnight is dense enough to trust a short-run trajectory. */
+const TREND_FULL_CADENCE = 0.5;
+/** Recent sessions that earn full sample-depth credit. */
+const TREND_FULL_SAMPLE = 6;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** The trend-layer read for one lift. `sessionBests` (ascending mode-scores) and
+ *  `windowDates` (ISO dates of the last ≤8 sessions) must be aligned — same
+ *  sessions, same order. Pure and now-free: the confidence is derived from the
+ *  window's own dates, never from wall-clock "now". */
+export function computeTrajectory(sessionBests: number[], windowDates: string[]): StrengthTrajectory {
+  const direction: TrendDirection = isDeclining(sessionBests)
+    ? "declining"
+    : isRecovering(sessionBests)
+      ? "recovering"
+      : "stable";
+
+  // Velocity = the magnitude the direction gate already measured: the last-3 run's
+  // net fractional change off its anchor (trough for a climb, peak for a slide).
+  // Same quantity RECOVERY_MIN_RATIO / DECLINE_MAX_RATIO threshold on, so the two
+  // can never disagree. Stable → 0 (no trusted run, no number).
+  let velocity = 0;
+  if (direction !== "stable" && sessionBests.length >= 3) {
+    const [prior, mid, latest] = sessionBests.slice(-3);
+    const anchor = direction === "recovering" ? Math.min(prior, mid) : Math.max(prior, mid);
+    if (anchor > 0) velocity = Math.round((latest / anchor - 1) * 1000) / 1000;
+  }
+
+  // Confidence: how much the recent window can back the read, from its dates alone.
+  //  • cadence — sessions/week; a ~weekly lift gives a dense, trustworthy line, a
+  //    lift logged twice in two months does not.
+  //  • sample — how many recent sessions deep the window is.
+  // Cadence-led, sample modulates (a dense but shallow window still reads mid).
+  const n = windowDates.length;
+  const spanWeeks = Math.max(
+    (Date.parse(windowDates[n - 1]) - Date.parse(windowDates[0])) / WEEK_MS,
+    1e-9,
+  );
+  const cadenceFactor = Math.min(1, (n - 1) / spanWeeks / TREND_FULL_CADENCE);
+  const sampleFactor = Math.min(1, n / TREND_FULL_SAMPLE);
+  const confidence = Math.round(cadenceFactor * (0.5 + 0.5 * sampleFactor) * 100) / 100;
+
+  return { direction, velocity, confidence };
+}
+
 export interface StrengthExercise {
   slug: string;
   name: string;
@@ -96,6 +172,10 @@ export interface StrengthExercise {
   declining: boolean;
   /** Recent session e1RMs (ascending, up to 8) — the row's mini trend sparkline. */
   recentBests: number[];
+  /** The trend-layer read (direction / velocity / confidence) over the recent
+   *  window — see StrengthTrajectory. Complements `trend` (distance-from-PR):
+   *  that says how far below the ceiling, this says which way and how fast. */
+  trajectory: StrengthTrajectory;
   /** Which kind of PR the most recent one (at `lastPRDate`) was — drives the
    *  reward icon/label. Compound: new e1RM ceiling ("strength", 🏆) or weight-axis
    *  ("performance", 💪). Isolation: new best-set tonnage ceiling ("hypertrophy",
@@ -304,6 +384,10 @@ export function computeStrengthSummary(
     // (e.g. losing strength mid-cut) is urgent even a few % below peak. Mirror of
     // `recovering`: same trusted consecutive-run logic, opposite direction.
     const declining = isDeclining(sessionBests);
+    // Trajectory reads the SAME recent window as recentBests (last ≤8 sessions),
+    // aligned to their dates so confidence reflects the exact data it summarises.
+    const windowDates = datedBests.slice(-8).map(([d]) => d);
+    const trajectory = computeTrajectory(sessionBests, windowDates);
     const needsAttention =
       declining ||
       (status === "watch" && stalledWeeks >= ATTENTION_STALL_WEEKS && !recovering);
@@ -323,6 +407,7 @@ export function computeStrengthSummary(
       recovering,
       declining,
       recentBests: sessionBests.slice(-8),
+      trajectory,
       lastPRKind,
       lastPRDetail,
       milestoneKg: lastPRMilestone ?? undefined,

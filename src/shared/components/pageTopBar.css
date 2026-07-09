@@ -68,11 +68,7 @@
    pick it up (health.css isn't loaded on Overview). */
 .page-topbar-sync-note {
   font-size: var(--text-sm);
-  color: var(--ink-4);
-}
-
-.page-topbar-sync-note.is-bad {
-  color: var(--bad);
+  color: var(--ink-3);
 }
 
 .page-topbar-actions {
