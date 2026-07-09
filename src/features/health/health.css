@@ -344,6 +344,28 @@
   gap: var(--vr-snug);
 }
 
+/* Tappable variant — a button that opens the full trend sheet, so it strips the
+   native button chrome and left-aligns to match the inert (div) sibling. The
+   -6px/6px margin/padding pair widens the tap + press surface without nudging
+   the content off the model-column line. */
+.health-energy-model-item--tappable {
+  align-items: flex-start;
+  text-align: left;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  margin: -6px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-press) var(--ease-press);
+}
+
+.health-energy-model-item--tappable:active {
+  background: var(--bg-soft);
+}
+
 .health-energy-metric-label {
   font-size: var(--text-sm);
   font-weight: 600;

@@ -49,6 +49,9 @@ const FIXED_DAYS = 180;
 // Active-energy sparkline: 14-day buckets (matches Body Fat / Lean Mass), and a
 // kcal min-span so a small week-to-week wobble doesn't fill the whole chart.
 const ENERGY_BUCKET = 14;
+// Resting energy is slow-moving and noisy day-to-day, so its trend buckets at
+// its own 30-day averaging window (the same one its card caption names).
+const RESTING_BUCKET = 30;
 const ENERGY_MIN_SPAN = 200;
 const copyHealthData = () => buildHealthJson();
 
@@ -202,6 +205,50 @@ function Sparkline({
         {svg}
       </button>
     </div>
+  );
+}
+
+/* One column of the Energy card's Resting + TDEE model row. Renders as a button
+   when a trend is available (tap opens the big scrubbable sheet, same as the
+   Active sparkline), else an inert div. stopPropagation keeps the tap from also
+   toggling the card's expand/collapse. */
+function EnergyModelItem({
+  label,
+  value,
+  window: windowLabel,
+  onOpen,
+}: {
+  label: string;
+  value: number | null;
+  window: string;
+  onOpen?: () => void;
+}) {
+  const inner = (
+    <>
+      <span className="health-energy-metric-label">{label}</span>
+      <div className="health-trend-stat">
+        <MetricValue size="sm" unit="kcal">
+          {value != null ? <AnimatedMetric value={value} decimals={0} /> : null}
+        </MetricValue>
+      </div>
+      {/* Fixed descriptor of the trailing window, not the live sample count — a
+          single missing day shouldn't tick "30-day average" down to "29". */}
+      <span className="health-energy-window">{windowLabel}</span>
+    </>
+  );
+  if (!onOpen) return <div className="health-energy-model-item">{inner}</div>;
+  return (
+    <button
+      type="button"
+      className="health-energy-model-item health-energy-model-item--tappable"
+      aria-label={`View ${label} trend`}
+      onClick={(e: ReactMouseEvent) => {
+        e.stopPropagation();
+        onOpen();
+      }}
+    >
+      {inner}
+    </button>
   );
 }
 
@@ -480,6 +527,23 @@ export function HealthPage() {
     [energyRaw],
   );
 
+  // Resting + TDEE trend series — the two model rows now open the same big
+  // sheet as Active. Resting keeps its own 30-day averaging window (matches its
+  // headline caption); TDEE is the per-day resting+active sum, bucketed at the
+  // Active window since Active is what drives its day-to-day movement. Both are
+  // model context, not targets — judgeDelta:false so the Since-start delta reads
+  // neutral (no good/bad tone), same stance as the card's delta-free Resting.
+  const restingFull = useMemo(
+    () => bucketSeries(series(metrics, "resting_energy_kcal"), { spanDays: FIXED_DAYS, bucketDays: RESTING_BUCKET }),
+    [metrics],
+  );
+  const tdeeFull = useMemo(() => {
+    const pts = metrics
+      .filter((m) => m.resting_energy_kcal != null && m.active_energy_kcal != null)
+      .map((m) => ({ date: m.metric_date, value: m.resting_energy_kcal! + m.active_energy_kcal! }));
+    return bucketSeries(pts, { spanDays: FIXED_DAYS, bucketDays: ENERGY_BUCKET });
+  }, [metrics]);
+
   const recovery = useMemo(() => {
     if (!data) return null;
     return computeRecovery(metrics);
@@ -723,26 +787,30 @@ export function HealthPage() {
                 can animate instead of the content just vanishing. */}
             <div className={`health-energy-model-wrap${energyExpanded ? " is-open" : ""}`}>
               <div className="health-energy-model">
-                <div className="health-energy-model-item">
-                  <span className="health-energy-metric-label">Resting</span>
-                  <div className="health-trend-stat">
-                    <MetricValue size="sm" unit="kcal">
-                      {tdee.avgResting != null ? <AnimatedMetric value={tdee.avgResting} decimals={0} /> : null}
-                    </MetricValue>
-                  </div>
-                  <span className="health-energy-window">
-                    {/* Fixed descriptor of the trailing window, not the sample
-                        count — a missing day shouldn't tick it to "29". */}
-                    30-day average
-                  </span>
-                </div>
-                <div className="health-energy-model-item">
-                  <span className="health-energy-metric-label">TDEE</span>
-                  <MetricValue size="sm" unit="kcal">
-                    <AnimatedMetric value={tdee.tdee} decimals={0} />
-                  </MetricValue>
-                  <span className="health-energy-window">resting + active</span>
-                </div>
+                <EnergyModelItem
+                  label="Resting"
+                  value={tdee.avgResting}
+                  window="30-day average"
+                  // 30-day average of resting energy — a slow metabolic drift,
+                  // no objective good direction (down = expected adaptation on a
+                  // cut), so the trend delta reads neutral. Only tappable once
+                  // there's enough history for a line.
+                  onOpen={
+                    restingFull.length >= 2
+                      ? () => openTrend({ label: "Resting", unit: " kcal", decimals: 0, color: "var(--accent)", points: restingFull, higherIsBetter: false, judgeDelta: false, bucketDays: RESTING_BUCKET })
+                      : undefined
+                  }
+                />
+                <EnergyModelItem
+                  label="TDEE"
+                  value={tdee.tdee}
+                  window="resting + active"
+                  onOpen={
+                    tdeeFull.length >= 2
+                      ? () => openTrend({ label: "TDEE", unit: " kcal", decimals: 0, color: "var(--accent)", points: tdeeFull, higherIsBetter: true, judgeDelta: false, bucketDays: ENERGY_BUCKET })
+                      : undefined
+                  }
+                />
               </div>
             </div>
           </>

@@ -265,7 +265,15 @@ function SheetInner({
             <>
               <div className="health-trend-sheet-meta-row">
                 <span className="health-trend-sheet-window">
-                  Last {points.length} {bucketDays > 1 ? `${bucketDays}-day averages` : "readings"}
+                  {(() => {
+                    const spanDays = points.length * bucketDays;
+                    const months = Math.round(spanDays / 30);
+                    const window =
+                      months >= 2
+                        ? `Last ${months} months`
+                        : `Last ${Math.max(1, Math.round(spanDays / 7))} weeks`;
+                    return bucketDays > 1 ? `${window} · ${bucketDays}-day averages` : window;
+                  })()}
                 </span>
               </div>
 
