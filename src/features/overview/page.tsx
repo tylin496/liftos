@@ -5,6 +5,7 @@ import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
 import { series, rollingAvg, weightAcceleration } from "@features/health/math";
 import { isStale, formatAgo } from "@shared/lib/freshness";
+import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useInView } from "@shared/hooks/useInView";
@@ -191,6 +192,7 @@ function ActiveTargetCard({
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
         <div className="ov-active-target-head-right">
+          <FreshnessTag date={view?.today.lastSyncDate ?? null} kind="sync" />
           <span className="ov-active-target-chevron" aria-hidden>›</span>
         </div>
       </div>
@@ -755,11 +757,9 @@ function WeightCard({
   // 7-day average vs the prior 7 days — same signal the Health weight card
   // shows; down = good on a cut. Threshold-suppressed when within noise.
   const weightPts = series(metrics, "weight_kg");
-  // Honest freshness: if the last weigh-in is past the weight cadence window,
-  // note how long ago it was so a days-old number doesn't read as today's. Never
-  // an alarm — just a quiet caption; stays hidden entirely if you weigh regularly.
+  // Latest weigh-in date → the top-right FreshnessTag (quiet "N days ago",
+  // warn-toned once past the weight cadence; hidden if you weigh regularly).
   const weightDate = weightPts.at(-1)?.date ?? null;
-  const weightStale = isStale("weight", weightDate);
   const thisWeek = rollingAvg(weightPts, 7, 0);
   const prevWeek = rollingAvg(weightPts, 7, 7);
   const weightDelta = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
@@ -832,7 +832,10 @@ function WeightCard({
     >
       <div className="ov-weight-head">
         <span className="ov-weight-label">Weight</span>
-        <span className="ov-weight-chevron" aria-hidden>›</span>
+        <span className="ov-weight-head-right">
+          <FreshnessTag date={weightDate} kind="weight" />
+          <span className="ov-weight-chevron" aria-hidden>›</span>
+        </span>
       </div>
       <div className="ov-weight-stat">
         <MetricValue size="lg" unit="kg">
@@ -844,9 +847,6 @@ function WeightCard({
         </MetricValue>
         <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
       </div>
-      {weightStale && weightDate && (
-        <span className="ov-weight-stale">Last weighed {formatAgo(weightDate)}</span>
-      )}
 
       <WeightSparkline points={sparkPoints} tone={sparkTone} />
 

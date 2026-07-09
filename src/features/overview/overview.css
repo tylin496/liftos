@@ -176,20 +176,18 @@
   justify-content: space-between;
 }
 
+/* Right cluster: freshness tag sits just left of the chevron. */
+.ov-weight-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .ov-weight-stat {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-/* Quiet "last weighed N days ago" note — only shown when the reading is stale. */
-.ov-weight-stale {
-  display: block;
-  margin-top: 6px;
-  font-size: var(--role-secondary-size);
-  font-weight: var(--role-secondary-weight);
-  color: var(--role-secondary-color);
 }
 
 .ov-weight-label {
