@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
+import { ImageCropModal } from "./ImageCropModal";
 
 export interface ImageWellProps {
   src?: string;
@@ -19,26 +20,43 @@ export function ImageWell({
 }: ImageWellProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [pending, setPending] = useState<{ url: string; name: string } | null>(null);
 
   const displaySrc = localUrl || src;
   const isLoading = uploading || isUploading;
 
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !onUpload) return;
+    e.target.value = "";
+    if (!file) return;
+    setPending({ url: URL.createObjectURL(file), name: file.name });
+  }
 
+  function closeCropModal() {
+    if (pending) URL.revokeObjectURL(pending.url);
+    setPending(null);
+  }
+
+  async function handleCropConfirm(file: File) {
+    closeCropModal();
+    if (!onUpload) return;
     setIsUploading(true);
     try {
       await onUpload(file);
     } finally {
       setIsUploading(false);
-      e.target.value = "";
     }
   }
 
   return (
     <div className="image-well">
-      <div className="image-well-container">
+      <button
+        type="button"
+        className="image-well-container"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={isLoading}
+        aria-label={displaySrc ? "Change photo" : "Add photo"}
+      >
         {displaySrc ? (
           <>
             <img
@@ -54,17 +72,9 @@ export function ImageWell({
             <div className="image-well-empty-text">No photo yet</div>
           </div>
         )}
-      </div>
+      </button>
 
       <div className="image-well-actions">
-        <button
-          type="button"
-          className="btn-image-action"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isLoading}
-        >
-          {displaySrc ? "Change photo" : "Add photo"}
-        </button>
         {displaySrc && (
           <button
             type="button"
@@ -90,6 +100,15 @@ export function ImageWell({
         Cutouts (transparent PNG) look best — they float over the card with no
         background.
       </div>
+
+      {pending && (
+        <ImageCropModal
+          imageUrl={pending.url}
+          fileName={pending.name}
+          onCancel={closeCropModal}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 }

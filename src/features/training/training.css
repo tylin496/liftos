@@ -1991,6 +1991,18 @@
   background-size: 16px 16px;
   background-position: 0 0;
   border: 1px solid var(--rule);
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: border-color var(--dur-press);
+}
+
+.image-well-container:hover {
+  border-color: var(--rule-strong);
+}
+
+.image-well-container:disabled {
+  cursor: default;
 }
 
 .image-well-img {
@@ -2041,34 +2053,14 @@
   align-items: center;
 }
 
-.btn-image-action,
 .btn-image-remove {
   padding: 6px var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
-  border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background var(--dur-press), color var(--dur-press);
   font-family: var(--font-ui);
-}
-
-.btn-image-action {
-  background: var(--bg-soft);
-  color: var(--ink);
-  flex: 1;
-}
-
-.btn-image-action:hover {
-  background: var(--rule);
-}
-
-.btn-image-action:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.btn-image-remove {
   background: transparent;
   color: var(--bad);
   border: 1px solid var(--bad);
@@ -2094,6 +2086,37 @@
   font-size: var(--role-caption-size);
   color: var(--role-caption-color);
   line-height: 1.4;
+}
+
+/* ── Image Crop Modal ────────────────────────────────────────────────────────*/
+/* Reuses the Settings sheet chrome (.settings-sheet / -backdrop / -header /
+   -title / -close) defined in layout.css. */
+
+.image-crop-sheet {
+  padding-bottom: var(--space-5);
+}
+
+.image-crop-area {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  margin-top: var(--space-4);
+  background: var(--bg-soft);
+}
+
+.image-crop-controls {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4) var(--space-5) 0;
+}
+
+.image-crop-zoom {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.image-crop-actions {
+  padding: var(--space-4) var(--space-5) 0;
 }
 
 /* ── Edit Exercise Form ──────────────────────────────────────────────────────*/
