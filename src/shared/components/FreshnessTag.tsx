@@ -1,4 +1,5 @@
 import { isStale, formatAgo, daysSince, type MetricKind } from "@shared/lib/freshness";
+import { localDateStr } from "@shared/lib/date";
 import "./freshnessTag.css";
 
 /**
@@ -17,7 +18,9 @@ export function FreshnessTag({
 }: {
   date: string | null | undefined;
   kind: MetricKind;
-  /** ISO sync-write timestamp — shows a clock (HH:MM) for a same-day reading. */
+  /** ISO sync-write timestamp — shows a clock (HH:MM) whenever the sync itself
+   *  happened today, even if the reading's data-date (`date`) is yesterday
+   *  (nightly syncs write recovery fields onto a yesterday-dated row). */
   updatedAt?: string | null;
 }) {
   if (!date) return null;
@@ -26,14 +29,13 @@ export function FreshnessTag({
 
   let text: string;
   let isClock = false; // a bare HH:MM reading — wear the app's mono number face
-  if (days <= 0 && updatedAt) {
-    const t = new Date(updatedAt);
-    if (Number.isNaN(t.getTime())) {
-      text = "Today";
-    } else {
-      text = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
-      isClock = true;
-    }
+  const syncedAt = updatedAt ? new Date(updatedAt) : null;
+  const syncedToday =
+    syncedAt && !Number.isNaN(syncedAt.getTime()) && localDateStr(syncedAt) === localDateStr();
+
+  if (syncedAt && syncedToday) {
+    text = `${String(syncedAt.getHours()).padStart(2, "0")}:${String(syncedAt.getMinutes()).padStart(2, "0")}`;
+    isClock = true;
   } else if (days <= 0) {
     text = "Today";
   } else {
