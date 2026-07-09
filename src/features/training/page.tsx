@@ -37,6 +37,7 @@ import { useNav } from "@app/layout/NavContext";
 import { getActiveScroller } from "@app/layout/activeScroller";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
+import { daysSince } from "@shared/lib/freshness";
 import { EditIcon } from "./EditIcon";
 import "./training.css";
 
@@ -914,6 +915,28 @@ function TrainingPageInner() {
     return dates;
   }, [logs]);
 
+  // Header note: the split of the single most recent log across all splits,
+  // not just the one currently open — each slug's array is already
+  // newest-first, so only its head needs checking.
+  const lastLoggedNote = useMemo(() => {
+    const splitBySlug = new Map((exercises ?? []).map((e) => [e.slug, e.split]));
+    let latest: TrainingLog | null = null;
+    for (const arr of Object.values(logs)) {
+      const head = arr[0];
+      if (head && (!latest || head.log_date > latest.log_date)) latest = head;
+    }
+    if (!latest) return undefined;
+    const splitName = SPLITS.find((s) => s.id === splitBySlug.get(latest!.exercise_slug))?.name;
+    if (!splitName) return undefined;
+    const daysAgo = daysSince(latest.log_date);
+    const when = daysAgo <= 0 ? "today" : daysAgo === 1 ? "yesterday" : `${daysAgo}d ago`;
+    return (
+      <span className={`page-topbar-sync-note${daysAgo >= 2 ? " is-bad" : ""}`}>
+        {splitName} · {when}
+      </span>
+    );
+  }, [logs, exercises]);
+
   return (
     <div className="page tr-page" ref={pageRootRef}>
       <div className="shell-header">
@@ -921,6 +944,7 @@ function TrainingPageInner() {
           eyebrow="TRAINING"
           title={SPLITS.find((s) => s.id === split)?.name ?? split}
           onCopy={copyTrainingData}
+          note={lastLoggedNote}
         />
       </div>
       {/* ── Segment control ── */}
