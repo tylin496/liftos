@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { useSessionUser, useIsReadOnly } from "@app/layout/SessionContext";
 import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
 import { useCopyButton } from "@shared/hooks/useCopyButton";
@@ -19,11 +19,13 @@ export function PageTopBar({
   eyebrow,
   title,
   onCopy,
+  onTitleClick,
   note,
 }: {
   eyebrow: string;
   title: string;
   onCopy?: () => string | Promise<string>;
+  onTitleClick?: () => void;
   note?: ReactNode;
 }) {
   const user = useSessionUser();
@@ -54,7 +56,22 @@ export function PageTopBar({
           {eyebrowFade.displayed}
         </p>
         <div className="page-topbar-title-row">
-          <h1 className={`page-topbar-title${titleFade.fading ? " is-fading" : ""}`}>
+          <h1
+            className={`page-topbar-title${titleFade.fading ? " is-fading" : ""}${onTitleClick ? " is-tappable" : ""}`}
+            {...(onTitleClick
+              ? {
+                  role: "button",
+                  tabIndex: 0,
+                  onClick: onTitleClick,
+                  onKeyDown: (e: KeyboardEvent) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onTitleClick();
+                    }
+                  },
+                }
+              : {})}
+          >
             {titleFade.displayed}
           </h1>
           {noteFade.displayed != null && (

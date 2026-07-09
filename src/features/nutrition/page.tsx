@@ -34,7 +34,12 @@ export function NutritionPage() {
   const isToday = date === calendarToday();
   const header = (
     <div className="shell-header">
-      <PageTopBar eyebrow="NUTRITION" title={isToday ? "Today" : labelFor(date)} onCopy={copyNutritionData} />
+      <PageTopBar
+        eyebrow="NUTRITION"
+        title={isToday ? "Today" : labelFor(date)}
+        onCopy={copyNutritionData}
+        onTitleClick={() => setCalendarOpen(true)}
+      />
     </div>
   );
 

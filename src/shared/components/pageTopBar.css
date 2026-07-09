@@ -29,6 +29,17 @@
   margin: 0;
 }
 
+/* Tappable title (Nutrition: opens the day calendar). No chrome — just a
+   pointer cursor and a brief press dip so it reads as interactive. */
+.page-topbar-title.is-tappable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.page-topbar-title.is-tappable:active {
+  opacity: 0.6;
+}
+
 /* Eyebrow + title change together (day nav / tab switch) and animate in
    lockstep: both slide in from the right as they fade, not just an opacity
    fade — one consistent motion for the whole header block. */
