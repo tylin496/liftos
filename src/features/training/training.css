@@ -1990,10 +1990,12 @@
     );
   background-size: 16px 16px;
   background-position: 0 0;
+  background-color: transparent;
   border: 1px solid var(--rule);
   padding: 0;
   cursor: pointer;
   font-family: var(--font-ui);
+  appearance: none;
   transition: border-color var(--dur-press);
 }
 
