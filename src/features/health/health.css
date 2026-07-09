@@ -356,7 +356,7 @@
 }
 
 /* ── Recovery card ───────────────────────────────────────────────────── */
-/* Right cluster: freshness tag sits just left of the readiness status. */
+/* Right cluster: status first (what matters), freshness tag trails it. */
 .health-recovery-head-right {
   display: inline-flex;
   align-items: center;

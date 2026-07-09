@@ -282,8 +282,8 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
         <div className="health-recovery-head">
           <span className="health-card-eyebrow">Recovery</span>
           <span className="health-recovery-head-right">
-            <FreshnessTag date={snap.date} kind="recovery" updatedAt={snap.updatedAt} />
             <span className="health-recovery-status is-stale">Can’t assess</span>
+            <FreshnessTag date={snap.date} kind="recovery" updatedAt={snap.updatedAt} />
           </span>
         </div>
         <p className="health-recovery-footer">
@@ -311,8 +311,8 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
       <div className="health-recovery-head">
         <span className="health-card-eyebrow">Recovery</span>
         <span className="health-recovery-head-right">
-          <FreshnessTag date={snap.date} kind="recovery" updatedAt={snap.updatedAt} />
           <span className="health-recovery-status" style={{ color }}>{snap.status}</span>
+          <FreshnessTag date={snap.date} kind="recovery" updatedAt={snap.updatedAt} />
         </span>
       </div>
       <div className="health-recovery-rows">

@@ -439,7 +439,7 @@ function CutProgressCard({
           {isComplete ? "Goal reached" : "Cut Progress"}
           {!isComplete && cutDay != null && (
             <span className="goal-day">
-              {" "}· Day <b>{cutDay}</b>
+              {" "}Day <b>{cutDay}</b>
             </span>
           )}
         </span>
@@ -455,7 +455,7 @@ function CutProgressCard({
         <div className="goal-lost">
           Down <b>{lost.toFixed(1)}</b> kg
           {lostStale && weightLatestDate && (
-            <span className="goal-lost-stale"> · as of {formatAgo(weightLatestDate)}</span>
+            <span className="goal-lost-stale"> as of {formatAgo(weightLatestDate)}</span>
           )}
         </div>
       )}

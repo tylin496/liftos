@@ -103,7 +103,7 @@ function PaceMeter({
   return (
     <div className="ni-pace">
       <div className="ni-pace-head">
-        <span className="ni-cell-label">Observed rate · 21d</span>
+        <span className="ni-cell-label">Observed rate 21d</span>
         <span className="ni-pace-obs">
           <span className={`ni-status-dot status-${tone}`} aria-hidden="true" />
           {sign}
@@ -256,7 +256,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
             the Overview Cut Progress card. */}
         {!loading && decision && d && hasTrend && (
           <p className="ni-rec-tenure">
-            On this target ·{" "}
+            On this target{" "}
             <strong className="ni-conf-day">
               {d.daysOnTarget <= 0
                 ? "today"
@@ -287,7 +287,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
 
         {/* Why the pace reads the way it does — the reason, on its own row. */}
         <EvidenceCell
-          label="Est. intake · 21d"
+          label="Est. intake 21d"
           value={
             !noData && !loading && hasTrend
               ? `≈${d!.estimatedIntake.toLocaleString()} kcal/day`

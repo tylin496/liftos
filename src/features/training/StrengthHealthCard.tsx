@@ -101,8 +101,8 @@ function WarningRow({
   // The note is the whole story of the row — no separate staleness hint (weeks is
   // folded in here, retention% is the headline on the right).
   const note = acute
-    ? "Declining · last 3 sessions"
-    : `Stalled · ${wk} ${wk === 1 ? "wk" : "wks"} since PR`;
+    ? "Declining last 3 sessions"
+    : `Stalled ${wk} ${wk === 1 ? "wk" : "wks"} since PR`;
   // The note is "what happened"; this is the "so what should I do" — the single
   // deterministic next step (deload/rebuild). Every warning row is `needsAttention`,
   // so the suggestion is always present. Read the sentence-cased action as the row's
@@ -158,11 +158,11 @@ function RewardRow({
   const icon = isPR ? (gold ? "🏆" : "💪") : "↑";
   const note = isPR
     ? exercise.lastPRKind === "strength"
-      ? "Strength PR · new best e1RM"
+      ? "Strength PR new best e1RM"
       : exercise.lastPRKind === "hypertrophy"
-        ? "Hypertrophy PR · new best volume"
-        : `Performance PR · ${exercise.lastPRDetail}`
-    : "Rebounding · climbing back";
+        ? "Hypertrophy PR new best volume"
+        : `Performance PR ${exercise.lastPRDetail}`
+    : "Rebounding climbing back";
   const body = (
     <>
       <span className={`ov-th-rrow-icon${isPR ? "" : " ov-th-rrow-icon--up"}`} aria-hidden>{icon}</span>

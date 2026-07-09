@@ -348,7 +348,7 @@ export function ExerciseCard({
         celebration.celebrate({ variant: "pr", title: "Hypertrophy PR", sub: setStr || "New best volume" });
       } else if (prKind === "performance") {
         haptic("success");
-        toast(wStr ? `Performance PR · heaviest yet at ${wStr}` : "Performance PR · heaviest yet", "success");
+        toast(wStr ? `Performance PR heaviest yet at ${wStr}` : "Performance PR heaviest yet", "success");
       } else if (sessionMilestone != null) {
         haptic("success");
         celebration.celebrate({ variant: "session", title: `${sessionMilestone} Sessions`, sub: "Training milestone" });
@@ -430,7 +430,7 @@ export function ExerciseCard({
         celebration.celebrate({ variant: "pr", title: "Hypertrophy PR", sub: `${fmtWeightNum(editScore)} kg × ${maxReps(parsed.reps)}` });
       } else if (prKind === "performance") {
         haptic("success");
-        toast(`Performance PR · heaviest yet at ${fmtWeightNum(editScore)} kg`, "success");
+        toast(`Performance PR heaviest yet at ${fmtWeightNum(editScore)} kg`, "success");
       } else {
         toast("Entry updated", "success");
       }
@@ -661,15 +661,19 @@ export function ExerciseCard({
                   <span className="pr-weight-group">
                     <span className="pr-weight">
                       <AnimatedWeight
-                        value={bestParsed.assisted ? score(bestParsed) : bestParsed.weight}
+                        value={bestParsed.assisted ? bestParsed.assisted.assist : bestParsed.weight}
                       />{" "}
                       {bestParsed.assisted ? "kg" : isLbUnit(bestParsed.unit) ? "lb" : "kg"}
                     </span>
-                    <span className="pr-meta mono">×{formatRepsDisplay(bestParsed.reps)}</span>
+                    {/* assisted: hero is the assist "19 kg"; the "= lifted ×reps"
+                        read-out reuses .pr-meta so it matches a normal PR's ×reps
+                        exactly. Unit stays on the hero — not repeated here. */}
+                    <span className="pr-meta mono">
+                      {bestParsed.assisted
+                        ? `= ${fmtWeightNum(score(bestParsed))} ×${formatRepsDisplay(bestParsed.reps)}`
+                        : `×${formatRepsDisplay(bestParsed.reps)}`}
+                    </span>
                   </span>
-                  {bestParsed.assisted && (
-                    <span className="pr-kg-hint">{fmtWeightNum(bestParsed.assisted.assist)} kg assist</span>
-                  )}
                 </div>
               ) : (
                 <span className="pr-empty">No PR yet</span>
@@ -810,19 +814,13 @@ export function ExerciseCard({
                   <span className="hist-expr">
                     {histBw != null && histAssist != null ? (
                       <span className="hist-assisted-wrap">
-                        <span className="hist-expr-row">
-                          <span className="mono">
-                            <strong>
-                              {fmtWeightNum(histBw - histAssist)}
-                            </strong>
-                            <span className="expr-sep">
-                              {" "}
-                              ×{formatRepsDisplay(log.reps ?? assistedParse?.reps ?? "")}
-                            </span>
-                          </span>
-                        </span>
-                        <span className="hist-assist-sub">
-                          {fmtWeightNum(histAssist)} kg assist
+                        <strong>{fmtWeightNum(histAssist)}</strong>
+                        {/* Literal text (not expr-star) so the × hugs the reps
+                            exactly like the PR row's "= 75 ×10" — one × spacing
+                            convention across the whole card. */}
+                        <span className="hist-assist-readout">
+                          = {fmtWeightNum(histBw - histAssist)} kg ×
+                          {formatRepsDisplay(log.reps ?? assistedParse?.reps ?? "")}
                         </span>
                       </span>
                     ) : (

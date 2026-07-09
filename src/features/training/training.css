@@ -490,15 +490,6 @@
   white-space: nowrap;
 }
 
-.pr-kg-hint {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-  font-family: var(--font-mono);
-  /* Drop the assist hint to its own line below the PR number+reps — the
-     .pr-top-row is flex-wrap, so a full-basis item wraps onto a fresh line. */
-  flex-basis: 100%;
-}
-
 .pr-empty {
   font-size: var(--text-sm);
   color: var(--ink-4);
@@ -798,20 +789,23 @@
   opacity: 1;
 }
 
+/* Assist (hero, bold) + the "= lifted kg ×reps" read-out on one line. The
+   read-out is literal text with a tight × (like the PR row's "= 75 ×10"), so
+   every × on the card follows one spacing convention. --space-2 gap between
+   the assist and the read-out mirrors the PR row's .pr-weight-group gap. */
 .hist-assisted-wrap {
   display: flex;
-  flex-direction: column;
-  gap: var(--vr-hairline);
-  /* Match the normal row's .hist-expr-row sizing — without this the assisted
-     primary line inherits the larger card base font and reads oversized. */
+  align-items: baseline;
+  column-gap: var(--space-2);
+  flex-wrap: nowrap;
+  white-space: nowrap;
   font-size: var(--text-sm);
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
-.hist-assist-sub {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-  font-family: var(--font-mono);
+.hist-assist-readout {
+  color: var(--ink-3);
 }
 
 .empty-row {
