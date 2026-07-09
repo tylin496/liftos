@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { series, bucketSeries, rollingAvg, regressionSlope, weightAcceleration, computeRecovery } from "./math";
+import { series, bucketSeries, rollingAvg, regressionSlope, theilSenSlope, median, weightAcceleration, computeRecovery } from "./math";
 import type { BodyMetric } from "./api";
 
 // Helper: build a sequential daily series from a start date.
@@ -286,6 +286,54 @@ describe("regressionSlope", () => {
     const recent = daily("2026-06-26", [50, 50, 50, 50, 50]);
     const slope = regressionSlope([...old, ...recent], 28);
     expect(slope).toBeCloseTo(0, 10);
+  });
+});
+
+describe("median", () => {
+  it("returns the middle of an odd-length list", () => {
+    expect(median([3, 1, 2])).toBe(2);
+  });
+  it("averages the two middles of an even-length list", () => {
+    expect(median([1, 2, 3, 4])).toBe(2.5);
+  });
+  it("returns NaN for an empty list", () => {
+    expect(median([])).toBeNaN();
+  });
+});
+
+describe("theilSenSlope", () => {
+  it("matches OLS on clean linear data", () => {
+    const pts = daily("2026-06-24", [70, 71, 72, 73, 74, 75, 76]); // +1/day → 7/wk
+    expect(theilSenSlope(pts, 28)).toBeCloseTo(7, 6);
+    expect(theilSenSlope(pts, 28)).toBeCloseTo(regressionSlope(pts, 28)!, 6);
+  });
+
+  it("shares regressionSlope's guards (empty → null, <5 pts → null)", () => {
+    expect(theilSenSlope([], 28)).toBeNull();
+    expect(theilSenSlope(daily("2026-06-27", [1, 2, 3, 4]), 28)).toBeNull();
+  });
+
+  it("returns 0 for a flat series", () => {
+    expect(theilSenSlope(daily("2026-06-26", [50, 50, 50, 50, 50]), 28)).toBeCloseTo(0, 10);
+  });
+
+  it("is unmoved by a single outlier that badly tilts OLS (the #1 case)", () => {
+    // 14 days losing 0.1 kg/day (−0.7 kg/wk), then a +2 kg cheat/water spike near
+    // the end — a classic contaminant. OLS tilts to −0.36 (would misread the cut
+    // as stalling); the median-of-pairwise-slopes stays put.
+    const clean = Array.from({ length: 14 }, (_, i) => +(90 - 0.1 * i).toFixed(2));
+    const contaminated = [...clean];
+    contaminated[12] = +(clean[12] + 2).toFixed(2);
+    const cs = daily("2026-06-15", clean);
+    const ct = daily("2026-06-15", contaminated);
+
+    expect(theilSenSlope(cs, 28)).toBeCloseTo(-0.7, 6);
+    expect(theilSenSlope(ct, 28)).toBeCloseTo(-0.7, 6); // outlier ignored
+    expect(regressionSlope(ct, 28)).toBeCloseTo(-0.36, 1); // OLS badly tilted
+    // Theil–Sen is far less perturbed than OLS.
+    expect(Math.abs(theilSenSlope(ct, 28)! + 0.7)).toBeLessThan(
+      Math.abs(regressionSlope(ct, 28)! + 0.7),
+    );
   });
 });
 

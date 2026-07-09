@@ -129,6 +129,16 @@ export function series(metrics: BodyMetric[], key: MetricKey) {
     .filter((p): p is { date: string; value: number } => p.value != null);
 }
 
+/** Sync-write timestamp of a metric's latest reading — feeds FreshnessTag's
+ *  same-day clock time. Walks from the end so it lands on the row that
+ *  actually carries this key, not just the newest row overall. */
+export function latestUpdatedAt(metrics: BodyMetric[], key: MetricKey): string | null {
+  for (let i = metrics.length - 1; i >= 0; i--) {
+    if (metrics[i][key] != null) return metrics[i].updated_at;
+  }
+  return null;
+}
+
 export function bucketSeries(
   pts: { date: string; value: number }[],
   { spanDays, bucketDays }: BucketOptions,
@@ -216,6 +226,8 @@ export interface RecoverySnapshot {
   insight: string | null;
   /** date string of the most recent reading used */
   date: string | null;
+  /** sync-write timestamp of the row at `date` — feeds FreshnessTag's same-day clock time */
+  updatedAt: string | null;
   /** true when `date` is past the recovery freshness window — the reading is too
    *  old to assess readiness from. Consumers show a neutral "can't assess" state
    *  (never vanish, never alarm) and the engine treats recovery as unknown. */
@@ -293,8 +305,11 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
     .filter((d): d is string => d != null);
   const date = dates.length ? dates.sort().at(-1)! : null;
   const stale = isStale("recovery", date);
+  const updatedAt = date != null
+    ? metrics.find((m) => m.metric_date === date)?.updated_at ?? null
+    : null;
 
-  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, score, status, insight, date, stale };
+  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, score, status, insight, date, updatedAt, stale };
 }
 
 // A day counts as "trained" at ≥20 exercise minutes; ≥2 such days in the trailing
@@ -401,6 +416,43 @@ export function weightAcceleration(
     direction: deltaPerWeek > 0 ? "slowing" : "faster",
     strong: Math.abs(deltaPerWeek) >= ACCEL_STRONG_DELTA,
   };
+}
+
+/** Median of a list — sorted middle, or the mean of the two middles. Empty → NaN. */
+export function median(xs: number[]): number {
+  if (!xs.length) return NaN;
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+/** Theil–Sen slope (kg/week) over the trailing `days` window: the MEDIAN of every
+ *  pairwise slope. Robust to outliers — a cheat-day spike, a creatine water-weight
+ *  step, or a sick-week dip only moves a minority of the pairwise slopes, so the
+ *  median holds where OLS would tilt the whole line and mis-read the trend. Same
+ *  window + ≥5-reading guard as `regressionSlope`, so it's a drop-in for the weight
+ *  trend. Returns null when the window can't support a trend. */
+export function theilSenSlope(pts: { date: string; value: number }[], days = 28): number | null {
+  const last = pts.at(-1)?.date;
+  if (!last) return null;
+  const cutoff = new Date(last + "T12:00:00");
+  cutoff.setDate(cutoff.getDate() - days + 1);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const win = pts.filter((p) => p.date >= cutoffStr);
+  if (win.length < 5) return null;
+  const MS = 86400000;
+  const t0 = new Date(win[0].date + "T12:00:00").getTime();
+  const xs = win.map((p) => (new Date(p.date + "T12:00:00").getTime() - t0) / MS);
+  const ys = win.map((p) => p.value);
+  const slopes: number[] = [];
+  for (let i = 0; i < win.length; i++) {
+    for (let j = i + 1; j < win.length; j++) {
+      const dx = xs[j] - xs[i];
+      if (dx !== 0) slopes.push((ys[j] - ys[i]) / dx);
+    }
+  }
+  if (!slopes.length) return null;
+  return median(slopes) * 7; // kg/week
 }
 
 export function regressionSlope(pts: { date: string; value: number }[], days = 28): number | null {

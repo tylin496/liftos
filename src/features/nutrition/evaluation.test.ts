@@ -171,6 +171,21 @@ describe("evaluate — food-log divergence confidence cap", () => {
   });
 });
 
+describe("evaluate — outlier robustness (Theil-Sen)", () => {
+  it("keeps the on-target verdict a single spike would flip under OLS", () => {
+    // 21 days losing exactly 0.7 kg/wk (top of the Moderate band) + a +2 kg
+    // cheat/water spike near the end. Under OLS the slope tilts to ~−0.36 → loss
+    // 0.36 < 0.4 → a false "below_target" (losing too slow). Theil-Sen holds −0.7.
+    const clean = weightSeries(-0.7); // 21 pts, −0.1 kg/day
+    const contaminated = clean.map((p, i) => (i === 18 ? { ...p, value: p.value + 2 } : p));
+    const { evaluation } = evaluate(
+      input({ weightSeries: contaminated, cutMode: "Moderate Cut", daysOnTarget: 30 }),
+    );
+    expect(evaluation.observedRate).toBeCloseTo(-0.7, 6);
+    expect(evaluation.status).toBe("on_target");
+  });
+});
+
 describe("tdeeCalibration — inform-only cross-check", () => {
   const base = {
     assumedTdee: 2250,

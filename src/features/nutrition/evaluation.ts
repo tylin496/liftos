@@ -10,7 +10,7 @@
 //   - NutritionDiagnostics → explains *why* (estimated intake/TDEE). Descriptive
 //                            only; it never feeds back into the judgment.
 
-import { regressionSlope } from "@features/health/math";
+import { theilSenSlope, median } from "@features/health/math";
 import { CUT_MODE_TARGET_RANGES } from "./targetRanges";
 
 export type EvalStatus = "below_target" | "on_target" | "above_target";
@@ -76,7 +76,7 @@ export interface EvaluateInput {
 const KCAL_PER_KG = 7700;
 export const WINDOW_DAYS = 21;
 /** Minimum weight readings in the window before a trend can be fit (mirrors
- *  regressionSlope's own guard). Below this, `evaluate` falls back to
+ *  theilSenSlope's own guard). Below this, `evaluate` falls back to
  *  observedRate = 0 — a placeholder, not a measurement — so surfaces should
  *  render the rate as "—" rather than a fabricated "0.00 kg/wk". */
 export const MIN_TREND_POINTS = 5;
@@ -96,8 +96,9 @@ export const FRESH_TARGET_DAYS = 14;
 const INTAKE_DIVERGENCE_KCAL = 200;
 
 /** Canonical weekly weight rate (kg/week) — the exact number the UI's "Trend"
- *  shows: a least-squares slope over the same trailing 21-day window `evaluate`
- *  uses for `observedRate`. Any surface that reports a weekly rate (Overview
+ *  shows: a Theil–Sen (median-of-pairwise-slopes) fit over the same trailing
+ *  21-day window `evaluate` uses for `observedRate`, so a cheat day or creatine
+ *  step can't tilt it. Any surface that reports a weekly rate (Overview
  *  card, AI export) must call this so they can never disagree. Returns null
  *  (not a fabricated 0) when the window has too few readings to fit a trend. */
 export function weeklyWeightRate(weightSeries: { date: string; value: number }[]): {
@@ -105,7 +106,7 @@ export function weeklyWeightRate(weightSeries: { date: string; value: number }[]
   windowDays: number;
   dataPoints: number;
 } {
-  const slope = regressionSlope(weightSeries, WINDOW_DAYS);
+  const slope = theilSenSlope(weightSeries, WINDOW_DAYS);
   return {
     ratePerWeekKg: slope == null ? null : +slope.toFixed(3),
     windowDays: WINDOW_DAYS,
@@ -113,7 +114,7 @@ export function weeklyWeightRate(weightSeries: { date: string; value: number }[]
   };
 }
 
-/** Points falling inside the trailing `days` window (mirrors regressionSlope). */
+/** Points falling inside the trailing `days` window (mirrors theilSenSlope). */
 function windowPoints(pts: { date: string; value: number }[], days: number) {
   const last = pts.at(-1)?.date;
   if (!last) return [];
@@ -124,7 +125,11 @@ function windowPoints(pts: { date: string; value: number }[], days: number) {
 }
 
 /** Mean absolute residual (kg) around the fitted trend line in the window —
- *  a low value means the trend is clean, so the observed rate is trustworthy. */
+ *  a low value means the trend is clean, so the observed rate is trustworthy.
+ *  Anchored to a MEDIAN intercept (the Theil–Sen companion to the median slope):
+ *  an outlier then surfaces as one large residual that raises scatter — correctly
+ *  flagging the window as noisier — instead of dragging a mean-anchored line to
+ *  hide itself. On clean/linear data the two anchorings coincide (residuals 0). */
 function trendScatter(
   pts: { date: string; value: number }[],
   days: number,
@@ -137,9 +142,7 @@ function trendScatter(
   const xs = win.map((p) => (new Date(p.date + "T12:00:00").getTime() - t0) / MS);
   const ys = win.map((p) => p.value);
   const slopePerDay = slopePerWeek / 7;
-  const meanX = xs.reduce((s, x) => s + x, 0) / xs.length;
-  const meanY = ys.reduce((s, y) => s + y, 0) / ys.length;
-  const intercept = meanY - slopePerDay * meanX;
+  const intercept = median(ys.map((y, i) => y - slopePerDay * xs[i]));
   const resid = ys.map((y, i) => Math.abs(y - (intercept + slopePerDay * xs[i])));
   return resid.reduce((s, r) => s + r, 0) / resid.length;
 }
@@ -295,7 +298,7 @@ export function confidenceBreakdownFromSeries(
   daysOnTarget: number,
   intakeGap: number | null,
 ): ConfidenceBreakdown {
-  const slope = regressionSlope(weightSeries, WINDOW_DAYS);
+  const slope = theilSenSlope(weightSeries, WINDOW_DAYS);
   const weightDataPoints = windowPoints(weightSeries, WINDOW_DAYS).length;
   const gapDays = longestGap(weightSeries, WINDOW_DAYS);
   const scatter = slope == null ? Infinity : trendScatter(weightSeries, WINDOW_DAYS, slope);
@@ -384,7 +387,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
   const evaluatedAt = now.toISOString();
   const range = CUT_MODE_TARGET_RANGES[cutMode] ?? null;
 
-  const slope = regressionSlope(weightSeries, WINDOW_DAYS); // kg/week or null
+  const slope = theilSenSlope(weightSeries, WINDOW_DAYS); // kg/week or null
   const observedRate = slope ?? 0;
   const weightDataPoints = windowPoints(weightSeries, WINDOW_DAYS).length;
   const gapDays = longestGap(weightSeries, WINDOW_DAYS);

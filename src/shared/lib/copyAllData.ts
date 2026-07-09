@@ -8,6 +8,8 @@ import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
 import { computeStats, epley1RM, maxReps } from "@features/training/logic";
 import { computeStrengthSummary, type StrengthExercise } from "@features/overview/api";
+import { inferMuscleGroup } from "@features/training/muscleGroup";
+import { computeMuscleClusters, suggestClusterFatigue } from "@features/training/muscleCluster";
 import { defaultSetCount } from "@features/training/logFormHelpers";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
@@ -373,7 +375,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   // ── Insights (pre-computed signals, independent of the export slice) ──────────
   // Weight rate-of-change in kg/week. Uses the SAME helper (weeklyWeightRate →
-  // regressionSlope over the trailing 21 days) that produces the UI's "Trend"
+  // theilSenSlope over the trailing 21 days) that produces the UI's "Trend"
   // number, so the export and the app can never report different rates. See
   // summary.weight30d for the separate 30d average level — that's a different
   // question (where am I now) and carries its own windowDays.
@@ -420,6 +422,18 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     }));
   const improvingCount = [...strengthBySlug.values()].filter((x) => !x.needsAttention).length;
 
+  // Muscle-cluster fatigue: several lifts of one primary muscle sliding together
+  // in the same block — a systemic signal a per-lift read can't see. Riding on
+  // trajectory; muscle inferred from name/slug/split (no DB column). Only the
+  // flagged (systemic) groups are surfaced, each with its muscle-level action.
+  const splitBySlug = new Map(exercises.map((e) => [e.slug, e.split]));
+  const muscleFatigue = computeMuscleClusters(
+    [...strengthBySlug.values()],
+    (x) => inferMuscleGroup(x.name, x.slug, splitBySlug.get(x.slug)),
+  )
+    .map((c) => suggestClusterFatigue(c, (s) => nameBySlug.get(s) ?? s))
+    .filter((a): a is NonNullable<typeof a> => a !== null);
+
   const insights = {
     weight: weightTrend,
     nutrition: {
@@ -437,6 +451,8 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       improvingCount,
       needsAttentionCount: trainingAttention.length,
       attention: trainingAttention,
+      // Muscle-level fatigue clusters (systemic only) — empty when nothing lines up.
+      muscleFatigue,
     },
   };
 
