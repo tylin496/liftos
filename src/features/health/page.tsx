@@ -16,7 +16,7 @@ import {
 import { type MetricKind } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { ErrorState } from "@shared/components/ErrorState";
-import { AnimatedNumber } from "@shared/components/AnimatedNumber";
+import { AnimatedNumber, HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { buildHealthJson } from "@shared/lib/copyAllData";
@@ -255,10 +255,20 @@ function EnergyModelItem({
 const fmt = (v: number, d: number) =>
   v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 
-/* Hero metric number — counts up, staggered bottom-up by its on-screen position
-   (see AnimatedNumber); a same-visit value settle tweens without blanking. */
-function AnimatedMetric({ value, decimals }: { value: number; decimals: number }) {
-  return <AnimatedNumber value={value} decimals={decimals} format={(n) => fmt(n, decimals)} />;
+/* A Health metric number. `roll` opts a lg card-headline value into the count-up
+   (trend main value + Active hero — arriving data); left off, small parts and
+   recovery rows render statically and settle in place. See the handoff §1. */
+function AnimatedMetric({
+  value,
+  decimals,
+  roll = false,
+}: {
+  value: number;
+  decimals: number;
+  roll?: boolean;
+}) {
+  const Comp = roll ? HeadlineCountUp : AnimatedNumber;
+  return <Comp value={value} decimals={decimals} format={(n) => fmt(n, decimals)} />;
 }
 
 function RecoveryRow({
@@ -430,7 +440,7 @@ function TrendCard({
               <MetricValue size="lg" unit={unit}>00.0</MetricValue>
             ) : value != null ? (
               <MetricValue size="lg" unit={unit}>
-                <AnimatedMetric value={value} decimals={decimals} />
+                <AnimatedMetric value={value} decimals={decimals} roll />
               </MetricValue>
             ) : (
               <MetricValue size="lg" className="health-metric-val--empty">—</MetricValue>
@@ -754,7 +764,7 @@ export function HealthPage() {
               <div className="health-trend-info">
                 <div className="health-trend-stat">
                   <MetricValue size="lg" unit="kcal">
-                    {tdee.avgActive != null ? <AnimatedMetric value={tdee.avgActive} decimals={0} /> : null}
+                    {tdee.avgActive != null ? <AnimatedMetric value={tdee.avgActive} decimals={0} roll /> : null}
                   </MetricValue>
                   {activeChange != null && (
                     <MetricDelta value={activeChange} direction="up-good" decimals={0} />

@@ -16,6 +16,7 @@ import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useCelebration } from "@shared/components/Celebration";
 import { MetricCaption } from "@shared/components/Metric";
+import { HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import { Badge } from "@shared/components/Badge";
 import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
 import { haptic } from "@shared/lib/haptics";
@@ -617,7 +618,7 @@ export function TodayView({
               <span className="nutri-label">Calories</span>
               {hasEntry ? (
                 <span className="metric-val metric-val--lg">
-                  {calNum.toLocaleString()}
+                  <HeadlineCountUp value={calNum} format={(n) => n.toLocaleString()} />
                 </span>
               ) : (
                 <span className="metric-val metric-val--lg stat-number--empty">—</span>
@@ -636,7 +637,7 @@ export function TodayView({
               <span className="nutri-label">Protein</span>
               {hasEntry ? (
                 <span className="metric-val metric-val--lg">
-                  {protNum}
+                  <HeadlineCountUp value={protNum} format={(n) => String(n)} />
                 </span>
               ) : (
                 <span className="metric-val metric-val--lg stat-number--empty">—</span>

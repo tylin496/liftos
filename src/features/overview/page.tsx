@@ -17,7 +17,7 @@ import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
 import { StrengthHealthCard } from "@features/training/StrengthHealthCard";
 import { ActivityRing, OverflowRing } from "@shared/components/ActivityRing";
-import { AnimatedNumber } from "@shared/components/AnimatedNumber";
+import { AnimatedNumber, HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import "@shared/components/activityRing.css";
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
@@ -848,7 +848,7 @@ function WeightCard({
       {rate != null ? (
         <div className="ov-weight-stat">
           <MetricValue size="lg" unit="kg/wk">
-            <AnimatedNumber
+            <HeadlineCountUp
               value={Math.abs(rate)}
               decimals={2}
               format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -876,7 +876,7 @@ function WeightCard({
       ) : (
         <div className="ov-weight-stat">
           <MetricValue size="lg" unit="kg">
-            <AnimatedNumber
+            <HeadlineCountUp
               value={weightLatest}
               decimals={1}
               format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
