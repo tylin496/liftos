@@ -58,14 +58,6 @@ function greeting(user: ReturnType<typeof useSessionUser>): string {
   return time === "night" ? `Still up, ${name}` : `Good ${time}, ${name}`;
 }
 
-/** Weekly weight change, kg/week. Signed by default ("−0.46 kg/week"); pass
-   `signed=false` for the bare magnitude when a delta arrow already carries the
-   up/down direction alongside it. */
-function fmtTrend(kgPerWeek: number, signed = true): string {
-  const sign = !signed ? "" : kgPerWeek < 0 ? "−" : kgPerWeek > 0 ? "+" : "±";
-  return `${sign}${Math.abs(kgPerWeek).toFixed(2)} kg/week`;
-}
-
 function daysSince(isoDate: string): number {
   const start = new Date(isoDate + "T12:00:00");
   return Math.round((Date.now() - start.getTime()) / 86400000);
@@ -268,7 +260,6 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
     <button type="button" ref={ref} data-inview={inView} className="ov-system-banner" onClick={() => onNav(REC_TAB[rec.source])}>
       <span className="ov-system-dot" />
       <span className="ov-system-body">
-        <span className="ov-system-label">System</span>
         <span className="ov-system-title">{rec.title}</span>
         <span className="ov-system-sub">{rec.subtitle}</span>
       </span>
@@ -744,17 +735,16 @@ function WeightCard({
           <span className="ov-weight-chevron" aria-hidden>›</span>
         </div>
         <div className="ov-weight-stat">
-          <MetricValue size="lg" unit="kg">00.0</MetricValue>
+          <MetricValue size="lg" unit="kg/wk">0.00</MetricValue>
         </div>
         <WeightSparkline points={[]} tone="flat" />
         <div className="ov-weight-rows ov-weight-rows--single">
-          <span className="ov-weight-rate">
-            <span className="ov-weight-key">Rate</span>{" "}
-            <span className="ov-weight-val">−0.00 kg/wk</span>
-          </span>
           <span className="ov-weight-status-pill">
             <span className="ov-weight-status-dot" />
             On pace
+          </span>
+          <span className="ov-weight-context">
+            <span className="ov-weight-context-num">00.0</span> kg
           </span>
         </div>
       </div>
@@ -815,13 +805,18 @@ function WeightCard({
     );
   }
 
-  // The top half (label + latest weight) opens Health — "where am I today".
-  // The bottom half (Trend/Status/Activity rows) is the pace read, which is
-  // Nutrition's territory (it's driven by the calorie target), so it jumps
-  // there instead. The outer element can't be a native <button> (nested
-  // buttons are invalid HTML); it's a div with the same role/keyboard
-  // behavior, and the rows block is the one real nested <button> that stops
-  // its click from also firing onNav.
+  // Rate leads: on a cut the KPI you act on is the loss RATE (kg/wk), not the
+  // day's scale weight (water/glycogen noise). So the hero is the rate, the
+  // pace verdict sits below it, and the current weight is demoted to a context
+  // number on that verdict line. Until the trend settles (rate == null →
+  // Forming/Calibrating) the hero falls back to the weight level so the card
+  // always leads with a real number. The card (label + hero) opens Health —
+  // "where am I / see the trend"; the verdict line is the pace read, which is
+  // Nutrition's territory (driven by the calorie target), so it jumps there
+  // instead. The outer element can't be a native <button> (nested buttons are
+  // invalid HTML); it's a div with the same role/keyboard behavior, and the
+  // verdict line is the one real nested <button> that stops its click from also
+  // firing onNav.
   return (
     <div
       role="button"
@@ -844,16 +839,52 @@ function WeightCard({
           <span className="ov-weight-chevron" aria-hidden>›</span>
         </span>
       </div>
-      <div className="ov-weight-stat">
-        <MetricValue size="lg" unit="kg">
-          <AnimatedNumber
-            value={weightLatest}
-            decimals={1}
-            format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-          />
-        </MetricValue>
-        <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
-      </div>
+      {/* Hero: the loss RATE (kg/wk) — neutral-ink magnitude carries the
+          prominence by SIZE, the arrow after it takes rateTone (band-aware
+          severity: in band = green, near an edge = amber, far out = red — NOT
+          sign-only, which reads every loss as "good"). The accel glyph is the
+          second-order read (loss slowing / speeding). Before the trend settles
+          the hero falls back to the weight level + its weekly delta. */}
+      {rate != null ? (
+        <div className="ov-weight-stat">
+          <MetricValue size="lg" unit="kg/wk">
+            <AnimatedNumber
+              value={Math.abs(rate)}
+              decimals={2}
+              format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            />
+          </MetricValue>
+          {rate !== 0 && (
+            <span
+              className={`ov-weight-rate-arrow ov-weight-rate-arrow--hero${rateArrowTone ? ` is-${rateArrowTone}` : ""}`}
+              aria-hidden
+            >
+              {rate < 0 ? "▼" : "▲"}
+            </span>
+          )}
+          {accel && (
+            <span
+              className={`ov-weight-accel is-${accel.direction}${accel.strong ? " is-strong" : ""}${
+                accel.direction === "faster" && status === "Too fast" ? " is-risk" : ""
+              }`}
+              aria-label={accel.direction === "slowing" ? "Loss slowing" : "Loss accelerating"}
+            >
+              {accel.direction === "slowing" ? "↓" : "↑"}
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="ov-weight-stat">
+          <MetricValue size="lg" unit="kg">
+            <AnimatedNumber
+              value={weightLatest}
+              decimals={1}
+              format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+            />
+          </MetricValue>
+          <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
+        </div>
+      )}
 
       <WeightSparkline points={sparkPoints} tone={sparkTone} />
 
@@ -865,46 +896,25 @@ function WeightCard({
           onNavActivity();
         }}
       >
-        <span className="ov-weight-rate">
-          <span className="ov-weight-key">Rate</span>{" "}
-          {/* The rate NUMBER stays neutral ink; the arrow trailing it (app-wide
-              convention: delta-after-value, see .ov-weight-accel below) takes
-              rateTone — band-aware severity (in band = green, near an edge =
-              amber, far out = red), NOT sign-only colour, which read every loss
-              as "good" even one the Decision Engine flags as too fast. With the
-              arrow carrying direction, the value drops its sign (fmtTrend
-              signed=false). No band / no fit → signed value, no arrow. */}
-          <span className="ov-weight-val">
-            {rate != null ? (
-              rateArrowTone && rate !== 0 ? (
-                <>
-                  {fmtTrend(rate, false)}
-                  <span className={`ov-weight-rate-arrow is-${rateArrowTone}`} aria-hidden>
-                    {rate < 0 ? "▼" : "▲"}
-                  </span>
-                </>
-              ) : (
-                fmtTrend(rate)
-              )
-            ) : (
-              "—"
-            )}
-          </span>
-          {accel && (
-            <span
-              className={`ov-weight-accel is-${accel.direction}${accel.strong ? " is-strong" : ""}${
-                accel.direction === "faster" && status === "Too fast" ? " is-risk" : ""
-              }`}
-              aria-label={accel.direction === "slowing" ? "Loss slowing" : "Loss accelerating"}
-            >
-              {accel.direction === "slowing" ? "↓" : "↑"}
-            </span>
-          )}
-        </span>
         <span className={`ov-weight-status-pill${tone ? ` is-${tone}` : ""}`}>
           <span className="ov-weight-status-dot" />
           {status ?? "—"}
         </span>
+        {/* Current weight, demoted to a trailing context number — only shown
+            when the rate is the hero (in Forming mode the weight IS the hero
+            above, so repeating it here would be redundant). */}
+        {rate != null && (
+          <span className="ov-weight-context">
+            <span className="ov-weight-context-num">
+              <AnimatedNumber
+                value={weightLatest}
+                decimals={1}
+                format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+              />
+            </span>{" "}
+            kg
+          </span>
+        )}
       </button>
     </div>
   );
