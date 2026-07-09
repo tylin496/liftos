@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 /** The single count-up duration for the whole app — every number tween uses
  *  this (ease-out quad) so no two feel different. Stagger by delaying the
  *  *start* (delayMs), never by changing the duration. */
-export const COUNT_UP_MS = 550; // quad ease needs a touch longer to read as "counting"; the number settles just after the 500ms entrance (lands last)
+export const COUNT_UP_MS = 600; // mirrors --dur-countup (tokens.css §Motion). Quad ease needs a touch longer to read as "counting"; the number settles just after the 500ms entrance (lands last)
 
 /**
  * Animates a number toward `target`. On first mount it counts up from 0 (a

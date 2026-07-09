@@ -287,6 +287,12 @@
   --dur-move:      280ms;  /* positional travel: slide · sheet · nav · sheen */
   --dur-enter:     400ms;  /* anything appearing: card · form · row · bar · toast */
   --dur-pop:       440ms;  /* attention / celebration pulse */
+  /* Data-reveal tier — numbers & charts arriving. Sits between the UI tier and
+     the expressive tier. Count-up pairs with --ease-enter (settle); draw pairs
+     with --ease-move (positional). --dur-countup mirrors useCountUp's
+     COUNT_UP_MS — keep the two in lockstep so the CSS and JS rolls never drift. */
+  --dur-countup:   600ms;  /* number rolling 0 → final on reveal */
+  --dur-draw:      800ms;  /* line / ring stroke drawing on */
   --dur-celebrate: 900ms;  /* confetti · gold ring */
   --dur-sheen:    1000ms;  /* PR sheen · row-saved flash sweep */
   --dur-shimmer:  1600ms;  /* skeleton loading loop */
