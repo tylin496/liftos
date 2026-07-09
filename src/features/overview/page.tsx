@@ -3,7 +3,7 @@ import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { series, rollingAvg, weightAcceleration } from "@features/health/math";
+import { series, rollingAvg, weightAcceleration, latestUpdatedAt } from "@features/health/math";
 import { isStale, formatAgo } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
@@ -129,12 +129,15 @@ function ActiveTargetCard({
   view,
   targetTdee,
   currentTdee,
+  syncAt,
   onNav,
   loading = false,
 }: {
   view: ActiveTargetView | null;
   targetTdee: number | null;
   currentTdee: number | null;
+  /** updated_at of the latest active-energy reading — the tag's same-day clock. */
+  syncAt?: string | null;
   onNav: () => void;
   loading?: boolean;
 }) {
@@ -192,7 +195,7 @@ function ActiveTargetCard({
       <div className="ov-active-target-head">
         <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
         <div className="ov-active-target-head-right">
-          <FreshnessTag date={view?.today.lastSyncDate ?? null} kind="sync" />
+          <FreshnessTag date={view?.today.lastSyncDate ?? null} kind="sync" updatedAt={syncAt} />
           <span className="ov-active-target-chevron" aria-hidden>›</span>
         </div>
       </div>
@@ -833,7 +836,7 @@ function WeightCard({
       <div className="ov-weight-head">
         <span className="ov-weight-label">Weight</span>
         <span className="ov-weight-head-right">
-          <FreshnessTag date={weightDate} kind="weight" />
+          <FreshnessTag date={weightDate} kind="weight" updatedAt={latestUpdatedAt(metrics, "weight_kg")} />
           <span className="ov-weight-chevron" aria-hidden>›</span>
         </span>
       </div>
@@ -988,6 +991,7 @@ export function OverviewPage() {
         view={data?.activeTarget ?? null}
         targetTdee={data?.targetTdee ?? null}
         currentTdee={data?.currentTdee ?? null}
+        syncAt={data ? latestUpdatedAt(data.metrics, "active_energy_kcal") : null}
         onNav={() => nav("health", { scrollTo: "health-energy-card" })}
       />
 
