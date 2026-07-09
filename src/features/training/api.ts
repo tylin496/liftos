@@ -267,17 +267,52 @@ async function compressImageToBlob(file: File, maxDim = 1200): Promise<Blob> {
   });
 }
 
-/** Upload a photo for an exercise to Supabase Storage and persist the URL. */
-export async function uploadExerciseImage(slug: string, file: File): Promise<string> {
-  const userId = await currentUserId();
+/** Commit a photo into the repo's static image set via the upload worker. */
+async function commitImageToRepo(
+  kind: "exercise" | "stretch",
+  split: SplitId,
+  slug: string,
+  file: File,
+): Promise<string> {
+  const workerUrl = import.meta.env.VITE_UPLOAD_WORKER_URL;
+  if (!workerUrl) throw new Error("VITE_UPLOAD_WORKER_URL is not configured");
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not signed in");
+
   const blob = await compressImageToBlob(file);
-  const path = `${userId}/${slug}.png`;
-  const { error } = await supabase.storage
-    .from("exercise-images")
-    .upload(path, blob, { upsert: true, contentType: "image/png" });
-  if (error) throw error;
-  const { data } = supabase.storage.from("exercise-images").getPublicUrl(path);
-  const url = `${data.publicUrl}?v=${Date.now()}`;
+  const form = new FormData();
+  form.set("file", blob, `${slug}.png`);
+  form.set("split", split);
+  form.set("slug", slug);
+  form.set("kind", kind);
+
+  const res = await fetch(workerUrl, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${session.access_token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as { error?: string });
+    throw new Error(body.error ?? `Upload failed: ${res.status}`);
+  }
+
+  const base =
+    kind === "stretch"
+      ? `${import.meta.env.BASE_URL}images/${split}/stretches/${slug}.png`
+      : `${import.meta.env.BASE_URL}images/${split}/${slug}.png`;
+  return `${base}?v=${Date.now()}`;
+}
+
+/** Upload a photo for an exercise: committed into the repo's static image set. */
+export async function uploadExerciseImage(
+  split: SplitId,
+  slug: string,
+  file: File,
+): Promise<string> {
+  const url = await commitImageToRepo("exercise", split, slug, file);
   await updateExercise(slug, { image_url: url });
   return url;
 }
@@ -293,17 +328,13 @@ export interface StretchItem {
   image_url?: string;
 }
 
-/** Upload a photo for a stretch to Supabase Storage. Returns the public URL. */
-export async function uploadStretchImage(id: string, file: File): Promise<string> {
-  const userId = await currentUserId();
-  const blob = await compressImageToBlob(file);
-  const path = `${userId}/stretches/${id}.png`;
-  const { error } = await supabase.storage
-    .from("exercise-images")
-    .upload(path, blob, { upsert: true, contentType: "image/png" });
-  if (error) throw error;
-  const { data } = supabase.storage.from("exercise-images").getPublicUrl(path);
-  return `${data.publicUrl}?v=${Date.now()}`;
+/** Upload a photo for a stretch: committed into the repo's static image set. */
+export async function uploadStretchImage(
+  split: SplitId,
+  id: string,
+  file: File,
+): Promise<string> {
+  return commitImageToRepo("stretch", split, id, file);
 }
 
 const DEFAULT_STRETCHES: Record<SplitId, StretchItem[]> = {

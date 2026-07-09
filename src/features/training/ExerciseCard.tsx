@@ -9,6 +9,7 @@ import {
   type TrainingLog,
 } from "./api";
 import { parse, score, formatRepsDisplay } from "./parser";
+import type { SplitId } from "./seed";
 import {
   computeStats,
   computeHistDelta,
@@ -514,7 +515,7 @@ export function ExerciseCard({
     setUploading(true);
     setUploadError(undefined);
     try {
-      const url = await uploadExerciseImage(exercise.slug, file);
+      const url = await uploadExerciseImage(exercise.split as SplitId, exercise.slug, file);
       onUpdate({ ...exercise, image_url: url });
       URL.revokeObjectURL(blob);
       setLocalImageUrl(undefined);

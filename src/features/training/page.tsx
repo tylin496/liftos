@@ -94,7 +94,7 @@ function StretchCard({
     setLocalImageUrl(blob);
     setUploading(true);
     try {
-      const url = await uploadStretchImage(stretch.id, file);
+      const url = await uploadStretchImage(split, stretch.id, file);
       URL.revokeObjectURL(blob);
       setLocalImageUrl(null);
       onSave({ image_url: url });
