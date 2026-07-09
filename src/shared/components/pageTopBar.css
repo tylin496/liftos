@@ -141,26 +141,70 @@
   grid-area: 1 / 1;
   width: 13px;
   height: 13px;
-  transition: opacity var(--dur-press) var(--ease-press), transform var(--dur-press) var(--ease-press);
 }
 
-.copy-phase-header-btn .check-icon {
-  opacity: 0;
-  transform: scale(0.5);
+/* Copy glyph steps aside (fade + slight shrink) as the check takes over. */
+.copy-phase-header-btn .copy-icon {
+  transition: opacity var(--dur-exit) var(--ease-press), transform var(--dur-exit) var(--ease-press);
+}
+
+/* The check doesn't scale in — it draws itself along its own stroke
+   (pathLength=1 → a single dash the length of the whole tick), reading as
+   "written", the confirmation gesture. Reverts by un-drawing on the same path. */
+.copy-phase-header-btn .check-icon polyline {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset var(--dur-move) var(--ease-move);
 }
 
 .copy-phase-header-btn.copied .copy-icon {
   opacity: 0;
-  transform: scale(0.5) rotate(-10deg);
+  transform: scale(0.75);
 }
 
-.copy-phase-header-btn.copied .check-icon {
-  opacity: 1;
-  transform: scale(1);
+.copy-phase-header-btn.copied .check-icon polyline {
+  stroke-dashoffset: 0;
 }
 
+/* Accent, never --good: copy-success is everyday confirmation, and green is
+   reserved for status verdicts (on-plan / hit-target). */
 .copy-phase-header-btn.copied {
-  color: var(--good);
+  color: var(--accent);
+}
+
+/* "Copied" pill — absolutely placed to the LEFT of the button so it floats over
+   the title gutter without shifting the button or the avatar beside it. */
+.copy-all-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.copy-copied-pill {
+  position: absolute;
+  right: 100%;
+  margin-right: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-100);
+  color: var(--accent);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(8px) scale(0.9);
+  /* Leaves faster than the check reverts (exit < move), so the pill clears
+     first — matches the handoff's "pill fades out before the revert". */
+  transition: opacity var(--dur-exit) var(--ease-press), transform var(--dur-exit) var(--ease-press);
+}
+
+.copy-copied-pill.is-shown {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  /* Pops in on --ease-pop (the one sanctioned overshoot) — easeOutBack. */
+  transition: opacity var(--dur-move) var(--ease-pop), transform var(--dur-move) var(--ease-pop);
 }
 
 button.copy-all-data-btn {
