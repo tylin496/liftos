@@ -36,7 +36,7 @@
 }
 
 .ov-active-target-goal {
-  align-self: flex-end;
+  align-self: auto;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -74,21 +74,18 @@
 
 .ov-active-target-ring-row {
   display: flex;
-  align-items: stretch;
-  gap: var(--space-3);
-  margin-top: var(--vr-loose);
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
 }
 
-/* Right side spans the ring's full height: caption pinned to the top, TDEE
-   goal pushed into the bottom-right corner — filling the dead space beside the
-   ring instead of adding a footer row below it. */
 .ov-active-target-ring-body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: var(--vr-snug);
+  justify-content: center;
+  gap: var(--space-1);
 }
 
 .ov-active-target-ring-center {
@@ -99,7 +96,7 @@
 }
 
 .ov-active-target-ring-num {
-  font-size: var(--text-2xl);
+  font-size: var(--metric-md);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
@@ -112,30 +109,28 @@
   color: var(--ink-3);
 }
 
-.ov-active-target-ring-caption {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vr-tight);
-  min-width: 0;
-}
-
-.ov-active-target-ring-title {
-  font-size: var(--text-sm);
-  font-weight: 600;
+.ov-active-target-status {
+  font-size: var(--role-card-headline-size);
+  font-weight: var(--role-card-headline-weight);
   color: var(--ink);
 }
 
-.ov-active-target-ring-sub {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-  line-height: var(--leading-body);
+.ov-active-target-status .is-behind { color: var(--warn); }
+.ov-active-target-status .is-ahead,
+.ov-active-target-status .is-on { color: var(--good); }
+.ov-active-target-status .is-closed {
+  color: var(--gold);
+  text-shadow: var(--gold-glow);
 }
 
-.ov-active-target-ring-sub .is-behind { color: var(--warn); }
-.ov-active-target-ring-sub .is-ahead,
-.ov-active-target-ring-sub .is-on { color: var(--good); }
-
-.ov-active-target-avg-muted { opacity: 0.6; }
+/* Two-line min-height keeps the longer behind/ahead copy from growing the
+   card — matches layout-stability rule for count-up/loading rows. */
+.ov-active-target-ring-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  line-height: var(--leading-body);
+  min-height: calc(2 * var(--text-sm) * var(--leading-body));
+}
 
 .ov-no-entry {
   font-size: var(--text-sm);
