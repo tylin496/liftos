@@ -161,7 +161,6 @@ export function ExerciseCard({
   const [justExpanded, setJustExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [prFlash, setPrFlash] = useState(false);
-  const [newLogId, setNewLogId] = useState<string | null>(null);
   const [deletedLogIds, setDeletedLogIds] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string>();
@@ -302,8 +301,10 @@ export function ExerciseCard({
         note: note || undefined,
       });
       setEditingMode("view");
-      setNewLogId(newLog.id);
-      setTimeout(() => setNewLogId(null), 1200);
+      // A logged set IS a completed set — confirm it with the shared "set
+      // complete" flash (accent check + row wash), same as an edit save.
+      setSavedRowId(newLog.id);
+      setTimeout(() => setSavedRowId(null), 1200);
       requestAnimationFrame(() => {
         if (cardRef.current) scrollIntoViewInterruptible(cardRef.current);
       });
@@ -660,14 +661,15 @@ export function ExerciseCard({
                   <span className="pr-weight-group">
                     <span className="pr-weight">
                       <AnimatedWeight
-                        value={bestParsed.assisted ? score(bestParsed) : bestParsed.weight}
+                        value={bestParsed.assisted ? bestParsed.assisted.assist : bestParsed.weight}
                       />{" "}
                       {bestParsed.assisted ? "kg" : isLbUnit(bestParsed.unit) ? "lb" : "kg"}
                     </span>
+                    {bestParsed.assisted && <span className="pr-assist-tag">assist</span>}
                     <span className="pr-meta mono">×{formatRepsDisplay(bestParsed.reps)}</span>
                   </span>
                   {bestParsed.assisted && (
-                    <span className="pr-kg-hint">{bestParsed.assisted.assist} kg assist</span>
+                    <span className="pr-kg-hint">{fmtWeightNum(score(bestParsed))} kg lifted</span>
                   )}
                 </div>
               ) : (
@@ -731,7 +733,7 @@ export function ExerciseCard({
             const ascIdx = filteredAsc.length - 1 - vi;
             const isPR = ascIdx === prIndexInFiltered;
             const isEditing = editingLogId === log.id;
-            const isNew = newLogId === log.id;
+            const justSaved = savedRowId === log.id;
             const revealing = justExpanded && vi >= 3;
             const td = timelineDate(log.log_date ?? "");
             const prevLog = visible[vi + 1] ?? null;
@@ -739,6 +741,15 @@ export function ExerciseCard({
             const delta =
               isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog, sc, mode);
             const isAssisted = log.kind === "assisted";
+            // Assisted history renders off the denormalized kind/assistance/bodyweight
+            // columns when present, else falls back to parsing the raw expression:
+            // rows logged as "92.99-(31)" before those columns existed carry the same
+            // bw/assist losslessly in the string, so they show identically with no data
+            // migration. (Scoring/PR already read the parse, so only this display was
+            // inconsistent for those old rows.)
+            const assistedParse = isAssisted ? null : parse(log.raw ?? "");
+            const histAssist = log.assistance ?? assistedParse?.assisted?.assist ?? null;
+            const histBw = log.bodyweight ?? assistedParse?.assisted?.bw ?? null;
             const isExpanded = expandedLogId === log.id && !isEditing;
             // Tap-to-reveal: this set's score and how much of the all-time PR it
             // holds — on the lift's OWN axis (compound → e1RM, isolation → best-set
@@ -769,8 +780,7 @@ export function ExerciseCard({
                     "hist-row",
                     isPR ? "is-pr" : "",
                     isEditing ? "is-editing" : "",
-                    isNew ? "hist-row-new" : "",
-                    savedRowId === log.id ? "hist-row-saved" : "",
+                    justSaved ? "hist-row-saved" : "",
                     revealing ? "hist-row-reveal" : "",
                   ]
                     .filter(Boolean)
@@ -799,23 +809,21 @@ export function ExerciseCard({
                   </span>
 
                   <span className="hist-expr">
-                    {isAssisted &&
-                    log.bodyweight != null &&
-                    log.assistance != null ? (
+                    {histBw != null && histAssist != null ? (
                       <span className="hist-assisted-wrap">
                         <span className="hist-expr-row">
                           <span className="mono">
                             <strong>
-                              {fmtWeightNum(log.bodyweight - log.assistance)}
+                              {fmtWeightNum(histBw - histAssist)}
                             </strong>
                             <span className="expr-sep">
                               {" "}
-                              ×{formatRepsDisplay(log.reps ?? "")}
+                              ×{formatRepsDisplay(log.reps ?? assistedParse?.reps ?? "")}
                             </span>
                           </span>
                         </span>
                         <span className="hist-assist-sub">
-                          {log.assistance} kg assist
+                          {fmtWeightNum(histAssist)} kg assist
                         </span>
                       </span>
                     ) : (
@@ -863,6 +871,26 @@ export function ExerciseCard({
                       )}
                     </div>
                   </div>
+                  {justSaved && (
+                    <svg
+                      className="hist-row-check"
+                      viewBox="0 0 22 22"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        className="hist-row-check-circle"
+                        cx="11"
+                        cy="11"
+                        r="11"
+                        fill="var(--accent)"
+                      />
+                      <polyline
+                        className="hist-row-check-tick"
+                        points="6,11.5 9.5,15 16,7.5"
+                        pathLength="1"
+                      />
+                    </svg>
+                  )}
                 </div>
 
                 {isExpanded && (

@@ -496,6 +496,14 @@
   font-family: var(--font-mono);
 }
 
+/* Qualifies the assisted hero number — the big figure is the machine assist, not
+   the lifted load (which now trails as the muted .pr-kg-hint "= X kg lifted"). */
+.pr-assist-tag {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--ink-4);
+}
+
 .pr-empty {
   font-size: var(--text-sm);
   color: var(--ink-4);
@@ -511,6 +519,7 @@
 }
 
 .hist-row {
+  position: relative; /* anchors the one-shot .hist-row-check completion overlay */
   display: grid;
   grid-template-columns: 40px 1fr auto 28px;
   align-items: center;
@@ -594,19 +603,69 @@
   padding-bottom: 0;
 }
 
-.hist-row.hist-row-new {
-  background: color-mix(in srgb, var(--good) 8%, transparent);
-  border-radius: var(--radius-sm);
-}
-
+/* ── 3.4 Set complete ─────────────────────────────────────────────────────────
+   A logged set (add OR edit save) confirms with the same one-shot: the row
+   washes accent → transparent while an accent check draws in at the trailing
+   edge, then everything settles. Accent, never --good: logging a set is an
+   everyday completion, not a verdict — green would read as "good result". */
 @keyframes row-saved {
-  0%   { background: color-mix(in srgb, var(--good) 14%, transparent); }
+  0%   { background: color-mix(in srgb, var(--accent-100) 90%, transparent); }
   100% { background: transparent; }
 }
 
 .hist-row.hist-row-saved {
   border-radius: var(--radius-sm);
   animation: row-saved var(--dur-sheen) ease forwards;
+}
+
+/* Completion check — absolutely positioned over the trailing actions gutter so
+   the row never reflows (footprint unchanged, per the motion spec). Lives only
+   for the ~1200ms save window, then unmounts. */
+.hist-row-check {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 22px;
+  height: 22px;
+  transform: translateY(-50%); /* geometric centering — set-check-life animates opacity only, so this stays put */
+  pointer-events: none;
+  animation: set-check-life var(--dur-sheen) var(--ease-move) forwards;
+}
+
+.hist-row-check-circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: set-check-pop var(--dur-move) var(--ease-pop) forwards;
+}
+
+.hist-row-check-tick {
+  fill: none;
+  stroke: var(--bg-card);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: set-check-draw var(--dur-move) var(--dur-press) var(--ease-press)
+    forwards;
+}
+
+@keyframes set-check-pop {
+  from { opacity: 0; transform: scale(0.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes set-check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* The badge appears with the flash and fades out before the row settles, so it
+   confirms the log without leaving a permanent checkbox on a history row. */
+@keyframes set-check-life {
+  0%   { opacity: 0; }
+  12%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .hist-date {
