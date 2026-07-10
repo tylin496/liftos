@@ -968,13 +968,15 @@ function WeightCard({
         </span>
       </div>
       {/* Hero: the loss RATE (kg/wk) — neutral-ink magnitude carries the
-          prominence by SIZE, the arrow after it takes rateTone (band-aware
-          severity: in band = green, near an edge = amber, far out = red — NOT
-          sign-only, which reads every loss as "good"). Slowing/accelerating is
-          now read from the trend line's curvature, not a second glyph here.
-          Before the trend settles the hero falls back to the weight level +
-          its weekly delta — same `xl` size so the card never changes scale
-          between states. */}
+          prominence by SIZE. The arrow after it is the rate TREND, not the
+          weight's sign: accelerating (▲) / slowing (▼) from accelDirection, so
+          a plain loss no longer reads as "good". Its colour is band-aware
+          (accelArrowTone): in-band acceleration green, a slowdown or drift
+          toward an edge amber, far out red — never gold (how good the pace IS
+          lives on the status pill and the sparkline). Mirrors Nutrition's pace
+          arrow. Before the trend settles the hero falls back to the weight
+          level + its weekly delta — same `xl` size so the card never changes
+          scale between states. */}
       {rate != null ? (
         <div className="ov-weight-stat">
           <MetricValue size="xl" unit="kg/wk">
