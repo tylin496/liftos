@@ -6,9 +6,9 @@
      L142  Weight Card（latest + trend + pace + acceleration read）
      L436  System Card（top-priority recommendation）
      L500  Primary Goal Card
-     L648  100% completion state（gold flip）
-     L697  Cut baseline initializer (one-time)
-     L768  Cold-load skeleton
+     L705  100% completion state（gold flip）
+     L763  Cut baseline initializer (one-time)
+     L834  Cold-load skeleton
    ───────────────────────────────────────────────────────────────────────────── */
 
 /* ─── Active Target Card ─────────────────────────────────────────────────
@@ -559,11 +559,51 @@
   min-height: 1em;
 }
 
-.goal-bar {
-  height: 10px;
-  border-radius: var(--radius-pill);
-  background: var(--rule-strong);
+/* Journey track — Start ───●┄┄┄ Goal. A dashed route with the travelled part
+   filled solid and a dot riding the fill's leading edge, its "Today" tag
+   floating above. left / width / colour are inline from GoalTrack so all
+   three share the count-up transition. */
+.goal-track {
+  position: relative;
   margin-top: var(--vr-block);
+}
+
+/* Deliberately subordinate to the dot it annotates — the dot is the focal
+   point, the word just names it. One step below the smallest type token
+   (annotation, not copy) and faded. */
+.goal-today {
+  position: absolute;
+  top: 0;
+  /* Static fallback = GoalTrack's inline clamp floor (skeleton / pre-roll). */
+  left: 18px;
+  transform: translateX(-50%);
+  font-size: calc(var(--role-eyebrow-size) - 2px);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
+  text-transform: uppercase;
+  color: var(--role-eyebrow-color);
+  opacity: 0.6;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Offset leaves one caption line of air for the floating Today tag above. */
+.goal-path {
+  position: relative;
+  margin-top: var(--space-4);
+}
+
+.goal-bar {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  /* The road ahead: the canonical bar under-track colour (--rule-strong),
+     faded and drawn as dashes so the unfilled remainder reads "route yet to
+     travel" while staying quieter than the travelled solid fill. */
+  background: repeating-linear-gradient(
+    to right,
+    color-mix(in srgb, var(--rule-strong) 55%, transparent) 0 6px,
+    transparent 6px 12px
+  );
   overflow: hidden;
 }
 
@@ -577,10 +617,29 @@
   transition: width var(--dur-enter) var(--ease-enter);
 }
 
-.goal-lost {
-  font-size: var(--text-2xs);
-  color: var(--ink-3);
-  margin-top: var(--vr-block);
+/* Today's position on the route. Sibling of .goal-bar (not inside the fill) so
+   the bar can keep overflow:hidden for the celebration sheen while the dot
+   overhangs the 6px path. Ring of card background separates it from the fill
+   it rides on. Fallback colour = ramp start, same as .goal-pct. */
+.goal-dot {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--progress-1);
+  border: 2px solid var(--bg-card);
+}
+
+/* "Down X kg" — distance travelled, stacked under the Start column so it reads
+   with the departure point. Base look comes from .goal-sub; wrapping (instead
+   of the sub's ellipsis) keeps the rare stale suffix readable in a
+   third-width column. */
+.goal-sub.goal-lost {
+  white-space: normal;
+  overflow: visible;
 }
 
 .goal-lost b {
@@ -599,35 +658,26 @@
   margin-top: var(--vr-section);
 }
 
+/* Three columns anchored to the track's geometry: Start under the route's
+   left end, Goal under its right end, Remaining between them — so the footer
+   reads as the journey's signposts, not a stats table. No dividers: the
+   alignment does the separating. */
 .goal-row {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
 }
 
-/* Value + its qualifier (e.g. "12% body fat") on one line instead of stacked —
-   the qualifier reads as metadata of the number beside it, not a caption row. */
-.goal-value-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
+.goal-row.is-mid {
+  align-items: center;
+  text-align: center;
 }
 
-.goal-value-row .goal-sub {
-  margin-top: 0;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.goal-divider {
-  width: 1px;
-  align-self: stretch;
-  background: var(--rule);
-  margin: 0 var(--space-5);
+.goal-row.is-end {
+  align-items: flex-end;
+  text-align: right;
 }
 
 .goal-col-label {
@@ -639,10 +689,17 @@
   margin-bottom: var(--vr-snug);
 }
 
+/* Qualifier stacked directly under its value ("12% body fat", ETA) — optical
+   2px keeps it reading as the number's metadata, not a separate row. */
 .goal-sub {
   font-size: var(--text-2xs);
   color: var(--ink-3);
-  margin-top: var(--vr-section);
+  margin-top: 2px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* ─── 100% completion state ──────────────────────────────────────────────── */
@@ -656,6 +713,15 @@
 .goal.is-complete .goal-bar-fill {
   background: var(--progress-complete) !important;
   box-shadow: var(--gold-glow);
+}
+/* The Today dot arrives at the destination — same gold flip + halo as the fill
+   (!important beats GoalTrack's inline ramp colour). */
+.goal.is-complete .goal-dot {
+  background: var(--progress-complete) !important;
+  box-shadow: var(--gold-glow);
+}
+.goal.is-complete .goal-today {
+  color: var(--progress-complete);
 }
 
 .goal.is-celebrating .goal-pct {

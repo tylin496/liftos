@@ -300,7 +300,7 @@ function GoalPct({ target }: { target: number }) {
   return <GoalPctRoll target={target} delayMs={delayMs} />;
 }
 
-function GoalBarFill({ target }: { target: number }) {
+function GoalTrack({ target }: { target: number }) {
   // Sit at 0 until the bottom-up delay elapses, then grow to target so the CSS
   // width transition fires. The delay overlaps the tab slide-in, so the bar
   // starts filling from empty as the card lands (not already part-way).
@@ -319,27 +319,51 @@ function GoalBarFill({ target }: { target: number }) {
   // the track: the whole fill is one colour that shifts WITH progress. Derived
   // from w, so as the bar grows the colour tweens along the spectrum toward blue
   // alongside the width (both share COUNT_UP_MS) — matching the % number's count-up.
+  //
+  // The fill, the Today dot and its tag all derive from the same w and share the
+  // count-up bezier (ease-out quad mirror), so the dot rides the fill's leading
+  // edge instead of arriving on its own clock. The tag's left is clamped so it
+  // can't half-exit the card at either end (the dot itself may — that's the
+  // "you are at the start line" read).
+  const ramp = `${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`;
+  const color = progressColor(w / 100);
   return (
-    <div
-      ref={ref}
-      className="goal-bar-fill"
-      style={{
-        width: `${w}%`,
-        backgroundColor: progressColor(w / 100),
-        // Match the % count-up (COUNT_UP_MS, ease-out quad) so the bar and the
-        // number finish together instead of the bar racing ahead.
-        transition: `width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1), background-color ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`,
-      }}
-    />
+    <div ref={ref} className="goal-track">
+      <span
+        className="goal-today"
+        style={{ left: `clamp(18px, ${w}%, calc(100% - 18px))`, transition: `left ${ramp}` }}
+      >
+        Today
+      </span>
+      <div className="goal-path">
+        <div className="goal-bar">
+          <div
+            className="goal-bar-fill"
+            style={{
+              width: `${w}%`,
+              backgroundColor: color,
+              transition: `width ${ramp}, background-color ${ramp}`,
+            }}
+          />
+        </div>
+        <div
+          className="goal-dot"
+          style={{ left: `${w}%`, backgroundColor: color, transition: `left ${ramp}, background-color ${ramp}` }}
+        />
+      </div>
+    </div>
   );
 }
 
-// Answers one question only: "how far am I from my destination?" A single
-// merged Goal line (goal weight · target body fat) plus what's left to lose.
-// Pure render — every number is finished upstream in computeGoal (the Goal
-// provider); the card holds no business logic. Deliberately does NOT show
-// current weight or trend: that's the Weight card's job ("where am I today,
-// and am I progressing at the planned rate?"). Responsibilities stay distinct.
+// Answers one question only: "how far am I from my destination?" — framed as a
+// JOURNEY, not a meter: a dashed route from Start to Goal with a dot marking
+// today's position, and the two endpoint weights anchoring the footer columns
+// (Start · Remaining · Goal) under their ends of the track. Pure render —
+// every number is finished upstream in computeGoal (the Goal provider); the
+// card holds no business logic. Deliberately does NOT show current weight or
+// trend: that's the Weight card's job ("where am I today, and am I progressing
+// at the planned rate?"). Responsibilities stay distinct — the Today dot is a
+// position on the route, not a weigh-in readout.
 function CutProgressCard({
   goal,
   cutStartDate,
@@ -389,21 +413,28 @@ function CutProgressCard({
             <span className="goal-chevron" aria-hidden>›</span>
           </span>
         </div>
-        <div className="goal-bar">
-          <div className="goal-bar-fill" style={{ width: 0 }} />
+        <div className="goal-track">
+          <span className="goal-today">Today</span>
+          <div className="goal-path">
+            <div className="goal-bar">
+              <div className="goal-bar-fill" style={{ width: 0 }} />
+            </div>
+            <div className="goal-dot" />
+          </div>
         </div>
         <div className="goal-detail">
           <div className="goal-row">
-            <div className="goal-col-label">Goal</div>
-            <span className="goal-value-row">
-              <MetricValue size="md" unit="kg">00.0</MetricValue>
-              <div className="goal-sub">00% body fat</div>
-            </span>
+            <div className="goal-col-label">Start</div>
+            <MetricValue size="md" unit="kg">00.0</MetricValue>
           </div>
-          <div className="goal-divider" aria-hidden />
-          <div className="goal-row">
+          <div className="goal-row is-mid">
             <div className="goal-col-label">Remaining</div>
             <MetricValue size="md" unit="kg">0.0</MetricValue>
+          </div>
+          <div className="goal-row is-end">
+            <div className="goal-col-label">Goal</div>
+            <MetricValue size="md" unit="kg">00.0</MetricValue>
+            <div className="goal-sub">00% body fat</div>
           </div>
         </div>
       </button>
@@ -416,9 +447,10 @@ function CutProgressCard({
     : null;
   const isComplete = pct >= 100;
   const cutDay = cutStartDate ? daysSince(cutStartDate) : null;
-  // Weight dropped since the frozen cut baseline — a progress-to-date stat that
-  // rides in the header next to the day count. Only shown once there's a real
-  // loss to report (guards the +noise case where current briefly reads higher).
+  // Weight dropped since the frozen cut baseline — distance travelled, so it
+  // stacks under the Start column (it describes "how far from the departure
+  // point", not a stat of its own). Only shown once there's a real loss to
+  // report (guards the +noise case where current briefly reads higher).
   const lost = cutStartWeight != null ? cutStartWeight - e.currentWeight : null;
   const lostStale = isStale("weight", weightLatestDate ?? null);
 
@@ -444,32 +476,33 @@ function CutProgressCard({
           <span className="goal-chevron" aria-hidden>›</span>
         </span>
       </div>
-      <div className="goal-bar">
-        <GoalBarFill target={pct} />
-      </div>
-      {lost != null && lost >= 0.1 && (
-        <div className="goal-lost">
-          Down <b>{lost.toFixed(1)}</b> kg
-          {lostStale && weightLatestDate && (
-            <span className="goal-lost-stale"> as of {formatAgo(weightLatestDate)}</span>
-          )}
-        </div>
-      )}
+      <GoalTrack target={pct} />
       <div className="goal-detail">
         <div className="goal-row">
-          <div className="goal-col-label">Goal</div>
-          <span className="goal-value-row">
-            <MetricValue size="md" unit="kg">{e.goalWeight.toFixed(1)}</MetricValue>
-            <div className="goal-sub">{e.targetBodyFat}% body fat</div>
-          </span>
+          <div className="goal-col-label">Start</div>
+          {cutStartWeight != null ? (
+            <MetricValue size="md" unit="kg">{cutStartWeight.toFixed(1)}</MetricValue>
+          ) : (
+            <MetricValue size="md">—</MetricValue>
+          )}
+          {lost != null && lost >= 0.1 && (
+            <div className="goal-sub goal-lost">
+              Down <b>{lost.toFixed(1)}</b> kg
+              {lostStale && weightLatestDate && (
+                <span className="goal-lost-stale"> as of {formatAgo(weightLatestDate)}</span>
+              )}
+            </div>
+          )}
         </div>
-        <div className="goal-divider" aria-hidden />
-        <div className="goal-row">
+        <div className="goal-row is-mid">
           <div className="goal-col-label">Remaining</div>
-          <span className="goal-value-row">
-            <MetricValue size="md" unit="kg">{e.remainingWeight.toFixed(1)}</MetricValue>
-            {eta && <div className="goal-sub">{eta}</div>}
-          </span>
+          <MetricValue size="md" unit="kg">{e.remainingWeight.toFixed(1)}</MetricValue>
+          {eta && <div className="goal-sub">{eta}</div>}
+        </div>
+        <div className="goal-row is-end">
+          <div className="goal-col-label">Goal</div>
+          <MetricValue size="md" unit="kg">{e.goalWeight.toFixed(1)}</MetricValue>
+          <div className="goal-sub">{e.targetBodyFat}% body fat</div>
         </div>
       </div>
     </button>
