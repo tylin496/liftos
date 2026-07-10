@@ -535,6 +535,8 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       });
       return {
         split: split.name,
+        // exercises appear in the user's own display order (drag/move-up-down in Training tab), not alphabetical.
+        exercisesOrder: "user-defined display order",
         exercises: exerciseData,
       };
     });
@@ -558,7 +560,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 2.8,
+    schema: 2.9,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
     dataSpan: overviewWindow, // total span of ALL data (see windowOf); distinct from per-section windowDays
     summary: {
@@ -952,12 +954,17 @@ export async function buildTrainingJson(): Promise<string> {
         }),
       };
     });
-    return { split: split.name, exercises: exerciseData };
+    return {
+      split: split.name,
+      // exercises appear in the user's own display order (drag/move-up-down in Training tab), not alphabetical.
+      exercisesOrder: "user-defined display order",
+      exercises: exerciseData,
+    };
   });
 
   const payload = {
     source: "LiftOS",
-    schema: 2.8,
+    schema: 2.9,
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
     dataSpan: windowOf(
