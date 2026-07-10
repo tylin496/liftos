@@ -3,7 +3,7 @@ import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { series, rollingAvg, weightAcceleration, latestUpdatedAt } from "@features/health/math";
+import { series, rollingAvg, trailingAvg, latestUpdatedAt } from "@features/health/math";
 import { isStale, formatAgo } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
@@ -26,7 +26,7 @@ import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
 import { useSessionUser, useIsReadOnly } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
-import { MIN_TREND_POINTS, FRESH_TARGET_DAYS } from "@features/nutrition/evaluation";
+import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
 import { paceLabel, paceTone, rateTone, cutEtaLabel } from "@features/nutrition/recommendation";
 import type { Recommendation } from "@features/overview/recommendations";
 import type { Goal } from "./goal";
@@ -551,23 +551,42 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 const WEIGHT_SPARK_MIN_SPAN = 1; // kg — floor so a flat week doesn't fill height
 const fmt1kg = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+// Trend line is a 3.5-day (84h) trailing average of the raw daily readings —
+// the KPI is the loss RATE, so the line should read as "where's the trend
+// headed", not jitter on every water-weight blip. Scrub still snaps to and
+// displays the raw reading (a real remembered weigh-in), only the drawn line
+// is smoothed.
+const TREND_WINDOW_HOURS = 84;
+
+function diffDays(a: string, b: string): number {
+  return (new Date(b + "T12:00:00").getTime() - new Date(a + "T12:00:00").getTime()) / 86400000;
+}
+
 function WeightSparkline({
   points,
   tone,
+  targetRange,
+  canCelebrateLow = false,
 }: {
   points: { date: string; value: number }[];
   tone: "good" | "bad" | "flat";
+  targetRange?: { min: number; max: number } | null;
+  // A window low is only a GOLD celebration when the pace read is healthy
+  // (on/optimal). On a steady cut the latest smoothed point is the window low
+  // almost every render, so ungated gold would fire constantly — noise, not a
+  // rare celebration — and it could contradict a "Below pace" pill. Gated on
+  // the same paceTone the pill uses, so dot and pill never disagree.
+  canCelebrateLow?: boolean;
 }) {
   const stroke = tone === "good" ? "var(--good)" : tone === "bad" ? "var(--bad)" : "var(--ink-4)";
   const gradId = `ov-spark-grad-${tone}`;
   const W = 100, H = 80, pad = 4;
-  const values = points.map((p) => p.value);
 
   // Scrub: press-drag anywhere on the line to inspect any day's date/weight.
   // Hooks can't be conditional, so this runs even on the <2-point placeholder
   // branch below (xs is just empty there — the hook no-ops).
-  const coordsForScrub = values.map((_, i) => ({
-    x: pad + (values.length > 1 ? i / (values.length - 1) : 0.5) * (W - pad * 2),
+  const coordsForScrub = points.map((_, i) => ({
+    x: pad + (points.length > 1 ? i / (points.length - 1) : 0.5) * (W - pad * 2),
   }));
   const { svgRef, index: scrubIdx, onPointerDown, ...scrubMove } = useChartScrub(
     coordsForScrub.map((c) => c.x),
@@ -588,7 +607,7 @@ function WeightSparkline({
 
   // Not enough data: hold the 80px height with a flat dashed placeholder so the
   // card never changes height between loading / empty / loaded (layout stability).
-  if (values.length < 2) {
+  if (points.length < 2) {
     const y = (H / 2).toFixed(1);
     return (
       <svg className="ov-weight-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
@@ -601,21 +620,54 @@ function WeightSparkline({
     );
   }
 
-  const min = Math.min(...values), max = Math.max(...values);
+  const trend = trailingAvg(points, TREND_WINDOW_HOURS);
+  const trendValues = trend.map((p) => p.value);
+  const windowDays = diffDays(trend[0].date, trend.at(-1)!.date);
+
+  // Target-pace corridor: two rays from the trend's first point, sloped at the
+  // target band's min/max loss rate (positive kg/wk) converted to kg dropped
+  // over this window. A horizontal band is geometrically wrong on a
+  // weight-level chart — the band only reads flat on a rate axis.
+  const hasCorridor = !!targetRange && targetRange.min !== targetRange.max && windowDays > 0;
+  const corridorMinVal = hasCorridor ? trendValues[0] - targetRange!.min * (windowDays / 7) : null;
+  const corridorMaxVal = hasCorridor ? trendValues[0] - targetRange!.max * (windowDays / 7) : null;
+
+  // Vertical scale spans the trend line AND the corridor's in-view vertices,
+  // so the wedge never clips against a scale sized to the line alone.
+  const scaleValues = [...trendValues];
+  if (corridorMinVal != null) scaleValues.push(corridorMinVal);
+  if (corridorMaxVal != null) scaleValues.push(corridorMaxVal);
+  const min = Math.min(...scaleValues), max = Math.max(...scaleValues);
   const center = (min + max) / 2;
   const half = Math.max(max - min, WEIGHT_SPARK_MIN_SPAN) / 2;
   const lo = center - half;
   const span = half * 2 || 1;
-  const coords = values.map((v, i) => {
-    const x = pad + (i / (values.length - 1)) * (W - pad * 2);
-    const y = H - pad - ((v - lo) / span) * (H - pad * 2);
-    return { x, y };
+  const valueToY = (v: number) => H - pad - ((v - lo) / span) * (H - pad * 2);
+
+  const coords = trendValues.map((v, i) => {
+    const x = pad + (i / (trendValues.length - 1)) * (W - pad * 2);
+    return { x, y: valueToY(v) };
   });
   const pts = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   // Area under the line, fading down to transparent — the line's tone tints the
   // fill. Closed along the bottom edge so the gradient reads as depth, not a band.
   const first = coords[0], last = coords[coords.length - 1];
   const area = `${pts} ${last.x.toFixed(1)},${H} ${first.x.toFixed(1)},${H}`;
+
+  const corridor = hasCorridor
+    ? {
+        x0: first.x, y0: first.y,
+        xEnd: last.x,
+        yMin: valueToY(corridorMinVal!),
+        yMax: valueToY(corridorMaxVal!),
+      }
+    : null;
+
+  // Latest point is always enlarged; it only turns gold + "New low" when it's
+  // both the window low AND the pace read is healthy (canCelebrateLow) — gold
+  // is reserved for genuine celebration, never a below-pace new low.
+  const latest = coords[coords.length - 1];
+  const isNewLow = canCelebrateLow && trendValues.at(-1)! <= Math.min(...trendValues);
 
   const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
   const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
@@ -635,10 +687,32 @@ function WeightSparkline({
       >
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.30" />
             <stop offset="100%" stopColor={stroke} stopOpacity="0" />
           </linearGradient>
         </defs>
+        {corridor && (
+          <>
+            <polygon
+              points={`${corridor.x0.toFixed(1)},${corridor.y0.toFixed(1)} ${corridor.xEnd.toFixed(1)},${corridor.yMin.toFixed(1)} ${corridor.xEnd.toFixed(1)},${corridor.yMax.toFixed(1)}`}
+              fill="var(--good)"
+              opacity="0.08"
+              stroke="none"
+            />
+            <line
+              x1={corridor.x0.toFixed(1)} y1={corridor.y0.toFixed(1)}
+              x2={corridor.xEnd.toFixed(1)} y2={corridor.yMin.toFixed(1)}
+              stroke="var(--good)" strokeWidth="1" opacity="0.28"
+              strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
+            />
+            <line
+              x1={corridor.x0.toFixed(1)} y1={corridor.y0.toFixed(1)}
+              x2={corridor.xEnd.toFixed(1)} y2={corridor.yMax.toFixed(1)}
+              stroke="var(--good)" strokeWidth="1" opacity="0.28"
+              strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
+            />
+          </>
+        )}
         <polygon points={area} fill={`url(#${gradId})`} stroke="none" />
         <polyline
           points={pts}
@@ -660,12 +734,28 @@ function WeightSparkline({
           />
         )}
       </svg>
+      <span className="ov-weight-spark-caption">target zone · 14d</span>
       {/* Rendered outside the SVG, not as a <circle>: the chart's viewBox is
           stretched non-uniformly (W=100 vs a ~350px card, H fixed 1:1 at 80px),
           so an in-SVG circle inherits that stretch and renders as a flat
           ellipse. A fixed-size HTML dot stays round regardless. Left is a %
           (matches the SVG's fluid width); top is px + the SVG's own
           margin-top offset, since H maps 1:1 to its fixed 80px CSS height. */}
+      <div
+        className={`ov-weight-spark-latest-dot${isNewLow ? " is-new-low" : ""}`}
+        style={{
+          left: `${(latest.x / W) * 100}%`,
+          top: `calc(var(--vr-block) + ${latest.y.toFixed(1)}px)`,
+        }}
+      />
+      {isNewLow && (
+        <span
+          className="ov-weight-spark-new-low"
+          style={{ top: `calc(var(--vr-block) + ${latest.y.toFixed(1)}px)` }}
+        >
+          New low
+        </span>
+      )}
       {scrubCoord && (
         <div
           className="ov-weight-spark-scrub-dot"
@@ -735,7 +825,7 @@ function WeightCard({
           <span className="ov-weight-chevron" aria-hidden>›</span>
         </div>
         <div className="ov-weight-stat">
-          <MetricValue size="lg" unit="kg/wk">0.00</MetricValue>
+          <MetricValue size="xl" unit="kg/wk">0.00</MetricValue>
         </div>
         <WeightSparkline points={[]} tone="flat" />
         <div className="ov-weight-rows ov-weight-rows--single">
@@ -768,15 +858,6 @@ function WeightCard({
   const sparkPoints = weightPts.slice(-14);
   const sparkTone: "good" | "bad" | "flat" =
     weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
-
-  // Second-order read beside the Rate: is the loss itself slowing (approaching a
-  // plateau — amber, worth a nudge) or accelerating? Accelerating is normally
-  // muted ("too fast" is the pill's job) — but when it compounds an already
-  // too-fast pill it turns amber (the muscle-risk moment; see the render). On a
-  // fresh target (< FRESH_TARGET_DAYS) the prior window is still the old regime,
-  // so a "faster" read there is just the deficit step / whoosh — suppress it.
-  const freshTarget = state != null && state.diagnostics.daysOnTarget < FRESH_TARGET_DAYS;
-  const accel = freshTarget ? null : weightAcceleration(weightPts);
 
   if (weightLatest == null) {
     return (
@@ -842,12 +923,14 @@ function WeightCard({
       {/* Hero: the loss RATE (kg/wk) — neutral-ink magnitude carries the
           prominence by SIZE, the arrow after it takes rateTone (band-aware
           severity: in band = green, near an edge = amber, far out = red — NOT
-          sign-only, which reads every loss as "good"). The accel glyph is the
-          second-order read (loss slowing / speeding). Before the trend settles
-          the hero falls back to the weight level + its weekly delta. */}
+          sign-only, which reads every loss as "good"). Slowing/accelerating is
+          now read from the trend line's curvature, not a second glyph here.
+          Before the trend settles the hero falls back to the weight level +
+          its weekly delta — same `xl` size so the card never changes scale
+          between states. */}
       {rate != null ? (
         <div className="ov-weight-stat">
-          <MetricValue size="lg" unit="kg/wk">
+          <MetricValue size="xl" unit="kg/wk">
             <HeadlineCountUp
               value={Math.abs(rate)}
               decimals={2}
@@ -862,20 +945,10 @@ function WeightCard({
               {rate < 0 ? "▼" : "▲"}
             </span>
           )}
-          {accel && (
-            <span
-              className={`ov-weight-accel is-${accel.direction}${accel.strong ? " is-strong" : ""}${
-                accel.direction === "faster" && status === "Too fast" ? " is-risk" : ""
-              }`}
-              aria-label={accel.direction === "slowing" ? "Loss slowing" : "Loss accelerating"}
-            >
-              {accel.direction === "slowing" ? "↓" : "↑"}
-            </span>
-          )}
         </div>
       ) : (
         <div className="ov-weight-stat">
-          <MetricValue size="lg" unit="kg">
+          <MetricValue size="xl" unit="kg">
             <HeadlineCountUp
               value={weightLatest}
               decimals={1}
@@ -886,7 +959,12 @@ function WeightCard({
         </div>
       )}
 
-      <WeightSparkline points={sparkPoints} tone={sparkTone} />
+      <WeightSparkline
+        points={sparkPoints}
+        tone={sparkTone}
+        targetRange={state?.evaluation.targetRange ?? null}
+        canCelebrateLow={tone === "good" || tone === "gold"}
+      />
 
       <button
         type="button"
@@ -905,6 +983,7 @@ function WeightCard({
             above, so repeating it here would be redundant). */}
         {rate != null && (
           <span className="ov-weight-context">
+            Now{" "}
             <span className="ov-weight-context-num">
               <AnimatedNumber
                 value={weightLatest}

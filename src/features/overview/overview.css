@@ -262,10 +262,13 @@
 .ov-weight-rate-arrow.is-bad  { color: var(--bad); }
 .ov-weight-rate-arrow.is-gold { color: var(--gold); text-shadow: var(--gold-glow); }
 
-/* At hero scale the arrow sits beside the 28px rate number — size it up from
-   the old inline text-sm so it reads as part of the headline, not a footnote. */
+/* At hero scale the arrow sits beside the 34px rate number — sized up from the
+   old inline text-sm so it reads as part of the headline, not a footnote, but
+   the triangle glyph's own bounding box runs taller than digits at the same
+   font-size, so it needs to sit a step below the number's scale rather than
+   matching it 1:1. */
 .ov-weight-rate-arrow--hero {
-  font-size: var(--metric-md);
+  font-size: var(--text-lg);
   margin-left: var(--space-2);
 }
 
@@ -354,23 +357,52 @@
   gap: var(--space-4);
 }
 
-/* Acceleration read trailing the Rate: is the loss slowing or speeding up? A
-   small inline label (not a second pill — the status pill owns that slot). Amber
-   for slowing (approaching a plateau, worth attention); muted for faster, since
-   "too fast" is the pill's verdict, not repeated here. */
-.ov-weight-accel {
-  margin-left: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  white-space: nowrap;
+/* Top-right window caption on the chart — quiet, matches the freshness tag's
+   tone. Purely descriptive, never interactive. */
+.ov-weight-spark-caption {
+  position: absolute;
+  top: calc(var(--vr-block) - 2px);
+  right: 0;
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--ink-4);
+  pointer-events: none;
 }
-.ov-weight-accel.is-slowing { color: var(--warn); }
-.ov-weight-accel.is-faster  { color: var(--ink-3); }
-/* Accelerating while the pill already reads "Too fast" is the muscle-risk
-   moment — escalate the otherwise-muted "faster" to the caution colour so the
-   chip and pill agree instead of the chip staying silent. */
-.ov-weight-accel.is-faster.is-risk { color: var(--warn); }
-.ov-weight-accel.is-strong  { font-weight: 700; }
+
+/* Latest trend point — always enlarged; the drawn line's own tone is used
+   normally, but a new low over the visible window is a celebration read
+   (gold + glow), same language as PR badges. Positioned as an HTML dot for
+   the same reason as the scrub dot: the stretched viewBox turns SVG circles
+   into ellipses. */
+.ov-weight-spark-latest-dot {
+  position: absolute;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  width: 11px;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  height: 11px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--bg-card);
+  pointer-events: none;
+}
+.ov-weight-spark-latest-dot.is-new-low {
+  background: var(--gold);
+  box-shadow: var(--gold-glow);
+}
+
+/* "New low" microlabel beside the gold dot — right-offset so it clears the
+   dot's radius + ring, vertically centered on it. */
+.ov-weight-spark-new-low {
+  position: absolute;
+  right: 22px;
+  transform: translateY(-50%);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--gold);
+  text-shadow: var(--gold-glow);
+  pointer-events: none;
+}
 
 .ov-weight-status-pill {
   display: inline-flex;

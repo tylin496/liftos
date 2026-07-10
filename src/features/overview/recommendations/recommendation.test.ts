@@ -11,6 +11,7 @@ function ctx(status: EvalStatus, confidence: Confidence, calorieTarget = 2145): 
     targetRange: { min: 0.4, max: 0.7 },
     confidence,
     evaluatedAt: "2026-07-01T00:00:00.000Z",
+    accelDirection: null,
   };
   const diagnostics: NutritionDiagnostics = {
     estimatedTdee: 2800,

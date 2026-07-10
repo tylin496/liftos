@@ -159,6 +159,31 @@ export function rollingAvg(pts: { date: string; value: number }[], days = 7, off
   return window.reduce((s, p) => s + p.value, 0) / window.length;
 }
 
+/** Trailing rolling average keyed by hours, not calendar days — smooths a
+ *  daily-granularity series (e.g. the Overview weight trend line) without the
+ *  day-boundary snap `rollingAvg` uses. Returns one averaged point per input
+ *  point, each looking only backward (no future leakage), so slicing the
+ *  output to a recent window still reflects smoothing informed by history
+ *  just outside it. */
+export function trailingAvg(
+  pts: { date: string; value: number }[],
+  windowHours: number,
+): { date: string; value: number }[] {
+  const MS = windowHours * 3600000;
+  const times = pts.map((p) => new Date(p.date + "T12:00:00").getTime());
+  return pts.map((p, i) => {
+    const end = times[i];
+    const start = end - MS;
+    let sum = 0, count = 0;
+    for (let j = 0; j <= i; j++) {
+      if (times[j] < start) continue;
+      sum += pts[j].value;
+      count++;
+    }
+    return { date: p.date, value: sum / count };
+  });
+}
+
 export type RecoveryStatus = "Ready" | "Good" | "Fair" | "Needs Recovery";
 
 const MIN_VALID_SLEEP_SECONDS = 3 * 60 * 60;

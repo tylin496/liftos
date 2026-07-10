@@ -383,12 +383,9 @@
   right: 33.33%;
   border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
 }
+/* Only shown in-band — off-band the gold optimal zone is dropped entirely so
+   the red marker + caption carry the "get back in range" story alone. */
 .ni-meter-band-optimal.is-in  { background: color-mix(in srgb, var(--gold) 26%, transparent); }
-/* Off-band the whole meter recedes so the red marker + caption carry the "get
-   back in range" story — the gold optimal zone must recede too (matches the
-   band's is-in→is-off weakening), or it's the one thing left shouting when the
-   reading is nowhere near optimal. */
-.ni-meter-band-optimal.is-off { background: color-mix(in srgb, var(--gold) 12%, transparent); }
 
 /* Marker — a raised dot with a card-coloured gap ring so it reads as floating
    above the track. Colour follows the same rateTone as the status dot above

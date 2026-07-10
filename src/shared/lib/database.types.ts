@@ -205,6 +205,7 @@ export type Database = {
       }
       nutrition_evaluations: {
         Row: {
+          accel_direction: string | null
           calorie_target: number | null
           confidence: string
           created_at: string
@@ -228,6 +229,7 @@ export type Database = {
           window_days: number | null
         }
         Insert: {
+          accel_direction?: string | null
           calorie_target?: number | null
           confidence: string
           created_at?: string
@@ -251,6 +253,7 @@ export type Database = {
           window_days?: number | null
         }
         Update: {
+          accel_direction?: string | null
           calorie_target?: number | null
           confidence?: string
           created_at?: string

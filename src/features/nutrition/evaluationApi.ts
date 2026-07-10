@@ -83,6 +83,9 @@ function rowToState(row: Row): NutritionStateFull {
     targetRange: { min: row.target_min, max: row.target_max },
     confidence: row.confidence as Confidence,
     evaluatedAt: row.evaluated_at,
+    // Nullable + tolerant of the pre-accel_direction column (older rows / before
+    // the migration): an absent column reads back as undefined → null.
+    accelDirection: (row.accel_direction as "faster" | "slowing" | null) ?? null,
   };
   const diagnostics: NutritionDiagnostics = {
     estimatedTdee: row.estimated_tdee ?? 0,
@@ -122,6 +125,7 @@ function stateToRow(
     target_max: evaluation.targetRange.max,
     confidence: evaluation.confidence,
     evaluated_at: evaluation.evaluatedAt,
+    accel_direction: evaluation.accelDirection,
     estimated_tdee: diagnostics.estimatedTdee,
     estimated_intake: diagnostics.estimatedIntake,
     intake_difference: diagnostics.intakeDifference,

@@ -27,6 +27,7 @@ function nutrition(
     targetRange: { min: over.min ?? 0.4, max: over.max ?? 0.7 },
     confidence: over.confidence ?? "high",
     evaluatedAt: "2026-07-01T00:00:00.000Z",
+    accelDirection: null,
   };
   const diagnostics: NutritionDiagnostics = {
     estimatedTdee: 2800,

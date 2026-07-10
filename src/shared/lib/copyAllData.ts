@@ -337,7 +337,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   const weightPts = metrics
     .filter((m) => m.weight_kg != null)
     .map((m) => ({ date: m.metric_date, v: m.weight_kg as number }));
-  const currentWeight = weightPts.length ? weightPts.at(-1)!.v : null;
+  // Reuse health.summary's own "latest weight" rather than re-deriving it —
+  // same metrics array, same "latest" concept, one computation.
+  const currentWeight = (healthSummary.weight as { latest: number } | undefined)?.latest ?? null;
   const weight30dPts = weightPts.filter((p) => p.date >= cutoff30);
   // null (not currentWeight) when the short window is empty — see *_30d note above.
   const weight30d = weight30dPts.length
@@ -493,6 +495,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
         return {
           name: ex.name,
+          // Stable identifier — set at creation, never changes if the exercise is
+          // renamed. Use this (not `name`) to track an exercise across edits.
+          slug: ex.slug,
           target: ex.target ?? null,
           // Primary (scoring) metric — which axis retention/status/PR reference,
           // NOT the only one computable (e1RM still exists for isolation lifts).
@@ -553,7 +558,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 2.7,
+    schema: 2.8,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
     dataSpan: overviewWindow, // total span of ALL data (see windowOf); distinct from per-section windowDays
     summary: {
@@ -663,7 +668,7 @@ export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> 
 
   const payload = {
     source: "LiftOS",
-    schema: 2.5,
+    schema: 2.8,
     tab: "health",
     units: unitsFor(HEALTH_UNIT_KEYS),
     dataSpan: windowOf(metrics.map((m) => m.metric_date)),
@@ -693,10 +698,23 @@ function engineHypothesis(
 ) {
   if (!state) return null;
   const d = nutritionDecision(state.evaluation, state.diagnostics);
+  // Discrete labels for the rules that actually fired, so a reviewer sees
+  // *which* rules produced the hypothesis instead of re-deriving them from
+  // the raw evaluation/diagnostics/calibration/decision fields below.
+  const rulesTriggered: string[] = [
+    `rate_${state.evaluation.status}`,
+    `confidence_${state.evaluation.confidence}`,
+    `decision_${d.action}`,
+  ];
+  if (calibration) rulesTriggered.push(`tdee_${calibration.status}`);
+  if (state.diagnostics.intakeGap != null) {
+    rulesTriggered.push(state.diagnostics.intakeGap > 0 ? "intake_above_estimate" : "intake_below_estimate");
+  }
   return {
     engine: "LiftOS",
-    version: 2.5,
+    version: 2.8,
     note: "LiftOS's current hypothesis from its own rules — audit it against the data above; don't assume it's correct.",
+    rulesTriggered,
     evaluation: state.evaluation,
     // The inputs behind evaluation.confidence, so a reviewer can re-derive (or
     // dispute) it rather than take the label at face value.
@@ -803,7 +821,7 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
 
   const payload = {
     source: "LiftOS",
-    schema: 2.5,
+    schema: 2.8,
     tab: "nutrition",
     units: unitsFor(NUTRITION_UNIT_KEYS),
     dataSpan: windowOf(sorted.map((e) => e.entry_date)),
@@ -898,6 +916,9 @@ export async function buildTrainingJson(): Promise<string> {
 
       return {
         name: ex.name,
+        // Stable identifier — set at creation, never changes if the exercise is
+        // renamed. Use this (not `name`) to track an exercise across edits.
+        slug: ex.slug,
         target: ex.target ?? null,
         // Primary (scoring) metric — the axis retention/status/PR reference,
         // NOT the only one computable (e1RM still exists for isolation lifts).
@@ -936,7 +957,7 @@ export async function buildTrainingJson(): Promise<string> {
 
   const payload = {
     source: "LiftOS",
-    schema: 2.7,
+    schema: 2.8,
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
     dataSpan: windowOf(

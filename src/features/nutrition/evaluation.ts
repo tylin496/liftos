@@ -10,7 +10,7 @@
 //   - NutritionDiagnostics → explains *why* (estimated intake/TDEE). Descriptive
 //                            only; it never feeds back into the judgment.
 
-import { theilSenSlope, median } from "@features/health/math";
+import { theilSenSlope, median, weightAcceleration } from "@features/health/math";
 import { CUT_MODE_TARGET_RANGES } from "./targetRanges";
 
 export type EvalStatus = "below_target" | "on_target" | "above_target";
@@ -25,6 +25,14 @@ export interface NutritionEvaluation {
   confidence: Confidence;
   /** ISO timestamp of when this evaluation was produced. */
   evaluatedAt: string;
+  /** Second-order rate trend (from weightAcceleration): is the loss speeding up
+   *  ("faster") or slowing toward a plateau ("slowing")? null when it can't speak
+   *  — holding inside the deadband, <5 readings, or the prior window wasn't a
+   *  loss. Descriptive: drives the pace arrow's glyph + severity, never the
+   *  judgment (status/confidence). Computed on a separate 14+14d window from the
+   *  21d observedRate, so the two can legitimately diverge (that's the point —
+   *  the band can read fine while the rate quietly slows). */
+  accelDirection: "faster" | "slowing" | null;
 }
 
 export interface NutritionDiagnostics {
@@ -391,6 +399,9 @@ export function evaluate(input: EvaluateInput): NutritionState {
   const observedRate = slope ?? 0;
   const weightDataPoints = windowPoints(weightSeries, WINDOW_DAYS).length;
   const gapDays = longestGap(weightSeries, WINDOW_DAYS);
+  // Second-order read on the same series (its own 14+14d windows). Null unless
+  // the rate has clearly moved — feeds the pace arrow, nothing else.
+  const accelDirection = weightAcceleration(weightSeries)?.direction ?? null;
 
   // Diagnostics: what intake the weight trend implies, vs the target. The energy
   // balance from the trend (observedRate kg/wk × 7700 kcal/kg ÷ 7 days) added to
@@ -422,6 +433,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
         targetRange: range ?? { min: 0, max: 0 },
         confidence: "low",
         evaluatedAt,
+        accelDirection,
       },
       diagnostics,
     };
@@ -444,7 +456,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
   );
 
   return {
-    evaluation: { status, observedRate, targetRange: range, confidence, evaluatedAt },
+    evaluation: { status, observedRate, targetRange: range, confidence, evaluatedAt, accelDirection },
     diagnostics,
   };
 }

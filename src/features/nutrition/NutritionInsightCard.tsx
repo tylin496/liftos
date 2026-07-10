@@ -75,10 +75,12 @@ function PaceMeter({
   observedRate,
   lo,
   hi,
+  accelDirection,
 }: {
   observedRate: number;
   lo: number;
   hi: number;
+  accelDirection: "faster" | "slowing" | null;
 }) {
   const obs = Math.abs(observedRate);
   const w = hi - lo;
@@ -114,15 +116,28 @@ function PaceMeter({
           <span className={`ni-status-dot status-${tone}`} aria-hidden="true" />
           {sign}
           {obs.toFixed(2)} kg/wk
-          {/* Trails the value (app-wide delta-after-value convention, matches the
-              Overview Weight card's Rate arrow). The arrow is a DIRECTION glyph
-              (which way weight is moving), so it carries only the good/warn/bad
-              severity — never gold. Gold means "this value sits in the optimal
-              top-slice", a property of the value, not of its direction; it stays
-              on the dot/marker/band, not the arrow. */}
-          {rTone && observedRate !== 0 && (
-            <span className={`ni-pace-rate-arrow is-${rTone === "gold" ? "good" : rTone}`} aria-hidden>
-              {observedRate < 0 ? "▼" : "▲"}
+          {/* Rate-TREND arrow: the glyph is the second-order read — is the loss
+              speeding up (▲) or slowing toward a plateau (▼)? — NOT the weight's
+              own direction. Colour reads the trend against the band: a still-safe
+              acceleration is good (green); a slowdown warns even while in-band
+              (early-plateau catch), orange; any drift out of the band is orange/
+              red regardless of trend. Silent when the trend can't speak (rate
+              holding / too few readings). How good the value IS stays on the dot,
+              never here — so the arrow never goes gold. */}
+          {accelDirection && (
+            <span
+              className={`ni-pace-rate-arrow is-${
+                rTone === "bad"
+                  ? "bad"
+                  : rTone === "warn"
+                    ? "warn"
+                    : accelDirection === "slowing"
+                      ? "warn"
+                      : "good"
+              }`}
+              aria-hidden
+            >
+              {accelDirection === "faster" ? "▲" : "▼"}
             </span>
           )}
         </span>
@@ -131,10 +146,12 @@ function PaceMeter({
       <div className="ni-meter">
         <div className="ni-meter-track">
           <div className={`ni-meter-band ${inState ? `is-in status-${tone}` : "is-off"}`} />
-          <div
-            className={`ni-meter-band-optimal ${inState ? "is-in" : "is-off"}`}
-            style={{ left: `${optimalPct}%` }}
-          />
+          {inState && (
+            <div
+              className="ni-meter-band-optimal is-in"
+              style={{ left: `${optimalPct}%` }}
+            />
+          )}
           <div
             className={`ni-meter-marker status-${tone}`}
             style={{ left: `${markerPct}%` }}
@@ -290,6 +307,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
               observedRate={e.observedRate}
               lo={e.targetRange.min}
               hi={e.targetRange.max}
+              accelDirection={e.accelDirection}
             />
           ) : (
             <div className="ni-cell ni-cell-full">

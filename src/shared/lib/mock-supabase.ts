@@ -129,6 +129,7 @@ const NUTRITION_EVALUATION = {
   user_id: DEV_USER_ID,
   status: "below_target",
   observed_rate: -0.086,
+  accel_direction: "slowing",
   target_min: 0.4,
   target_max: 0.7,
   confidence: "high",
