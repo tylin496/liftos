@@ -582,10 +582,12 @@
 .ov-th-holding-reveal {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--dur-move) var(--ease-move);
+  /* Standard disclosure timing: enter on .open, exit on the base state. */
+  transition: grid-template-rows var(--dur-exit) var(--ease-move);
 }
 .ov-th-holding-reveal.open {
   grid-template-rows: 1fr;
+  transition: grid-template-rows var(--dur-enter) var(--ease-enter);
 }
 .ov-th-holding-chips {
   overflow: hidden;

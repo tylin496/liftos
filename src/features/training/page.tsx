@@ -483,6 +483,7 @@ function ArchivedSection({
       </button>
       {open && (
         <div className="archived-list" ref={listRef}>
+          <div className="archived-list-inner">
           {exercises.map((ex) => {
             const exLogs = logs[ex.slug] ?? [];
             const logsAsc = [...exLogs].reverse();
@@ -511,6 +512,7 @@ function ArchivedSection({
               </div>
             );
           })}
+          </div>
         </div>
       )}
     </div>

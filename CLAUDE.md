@@ -14,7 +14,7 @@ React / Vite / TypeScript + Supabase (Postgres + RLS + Auth)。4 tabs = 4 個獨
 | 輸入表單（Add/InlineEdit ×4）| `training/LogForms.tsx`；常數/工具在 `logFormHelpers.ts` |
 | 重量顯示格式 | `training/ExprDisplay.tsx`（fmtWeightNum、isLbUnit）|
 | 重量表達式解析 | `training/parser.ts`（parse、score、normalize）|
-| 訓練統計 / 停滯 | `training/logic.ts`（computeStats、buildStagnationView）；徽章 `StagnationBadge.tsx` |
+| 訓練統計 / 趨勢 | `training/logic.ts`（computeStats、buildTrendSeries、windowTrend）|
 | 卡路里計算 | `nutrition/logic.ts`；Today UI `nutrition/today.tsx` |
 | Health 體重/體脂 | `health/page.tsx` |
 | Shell / TabBar | `app/layout/Shell.tsx`（**先載入 `tab-navigation-scroll` skill**）|

@@ -517,7 +517,11 @@
   gap: var(--space-2);
   padding: var(--space-2) 0;
   border-bottom: 1px solid transparent;
-  transition: background var(--dur-press), opacity var(--dur-press);
+  /* padding-bottom eases so the editing tuck (→0) and its restore (→space-2 on
+     close) move in lockstep with the editor drawer's collapse — otherwise the
+     bottom pad snaps back the instant is-editing drops and the row jumps. */
+  transition: background var(--dur-press), opacity var(--dur-press),
+    padding-bottom var(--dur-exit) var(--ease-move);
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
 }
@@ -900,6 +904,10 @@
   margin: 0 calc(-1 * var(--space-5));
   padding: 0 var(--space-5);
   background: transparent;
+  /* Opening: grid-rows 0fr→1fr expands the drawer height once on mount so the
+     editor/add form unfolds instead of popping in. Closing: the same axis is
+     animated back to 0fr via the exit transition below (edit only). */
+  animation: drawer-expand var(--dur-enter) var(--ease-enter);
   transition: grid-template-rows var(--dur-exit) var(--ease-move);
 }
 
@@ -908,25 +916,57 @@
   pointer-events: none;
 }
 
+/* Add form reuses the drawer purely for the open-expand; it keeps its own
+   border-top/margin spacing, so zero the inner padding to stay pixel-identical
+   to the un-wrapped layout. */
+.ex-editor-drawer.is-add .ex-editor-drawer-inner {
+  padding: 0;
+}
+
+@keyframes drawer-expand {
+  from { grid-template-rows: 0fr; }
+  to   { grid-template-rows: 1fr; }
+}
+
 .ex-editor-drawer-inner {
   overflow: hidden;
   min-height: 0;
   padding: var(--space-3) 0;
 }
 
+/* On close the drawer collapses from the bottom (grid-rows → 0fr, inner clips),
+   so the top-anchored hero number would stay fully lit until the last frame,
+   then snap out. Fade the whole inner in lockstep with the collapse so the
+   number leaves WITH the entry instead of lingering. */
+.ex-editor-drawer.is-closing .ex-editor-drawer-inner {
+  opacity: 0;
+  transition: opacity var(--dur-exit) var(--ease-move);
+}
+
 /* ── History row detail (tap to reveal) ──────────────────────────────────────
    Est. 1RM for the tapped set + how much of the all-time PR it holds. Bleeds
    to the card edge like the editor drawer, but its content aligns under the
    expr column (past the 40px date gutter) so the numbers sit below the set. */
+/* Clip wrapper: unfolds the detail (grid-rows 0fr→1fr) on mount, same standard
+   expand as the editor/add drawer. Mounted only when open, so the base is 1fr
+   and drawer-expand animates up to it once. */
+.hist-detail-clip {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: drawer-expand var(--dur-enter) var(--ease-enter);
+}
+
 .hist-detail-drawer {
   /* Content only — the wrapper (.hist-entry.is-open) draws the background. The
-     tint is one static element behind both, so only these numbers animate in
-     over it; nothing can seam. Content lines up under the expr column (past the
-     40px date gutter + grid gap). */
+     tint is one static element behind both, so nothing can seam as the clip
+     reveals these numbers. Content lines up under the expr column (past the
+     40px date gutter + grid gap). overflow/min-height let the grid track
+     collapse to zero so the reveal actually clips. */
+  overflow: hidden;
+  min-height: 0;
   padding: 0 var(--space-2) var(--space-3) calc(40px + var(--space-2));
   display: flex;
   gap: var(--space-6);
-  animation: log-zone-in var(--dur-enter) var(--ease-enter) both;
 }
 
 .hist-detail {
@@ -1185,18 +1225,26 @@
 }
 
 /* ── Log buttons ─────────────────────────────────────────────────────────────*/
+/* Canonical log/edit action buttons — shared by LogForms, EditExerciseForm,
+   ImageCropModal and page CTAs. flex:1 fills a lone container (log submit) or
+   splits evenly beside a secondary (edit/crop). Solid fill = accent-strong. */
 .btn-log-primary {
-  width: 100%;
+  flex: 1;
   padding: var(--space-3);
   border: none;
   border-radius: var(--radius-sm);
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-color);
   font-family: var(--font-ui);
   font-size: var(--text-base);
   font-weight: 700;
   cursor: pointer;
-  transition: transform var(--dur-press) var(--ease-press), opacity var(--dur-press);
+  transition: transform var(--dur-press) var(--ease-press), opacity var(--dur-press),
+    background var(--dur-press);
+}
+
+.btn-log-primary:hover:not(:disabled) {
+  opacity: 0.9;
 }
 
 .btn-log-primary:active {
@@ -1214,8 +1262,8 @@
 
 .btn-log-secondary {
   flex: 1;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--rule);
+  padding: var(--space-3);
+  border: none;
   border-radius: var(--radius-sm);
   background: var(--bg-soft);
   color: var(--role-action-color);
@@ -1223,7 +1271,7 @@
   font-size: var(--role-action-size);
   font-weight: var(--role-action-weight);
   cursor: pointer;
-  transition: background var(--dur-press);
+  transition: background var(--dur-press), color var(--dur-press);
 }
 
 .btn-log-secondary:hover {
@@ -1237,11 +1285,11 @@
 
 /* ── Assisted form specifics ─────────────────────────────────────────────────*/
 .log-assisted-label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
+  font-size: var(--role-field-label-size);
+  font-weight: var(--role-field-label-weight);
+  color: var(--role-field-label-color);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--role-field-label-spacing);
   text-align: center;
 }
 
@@ -1428,16 +1476,22 @@
   font-size: var(--role-action-size);
   font-weight: var(--role-action-weight);
   cursor: pointer;
-  transition: background var(--dur-press);
+  transition: border-color var(--dur-press), color var(--dur-press),
+    background var(--dur-press);
 }
 
 .add-exercise-btn:hover {
-  background: var(--bg-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.add-exercise-btn:active {
+  transform: scale(var(--tap-scale));
 }
 
 .add-ex-form {
   background: var(--bg-card);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-sm);
   padding: var(--space-4);
   display: flex;
@@ -1479,11 +1533,11 @@
 }
 
 .add-ex-label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
+  font-size: var(--role-field-label-size);
+  font-weight: var(--role-field-label-weight);
+  color: var(--role-field-label-color);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--role-field-label-spacing);
 }
 
 .ex-input {
@@ -1526,7 +1580,7 @@
 /* ── Archived section ────────────────────────────────────────────────────────*/
 .archived-section {
   background: var(--bg-card);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
@@ -1552,7 +1606,7 @@
 
 .archived-count.mono {
   font-size: var(--text-sm);
-  color: var(--ink-4);
+  color: var(--ink-3);
   background: var(--bg-soft);
   padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
@@ -1569,9 +1623,19 @@
 }
 
 .archived-list {
+  /* Standard expand: unfolds (grid-rows 0fr→1fr) on mount like the drawers.
+     Mounted only when open, so base is 1fr and drawer-expand animates up once. */
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: drawer-expand var(--dur-enter) var(--ease-enter);
   border-top: 1px solid var(--rule);
   /* Auto-scroll target on expand: land above the floating tabbar. */
   scroll-margin-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
+}
+
+.archived-list-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .archived-row {
@@ -1658,7 +1722,7 @@
 
 .stretch-card {
   background: var(--bg-card);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   position: relative;
@@ -1803,183 +1867,6 @@
   border-radius: 0.3em !important;
   animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
 }
-
-/* ─── Stagnation / Strength Retention Badge ────────────────────────────────── */
-
-.stagnation-badge {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: nowrap;
-  column-gap: var(--space-2);
-  margin-bottom: 0;
-  margin-top: var(--vr-tight);
-  user-select: none;
-  width: max-content;
-}
-
-.stagnation-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.stagnation-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-pill);
-  white-space: nowrap;
-}
-
-.stagnation-expandable {
-  cursor: pointer;
-}
-.stagnation-expandable:active { opacity: 0.75; }
-.stagnation-expandable:focus-visible { outline: 2px solid var(--accent); border-radius: 4px; }
-
-.stagnation-expand-hint {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 8px;
-  height: 8px;
-  margin-left: 3px;
-  flex-shrink: 0;
-}
-.stagnation-expand-hint::after {
-  content: "";
-  display: block;
-  width: 0;
-  height: 0;
-  border-left: 3.5px solid transparent;
-  border-right: 3.5px solid transparent;
-  border-top: 4px solid var(--ink-4);
-  transition: transform var(--dur-press) var(--ease-move);
-}
-[aria-expanded="true"] .stagnation-expand-hint::after {
-  transform: rotate(180deg);
-}
-
-/* Status color variants */
-.stagnation-excellent .stagnation-label { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
-/* On Track is a Good-tier state → green, same as Excellent. --blue is reserved
-   for identity (Weight, chart series), never a status verdict. */
-.stagnation-on-track .stagnation-label  { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
-.stagnation-watch .stagnation-label     { background: transparent; border: 1.5px solid color-mix(in srgb, var(--warn) 55%, transparent); color: var(--warn); }
-.stagnation-review .stagnation-label    { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
-.stagnation-rebuilding .stagnation-label { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
-
-:root[data-theme="dark"] .stagnation-watch .stagnation-label { background: color-mix(in srgb, var(--warn) 18%, transparent); border: none; color: var(--warn); }
-
-.stagnation-trend {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-.stagnation-trend-recovering { color: var(--ink-3); }
-.stagnation-trend-stable     { color: var(--ink-4); }
-.stagnation-trend-declining  { color: var(--bad); }
-.stagnation-trend-uncertain  { color: var(--warn); }
-
-/* Detail block (expandable) — no background box, just spacing */
-.stagnation-detail {
-  flex-basis: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--vr-hairline);
-  padding-top: var(--space-1);
-  margin-top: var(--vr-tight);
-  animation: stagnation-reason-in var(--dur-press) var(--ease-press) both;
-}
-@keyframes stagnation-reason-in {
-  from { opacity: 0; transform: translateY(-3px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.stagnation-reason {
-  font-size: var(--text-2xs);
-  color: var(--ink-2);
-  letter-spacing: 0.01em;
-}
-
-.stagnation-detail.has-reason .baseline-label {
-  text-transform: none;
-  font-weight: 600;
-  letter-spacing: 0;
-}
-.stagnation-detail.has-reason .baseline-entry { font-size: var(--text-2xs); font-weight: 500; color: var(--ink-3); }
-.stagnation-detail.has-reason .baseline-date  { font-size: var(--text-2xs); }
-
-.stagnation-baseline {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  flex-shrink: 0;
-}
-
-.baseline-label {
-  font-size: var(--role-eyebrow-size);
-  font-weight: var(--role-eyebrow-weight);
-  letter-spacing: var(--role-eyebrow-spacing);
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.baseline-entry {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
-}
-
-.baseline-date {
-  font-size: var(--text-2xs);
-  color: var(--ink-3);
-}
-
-/* Always-visible hint line */
-.stagnation-hint {
-  flex-basis: 100%;
-  font-size: var(--role-caption-size);
-  font-weight: var(--role-caption-weight);
-  color: var(--role-caption-color);
-  letter-spacing: 0.01em;
-  margin-top: var(--vr-hairline);
-}
-.stagnation-hint-review { color: var(--bad); }
-
-/* Data-check (uncertain trend) — border-top, no background box */
-.data-check-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vr-hairline);
-  padding-top: var(--space-1);
-  margin-top: var(--vr-tight);
-  border-top: 1px solid var(--rule);
-}
-.data-check-label {
-  font-size: var(--role-eyebrow-size);
-  font-weight: var(--role-eyebrow-weight);
-  letter-spacing: var(--role-eyebrow-spacing);
-  text-transform: uppercase;
-  color: var(--warn);
-}
-.data-check-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-.data-check-dates { font-size: var(--text-sm); font-weight: 600; color: var(--ink-2); }
-.data-check-pct   { font-size: var(--text-2xs); color: var(--warn); font-weight: 600; }
 
 /* Upload error */
 .upload-error {
@@ -2215,7 +2102,7 @@
 
 .field-input.name {
   font-size: var(--text-lg);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .edit-exercise-row {
@@ -2237,43 +2124,6 @@
 .edit-exercise-actions {
   display: flex;
   gap: var(--space-2);
-}
-
-.btn-log-primary,
-.btn-log-secondary {
-  padding: var(--space-2) var(--space-3);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--dur-press), color var(--dur-press);
-}
-
-.btn-log-primary {
-  background: var(--accent-strong);
-  color: white;
-  flex: 1;
-}
-
-.btn-log-primary:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.btn-log-primary:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.btn-log-secondary {
-  background: var(--bg-soft);
-  color: var(--ink-3);
-  flex: 1;
-}
-
-.btn-log-secondary:hover {
-  background: var(--rule);
 }
 
 .edit-exercise-archive-link {
@@ -2308,34 +2158,6 @@
 .note-display {
   font-size: var(--text-sm);
   color: var(--ink-4);
-}
-
-/* ── Add Exercise Ghost Button ───────────────────────────────────────────────*/
-
-.add-exercise-btn {
-  align-self: center;
-  padding: var(--space-3) var(--space-4);
-  border: 1.5px dashed var(--rule-strong);
-  background: transparent;
-  color: var(--ink-3);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  border-radius: var(--radius-card);
-  cursor: pointer;
-  transition: border-color var(--dur-press), color var(--dur-press);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.add-exercise-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.add-exercise-btn:active {
-  transform: scale(var(--tap-scale));
 }
 
 /* ── Exercise trend sheet ────────────────────────────────────────────────────

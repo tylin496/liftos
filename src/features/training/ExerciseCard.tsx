@@ -903,6 +903,7 @@ export function ExerciseCard({
                 </div>
 
                 {isExpanded && (
+                  <div className="hist-detail-clip">
                   <div className="hist-detail-drawer">
                     <div className="hist-detail">
                       {/* Compound shows Est. 1RM (kg); isolation shows best-set
@@ -938,6 +939,7 @@ export function ExerciseCard({
                           : "—"}
                       </span>
                     </div>
+                  </div>
                   </div>
                 )}
 
@@ -981,24 +983,31 @@ export function ExerciseCard({
       )}
 
       {/* ── Log set form (owner only) ── */}
+      {/* Wrapped in the editor drawer so the add form unfolds (height 0fr→1fr)
+          on open, same as inline-edit. is-add zeroes the inner padding so the
+          form's own spacing is preserved 1:1. */}
       {!readOnly && editingMode === "logset" && (
-        addAssisted ? (
-          <AddAssistedForm
-            setCount={sc}
-            lastLog={effectiveLogs[0] ?? null}
-            onAdd={handleAdd}
-            onCancel={() => setEditingMode("view")}
-            submitting={submitting}
-          />
-        ) : (
-          <AddEntryForm
-            setCount={sc}
-            lastRaw={effectiveLogs.find((l) => l.kind !== "assisted")?.raw ?? ""}
-            onAdd={handleAdd}
-            onCancel={() => setEditingMode("view")}
-            submitting={submitting}
-          />
-        )
+        <div className="ex-editor-drawer is-add">
+          <div className="ex-editor-drawer-inner">
+            {addAssisted ? (
+              <AddAssistedForm
+                setCount={sc}
+                lastLog={effectiveLogs[0] ?? null}
+                onAdd={handleAdd}
+                onCancel={() => setEditingMode("view")}
+                submitting={submitting}
+              />
+            ) : (
+              <AddEntryForm
+                setCount={sc}
+                lastRaw={effectiveLogs.find((l) => l.kind !== "assisted")?.raw ?? ""}
+                onAdd={handleAdd}
+                onCancel={() => setEditingMode("view")}
+                submitting={submitting}
+              />
+            )}
+          </div>
+        </div>
       )}
 
       {/* ── Footer: Log set link + View all ── */}

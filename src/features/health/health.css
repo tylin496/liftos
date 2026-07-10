@@ -336,7 +336,7 @@
   display: flex;
   flex-shrink: 0;
   color: var(--ink-3);
-  transition: transform 220ms var(--ease-move);
+  transition: transform var(--dur-move) var(--ease-move);
 }
 
 .health-energy-chevron.is-open {
@@ -351,11 +351,16 @@
 .health-energy-model-wrap {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 300ms var(--ease-enter);
+  /* Standard disclosure: appears on --dur-enter/--ease-enter (see .is-open),
+     collapses faster on --dur-exit/--ease-move — the exit transition lives on
+     the base state, the enter one on .is-open, so each direction gets its own
+     role timing from one grid-rows toggle. */
+  transition: grid-template-rows var(--dur-exit) var(--ease-move);
 }
 
 .health-energy-model-wrap.is-open {
   grid-template-rows: 1fr;
+  transition: grid-template-rows var(--dur-enter) var(--ease-enter);
 }
 
 .health-energy-model {
