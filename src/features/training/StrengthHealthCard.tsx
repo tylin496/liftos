@@ -1,72 +1,50 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavExpand } from "@app/layout/NavContext";
+import { useState } from "react";
 import { MetricValue } from "@shared/components/Metric";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import type { StrengthSummary, StrengthExercise } from "../overview/api";
+import type { MuscleGroup } from "./muscleGroup";
+import { buildMuscleGrid, liftStatus, STATUS_ICON } from "./muscleGrid";
+import type { LiftStatus } from "./muscleGrid";
 import { suggestDeload } from "./deload";
-import { computeMuscleClusters, suggestClusterFatigue } from "./muscleCluster";
 import "./strengthHealthCard.css";
 
-// On-track rows show "% of all-time PR" (how close to your best). Flagged
-// (watch) rows instead carry a stalled readout counting whole weeks since
-// the last new best — that's what actually earned the flag, and it reads
-// clearer than a % that could look like a contradiction (e.g. "97% · Review").
-function exerciseRetention(ex: StrengthExercise): number {
-  return ex.latestE1RM / ex.prE1RM;
+// ── Semantics (the whole point of the redesign) ──────────────────────────────
+// % = RETENTION (current ÷ best), always neutral white, mono, tabular. Never
+// tinted by status. COLOUR = STATUS, and lives only in outlines, tints, status
+// icons, per-lift marks, and sparkline strokes. The two never mix.
+
+function retentionPct(ex: StrengthExercise): number {
+  return Math.round((ex.prE1RM > 0 ? ex.latestE1RM / ex.prE1RM : 0) * 100);
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-function weeksAgo(isoDate: string, nowMs: number): number {
-  const t = Date.parse(isoDate);
-  if (!Number.isFinite(t)) return 0;
-  return Math.floor((nowMs - t) / WEEK_MS);
+// ── Trend chip: overall health-% delta vs ~1 month ago ───────────────────────
+// Computed upstream in strength.ts (a re-run of the summary on month-old logs).
+// A flat move (<1 point) shows no chip — noise shouldn't read as a trend.
+function TrendChip({ trend }: { trend: NonNullable<StrengthSummary["healthTrend"]> }) {
+  if (trend.dir === "flat") return null;
+  const up = trend.dir === "up";
+  return (
+    <span className={`ov-th-trend ov-th-trend--${up ? "up" : "down"}`}>
+      {up ? "↑" : "↓"}
+      {trend.delta}%
+    </span>
+  );
 }
 
-// ── Snapshot summary line: a tiny decision engine, not a fixed readout ───────
-// The Overview snapshot carries ONE line, chosen by importance:
-//   1. an ACUTE decline  → a lift is consecutively sliding right now. It leads —
-//      a live slide (e.g. losing strength mid-cut) is the most time-sensitive
-//      thing to surface, more than a celebration. (bar/count stay green-dominant,
-//      so the whole card still doesn't read as bad news.)
-//   2. a fresh PR this week → the most rewarding signal when nothing's sliding.
-//   3. everything on track  → nothing flagged, say so plainly.
-//   4. lifts need attention → the honest fallback (chronic plateaus).
-// Every branch is derivable from the snapshot alone — we never infer a fuzzy
-// slope; only the trusted `declining` run and distance-from-peak.
-type SnapshotHighlight =
-  | { kind: "declining"; name: string }
-  | { kind: "pr"; count: number }
-  | { kind: "clear" }
-  | { kind: "attention"; count: number };
-
-function snapshotHighlight(
-  exercises: StrengthExercise[],
-  attention: number,
-  nowMs: number,
-): SnapshotHighlight {
-  // Acute decline leads — the most urgent read. Name the worst (lowest retention).
-  const declining = exercises.filter((e) => e.declining);
-  if (declining.length > 0) {
-    const worst = [...declining].sort((a, b) => exerciseRetention(a) - exerciseRetention(b))[0];
-    return { kind: "declining", name: worst.name };
-  }
-  // Fresh PR = a PR on EITHER axis landed within the past week (counts Performance
-  // PRs — a heavier top set Epley rates flat — and survives a later lighter session).
-  const freshPRs = exercises.filter((e) => weeksAgo(e.lastPRDate, nowMs) < 1).length;
-  if (freshPRs > 0) return { kind: "pr", count: freshPRs };
-  if (attention === 0) return { kind: "clear" };
-  return { kind: "attention", count: attention };
+/** Subline suffix — the trend restated in words. Omitted when flat/absent. */
+function trendSuffix(trend: StrengthSummary["healthTrend"]): string {
+  if (!trend || trend.dir === "flat") return "";
+  return trend.dir === "up" ? " · improving this month" : " · slipping this month";
 }
 
-// A row's mini trend line — the last few session e1RMs drawn small, coloured by
-// state (red slide / amber plateau / green climb). Fed real session bests; nodes
-// stay round (explicit width/height, no preserveAspectRatio="none").
-function Sparkline({ bests, tone }: { bests: number[]; tone: "bad" | "warn" | "good" }) {
+// A drill-down row's mini trend line — last ≤6 session bests, coloured by the
+// lift's status via currentColor (set by the status-* class), so the stroke
+// stays on the one status language. Nodes stay round (explicit width/height).
+function Sparkline({ bests, status }: { bests: number[]; status: LiftStatus }) {
   const pts = bests.slice(-6);
-  if (pts.length < 2) return null;
-  const W = 56, H = 20, PAD = 3;
+  if (pts.length < 2) return <span className="ov-thg-spark ov-thg-spark--empty" aria-hidden />;
+  const W = 72, H = 24, PAD = 3;
   const min = Math.min(...pts), max = Math.max(...pts), range = max - min || 1;
   const stepX = (W - PAD * 2) / (pts.length - 1);
   const coords = pts.map((v, i) => {
@@ -76,179 +54,50 @@ function Sparkline({ bests, tone }: { bests: number[]; tone: "bad" | "warn" | "g
   });
   const [lx, ly] = coords[coords.length - 1].split(",");
   return (
-    <svg className={`ov-th-spark ov-th-spark--${tone}`} viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden>
-      <polyline points={coords.join(" ")} fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lx} cy={ly} r="2.4" />
+    <svg className={`ov-thg-spark status-${status}`} viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden>
+      <polyline points={coords.join(" ")} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lx} cy={ly} r="2.6" fill="currentColor" />
     </svg>
   );
 }
 
-// A warning row — two lines: name + mini trend (top), marker + note + retention%
-// (bottom). Declining ↓ (acute, red) and plateau ● (chronic, amber) share one
-// section; colour does the sorting. Weeks is demoted to the caption — retention%
-// is the headline number (the primary judgment, not staleness). Tap → trend chart.
-function WarningRow({
-  exercise,
-  onJump,
-}: {
-  exercise: StrengthExercise;
-  onJump?: (slug: string) => void;
-}) {
-  const acute = exercise.declining;
-  const tone: "bad" | "warn" = acute ? "bad" : "warn";
-  const pct = Math.round(exerciseRetention(exercise) * 100);
-  const wk = exercise.stalledWeeks;
-  // The note is the whole story of the row — no separate staleness hint (weeks is
-  // folded in here, retention% is the headline on the right).
-  const note = acute
-    ? "Declining last 3 sessions"
-    : `Stalled ${wk} ${wk === 1 ? "wk" : "wks"} since PR`;
-  // The note is "what happened"; this is the "so what should I do" — the single
-  // deterministic next step (deload/rebuild). Every warning row is `needsAttention`,
-  // so the suggestion is always present. Read the sentence-cased action as the row's
-  // answer line, muted so the name/note stay the scan anchors.
-  const suggestion = suggestDeload(exercise);
-  const body = (
-    <>
-      <span className="ov-th-wrow-name">{exercise.name}</span>
-      <span className="ov-th-wrow-spark">
-        <Sparkline bests={exercise.recentBests} tone={tone} />
-      </span>
-      <span className="ov-th-wrow-meta">
-        <span className={`ov-th-wrow-marker ov-th-wrow-marker--${tone}`} aria-hidden>
-          {acute ? "↓" : "●"}
-        </span>
-        <span className={`ov-th-wrow-note ov-th-wrow-note--${tone}`}>{note}</span>
-      </span>
-      <span className={`ov-th-wrow-pct ov-th-wrow-pct--${tone}`}>{pct}%</span>
-      {suggestion && (
-        <span className="ov-th-wrow-action">
-          <span className={`ov-th-wrow-action-arrow ov-th-wrow-action-arrow--${tone}`} aria-hidden>
-            →
-          </span>
-          {suggestion.action}
-        </span>
-      )}
-    </>
-  );
-  return onJump ? (
-    <button type="button" className="ov-th-wrow ov-th-wrow--tap" onClick={() => onJump(exercise.slug)}>
-      {body}
-    </button>
-  ) : (
-    <div className="ov-th-wrow">{body}</div>
-  );
+/** The per-lift note in a drill-down row: status glyph + the one next step
+ *  (deload target for flagged lifts, a short state note otherwise). */
+function drillNote(ex: StrengthExercise, status: LiftStatus): string {
+  const icon = STATUS_ICON[status];
+  switch (status) {
+    case "declining": {
+      const s = suggestDeload(ex);
+      return s?.targetKg != null ? `${icon} declining — ease to ~${s.targetKg} kg` : `${icon} declining last 3 sessions`;
+    }
+    case "stalled": {
+      const s = suggestDeload(ex);
+      const wk = `${ex.stalledWeeks} ${ex.stalledWeeks === 1 ? "wk" : "wks"}`;
+      return s?.targetKg != null ? `${icon} stalled ${wk} — drop to ~${s.targetKg} kg` : `${icon} stalled ${wk}`;
+    }
+    case "pr":
+      return `${icon} new PR this week`;
+    case "rebounding":
+      return `${icon} rebounding — climbing back`;
+    default:
+      return `${icon} holding peak`;
+  }
 }
 
-// A reward row — single line. Fresh PR (🏆 strength / 💪 performance) with a
-// "🔥 this week" chip, or a Rebounding ↑ climb shown with its green sparkline.
-function RewardRow({
-  exercise,
-  rewardKind,
-  onJump,
-}: {
-  exercise: StrengthExercise;
-  rewardKind: "pr" | "rebounding";
-  onJump?: (slug: string) => void;
-}) {
-  const isPR = rewardKind === "pr";
-  // Gold moments: a compound Strength PR (new e1RM) and an isolation Hypertrophy
-  // PR (new best-set tonnage) share the 🏆 tier; a compound Performance PR is 💪.
-  const gold = exercise.lastPRKind === "strength" || exercise.lastPRKind === "hypertrophy";
-  const icon = isPR ? (gold ? "🏆" : "💪") : "↑";
-  const note = isPR
-    ? exercise.lastPRKind === "strength"
-      ? "Strength PR new best e1RM"
-      : exercise.lastPRKind === "hypertrophy"
-        ? "Hypertrophy PR new best volume"
-        : `Performance PR ${exercise.lastPRDetail}`
-    : "Rebounding climbing back";
-  const body = (
-    <>
-      <span className={`ov-th-rrow-icon${isPR ? "" : " ov-th-rrow-icon--up"}`} aria-hidden>{icon}</span>
-      <span className="ov-th-rrow-name">{exercise.name}</span>
-      <span className={`ov-th-rrow-note${isPR ? "" : " ov-th-rrow-note--rebounding"}`}>{note}</span>
-      {isPR ? (
-        // A Strength PR that also cleared a round-weight rung earns the gold 🎯
-        // (the log-time milestone toast, remembered). Only on the strength row:
-        // its note ("new best e1RM") carries no weight, so the rung adds a
-        // concrete number — a Performance row already prints its weight in the note.
-        exercise.lastPRKind === "strength" && exercise.milestoneKg != null ? (
-          <span className="ov-th-rrow-chip ov-th-rrow-chip--milestone">🎯 {exercise.milestoneKg} kg</span>
-        ) : (
-          <span className="ov-th-rrow-chip">🔥 this week</span>
-        )
-      ) : exercise.recentBests.length >= 2 ? (
-        <span className="ov-th-rrow-right">
-          <Sparkline bests={exercise.recentBests} tone="good" />
-        </span>
-      ) : (
-        <span className="ov-th-rrow-chip ov-th-rrow-chip--rebounding">↑ climbing back</span>
-      )}
-    </>
-  );
-  return onJump ? (
-    <button type="button" className="ov-th-rrow ov-th-rrow--tap" onClick={() => onJump(exercise.slug)}>
-      {body}
-    </button>
-  ) : (
-    <div className="ov-th-rrow">{body}</div>
-  );
-}
+// Legend row — icon + word pairs. The 4-colour dot legend is replaced by glyphs.
+const LEGEND: { status: LiftStatus; word: string }[] = [
+  { status: "declining", word: "declining" },
+  { status: "stalled", word: "stalled" },
+  { status: "pr", word: "PR" },
+  { status: "rebounding", word: "rebounding" },
+  { status: "steady", word: "steady" },
+];
 
-// Maintaining / neutral lifts carry no signal, so they don't get rows — they'd be
-// the noise this redesign removes. Collapsed to ONE "N holding peak" line; tap to
-// reveal them as name chips (a quiet clue, not a list you scroll past).
-function HoldingPeak({
-  exercises,
-  open,
-  onToggle,
-  onOpened,
-  onJump,
-}: {
-  exercises: StrengthExercise[];
-  open: boolean;
-  onToggle: () => void;
-  onOpened?: () => void;
-  onJump?: (slug: string) => void;
-}) {
-  return (
-    <div className="ov-th-holding">
-      <button type="button" className="ov-th-holding-head" onClick={onToggle} aria-expanded={open}>
-        <span className="ov-th-holding-label">{exercises.length} holding peak</span>
-        <svg
-          className={`ov-th-sect-chevron${open ? " open" : ""}`}
-          width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"
-        >
-          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      <div
-        className={`ov-th-holding-reveal${open ? " open" : ""}`}
-        onTransitionEnd={(e) => {
-          if (open && e.propertyName === "grid-template-rows") onOpened?.();
-        }}
-      >
-        <div className="ov-th-holding-chips">
-          {exercises.map((e) =>
-            onJump ? (
-              <button
-                key={e.slug}
-                type="button"
-                className="ov-th-chip ov-th-chip--tap"
-                onClick={() => onJump(e.slug)}
-              >
-                {e.name}
-              </button>
-            ) : (
-              <span key={e.slug} className="ov-th-chip">{e.name}</span>
-            ),
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+const ChevronRight = ({ className }: { className?: string }) => (
+  <svg className={className} width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+    <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 // Hero % counts up alongside the segmented bar, on the same bottom-up clock as
 // the rest of the page. Blank until its tier delay is known, so it rolls from 0
@@ -267,19 +116,18 @@ function RetentionPct({ target }: { target: number }) {
 export interface StrengthHealthCardProps {
   /** Absent while loading — the card renders its in-place skeleton instead. */
   strength?: StrengthSummary;
-  /** "snapshot" = Overview (hero + bar + one summary line, taps to Training).
-   *  "full" = Training tab (same header, detail lists shown inline). */
+  /** "snapshot" = Overview (hero + bar + one worst-signal row, taps to Training).
+   *  "full" = Training tab (muscle grid + legend + drill-down). */
   variant: "snapshot" | "full";
   /** Only meaningful for the snapshot — taps navigate to Training. */
   onNav?: () => void;
   /** Only meaningful for the full card — lets Overview's nav scroll straight
    *  to it (NavContext's scrollTo target) instead of landing at the tab top. */
   id?: string;
-  /** Cold-load: render the same DOM with placeholder values + shimmer, so the
-   *  card resolves in place instead of unmounting a separate skeleton. */
+  /** Cold-load: render the same DOM with placeholder values + shimmer. */
   loading?: boolean;
-  /** Full variant only — tapping a lift row jumps to its card in the list and
-   *  opens its Trend. Wired by the Training page; absent = rows aren't tappable. */
+  /** Full variant only — tapping a drill-down lift row jumps to its card in the
+   *  list and opens its Trend. Absent = rows aren't tappable. */
   onJumpToExercise?: (slug: string) => void;
 }
 
@@ -291,65 +139,37 @@ export function StrengthHealthCard({
   loading = false,
   onJumpToExercise,
 }: StrengthHealthCardProps) {
-  // Hooks run unconditionally, before any early return, so the count stays
-  // stable across the loading → loaded transition (same mounted instance).
-  // On Track defaults collapsed — it's reassurance, not urgent. Needs Attention
-  // is always shown expanded: if something needs attention, that's the whole
-  // point of the card, not something to tuck behind a tap.
-  // Exception: when deep-linked from Overview's snapshot (nav passes
-  // expand: true), open On Track on arrival — coming from Overview means you
-  // want the full detail, not the summary. Captured once at mount.
-  const navExpandTarget = useNavExpand();
-  const isNavTarget = variant === "full" && id != null && navExpandTarget === id;
-  const [trackOpen, setTrackOpen] = useState(isNavTarget);
-  const trackSectionRef = useRef<HTMLDivElement>(null);
-  // Open On Track when deep-linked from Overview. The initial state covers a cold
-  // (remounted) entry; this effect covers a WARM one — the card stays mounted, so
-  // it never re-reads the initial state, but the nav-expand signal still flips to
-  // this id and should open the section. One-way: it opens on the signal and
-  // ignores the later clear, so a manual collapse afterwards sticks.
-  useEffect(() => {
-    if (isNavTarget) setTrackOpen(true);
-  }, [isNavTarget]);
-  // Deep-link alignment (landing on this card when nav'd from Overview) is
-  // owned by Shell — it pins the target through the skeleton→data layout shift
-  // for every deep-link target, so no per-card re-pin is needed here.
+  // Selected muscle group for the drill-down. Uncontrolled default = worst group
+  // (grid[0]); this holds a user's explicit pick, falling back to the worst group
+  // whenever it's unset or the picked group has dropped out of the data.
+  const [picked, setPicked] = useState<MuscleGroup | null>(null);
 
-  // In-place skeleton: same header + hero + bar + fold structure with
-  // placeholder values, tag kept stable per variant (button/div) so the node
-  // isn't replaced when data lands. Same DOM the loaded card uses below.
+  // In-place skeleton: same header + hero + bar structure with placeholder
+  // values, tag kept stable per variant (button/div) so the node isn't replaced
+  // when data lands.
   if (loading || !strength) {
     const skelHeader = (
       <div className="ov-th-top">
         <span className="ov-th-label">Training Health</span>
-        {variant === "snapshot" && <span className="ov-th-chevron" aria-hidden>›</span>}
+        {variant === "snapshot" && <ChevronRight className="ov-th-chevron" />}
       </div>
     );
     const skelBody = (
       <>
         {skelHeader}
         <div className="ov-th-ret-hero">
-          <MetricValue size={variant === "snapshot" ? "sm" : "lg"}>00%</MetricValue>
+          <MetricValue size={variant === "snapshot" ? "xl" : "lg"}>00%</MetricValue>
           <span className="ov-th-ret-count">0 of 0 tracked lifts on track</span>
         </div>
         <div className="ov-th-bar" aria-hidden>
-          {Array.from({ length: 15 }).map((_, i) => (
+          {Array.from({ length: 11 }).map((_, i) => (
             <span key={i} className="ov-th-bar-seg is-good" />
           ))}
-        </div>
-        <div className="ov-th-fold">
-          <span className="ov-th-fold-left">
-            <span className="ov-th-fold-text ov-th-fold-text--muted">Loading…</span>
-          </span>
         </div>
       </>
     );
     return variant === "snapshot" ? (
-      <button
-        type="button"
-        className="page-card ov-training-health ov-training-health--nav loading-card"
-        onClick={onNav}
-      >
+      <button type="button" className="page-card ov-training-health ov-training-health--nav loading-card" onClick={onNav}>
         {skelBody}
       </button>
     ) : (
@@ -360,75 +180,10 @@ export function StrengthHealthCard({
   }
 
   const hasData = strength.total > 0;
-  const attention = strength.attention;
-  // Now is read once per render for the staleness labels. Fine as a plain read —
-  // it only drives a "logged Nw ago" hint, nothing that needs to be reactive.
-  const nowMs = Date.now();
-  // The snapshot's one summary line, chosen by importance (see snapshotHighlight).
-  const highlight = snapshotHighlight(strength.exercises, attention, nowMs);
-
-  // Expanding On Track drops rows below the fold, where the floating tabbar can
-  // clip them. The reveal animates its height (grid-template-rows 0fr→1fr), so
-  // scrolling on the toggle would land at the collapsed height and leave the
-  // grown rows clipped — HoldingPeak fires revealHolding on transitionend, once
-  // the rows have reached full height. block:"nearest" honours the section's
-  // scroll-margin-bottom to clear the tabbar without over-scrolling.
-  const toggleHolding = () => setTrackOpen((v) => !v);
-  const revealHolding = () =>
-    trackSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-
-  // Categorise every lift into ONE of: warning (acute ↓ decline, then chronic ●
-  // plateau), reward (fresh PR, then rebounding), or holding-peak (no signal).
-  // Only warnings + rewards get rows; holding-peak collapses to a count. Sorted
-  // worst-first within each group (lowest retention reads first).
-  const byRetention = (a: StrengthExercise, b: StrengthExercise) =>
-    exerciseRetention(a) - exerciseRetention(b);
-  const isFreshPR = (e: StrengthExercise) => weeksAgo(e.lastPRDate, nowMs) < 1 && !e.declining;
-
-  const declining = strength.exercises.filter((e) => e.declining).sort(byRetention);
-  const plateau = strength.exercises
-    .filter((e) => e.needsAttention && !e.declining)
-    .sort(byRetention);
-  const warnings = [...declining, ...plateau];
-
-  const freshPRs = strength.exercises.filter(isFreshPR).sort(byRetention);
-  const rebounding = strength.exercises
-    .filter((e) => e.recovering && !isFreshPR(e))
-    .sort(byRetention);
-  const rewards = [...freshPRs, ...rebounding];
-
-  // Muscle-level fatigue: several lifts of one muscle sliding together in the
-  // same block — a systemic read the per-lift rows can't show. Muscle inferred
-  // from name/slug (no split here — it's only the fallback); rides on trajectory.
-  const nameOf = (slug: string) => strength.exercises.find((e) => e.slug === slug)?.name ?? slug;
-  const muscleFatigue = computeMuscleClusters(strength.exercises)
-    .map((c) => suggestClusterFatigue(c, nameOf))
-    .filter((a): a is NonNullable<typeof a> => a !== null);
-
-  const signalSlugs = new Set([...warnings, ...rewards].map((e) => e.slug));
-  const holdingPeak = strength.exercises.filter((e) => !signalSlugs.has(e.slug));
-  const onTrackCount = strength.total - warnings.length;
-
-  // Hero, colour, and count all derive from ONE source — strength.exercises.
-  // Hero = mean % of PR across every qualifying lift; the count and bar report
-  // how many of that same set are holding. No second dataset, so the big number
-  // can never disagree with the line beneath it.
-  const retentionPct = strength.exercises.length
-    ? Math.round(
-        (strength.exercises.reduce((s, e) => s + exerciseRetention(e), 0) /
-          strength.exercises.length) *
-          100,
-      )
-    : null;
-
   const emptyMsg = "No lifts tracked yet — log a few sessions to see this";
   if (!hasData) {
     return variant === "snapshot" ? (
-      <button
-        type="button"
-        className="page-card ov-training-health ov-training-health--nav"
-        onClick={onNav}
-      >
+      <button type="button" className="page-card ov-training-health ov-training-health--nav" onClick={onNav}>
         <span className="ov-th-label">Training Health</span>
         <p className="ov-th-empty">{emptyMsg}</p>
       </button>
@@ -440,176 +195,166 @@ export function StrengthHealthCard({
     );
   }
 
-  const header = (
+  // Now is read once per render for the fresh-PR window. Fine as a plain read.
+  const nowMs = Date.now();
+  const grid = buildMuscleGrid(strength.exercises, nowMs);
+  // On track = lifts NOT flagged for intervention (strength.attention is exactly
+  // the declining ∪ stalled count). Hero % + trend come from the summary so the
+  // number never re-derives independently of the export/engine.
+  const onTrack = strength.total - strength.attention;
+  const heroPct = strength.healthPct;
+  const trend = strength.healthTrend;
+
+  const header = (variant === "snapshot" ? (
     <div className="ov-th-top">
       <span className="ov-th-label">Training Health</span>
-      {variant === "snapshot" && <span className="ov-th-chevron" aria-hidden>›</span>}
+      <ChevronRight className="ov-th-chevron" />
     </div>
-  );
+  ) : (
+    <div className="ov-th-top">
+      <span className="ov-th-label">Training Health</span>
+    </div>
+  ));
 
   const hero = (
     <div className="ov-th-ret-hero">
-      {/* Neutral ink — a big metric value never carries a verdict colour
-          (colour lives on the delta/bar/badge, not the hero number). The
-          on-track/attention verdict is already owned by the segmented bar +
-          "N of M lifts" count below, so colouring the % too would double-
-          encode it (invariant I3). */}
-      {/* Snapshot hero is one tier smaller than the full card's — the Overview
-          entry is a summary, not the detailed view, so it shouldn't carry the
-          same visual weight as the Training page it taps into. */}
-      <MetricValue size={variant === "snapshot" ? "sm" : "lg"}>
-        {retentionPct !== null ? <RetentionPct target={retentionPct} /> : "—"}
-      </MetricValue>
-      {/* "tracked" qualifies M — only lifts with enough history (4+ logged
-          sessions) are judged. Absence of data isn't counted as anything, so
-          the denominator is "lifts we can read," not "all your lifts." */}
+      <span className="ov-th-hero-row">
+        {/* Neutral ink — a big metric value never carries a verdict colour.
+            The verdict lives on the trend chip + bar + count, not the %. */}
+        <MetricValue size={variant === "snapshot" ? "xl" : "lg"}>
+          {heroPct !== null ? <RetentionPct target={heroPct} /> : "—"}
+        </MetricValue>
+        {trend && <TrendChip trend={trend} />}
+      </span>
+      {/* "tracked" qualifies the denominator — only lifts with enough history
+          (≥4 sessions) are judged. */}
       <span className="ov-th-ret-count">
-        {onTrackCount} of {strength.total} tracked lifts on track
+        {onTrack} of {strength.total} tracked lifts on track{trendSuffix(trend)}
       </span>
     </div>
   );
 
-  // Bar cells are ordered by severity (good → attention → declining) so the bar
-  // reads as one clean proportion meter: the on-track green fills from the left
-  // and the few flagged lifts collect together at the right, instead of the
-  // amber cells scattering wherever a lift happens to fall in the raw list.
+  // Bar cells are severity-sorted (good → stalled → declining) so the on-track
+  // green fills from the left and flagged lifts collect at the right — one clean
+  // proportion meter. Its cell-by-cell entrance is a sanctioned cascade.
   const barSeverity = (e: StrengthExercise) => (e.declining ? 2 : e.needsAttention ? 1 : 0);
   const barCells = [...strength.exercises].sort((a, b) => barSeverity(a) - barSeverity(b));
-
   const bar = (
-    <div
-      className="ov-th-bar"
-      role="img"
-      aria-label={`${onTrackCount} of ${strength.total} tracked lifts on track`}
-    >
+    <div className="ov-th-bar" role="img" aria-label={`${onTrack} of ${strength.total} tracked lifts on track`}>
       {barCells.map((ex, i) => (
         <span
           key={ex.slug}
-          // Coloured by the lift's state — acute decline = red tint, chronic
-          // plateau = amber, else green — and severity-sorted (above) so same
-          // colours sit together rather than speckling the bar.
           className={`ov-th-bar-seg${ex.declining ? " is-declining" : ex.needsAttention ? " is-watch" : " is-good"}`}
-          // Cells snap in one at a time on a fixed --stagger-step tick (NOT divided
-          // by count) so the one-by-one rhythm stays legible — a discrete cascade.
           style={{ animationDelay: `calc(var(--enter-wait) + ${i} * var(--stagger-step))` }}
         />
       ))}
     </div>
   );
 
-  // ── Snapshot (Overview): whole card navigates to Training; one summary line
-  //    stands in for the detail list, no fold/expand. ──
+  // ── Snapshot (Overview): whole card navigates to Training; one worst-signal
+  //    row is the hook into Detail. Hidden when nothing is declining/stalled. ──
   if (variant === "snapshot") {
+    const worst = grid[0];
+    const showSignal = worst && (worst.status === "declining" || worst.status === "stalled");
+    const signalLift = showSignal ? worst.lifts[0] : null;
+    const signalDetail = signalLift
+      ? worst.status === "declining"
+        ? `${signalLift.name} declining · 3 sessions`
+        : `${signalLift.name} stalled · ${signalLift.stalledWeeks} ${signalLift.stalledWeeks === 1 ? "wk" : "wks"}`
+      : "";
     return (
-      <button
-        type="button"
-        className="page-card ov-training-health ov-training-health--nav"
-        onClick={onNav}
-      >
+      <button type="button" className="page-card ov-training-health ov-training-health--nav" onClick={onNav}>
         {header}
         {hero}
         {bar}
-        <div className="ov-th-fold">
-          <span className="ov-th-fold-left">
-            {highlight.kind === "declining" && (
-              <>
-                <span className="ov-th-fold-marker" aria-hidden>↓</span>
-                <span className="ov-th-fold-text">{highlight.name} declining</span>
-              </>
-            )}
-            {highlight.kind === "pr" && (
-              <>
-                <span className="ov-th-fold-emoji" aria-hidden>🔥</span>
-                <span className="ov-th-fold-text">
-                  {highlight.count === 1
-                    ? "New PR this week"
-                    : `${highlight.count} new PRs this week`}
-                </span>
-              </>
-            )}
-            {highlight.kind === "clear" && (
-              <span className="ov-th-fold-text">Nothing needs attention</span>
-            )}
-            {highlight.kind === "attention" && (
-              <>
-                <span className="ov-th-fold-chip">{highlight.count}</span>
-                <span className="ov-th-fold-text">need attention</span>
-              </>
-            )}
-          </span>
-        </div>
+        {showSignal && signalLift && (
+          <div className={`ov-th-signal tone-${worst.tone}`}>
+            <span className={`ov-th-signal-icon status-${worst.status}`} aria-hidden>{STATUS_ICON[worst.status]}</span>
+            <span className="ov-th-signal-group">{worst.group}</span>
+            <span className="ov-th-signal-detail">{signalDetail}</span>
+            <ChevronRight className="ov-th-signal-chev" />
+          </div>
+        )}
       </button>
     );
   }
 
-  // ── Full (Training tab): the complete list, always shown. No "+more" nav —
-  //    you're already in Training. ──
+  // ── Full (Training tab): muscle grid + legend + drill-down. ──
+  const selectedGroup =
+    picked != null && grid.some((c) => c.group === picked) ? picked : grid[0]?.group ?? null;
+  const selectedCell = grid.find((c) => c.group === selectedGroup) ?? null;
+
   return (
     <div id={id} className="page-card ov-training-health">
       {header}
       {hero}
       {bar}
-      <div className="ov-th-fold-body">
-        {warnings.length > 0 && (
-          <div className="ov-th-section">
-            <div className="ov-th-sect-head-row ov-th-sect-head-row--static">
-              <span className="ov-th-sect-head">Needs attention</span>
-            </div>
-            {/* Muscle-level callout: verdict headline + a dot strip (one dot per
-                judged lift in the group, coral = sliding) + the volume-level next
-                step. The dots are the systemic read at a glance — the per-lift
-                stories stay in the warning rows below, so no lift names here. */}
-            {muscleFatigue.map((f) => (
-              <div key={f.muscle} className="ov-th-cluster">
-                <span className="ov-th-cluster-head">
-                  <span className="ov-th-cluster-marker" aria-hidden>⚠</span>
-                  <span className="ov-th-cluster-headline">{f.headline}</span>
-                  <span
-                    className="ov-th-cluster-dots"
-                    role="img"
-                    aria-label={`${f.lifts.length} of ${f.groupSize} ${f.muscle} lifts sliding`}
-                  >
-                    {Array.from({ length: f.groupSize }).map((_, i) => (
-                      <span
-                        key={i}
-                        className={`ov-th-cluster-dot${i < f.lifts.length ? " is-sliding" : ""}`}
-                      />
-                    ))}
-                  </span>
-                </span>
-                <span className="ov-th-cluster-detail">
-                  {f.lifts.length} of {f.groupSize} {f.muscle} lifts sliding together
-                </span>
-                <span className="ov-th-cluster-step">
-                  <span className="ov-th-cluster-step-arrow" aria-hidden>→</span>
-                  {f.step}
-                </span>
-              </div>
-            ))}
-            {warnings.map((ex) => (
-              <WarningRow key={ex.slug} exercise={ex} onJump={onJumpToExercise} />
-            ))}
-          </div>
-        )}
-        {rewards.length > 0 && (
-          <div className="ov-th-section">
-            <div className="ov-th-sect-head-row ov-th-sect-head-row--static">
-              <span className="ov-th-sect-head">Recent wins</span>
-            </div>
-            {freshPRs.map((ex) => (
-              <RewardRow key={ex.slug} exercise={ex} rewardKind="pr" onJump={onJumpToExercise} />
-            ))}
-            {rebounding.map((ex) => (
-              <RewardRow key={ex.slug} exercise={ex} rewardKind="rebounding" onJump={onJumpToExercise} />
-            ))}
-          </div>
-        )}
-        {holdingPeak.length > 0 && (
-          <div className="ov-th-section" ref={trackSectionRef}>
-            <HoldingPeak exercises={holdingPeak} open={trackOpen} onToggle={toggleHolding} onOpened={revealHolding} onJump={onJumpToExercise} />
-          </div>
-        )}
+
+      <div className="ov-thg-grid">
+        {grid.map((cell) => (
+          <button
+            key={cell.group}
+            type="button"
+            className={`ov-thg-cell tone-${cell.tone} size-${cell.sizeTier}${cell.hero ? " is-hero" : ""}${cell.group === selectedGroup ? " is-selected" : ""}`}
+            onClick={() => setPicked(cell.group)}
+          >
+            <span className="ov-thg-cell-head">
+              <span className="ov-thg-cell-name">{cell.group}</span>
+              <span className="ov-thg-cell-metric">
+                <span className={`ov-thg-cell-icon status-${cell.status}`} aria-hidden>{STATUS_ICON[cell.status]}</span>
+                <span className="ov-thg-cell-pct">{cell.pct}%</span>
+              </span>
+            </span>
+            <span className="ov-thg-cell-insight">{cell.insight}</span>
+            <span className="ov-thg-cell-foot">
+              <span className="ov-thg-marks">
+                {cell.marks.map((m) => (
+                  <span key={m.slug} className={`ov-thg-mark status-${m.status}`} aria-hidden>{m.icon}</span>
+                ))}
+              </span>
+              <span className="ov-thg-cell-count">{cell.count}</span>
+            </span>
+          </button>
+        ))}
       </div>
+
+      <div className="ov-thg-legend">
+        {LEGEND.map((l) => (
+          <span key={l.status} className="ov-thg-leg">
+            <span className={`ov-thg-leg-icon status-${l.status}`} aria-hidden>{STATUS_ICON[l.status]}</span>
+            <span className="ov-thg-leg-word">{l.word}</span>
+          </span>
+        ))}
+      </div>
+
+      {selectedCell && (
+        <div className="ov-thg-drill">
+          <div className="ov-thg-drill-head">
+            <span className="ov-thg-drill-title">{selectedCell.group}</span>
+            <span className="ov-thg-drill-count">{selectedCell.count}</span>
+          </div>
+          {selectedCell.lifts.map((ex) => {
+            const st = liftStatus(ex, nowMs);
+            const row = (
+              <>
+                <Sparkline bests={ex.recentBests} status={st} />
+                <span className="ov-thg-drill-lift">
+                  <span className="ov-thg-drill-name">{ex.name}</span>
+                  <span className={`ov-thg-drill-note status-${st}`}>{drillNote(ex, st)}</span>
+                </span>
+                <span className="ov-thg-drill-pct">{retentionPct(ex)}%</span>
+              </>
+            );
+            return onJumpToExercise ? (
+              <button key={ex.slug} type="button" className="ov-thg-drill-row ov-thg-drill-row--tap" onClick={() => onJumpToExercise(ex.slug)}>
+                {row}
+              </button>
+            ) : (
+              <div key={ex.slug} className="ov-thg-drill-row">{row}</div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

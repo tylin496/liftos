@@ -202,6 +202,29 @@ export interface StrengthSummary {
   attention: number;
   total: number; // exercises with enough data
   exercises: StrengthExercise[];
+  /** Aggregate card health — mean per-lift retention (latest ÷ PR), 0–100, or
+   *  null when no lift qualifies. The single source for the hero % and the
+   *  trend delta (both the card and the export read this, never re-derive it). */
+  healthPct: number | null;
+  /** Health-% change vs ~1 month ago: `delta` is the whole-point magnitude,
+   *  `dir` its sign (a <1-point move reads "flat"). Null when there isn't a
+   *  comparable past snapshot. Drives the "↑2%" trend chip + the subline suffix. */
+  healthTrend: { delta: number; dir: "up" | "down" | "flat" } | null;
+}
+
+/** One lift's retention (latest ÷ all-time PR) — the atom under both the hero %
+ *  and the trend delta. */
+function retentionOf(e: StrengthExercise): number {
+  return e.prE1RM > 0 ? e.latestE1RM / e.prE1RM : 0;
+}
+
+/** Aggregate card health = mean per-lift retention, rounded to a whole %, or
+ *  null when no lift qualifies. Pure; the hero number and the month-ago trend
+ *  both go through here so they can never disagree. */
+export function healthPct(exercises: StrengthExercise[]): number | null {
+  if (exercises.length === 0) return null;
+  const mean = exercises.reduce((s, e) => s + retentionOf(e), 0) / exercises.length;
+  return Math.round(mean * 100);
 }
 
 /** Logs grouped by exercise slug — the only shape the strength computation
@@ -226,8 +249,11 @@ export function computeStrengthSummary(
    *  title-casing the slug, which is only an approximation — it can't recover
    *  intentional casing like an acronym. */
   namesBySlug?: Record<string, string>,
+  /** Internal recursion guard: the month-ago re-run passes false so it doesn't
+   *  compute a trend-of-a-trend (and can't recurse forever). Callers omit it. */
+  computeTrend = true,
 ): StrengthSummary {
-  const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, attention: 0, total: 0, exercises: [] };
+  const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, attention: 0, total: 0, exercises: [], healthPct: null, healthTrend: null };
 
   for (const [slug, slugLogs] of Object.entries(logsBySlug)) {
     // Performance trend: need ≥4 logs to compare recent 3 vs prior sessions
@@ -414,7 +440,73 @@ export function computeStrengthSummary(
     });
   }
 
+  strength.healthPct = healthPct(strength.exercises);
+  // Trend chip: re-run this same computation on the logs as they stood ~1 month
+  // ago and diff. Reuses the whole pipeline (same score mode, same qualifying
+  // gate) so the past is measured exactly like the present, and compares only
+  // lifts present in BOTH snapshots — see monthAgoTrend.
+  if (computeTrend && strength.exercises.length > 0) {
+    strength.healthTrend = monthAgoTrend(logsBySlug, strength.exercises, compoundSlugs, namesBySlug);
+  }
+
   return strength;
+}
+
+const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+/** A <1-point move (after whole-% rounding) is noise, not a trend → "flat". */
+const TREND_FLAT_BAND = 1;
+
+/** Latest log date across all lifts, as ms — the reference "now" for the trend
+ *  window. Data-derived (not Date.now()) so the read stays pure/deterministic and
+ *  a month of no logging doesn't silently collapse the comparison window. */
+function latestLogMs(logsBySlug: LogsBySlug): number | null {
+  let max = -Infinity;
+  for (const logs of Object.values(logsBySlug)) {
+    for (const l of logs) {
+      if (!l.log_date) continue;
+      const t = Date.parse(l.log_date);
+      if (Number.isFinite(t) && t > max) max = t;
+    }
+  }
+  return max === -Infinity ? null : max;
+}
+
+/** Health-% delta vs the snapshot ~30 days before the latest log. Filters each
+ *  lift's logs to on-or-before the cutoff, re-runs the summary (trend off), and
+ *  diffs the two means over the SAME lifts — only those that qualify (≥4
+ *  sessions) in BOTH snapshots. Comparing a shared set is the whole point: an
+ *  all-lifts mean would move whenever a lift enters/leaves the ≥4-session gate,
+ *  so a brand-new low-retention lift could read as "slipping" even though every
+ *  existing lift held. Null when no lift is comparable across both. */
+function monthAgoTrend(
+  logsBySlug: LogsBySlug,
+  current: StrengthExercise[],
+  compoundSlugs: Set<string> | undefined,
+  namesBySlug: Record<string, string> | undefined,
+): StrengthSummary["healthTrend"] {
+  const latest = latestLogMs(logsBySlug);
+  if (latest == null) return null;
+  // Compare date strings lexically — log_date and this cutoff share YYYY-MM-DD.
+  const cutoffISO = new Date(latest - MONTH_MS).toISOString().slice(0, 10);
+  const past: LogsBySlug = {};
+  for (const [slug, logs] of Object.entries(logsBySlug)) {
+    const kept = logs.filter((l) => l.log_date != null && l.log_date <= cutoffISO);
+    if (kept.length > 0) past[slug] = kept;
+  }
+  const pastBySlug = new Map(
+    computeStrengthSummary(past, compoundSlugs, namesBySlug, false).exercises.map((e) => [
+      e.slug,
+      retentionOf(e),
+    ]),
+  );
+  // Intersect on slug: a lift only counts if it was judgeable a month ago too.
+  const pairs = current.filter((e) => pastBySlug.has(e.slug));
+  if (pairs.length === 0) return null;
+  const meanNow = pairs.reduce((s, e) => s + retentionOf(e), 0) / pairs.length;
+  const meanPast = pairs.reduce((s, e) => s + pastBySlug.get(e.slug)!, 0) / pairs.length;
+  const delta = Math.round(meanNow * 100) - Math.round(meanPast * 100);
+  const dir = Math.abs(delta) < TREND_FLAT_BAND ? "flat" : delta > 0 ? "up" : "down";
+  return { delta: Math.abs(delta), dir };
 }
 
 // ─── Training Evaluation (the Decision Engine's training slice) ──────────────

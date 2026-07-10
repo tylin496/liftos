@@ -1,23 +1,53 @@
 /* ─── Strength / Training Health Card ─────────────────────────────────────────
-   Shared by two surfaces:
-   - Overview  → `variant="snapshot"` (hero % + bar + one summary line, taps to
-     Training). Non-expandable.
-   - Training  → `variant="full"` (same header, detail lists always shown).
+   Muscle-Grid redesign. Shared by two surfaces:
+   - Overview  → `variant="snapshot"` (hero % + trend chip + bar + one
+     worst-signal row, taps to Training). Non-expandable.
+   - Training  → `variant="full"` (hero + bar + muscle grid + legend + drill-down).
    Class names keep the historical `ov-th-*` prefix so the Overview loading
-   skeleton (overview.css) and this card stay on one set of selectors. */
+   skeleton (overview.css) and this card stay on one set of selectors; grid-only
+   classes use the `ov-thg-*` prefix.
 
+   ONE colour language: % is retention (neutral white, mono, never tinted);
+   colour is status and lives only on outlines, tints, icons, marks, sparklines.
+
+   TOC (line ≈)
+     §1  Card chrome + nav states .................  20
+     §2  Header / label / chevron / empty .........  55
+     §3  Hero (% + trend chip) + count ............  90
+     §4  Segmented bar ...........................  130
+     §5  Status colour language (tints + tokens) .  185
+     §6  Snapshot worst-signal row ...............  225
+     §7  Muscle grid + cells .....................  260
+     §8  Legend ..................................  345
+     §9  Drill-down ..............................  370
+*/
+
+/* ═══ §1  Card chrome + nav states ══════════════════════════════════════════ */
 .ov-training-health {
-  /* chrome (bg, border, radius, shadow, blur) comes from .page-card —
-     kept here as layout-only so every card shares one radius source */
+  /* chrome (bg, border, radius, shadow, blur) comes from .page-card */
   display: flex;
   flex-direction: column;
   gap: 0;
-  /* Deep-linked from Overview: land with a small breath above the card top
-     instead of jammed against the viewport edge (scrollIntoView honours this). */
   scroll-margin-top: var(--space-4);
+
+  /* Status tint/outline pairs — the only new colours, kept local (card-specific,
+     GitHub-contribution style: very light bg, colour carried by the outline).
+     Derived from the shared semantic tokens via color-mix so they track the
+     palette and adapt across light/dark for free. */
+  --th-steady-ink: rgba(142, 142, 147, 0.55);
+  --th-bad-bg: color-mix(in srgb, var(--bad) 7%, transparent);
+  --th-bad-bd: color-mix(in srgb, var(--bad) 55%, transparent);
+  --th-warn-bg: color-mix(in srgb, var(--warn) 6%, transparent);
+  --th-warn-bd: color-mix(in srgb, var(--warn) 50%, transparent);
+  --th-good-bg: color-mix(in srgb, var(--good) 5%, transparent);
+  --th-good-bd: color-mix(in srgb, var(--good) 45%, transparent);
+  --th-gold-bg: color-mix(in srgb, var(--gold) 5%, transparent);
+  --th-gold-bd: color-mix(in srgb, var(--gold) 50%, transparent);
+  --th-steady-bg: color-mix(in srgb, var(--ink) 3%, transparent);
+  --th-steady-bd: var(--rule);
 }
 
-/* When used as a plain nav button (no data state) */
+/* Snapshot card is itself the nav button; the full (Training) card is a plain div. */
 .ov-training-health--nav {
   gap: var(--space-3);
   cursor: pointer;
@@ -32,6 +62,9 @@
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
+  .ov-training-health--nav:hover .ov-th-chevron {
+    color: var(--ink-2);
+  }
 }
 
 .ov-training-health--nav:active {
@@ -40,33 +73,7 @@
   transition-duration: var(--dur-press);
 }
 
-/* Snapshot card is itself the nav button (like Weight·TDEE's whole-card nav);
-   the full (Training) card is a plain div and reuses this layout only. */
-.ov-th-summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vr-block);
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform var(--dur-press) var(--ease-press), box-shadow var(--dur-press);
-}
-
-@media (hover: hover) {
-  .ov-th-summary:hover .ov-th-chevron {
-    color: var(--ink-2);
-  }
-}
-
-.ov-th-summary:active {
-  transform: scale(var(--tap-scale));
-  box-shadow: var(--shadow-sm);
-  transition-duration: var(--dur-press);
-}
-
+/* ═══ §2  Header / label / chevron / empty ═════════════════════════════════ */
 .ov-th-top {
   display: flex;
   align-items: center;
@@ -81,10 +88,10 @@
   color: var(--role-eyebrow-color);
 }
 
+/* Chevron-right (SVG) — taps into the Training tab. */
 .ov-th-chevron {
-  font-size: var(--text-xl);
   color: var(--ink-4);
-  line-height: 1;
+  flex-shrink: 0;
   transition: color var(--dur-press);
 }
 
@@ -95,11 +102,18 @@
   margin: 0;
 }
 
+/* ═══ §3  Hero (% + trend chip) + count ════════════════════════════════════ */
 .ov-th-ret-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--vr-section);
+}
+
+.ov-th-hero-row {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  margin-top: var(--vr-section);
 }
 
 .ov-th-ret-count {
@@ -108,9 +122,33 @@
   color: var(--ink-3);
 }
 
-/* Segmented ratio bar — one pill per lift, green = on track. The one
-   established exception to "no --good outside a delta": On Track is a
-   Good-tier state, same convention as training.css's on-track badge. */
+/* Trend chip — overall health-% delta vs ~1 month ago. Mono, tinted by
+   direction (its OWN 12% wash, stronger than the cell tints so a small pill
+   still reads). The one sanctioned good/bad colour pairing outside a delta. */
+.ov-th-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.ov-th-trend--up {
+  color: var(--good);
+  background: color-mix(in srgb, var(--good) 12%, transparent);
+}
+.ov-th-trend--down {
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+}
+
+/* ═══ §4  Segmented bar ════════════════════════════════════════════════════ */
+/* One pill per lift, severity-sorted. Green = on track; flagged lifts tint
+   amber/red at the right. Cell-by-cell snap-in is a sanctioned cascade. */
 .ov-th-bar {
   display: flex;
   gap: 3px;
@@ -121,8 +159,7 @@
   flex: 1;
   height: 6px;
   border-radius: var(--radius-pill);
-  /* Full grey track — always present, static, so the bar is never blank. */
-  background: var(--rule-strong);
+  background: var(--rule-strong); /* full grey track — never blank */
   position: relative;
 }
 
@@ -130,162 +167,9 @@
   to { opacity: 1; }
 }
 
-/* On-track segments overlay a green fill on the grey track. Each cell SNAPS to
-   full instantly at its own delay (not a gradual grow) — the one-segment-at-a-
-   time rhythm comes purely from the staggered inline animation-delay (inherited
-   by ::before), so it reads as discrete ticks, never a stepless sweep. */
-.ov-th-bar-seg.is-good::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--good);
-  opacity: 0;
-  animation: th-seg-in 1ms linear both;
-  animation-delay: inherit;
-}
-
-/* Watch segments (needs attention) stay on the neutral grey track — only the
-   on-track segments get a fill colour. The attention chip + list below already
-   carry the "needs a look" signal; this avoids a second, more alarming red bar. */
-
-/* Loading skeleton: grey shimmer only — no green/red fill. */
-.loading-card .ov-th-bar-seg::before { display: none; }
-
-/* Summary row — snapshot's one-line stand-in for the detail list. Reused as a
-   plain div (no fold button / chevron). A single margin-top keeps bar→fold on
-   the same rhythm as header→hero and hero→bar (one --space-4 step each). */
-.ov-th-fold {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-top: var(--vr-section);
-  padding-top: var(--space-4);
-  width: 100%;
-  background: none;
-  border: none;
-  border-top: 1px solid var(--rule);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.ov-th-fold-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* Amber count chip — chronic plateau signal (never renders alongside acute decline). */
-.ov-th-fold-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 6px;
-  border-radius: var(--radius-pill);
-  background: var(--warn);
-  color: #fff;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.ov-th-fold-text {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.ov-th-fold-text--muted {
-  font-weight: 500;
-  color: var(--ink-3);
-}
-
-/* Win emoji (🔥) leading the summary line when there's a PR to celebrate.
-   Sized to the text beside it; the emoji is the whole colour signal on this
-   line (the gold/red tokens stay off it), matching reward-emoji use elsewhere. */
-.ov-th-fold-emoji {
-  font-size: var(--text-sm);
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-/* Detail list — always shown on the full (Training) card. Sits a full --space-6
-   below the bar so the summary zone (hero + bar) reads as its own block, not a
-   continuous run into the list. */
-.ov-th-fold-body {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-6) 0 0;
-  gap: 0;
-}
-
-/* Rows self-space via their own padding + hairline, so the section owns no
-   inter-row gap — the head-row's margin-bottom is what caps the block. */
-.ov-th-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding-top: var(--space-5);
-  /* Expanding On Track auto-scrolls it into view ({block:"end"}); land it above
-     the floating tabbar rather than clipped behind it. */
-  scroll-margin-bottom: var(--dock-bottom-clearance);
-}
-
-.ov-th-section:first-child {
-  padding-top: 0;
-}
-
-.ov-th-sect-head-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: var(--space-2);
-  /* Breathing room below the section title so it reads as a heading capping the
-     block, not another row jammed against the first entry. */
-  margin-bottom: var(--vr-loose);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Needs Attention's header is a plain div, not a toggle — always expanded, so
-   it shouldn't read as clickable. */
-.ov-th-sect-head-row--static {
-  cursor: default;
-}
-
-.ov-th-sect-head {
-  font-size: var(--role-section-title-size);
-  font-weight: var(--role-section-title-weight);
-  letter-spacing: var(--role-section-title-spacing);
-  text-transform: uppercase;
-  color: var(--role-section-title-color);
-}
-
-.ov-th-sect-chevron {
-  color: var(--ink-4);
-  flex-shrink: 0;
-  transition: transform var(--dur-move) var(--ease-move);
-}
-
-.ov-th-sect-chevron.open {
-  transform: rotate(180deg);
-}
-
-/* ═══ Redesign (1B): signal-only rows — Warnings, Wins, holding-peak ═══════════
-   The card lists only lifts with a signal; maintaining/neutral lifts collapse to
-   a count. No cards, no fills, no left rail — hairline-divided rows; colour lives
-   on the marker, the % and the mini sparkline. */
-
-/* Bar: watch/declining cells tint so the bar maps to the rows below. */
+/* Every coloured segment SNAPS to full instantly at its own staggered delay
+   (inherited) — discrete ticks, never a stepless grow. */
+.ov-th-bar-seg.is-good::before,
 .ov-th-bar-seg.is-watch::before,
 .ov-th-bar-seg.is-declining::before {
   content: "";
@@ -296,214 +180,239 @@
   animation: th-seg-in 1ms linear both;
   animation-delay: inherit;
 }
-.ov-th-bar-seg.is-watch::before { background: rgba(255, 149, 0, 0.55); }     /* chronic plateau — amber */
-.ov-th-bar-seg.is-declining::before { background: rgba(255, 56, 60, 0.6); } /* acute slide — red */
+.ov-th-bar-seg.is-good::before { background: var(--good); }
+.ov-th-bar-seg.is-watch::before { background: color-mix(in srgb, var(--warn) 62%, transparent); }
+.ov-th-bar-seg.is-declining::before { background: color-mix(in srgb, var(--bad) 65%, transparent); }
 
-/* Snapshot: acute-decline marker leading the summary line. */
-.ov-th-fold-marker {
+/* Loading skeleton: grey shimmer only — no fills. */
+.loading-card .ov-th-bar-seg::before { display: none; }
+
+/* ═══ §5  Status colour language ═══════════════════════════════════════════ */
+/* Applied to icons, marks, legend glyphs, and (via currentColor) sparklines.
+   PR is a 🏆 emoji — it carries its own colour, so status-pr sets none. */
+.status-declining { color: var(--bad); }
+.status-stalled { color: var(--warn); }
+.status-rebounding { color: var(--good); }
+.status-steady { color: var(--th-steady-ink); }
+
+/* Cell / signal tint + outline by tone. Border colour IS the status signal
+   here (the one place a passive-looking surface earns an outline). */
+.tone-bad { background: var(--th-bad-bg); border-color: var(--th-bad-bd); }
+.tone-warn { background: var(--th-warn-bg); border-color: var(--th-warn-bd); }
+.tone-good { background: var(--th-good-bg); border-color: var(--th-good-bd); }
+.tone-gold { background: var(--th-gold-bg); border-color: var(--th-gold-bd); }
+.tone-steady { background: var(--th-steady-bg); border-color: var(--th-steady-bd); }
+
+/* ═══ §6  Snapshot worst-signal row ════════════════════════════════════════ */
+/* The hook into Detail: worst declining/stalled lift, tinted to its tone. */
+.ov-th-signal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--vr-section);
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+}
+.ov-th-signal-icon {
   font-size: var(--text-sm);
   font-weight: 700;
   line-height: 1;
-  color: var(--bad);
   flex-shrink: 0;
 }
-
-/* Mini trend sparkline — colour set by tone class, geometry from real bests. */
-.ov-th-spark { display: block; }
-.ov-th-spark polyline { stroke: currentColor; }
-.ov-th-spark circle { fill: currentColor; }
-.ov-th-spark--bad { color: var(--bad); }
-.ov-th-spark--warn { color: var(--warn-ink); }
-.ov-th-spark--good { color: var(--good); }
-
-/* ── Warning row — two lines: name + spark (top), marker/note + retention% (bottom) ── */
-.ov-th-wrow,
-.ov-th-wrow--tap {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto auto;
-  align-items: center;
-  column-gap: 10px;
-  row-gap: var(--vr-hairline);
-  padding: 10px 0;
-  border-bottom: 1px solid var(--rule);
-}
-.ov-th-section > .ov-th-wrow:last-child,
-.ov-th-section > .ov-th-wrow--tap:last-child { border-bottom: none; }
-.ov-th-wrow--tap {
-  width: 100%;
-  background: none;
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.ov-th-wrow--tap:active { opacity: 0.55; }
-
-.ov-th-wrow-name {
-  grid-column: 1;
-  grid-row: 1;
-  font-size: var(--text-base);
+.ov-th-signal-group {
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ov-th-wrow-spark {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: end;
-  display: flex;
-}
-.ov-th-wrow-meta {
-  grid-column: 1;
-  grid-row: 2;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.ov-th-wrow-marker {
-  font-size: var(--text-sm);
-  line-height: 1;
+  text-transform: capitalize;
   flex-shrink: 0;
 }
-.ov-th-wrow-marker--bad { color: var(--bad); font-weight: 700; }
-.ov-th-wrow-marker--warn { color: var(--warn); }
-.ov-th-wrow-note {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-4);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* Note carries the tone too (not just the marker/pct): declining reads red,
-   plateau reads deep-amber — the whole row is legibly the same colour. */
-.ov-th-wrow-note--bad { color: var(--bad); }
-.ov-th-wrow-note--warn { color: var(--warn-ink); }
-.ov-th-wrow-pct {
-  grid-column: 2;
-  grid-row: 2;
-  justify-self: end;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.ov-th-wrow-pct--bad { color: var(--bad); }
-.ov-th-wrow-pct--warn { color: var(--warn-ink); }
-
-/* Action line — the "so what should I do" step, full width beneath the note.
-   Muted ink so it reads as the answer without competing with the name/note for
-   the scan; the tone-coloured arrow ties it back to the row's severity. */
-.ov-th-wrow-action {
-  grid-column: 1 / -1;
-  grid-row: 3;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-top: var(--vr-hairline);
+.ov-th-signal-detail {
   font-size: var(--text-sm);
   font-weight: 500;
   color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.ov-th-wrow-action-arrow {
+.ov-th-signal-chev {
+  color: var(--ink-4);
   flex-shrink: 0;
-  font-weight: 700;
+  margin-left: auto;
 }
-.ov-th-wrow-action-arrow--bad { color: var(--bad); }
-.ov-th-wrow-action-arrow--warn { color: var(--warn); }
 
-/* Muscle-cluster fatigue — a muscle-level callout above the per-lift warning
-   rows: several lifts of one muscle sliding together in the same block. Passive
-   surface (--bg-soft, no border, per the grey-surface rule). Three stacked
-   lines: coral verdict headline + dot strip (one dot per judged lift in the
-   group, coral fill = sliding), muted "N of M" caption, then the volume-level
-   next step in the warning rows' action grammar (→ + muted ink). */
-.ov-th-cluster {
+/* ═══ §7  Muscle grid + cells ══════════════════════════════════════════════ */
+.ov-thg-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.ov-thg-cell {
+  grid-column: span 3;
+  min-height: 84px;
   display: flex;
   flex-direction: column;
-  gap: var(--vr-hairline);
-  padding: 10px;
-  margin-bottom: var(--space-3);
-  background: var(--bg-soft);
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding: 10px var(--space-3);
   border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  min-width: 0;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: box-shadow var(--dur-press) var(--ease-press), border-color var(--dur-press);
 }
-.ov-th-cluster-head {
+
+/* Worst group = full-row hero; size tiers set the rest's height ∝ muscle size. */
+.ov-thg-cell.is-hero { grid-column: 1 / -1; min-height: 88px; }
+.ov-thg-cell.size-lg { min-height: 84px; }
+.ov-thg-cell.size-md { min-height: 72px; }
+.ov-thg-cell.size-sm { min-height: 56px; }
+
+/* Selection ring — additive, over the tone outline. */
+.ov-thg-cell.is-selected {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ink) 45%, transparent);
+}
+
+.ov-thg-cell-head {
   display: flex;
   align-items: baseline;
+  justify-content: space-between;
   gap: 6px;
 }
-.ov-th-cluster-marker {
-  flex-shrink: 0;
-  color: var(--warn);
+.ov-thg-cell-name {
+  font-size: var(--text-2xs);
   font-weight: 700;
-  font-size: var(--text-sm);
-}
-.ov-th-cluster-headline {
-  flex: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
   min-width: 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--warn-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.ov-th-cluster-dots {
+.ov-thg-cell-metric {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+.ov-thg-cell-icon {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  line-height: 1;
+}
+/* Retention % — always neutral white, mono, tabular. Never tinted. */
+.ov-thg-cell-pct {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.ov-thg-cell-insight {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ov-thg-cell-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ov-thg-marks {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ov-thg-mark {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.ov-thg-cell-count {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-4);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Hero cell bumps its label/%/icon a tier. */
+.ov-thg-cell.is-hero .ov-thg-cell-name { font-size: var(--text-sm); }
+.ov-thg-cell.is-hero .ov-thg-cell-icon { font-size: var(--text-sm); }
+.ov-thg-cell.is-hero .ov-thg-cell-pct { font-size: var(--text-xl); }
+
+/* Smallest cells drop the header icon — the marks row already carries it. */
+.ov-thg-cell.size-sm .ov-thg-cell-icon { display: none; }
+
+/* ═══ §8  Legend ═══════════════════════════════════════════════════════════ */
+.ov-thg-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.ov-thg-leg {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  /* Baseline row, but dots have no baseline — center them on the headline. */
-  align-self: center;
 }
-.ov-th-cluster-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--rule-strong);
-}
-.ov-th-cluster-dot.is-sliding { background: var(--warn); }
-/* Caption on --bg-soft: --ink-3 minimum (grey-surface contrast rule). */
-.ov-th-cluster-detail {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-3);
-}
-.ov-th-cluster-step {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-top: var(--vr-hairline);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-3);
-}
-.ov-th-cluster-step-arrow {
-  flex-shrink: 0;
+.ov-thg-leg-icon {
+  font-size: var(--text-2xs);
   font-weight: 700;
-  color: var(--warn);
+  line-height: 1;
+}
+.ov-thg-leg-word {
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
 }
 
-/* ── Reward row — two lines: name (top), note (bottom); icon + chip/spark
-   span both rows, vertically centered — same shape as the warning row. ── */
-.ov-th-rrow,
-.ov-th-rrow--tap {
+/* ═══ §9  Drill-down ═══════════════════════════════════════════════════════ */
+.ov-thg-drill {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+.ov-thg-drill-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--vr-loose);
+}
+.ov-thg-drill-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.ov-thg-drill-count {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-4);
+}
+
+.ov-thg-drill-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-rows: auto auto;
+  grid-template-columns: 72px 1fr auto;
   align-items: center;
-  column-gap: var(--space-2);
-  row-gap: var(--vr-hairline);
+  column-gap: var(--space-3);
   padding: 10px 0;
   border-bottom: 1px solid var(--rule);
 }
-.ov-th-section > .ov-th-rrow:last-child,
-.ov-th-section > .ov-th-rrow--tap:last-child { border-bottom: none; }
-.ov-th-rrow--tap {
+.ov-thg-drill-row:last-child { border-bottom: none; }
+.ov-thg-drill-row--tap {
   width: 100%;
   background: none;
   border-top: none;
@@ -515,148 +424,39 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.ov-th-rrow--tap:active { opacity: 0.55; }
-.ov-th-rrow-icon {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  align-self: center;
-  /* Fixed box so a wide 🏆/💪 emoji and the narrow ↑ arrow occupy the same
-     column width — every reward-row name lines up on one left edge. */
-  width: 1.5em;
-  text-align: center;
-  font-size: var(--text-base);
-  line-height: 1;
+.ov-thg-drill-row--tap:active { opacity: 0.55; }
+
+.ov-thg-spark { display: block; }
+.ov-thg-spark--empty { width: 72px; height: 24px; }
+
+.ov-thg-drill-lift {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
-.ov-th-rrow-icon--up { color: var(--good); font-weight: 700; }
-.ov-th-rrow-name {
-  grid-column: 2;
-  grid-row: 1;
+.ov-thg-drill-name {
   font-size: var(--text-base);
   font-weight: 600;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
 }
-.ov-th-rrow-note {
-  grid-column: 2;
-  grid-row: 2;
-  min-width: 0;
+.ov-thg-drill-note {
   font-size: var(--text-sm);
   font-weight: 500;
-  /* Neutral by default: a fresh PR already carries its "good news" in the
-     🏆/💪 icon + "🔥 this week" chip, so the note stays a quiet caption. */
-  color: var(--ink-3);
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-/* Only Rebounding earns green (and bold): unlike a one-shot PR (celebrated by
-   emoji/chip), a climb-back is a standing positive *state* — green is its
-   signal, not gold (gold stays reserved for PR confetti/toast). */
-.ov-th-rrow-note--rebounding {
-  color: var(--good);
-  font-weight: 600;
-}
-.ov-th-rrow-chip {
-  grid-column: 3;
-  grid-row: 1 / span 2;
-  align-self: center;
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--ink-4);
   white-space: nowrap;
 }
-/* Milestone rung chip (🎯 180 kg): the gold celebration tier, replacing the
-   muted "🔥 this week". Gold + glow is the sanctioned gold-text treatment
-   (tokens.css --gold / --gold-glow); gold stays reserved for celebration. */
-.ov-th-rrow-chip--milestone {
-  color: var(--gold);
-  font-weight: 600;
-  text-shadow: var(--gold-glow);
-}
-/* Rebounding fallback when recentBests can't fill a sparkline (<2 points) —
-   text keeps the row's green climb-back signal instead of collapsing empty. */
-.ov-th-rrow-chip--rebounding {
-  color: var(--good);
-  font-weight: 600;
-}
-.ov-th-rrow-right {
-  grid-column: 3;
-  grid-row: 1 / span 2;
-  align-self: center;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.ov-th-rrow-pct {
+/* Amber ink needs the deeper --warn-ink to clear contrast as text. */
+.ov-thg-drill-note.status-stalled { color: var(--warn-ink); }
+
+.ov-thg-drill-pct {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--good);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
-
-/* ── Holding-peak — one collapsed line, expands to name chips (grid-rows trick) ── */
-.ov-th-holding {
-  display: flex;
-  flex-direction: column;
-}
-.ov-th-holding-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: var(--space-2);
-  /* Grey pill (unlike the hairline signal rows above): this row is a collapse
-     CONTROL, not another lift to scan — the fill sets it apart as "expandable,
-     nothing flagged here". Pure fill, no border — same soft-block language as
-     the app's other filled surfaces (menus, unit toggle, steppers). */
-  background: var(--bg-soft);
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3) var(--space-4);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.ov-th-holding-label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-}
-.ov-th-holding-reveal {
-  display: grid;
-  grid-template-rows: 0fr;
-  /* Standard disclosure timing: enter on .open, exit on the base state. */
-  transition: grid-template-rows var(--dur-exit) var(--ease-move);
-}
-.ov-th-holding-reveal.open {
-  grid-template-rows: 1fr;
-  transition: grid-template-rows var(--dur-enter) var(--ease-enter);
-}
-.ov-th-holding-chips {
-  overflow: hidden;
-  min-height: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: var(--space-3) var(--space-4) 0;
-}
-.ov-th-chip {
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--ink-3);
-  background: var(--rule);
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  white-space: nowrap;
-}
-.ov-th-chip--tap {
-  font-family: inherit;
-  border: none;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: opacity var(--dur-press);
-}
-.ov-th-chip--tap:active { opacity: 0.55; }
