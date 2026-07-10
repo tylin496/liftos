@@ -205,6 +205,21 @@
   100% { opacity: 0;   transform: scale(2.3); }
 }
 
+/* Context zones behind a spark visual — Body Fat's target wedge, Lean Mass's
+   maintenance band, Active's distribution bars. One flat fade on the standard
+   reveal role; --zone-delay is set inline (after the line draw on trend cards,
+   straight on the spark tier clock for the bars) so the reading always lands
+   before its frame of reference. */
+.health-spark-zone {
+  opacity: 0;
+  animation: health-spark-zone-in var(--dur-enter) var(--ease-enter) forwards;
+  animation-delay: var(--zone-delay, 0ms);
+}
+
+@keyframes health-spark-zone-in {
+  to { opacity: 1; }
+}
+
 .health-trend-foot {
   display: flex;
   align-items: baseline;

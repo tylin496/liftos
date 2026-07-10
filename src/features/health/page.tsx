@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { fetchHealthData, type HealthData } from "./api";
 import {
   series,
@@ -8,11 +8,13 @@ import {
   sanitizeMetrics,
   countSkippedBodyFat,
   latestUpdatedAt,
+  median,
   RECOVERY_STATUS_COLOR,
   type MetricKey,
   type ChartPoint,
   type RecoverySnapshot,
 } from "./math";
+import { localDateStr } from "@shared/lib/date";
 import { type MetricKind } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { ErrorState } from "@shared/components/ErrorState";
@@ -50,13 +52,17 @@ const METRICS: MetricSpec[] = [
 ];
 
 const FIXED_DAYS = 180;
-// Active-energy sparkline: 14-day buckets (matches Body Fat / Lean Mass), and a
-// kcal min-span so a small week-to-week wobble doesn't fill the whole chart.
+// Active-energy window: the card's headline averages the last 14 days, its
+// distribution bars show those same days, and the trend sheet buckets at it.
 const ENERGY_BUCKET = 14;
 // Resting energy is slow-moving and noisy day-to-day, so its trend buckets at
 // its own 30-day averaging window (the same one its card caption names).
 const RESTING_BUCKET = 30;
-const ENERGY_MIN_SPAN = 200;
+// Lean-mass maintenance zone: ± this around the window's median. Half a kilo
+// of 14-day-averaged lean mass is "unchanged" for practical purposes (BIA
+// noise alone covers it) — beads inside read as holding, a walk out the
+// bottom edge as a real slide.
+const LBM_BAND_HALF_KG = 0.5;
 const copyHealthData = () => buildHealthJson();
 
 // Sparkline range follows the card's own averaging window: each bead IS that
@@ -66,31 +72,104 @@ const copyHealthData = () => buildHealthJson();
 // (Weight → 42d/6wk, Body Fat/Lean Mass → 84d/12wk).
 const SPARK_POINTS = 6;
 
+// Entrance clock shared by every spark visual on the page (line draw, zone
+// fades, activity bars): each card trails the one below by tier ×
+// --stagger-step × 3 after the shared --enter-wait — the sanctioned Health
+// cascade (see .health-spark-line in health.css).
+const SPARK_TIER_DELAY = "calc(var(--stagger-step) * var(--enter-tier, 0) * 3 + var(--enter-wait))";
+
+/* Wrapper that makes a spark visual its own tap target (opens the big trend
+   sheet) without fighting the card's own tap — stopPropagation, same reset
+   chrome for every spark shape (line, bars). Inert div when there's no sheet. */
+function SparkTap({ onOpen, children }: { onOpen?: () => void; children: ReactNode }) {
+  if (!onOpen) return <div className="health-sparkline-wrap">{children}</div>;
+  return (
+    <div className="health-sparkline-wrap">
+      <button
+        type="button"
+        className="health-sparkline-btn"
+        aria-label="View full trend"
+        onClick={(e: ReactMouseEvent) => {
+          e.stopPropagation();
+          onOpen();
+        }}
+      >
+        {children}
+      </button>
+    </div>
+  );
+}
+
 /* Trend indicator on each Trend card's header (range = its own bucket ×
    SPARK_POINTS) — a glance-only shape. Tapping it opens the big trend sheet
    (all readings, scrubbable); that tap is its own button with stopPropagation
-   so it never fights the card's own tap (e.g. Active's Resting/TDEE reveal). */
+   so it never fights the card's own tap (e.g. Active's Resting/TDEE reveal).
+
+   Two optional context zones render behind the beads:
+   - `corridor` — a descending wedge (Overview's weight-corridor geometry at
+     sparkline scale): rays fan from the Theil-Sen fit's start level at the
+     given min/max weekly decline rates. The caller decides what the rates
+     mean (Body Fat passes its composition zone — see bfCorridor).
+   - `band` — a horizontal maintenance zone (± halfWidth around the window's
+     median): beads staying inside = holding steady. Neutral ink on purpose —
+     context, not a verdict. */
 function Sparkline({
   points,
   minSpan = 0,
   color = "var(--health-measurement)",
+  corridor,
+  band,
   onOpen,
 }: {
   points: ChartPoint[];
   minSpan?: number;
   color?: string;
+  /** Decline band, in this metric's unit per week (positive = falling). */
+  corridor?: { minPerWeek: number; maxPerWeek: number } | null;
+  /** Maintenance half-width in this metric's unit, centred on the window median. */
+  band?: { halfWidth: number } | null;
   onOpen?: () => void;
 }) {
   const width = 130, height = 44;
+  // useId's delimiters (":r0:") aren't safe inside url(#…) — keep alphanumerics.
+  const clipId = `spark-clip-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
 
   if (points.length < 2) return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline" />;
 
   const vals = points.map((p) => p.value);
-  const dataMin = Math.min(...vals);
-  const dataMax = Math.max(...vals);
+
+  // Zone anchors, computed on the beads' real dates (buckets can be sparse, so
+  // index spacing isn't a time axis). The corridor anchors at the Theil-Sen
+  // fit's level at the window start — same robust-fit reasoning as Overview's
+  // weight corridor: anchoring on the first bead would let one odd bucket tilt
+  // the whole wedge. The band centres on the window median.
+  const t0 = new Date(points[0].date + "T12:00:00").getTime();
+  const dayXs = points.map((p) => (new Date(p.date + "T12:00:00").getTime() - t0) / 86400000);
+  const windowDays = dayXs[dayXs.length - 1];
+  let corridorAnchor: number | null = null;
+  if (corridor && windowDays > 0) {
+    const pairSlopes: number[] = [];
+    for (let i = 0; i < points.length; i++)
+      for (let j = i + 1; j < points.length; j++)
+        if (dayXs[j] !== dayXs[i]) pairSlopes.push((vals[j] - vals[i]) / (dayXs[j] - dayXs[i]));
+    const fitSlope = median(pairSlopes);
+    corridorAnchor = median(vals.map((v, i) => v - fitSlope * dayXs[i]));
+  }
+  const bandCenter = band ? median(vals) : null;
+
   // Widen the domain to minSpan around the data's own center rather than
   // shrinking to whatever the actual range is — a flat week and a real move
   // stay visually distinguishable instead of both filling the chart height.
+  // Zones join the domain only where they must stay visible: the corridor's
+  // apex and the band's edges. The wedge's far end is deliberately left out —
+  // over a 12-week window the target drop can dwarf a flat line, and letting
+  // it stretch the axis would squash the beads; instead the wedge just exits
+  // the frame (clipped), which IS the honest "target is much steeper" read.
+  const domainVals = [...vals];
+  if (corridorAnchor != null) domainVals.push(corridorAnchor);
+  if (band && bandCenter != null) domainVals.push(bandCenter - band.halfWidth, bandCenter + band.halfWidth);
+  const dataMin = Math.min(...domainVals);
+  const dataMax = Math.max(...domainVals);
   const dataSpan = dataMax - dataMin;
   const center = (dataMax + dataMin) / 2;
   const halfSpan = Math.max(dataSpan, minSpan) / 2;
@@ -103,14 +182,85 @@ function Sparkline({
   // beads it's threaded among — the size bump is itself part of the signal,
   // not just the colour ring.
   const anchorDot = 4;
+  const valueToY = (v: number) => height - dot - ((v - min) / span) * (height - dot * 2);
   const coords = points.map((p, i) => {
     const x = dot + (i / (points.length - 1)) * (width - dot * 2);
-    const y = height - dot - ((p.value - min) / span) * (height - dot * 2);
-    return { x, y };
+    return { x, y: valueToY(p.value) };
   });
   const pts = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const last = coords[coords.length - 1];
   const n = coords.length;
+
+  // Zone geometry in plot space. The corridor wedge fans from the fit's start
+  // level down at the band's min/max weekly rates over the drawn window; the
+  // band is a flat rect. Both clip to the viewBox (the svg itself is
+  // overflow:visible for the anchor ring, so the clip is explicit).
+  const corridorGeom =
+    corridor && corridorAnchor != null && windowDays > 0
+      ? {
+          x0: coords[0].x,
+          xEnd: last.x,
+          y0: valueToY(corridorAnchor),
+          yShallow: valueToY(corridorAnchor - corridor.minPerWeek * (windowDays / 7)),
+          ySteep: valueToY(corridorAnchor - corridor.maxPerWeek * (windowDays / 7)),
+        }
+      : null;
+  const bandGeom =
+    band && bandCenter != null
+      ? { yTop: valueToY(bandCenter + band.halfWidth), yBot: valueToY(bandCenter - band.halfWidth) }
+      : null;
+  // Corridor speaks Overview's healthy-zone language (green wedge = where a
+  // well-run cut lands); the band stays neutral ink — maintenance context,
+  // not a verdict.
+  const zone =
+    corridorGeom || bandGeom ? (
+      <g clipPath={`url(#${clipId})`}>
+        {corridorGeom && (
+          <>
+            <polygon
+              points={`${corridorGeom.x0.toFixed(1)},${corridorGeom.y0.toFixed(1)} ${corridorGeom.xEnd.toFixed(1)},${corridorGeom.yShallow.toFixed(1)} ${corridorGeom.xEnd.toFixed(1)},${corridorGeom.ySteep.toFixed(1)}`}
+              fill="var(--good)"
+              opacity="0.08"
+              stroke="none"
+            />
+            <line
+              x1={corridorGeom.x0.toFixed(1)} y1={corridorGeom.y0.toFixed(1)}
+              x2={corridorGeom.xEnd.toFixed(1)} y2={corridorGeom.yShallow.toFixed(1)}
+              stroke="var(--good)" strokeWidth="1" opacity="0.28" strokeDasharray="3 3"
+            />
+            <line
+              x1={corridorGeom.x0.toFixed(1)} y1={corridorGeom.y0.toFixed(1)}
+              x2={corridorGeom.xEnd.toFixed(1)} y2={corridorGeom.ySteep.toFixed(1)}
+              stroke="var(--good)" strokeWidth="1" opacity="0.28" strokeDasharray="3 3"
+            />
+          </>
+        )}
+        {bandGeom && (
+          <>
+            <rect
+              x={dot} y={bandGeom.yTop.toFixed(1)}
+              width={width - dot * 2} height={Math.max(0, bandGeom.yBot - bandGeom.yTop).toFixed(1)}
+              fill="var(--ink-4)" opacity="0.1"
+            />
+            <line
+              x1={dot} y1={bandGeom.yTop.toFixed(1)} x2={width - dot} y2={bandGeom.yTop.toFixed(1)}
+              stroke="var(--ink-4)" strokeWidth="1" opacity="0.3" strokeDasharray="3 3"
+            />
+            <line
+              x1={dot} y1={bandGeom.yBot.toFixed(1)} x2={width - dot} y2={bandGeom.yBot.toFixed(1)}
+              stroke="var(--ink-4)" strokeWidth="1" opacity="0.3" strokeDasharray="3 3"
+            />
+          </>
+        )}
+      </g>
+    ) : null;
+  const zoneClip = zone ? (
+    <defs>
+      <clipPath id={clipId}>
+        <rect x="0" y="0" width={width} height={height} />
+      </clipPath>
+    </defs>
+  ) : null;
 
   const reduced =
     typeof window !== "undefined" &&
@@ -122,6 +272,8 @@ function Sparkline({
   // anchor. SPARK_POINTS keeps the beads from crowding.
   const svg = reduced ? (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
+      {zoneClip}
+      {zone}
       <polyline points={pts} fill="none" stroke="var(--rule-strong)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       {coords.slice(0, -1).map((c, i) => (
         <circle key={i} cx={c.x.toFixed(1)} cy={c.y.toFixed(1)} r={dot} fill="var(--bg-card)" stroke="var(--rule-strong)" strokeWidth="1.4" />
@@ -139,9 +291,20 @@ function Sparkline({
       // .health-spark-line), each trailing the card below by tier × --stagger-step × 3
       // after --enter-wait. The line-delay lives in CSS; the beads reuse the SAME
       // expression inline so they stay locked to their line, then trail it left→right.
-      const tierDelay = "calc(var(--stagger-step) * var(--enter-tier, 0) * 3 + var(--enter-wait))";
+      const tierDelay = SPARK_TIER_DELAY;
       return (
         <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
+          {zoneClip}
+          {zone && (
+            // Context zone fades in only once the line has finished drawing —
+            // the reading lands first, then its frame of reference.
+            <g
+              className="health-spark-zone"
+              style={{ ["--zone-delay" as string]: `calc(${tierDelay} + ${dur}ms)` }}
+            >
+              {zone}
+            </g>
+          )}
           <g>
             <polyline
               className="health-spark-line"
@@ -193,23 +356,72 @@ function Sparkline({
     })()
   );
 
-  if (!onOpen) return <div className="health-sparkline-wrap">{svg}</div>;
+  return <SparkTap onOpen={onOpen}>{svg}</SparkTap>;
+}
 
-  return (
-    <div className="health-sparkline-wrap">
-      <button
-        type="button"
-        className="health-sparkline-btn"
-        aria-label="View full trend"
-        onClick={(e: ReactMouseEvent) => {
-          e.stopPropagation();
-          onOpen();
-        }}
-      >
-        {svg}
-      </button>
-    </div>
+/* Daily activity distribution for the Active card — one bar per day across the
+   exact 14-day window the headline average covers. A bucketed trend line hid
+   HOW that average was earned (steady movement vs a few huge days); the
+   per-day shape is the decision-relevant read, and the long trend still lives
+   in the sheet behind the same tap. Days that met the Active Target render
+   solid, days below it faint; the dashed rule is the target itself. Without a
+   target every day renders at one weight — distribution only, no judgment. */
+function ActivityBars({
+  days,
+  target,
+  onOpen,
+}: {
+  days: { date: string; value: number | null }[];
+  target: number | null;
+  onOpen?: () => void;
+}) {
+  const width = 130, height = 44;
+  const vals = days.flatMap((d) => (d.value != null ? [d.value] : []));
+
+  if (!vals.length) return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline" />;
+
+  // 0-based kcal scale (a bar's length IS the day's output), topped with a
+  // little headroom so the biggest day doesn't kiss the frame.
+  const top = Math.max(...vals, target ?? 0) * 1.08 || 1;
+  const slot = width / days.length;
+  const barW = Math.max(3, slot - 2.5);
+  const targetY = target != null ? height - (target / top) * height : null;
+
+  const svg = (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="health-sparkline">
+      {/* Bars + target enter as one flat fade on the page's spark clock — a
+          per-bar cascade here would add a fifth stagger; the four sanctioned
+          ones are enough. */}
+      <g className="health-spark-zone" style={{ ["--zone-delay" as string]: SPARK_TIER_DELAY }}>
+        {days.map((d, i) => {
+          if (d.value == null) return null; // missed sync = a visible gap, not a zero
+          const h = Math.max(1.5, (d.value / top) * height);
+          const x = i * slot + (slot - barW) / 2;
+          const opacity = target != null ? (d.value >= target ? 0.9 : 0.35) : 0.6;
+          return (
+            <rect
+              key={d.date}
+              x={x.toFixed(1)}
+              y={(height - h).toFixed(1)}
+              width={barW.toFixed(1)}
+              height={h.toFixed(1)}
+              rx="1.5"
+              fill="var(--accent)"
+              opacity={opacity}
+            />
+          );
+        })}
+        {targetY != null && (
+          <line
+            x1="0" y1={targetY.toFixed(1)} x2={width} y2={targetY.toFixed(1)}
+            stroke="var(--ink-3)" strokeWidth="1" opacity="0.55" strokeDasharray="3 3"
+          />
+        )}
+      </g>
+    </svg>
   );
+
+  return <SparkTap onOpen={onOpen}>{svg}</SparkTap>;
 }
 
 /* One column of the Energy card's Resting + TDEE model row. Renders as a button
@@ -311,7 +523,7 @@ function gaugeTone(metric: GaugeMetric, v: number, baseline: number | null): str
    baseline mean, the coloured dot the current 7-day average. Band and tick are
    static; on first reveal the dot travels baseline → today, on the same clock
    and easing as the card's count-ups (COUNT_UP_MS, ease-out-quad bezier —
-   mirrors GoalBarFill in overview), so the motion itself reads as "where today
+   mirrors GoalTrack in overview), so the motion itself reads as "where today
    left your baseline". */
 function RecoveryGauge({
   pos,
@@ -491,6 +703,8 @@ function TrendCard({
   minSpan = 0,
   rangeDays,
   color,
+  corridor,
+  band,
   onOpenTrend,
   freshnessKind,
   syncDate,
@@ -520,6 +734,10 @@ function TrendCard({
   /** Identity colour for this metric's eyebrow label and sparkline "you are
       here" bead — not a good/bad signal, just which card it belongs to. */
   color?: string;
+  /** Target-decline wedge behind the sparkline (see Sparkline). */
+  corridor?: { minPerWeek: number; maxPerWeek: number } | null;
+  /** Maintenance zone behind the sparkline (see Sparkline). */
+  band?: { halfWidth: number } | null;
   /** Tapping the sparkline (only) opens the big scrubbable trend sheet. */
   onOpenTrend?: () => void;
 }) {
@@ -563,7 +781,7 @@ function TrendCard({
             {delta}
           </div>
         </div>
-        <Sparkline points={points} minSpan={minSpan} color={color} onOpen={onOpenTrend} />
+        <Sparkline points={points} minSpan={minSpan} color={color} corridor={corridor} band={band} onOpen={onOpenTrend} />
       </div>
       <div className="health-trend-foot">
         <MetricCaption>{loading ? "Loading…" : avgLabel}</MetricCaption>
@@ -688,14 +906,61 @@ export function HealthPage() {
     });
   }, [data, metrics]);
 
-  // Active-energy sparkline — Active is the one behaviour-driven, trend-worthy
-  // number in the Energy card, so it gets the same 14-day bucket / 84-day trend
-  // shape as Body Fat and Lean Mass. Resting + TDEE ride along as model context.
+  // Body-fat composition corridor: the zone BF% should occupy given the weight
+  // ACTUALLY lost over this same window — not a target pace. Upper edge flat
+  // (loss proportional, composition unchanged), lower edge the all-fat ideal
+  // (one kg of pure fat off weight W at b% body fat moves BF by 100·(1−b/100)/W
+  // points). Deriving from the observed weight trend keeps the wedge on the
+  // beads' own scale by construction: lose a lot and it fans wide, plateau and
+  // it collapses (and hides) — unlike a target-pace wedge, whose 12-week
+  // extrapolation dwarfed the chart and read as a glitch. The read is
+  // composition quality — "how much of what you lost was fat" — while the pace
+  // verdict itself stays on Overview.
+  const bfCorridor = useMemo(() => {
+    const w = cards.find((c) => c.spec.key === "weight_kg")?.thisWeek ?? null;
+    const bfSpec = METRICS.find((s) => s.key === "body_fat_pct")!;
+    const bf = cards.find((c) => c.spec.key === bfSpec.key)?.thisWeek ?? null;
+    if (w == null || w <= 0 || bf == null) return null;
+    // Theil-Sen slope of raw weight over the BF sparkline's own span, so the
+    // wedge and the beads describe the same stretch of time.
+    const spanDays = bfSpec.bucket * SPARK_POINTS;
+    const weights = series(metrics, "weight_kg");
+    if (weights.length < 2) return null;
+    const MS = 86400000;
+    const tEnd = new Date(weights[weights.length - 1].date + "T12:00:00").getTime();
+    const inSpan = weights.filter(
+      (p) => new Date(p.date + "T12:00:00").getTime() >= tEnd - (spanDays - 1) * MS,
+    );
+    if (inSpan.length < 2) return null;
+    const xs = inSpan.map((p) => new Date(p.date + "T12:00:00").getTime() / MS);
+    const pairSlopes: number[] = [];
+    for (let i = 0; i < inSpan.length; i++)
+      for (let j = i + 1; j < inSpan.length; j++)
+        if (xs[j] !== xs[i]) pairSlopes.push((inSpan[j].value - inSpan[i].value) / (xs[j] - xs[i]));
+    const lossPerWeek = -median(pairSlopes) * 7;
+    if (lossPerWeek <= 0) return null; // holding or gaining — no fat-loss zone to draw
+    const ppPerKg = (100 * (1 - bf / 100)) / w;
+    const maxPerWeek = lossPerWeek * ppPerKg;
+    // Below ~half a BF point across the whole window the wedge is a sliver —
+    // sub-pixel noise dressed up as a zone. Show nothing instead.
+    if (maxPerWeek * (spanDays / 7) < 0.5) return null;
+    return { minPerWeek: 0, maxPerWeek };
+  }, [cards, metrics]);
+
+  // Active energy, per day — the Energy card leads with the distribution of
+  // daily output across the exact window its headline averages (see
+  // ActivityBars); the 84-day bucketed trend still backs the sheet.
   const energyRaw = useMemo(() => series(metrics, "active_energy_kcal"), [metrics]);
-  const energyBucketed = useMemo(() => {
-    if (!data) return [];
-    return bucketSeries(energyRaw, { spanDays: ENERGY_BUCKET * SPARK_POINTS, bucketDays: ENERGY_BUCKET });
-  }, [data, energyRaw]);
+  const activeDaily = useMemo(() => {
+    if (!energyRaw.length) return [];
+    const MS = 86400000;
+    const anchor = new Date(energyRaw[energyRaw.length - 1].date + "T12:00:00").getTime();
+    const byDate = new Map(energyRaw.map((p) => [p.date, p.value]));
+    return Array.from({ length: ENERGY_BUCKET }, (_, i) => {
+      const date = localDateStr(new Date(anchor - (ENERGY_BUCKET - 1 - i) * MS));
+      return { date, value: byDate.get(date) ?? null };
+    });
+  }, [energyRaw]);
   const energyFull = useMemo(
     () => bucketSeries(energyRaw, { spanDays: FIXED_DAYS, bucketDays: ENERGY_BUCKET }),
     [energyRaw],
@@ -799,6 +1064,10 @@ export function HealthPage() {
             minSpan={spec.minSpan}
             rangeDays={spec.bucket * SPARK_POINTS}
             color={spec.color}
+            // Body Fat carries the composition wedge (observed weight loss
+            // translated to BF points — see bfCorridor). Weight stays bare:
+            // its pace verdict already lives on Overview's corridor card.
+            corridor={spec.key === "body_fat_pct" ? bfCorridor : null}
             freshnessKind={spec.key === "weight_kg" ? "weight" : "bodyComp"}
             syncDate={series(metrics, spec.key).at(-1)?.date ?? null}
             updatedAt={c?.updatedAt ?? null}
@@ -842,6 +1111,11 @@ export function HealthPage() {
         minSpan={2}
         rangeDays={lbmCard ? lbmCard.rangeDays : 14 * SPARK_POINTS}
         color="var(--health-measurement)"
+        // Maintenance band, matching the card's whole stance: holding lean mass
+        // through a cut is the win, so the visual asks "still inside the zone?"
+        // instead of "which way is it pointing?". Neutral ink like the change
+        // figure — context, not a verdict (see the delta comment below).
+        band={{ halfWidth: LBM_BAND_HALF_KG }}
         freshnessKind="bodyComp"
         syncDate={lbmCard?.lastDate ?? null}
         updatedAt={lbmCard?.updatedAt ?? null}
@@ -869,8 +1143,8 @@ export function HealthPage() {
       />
 
       {/* 4. Energy — the metabolic model behind the ring. Active leads with its
-          trend (behaviour-driven); Resting + TDEE ride below as context so
-          Resting + Active = TDEE still adds up. */}
+          daily distribution (behaviour-driven); Resting + TDEE ride below as
+          context so Resting + Active = TDEE still adds up. */}
       <section
         ref={energyCardRef}
         id="health-energy-card"
@@ -915,16 +1189,17 @@ export function HealthPage() {
                   <MetricValue size="lg" unit="kcal">000</MetricValue>
                 </div>
               </div>
-              <Sparkline points={[]} minSpan={ENERGY_MIN_SPAN} color="var(--accent)" />
+              <ActivityBars days={[]} target={null} />
             </div>
             <div className="health-trend-foot">
               <MetricCaption>Loading…</MetricCaption>
-              <div className="health-trend-range">{ENERGY_BUCKET * SPARK_POINTS}-day trend</div>
+              <div className="health-trend-range">Last {ENERGY_BUCKET} days</div>
             </div>
           </>
         ) : tdee?.tdee != null ? (
           <>
-            {/* Active leads with the sparkline — the behaviour-driven number. */}
+            {/* Active leads with the daily distribution — the behaviour-driven
+                shape behind the average. */}
             <div className="health-trend-head">
               <div className="health-trend-info">
                 <div className="health-trend-stat">
@@ -936,10 +1211,9 @@ export function HealthPage() {
                   )}
                 </div>
               </div>
-              <Sparkline
-                points={energyBucketed}
-                minSpan={ENERGY_MIN_SPAN}
-                color="var(--accent)"
+              <ActivityBars
+                days={activeDaily}
+                target={data.activeTarget?.activeTargetPerDay ?? null}
                 onOpen={
                   energyFull.length >= 2
                     ? () => openTrend({ label: "Active", unit: " kcal", decimals: 0, color: "var(--accent)", points: energyFull, higherIsBetter: true, bucketDays: ENERGY_BUCKET })
@@ -953,7 +1227,7 @@ export function HealthPage() {
                     count — a single missing day shouldn't tick it to "13". */}
                 14-day average
               </MetricCaption>
-              <div className="health-trend-range">{ENERGY_BUCKET * SPARK_POINTS}-day trend</div>
+              <div className="health-trend-range">Last {ENERGY_BUCKET} days</div>
             </div>
 
             {/* Resting + TDEE — the model behind the ring, revealed on tapping the
