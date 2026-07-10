@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { fetchHealthData, type HealthData } from "./api";
 import {
   series,
@@ -23,6 +23,7 @@ import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metr
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
+import { getActiveScroller } from "@app/layout/activeScroller";
 import { HealthTrendSheet, type HealthTrendConfig } from "./TrendSheet";
 import "./health.css";
 
@@ -552,7 +553,31 @@ export function HealthPage() {
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [energyExpanded, setEnergyExpanded] = useState(false);
+  const energyCardRef = useRef<HTMLElement | null>(null);
   const activity = useTabActivity();
+
+  // Active is the last card; when it expands, the revealed Resting/TDEE rows land
+  // below the fold, behind the floating tab bar. Scroll the panel to its bottom
+  // (the panel's own padding-bottom already clears the tab bar there) so the
+  // model reads without the user hunting for it. Wait for the grid-rows expand to
+  // finish so scrollHeight reflects the settled layout, not the collapsed one.
+  useEffect(() => {
+    if (!energyExpanded) return;
+    const scroller = getActiveScroller();
+    if (!scroller) return;
+    const wrap = energyCardRef.current?.querySelector(".health-energy-model-wrap");
+    const settle = () => scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+    if (!wrap) {
+      settle();
+      return;
+    }
+    const onEnd = (e: Event) => {
+      if ((e as TransitionEvent).propertyName !== "grid-template-rows") return;
+      settle();
+    };
+    wrap.addEventListener("transitionend", onEnd);
+    return () => wrap.removeEventListener("transitionend", onEnd);
+  }, [energyExpanded]);
 
   const load = useCallback(() => {
     return fetchHealthData(FIXED_DAYS)
@@ -793,6 +818,7 @@ export function HealthPage() {
           trend (behaviour-driven); Resting + TDEE ride below as context so
           Resting + Active = TDEE still adds up. */}
       <section
+        ref={energyCardRef}
         id="health-energy-card"
         className={`page-card health-energy${!data ? " loading-card" : ""}`}
         {...(data && tdee?.tdee != null
