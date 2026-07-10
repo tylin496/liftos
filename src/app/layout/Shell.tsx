@@ -877,7 +877,6 @@ export function Shell({ session }: { session: Session }) {
               })}
             </div>
           </main>
-          <div className="status-bar-scrim" aria-hidden="true" />
           <TabBar active={highlight} onChange={switchTab} />
         </div>
         <GlobalSettingsSheet />
