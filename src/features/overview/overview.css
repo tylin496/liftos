@@ -3,12 +3,12 @@
    ─────────────────────────────────────────────────────────────────────────────
    目錄
      L14   Active Target Card
-     L158  Weight Card（latest + trend + pace + acceleration read）
-     L411  System Card（top-priority recommendation）
-     L483  Primary Goal Card
-     L609  100% completion state（gold flip）
-     L658  Cut baseline initializer (one-time)
-     L729  Cold-load skeleton
+     L142  Weight Card（latest + trend + pace + acceleration read）
+     L429  System Card（top-priority recommendation）
+     L493  Primary Goal Card
+     L641  100% completion state（gold flip）
+     L690  Cut baseline initializer (one-time)
+     L761  Cold-load skeleton
    ───────────────────────────────────────────────────────────────────────────── */
 
 /* ─── Active Target Card ─────────────────────────────────────────────────

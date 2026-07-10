@@ -2,35 +2,39 @@
    Training feature styles — LiftOS design tokens throughout.
    ─────────────────────────────────────────────────────────────────────────────
    目錄
-     L5    Split slide animation
-     L21   Exercise list
-     L28   Exercise card
-     L55   Card menu
-     L136  Exercise title block
-     L211  Exercise body (PR + image)
-     L244  PR display
-     L321  History list
-     L485  Expr display
-     L553  Editor drawer
-     L561  Log form
-     L637  Weight zone
-     L754  Reps zone
-     L806  Live preview / note
-     L834  Log buttons
-     L897  Assisted form specifics
-     L946  Delete entry
-     L991  "Log set" open button
-     L1020 Show more
-     L1040 History reveal animation
-     L1050 Page
-     L1058 Add exercise form
-     L1175 Archived section
-     L1281 Stretches
-     L1466 Filter bar
-     L1493 Copy button
-     L1528 Confirm dialog
-     L1587 Skeleton loading state
-     L1608 Stagnation / Strength Retention Badge
+     L40   Split slide animation
+     L74   Exercise list
+     L81   Exercise card
+     L105  Tab-entrance cascade
+     L123  Card menu
+     L234  Exercise title block
+     L357  Exercise body (PR + image)
+     L400  PR display
+     L508  History
+     L605  Set complete (3.4)
+     L828  Expr display
+     L900  Editor drawer
+     L950  History row detail (tap to reveal)
+     L1001 Log form
+     L1063 Weight zone
+     L1152 Reps zone
+     L1203 Live preview / note
+     L1231 Log buttons
+     L1290 Assisted form specifics
+     L1347 Secondary form actions
+     L1384 Footer: "Log set" link + "View all"
+     L1431 History reveal animation
+     L1441 Page
+     L1442 Time filter disclosure
+     L1462 Add exercise
+     L1584 Archived section
+     L1714 Stretches
+     L1854 Skeleton loading state
+     L1882 ImageWell (photo editor)
+     L2004 Image Crop Modal
+     L2035 Edit Exercise Form
+     L2154 Read-only title/target/note display
+     L2167 Exercise trend sheet
    ───────────────────────────────────────────────────────────────────────────── */
 
 /* ── Split slide animation ───────────────────────────────────────────────── */

@@ -2,39 +2,29 @@
    Nutrition feature styles — LiftOS design tokens throughout.
    ─────────────────────────────────────────────────────────────────────────────
    目錄
-     L13   Base layout (.nutri)
-     L19   Carousel
-     L35   Segmented sub-nav
-     L95   Programs
-     L198  History (summary)
-     L286  Date nav
-     L360  Headline / hero numbers
-     L399  Progress bar
-     L416  Form (settings)
-     L517  Nutrition calendar modal
-     L693  Tappable metric cards
-     L715  Entry sheet overlay
-     L853  Section head
-     L881  Status pill
-     L920  Hero calorie display
-     L944  Settlement rows
-     L978  Divider
-     L985  Protein section
-     L1011 7-day trend bars
-     L1072 KPI row
-     L1112 Program summary
-     L1149 Skeleton loading
-     L1180 ── CALORIE-TRACKER UX PORT ──
-     L1185 Daily card
-     L1212 Status pills (dc-pill)
-     L1265 Stat rows
-     L1383 Inline settlement form (sf-*)
-     L1483 Saved-pulse animation
-     L1569 Celebration confetti
-     L1684 History: dual-bar trend (ntb-*)
-     L1868 Programs: 4-phase cut rows
-     L1917 Day navigation carousel
-     L1932 Nutrition loading skeletons
+     L36   Nutrition Insight (v2 evaluation card)
+     L293  Pace meter
+     L455  Skeleton loading state
+     L473  History
+     L494  Adherence distribution
+     L534  Date nav
+     L605  Form
+     L632  Nutrition calendar modal
+     L823  Section head
+     L826  7-day trend bars
+     L871  KPI row
+     L887  This Week header
+     L911  Colour legend
+     L936  Last 30 Days
+     L970  Skeleton loading — This Week / Last 30 Days
+     L1002 Daily card
+     L1034 Stat grid
+     L1056 Inline settlement form
+     L1061 Saved-pulse
+     L1066 History: dual-bar trend
+     L1286 Date label slide
+     L1298 Day navigation carousel
+     L1346 Cold-load page skeleton
    ───────────────────────────────────────────────────────────────────────────── */
 
 .nutri {
@@ -1041,7 +1031,6 @@
   margin: 0;
 }
 
-/* ── Copy button ─────────────────────────────────────────────────────── */
 /* ── Stat grid ───────────────────────────────────────────────────────── */
 /* Layout is the shared .nutri-grid (shared/components/nutriGrid.css); values
    render via the shared metric-val/metric-caption classes.

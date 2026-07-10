@@ -3,16 +3,16 @@
    ─────────────────────────────────────────────────────────────────────────────
    目錄
      L17   .shell root（window 不捲動，per-tab scroller）
-     L27   Dev-only phone frame
-     L60   Header
-     L70   Content（tab viewport / per-tab scroll containers）
-     L129  Pull-to-refresh indicator
-     L172  Tab bar（floating Liquid Glass capsule）
-     L302  Generic page placeholder (P0)
-     L310  Tab entrance（flat reveal + per-card tiers）
-     L354  Section header row
-     L401  Settings sheet
-     L801  Brand splash / cold-start
+     L46   Dev-only phone frame
+     L79   Header
+     L89   Content（tab viewport / per-tab scroll containers）
+     L148  Pull-to-refresh indicator
+     L191  Tab bar（floating Liquid Glass capsule）
+     L321  Generic page placeholder (P0)
+     L329  Tab entrance（flat reveal + per-card tiers）
+     L373  Section header row
+     L420  Settings sheet
+     L828  Brand splash / cold-start
    ───────────────────────────────────────────────────────────────────────────── */
 .shell {
   position: relative;
