@@ -1130,7 +1130,7 @@ export function HealthPage() {
           lbmCard && lbmCard.change != null && lbmCard.readingCount >= 2 &&
           Number(Math.abs(lbmCard.change).toFixed(1)) !== 0 ? (
             <span className="health-lbm-change">
-              {lbmCard.change > 0 ? "+" : "−"}
+              {lbmCard.change > 0 ? "↑" : "↓"}
               {Math.abs(lbmCard.change).toFixed(1)} kg
             </span>
           ) : null
