@@ -632,7 +632,10 @@ function WeightSparkline({
     );
   }
 
-  const trend = trailingAvg(points, TREND_WINDOW_HOURS);
+  // points arrives pre-smoothed (trailingAvg over the caller's full history,
+  // already sliced to this window) — smoothing again here would double-average
+  // and drift the corridor anchor further from the true trend.
+  const trend = points;
   const trendValues = trend.map((p) => p.value);
   const windowDays = diffDays(trend[0].date, trend.at(-1)!.date);
 
@@ -900,7 +903,11 @@ function WeightCard({
   // SAME weightDelta sign as MetricDelta below (down = good on a cut): direction
   // from the number's sign, colour from the tone — kept independent, matching
   // the delta-arrow rule.
-  const sparkPoints = weightPts.slice(-21);
+  // trailingAvg runs over the FULL history, not the 21d slice — otherwise the
+  // window's first few points would average over their own truncated stub
+  // (day 0 averaging with nothing before it) instead of true prior history,
+  // understating the smoothing right where the corridor anchors its start.
+  const sparkPoints = trailingAvg(weightPts, TREND_WINDOW_HOURS).slice(-21);
   const sparkTone: "good" | "bad" | "flat" =
     weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
 
