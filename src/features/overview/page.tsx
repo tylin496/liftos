@@ -73,6 +73,21 @@ function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { show
   const ratio = (shown ?? 0) / Math.max(1, target);
   // Absence ≠ a measured zero: before today syncs, the centre reads "—", not "0".
   const numText = shown == null ? "" : !synced ? "—" : shown.toLocaleString();
+  // Sub-line reframes the target as "how much left to CLOSE the ring" — the
+  // actionable number when you're chasing the goal. Derived from the same tween
+  // as the hero number (shown), so it counts DOWN (target → remaining) in lock-
+  // step with the ring filling. Blank pre-roll (matches the blank hero); "of N"
+  // when today isn't synced yet (no measured accrued to subtract); "Closed" once
+  // the ring is full. */
+  const remaining = Math.max(0, Math.round(target - (shown ?? 0)));
+  const subText =
+    shown == null
+      ? ""
+      : !synced
+        ? `of ${target.toLocaleString()}`
+        : remaining > 0
+          ? `${remaining.toLocaleString()} left`
+          : "Closed";
   // Follows the shared Apple-spectrum progress ramp by fill (progressColor) —
   // red→orange→green→cyan→blue, the same as the Cut Progress bar and top-bar
   // ring. At/over 100% it flips to the discrete completion gold
@@ -82,14 +97,14 @@ function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { show
     <OverflowRing ratio={ratio} size={80} strokeWidth={8} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
-        <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
+        <span className="ov-active-target-ring-of">{subText}</span>
       </div>
     </OverflowRing>
   ) : (
     <ActivityRing pct={ratio} size={80} strokeWidth={8} color={ringColor} transition="none">
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
-        <span className="ov-active-target-ring-of">of {target.toLocaleString()}</span>
+        <span className="ov-active-target-ring-of">{subText}</span>
       </div>
     </ActivityRing>
   );
@@ -1280,7 +1295,7 @@ export function OverviewPage() {
         targetTdee={data?.targetTdee ?? null}
         currentTdee={data?.currentTdee ?? null}
         syncAt={data ? latestUpdatedAt(data.metrics, "active_energy_kcal") : null}
-        onNav={() => nav("health", { scrollTo: "health-energy-card", expand: true, alignEnd: true })}
+        onNav={() => nav("health", { scrollTo: "health-energy-card", expand: true })}
       />
 
       {/* Cut Progress — the skeleton and the common loaded state are both
@@ -1308,7 +1323,7 @@ export function OverviewPage() {
         weightLatest={data?.weightLatest ?? null}
         metrics={data?.metrics ?? []}
         state={data?.nutritionState ?? null}
-        onNav={() => nav("health")}
+        onNav={() => nav("health", { scrollTo: "health-weight-card" })}
       />
 
       <StrengthHealthCard

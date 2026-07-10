@@ -139,13 +139,12 @@ export function Shell({ session }: { session: Session }) {
   >(null);
   const slideRef = useRef(slide);
   slideRef.current = slide;
-  // The scrollTo id's landing flags for this tab entry — `expand` is read via
-  // NavExpandContext by the target card to auto-open its detail; `alignEnd`
-  // docks the target to the panel's BOTTOM instead of its top (see NavOptions).
-  // One state (not two parallel ones) so a nav call site can't set one flag
-  // without the other, and there's a single reset-on-consume effect below.
+  // The scrollTo id's landing flag for this tab entry — `expand` is read via
+  // NavExpandContext by the target card to auto-open its detail. Kept as its own
+  // state (with a single reset-on-consume effect below) so a plain later entry
+  // to the tab can't inherit a stale expand request.
   const [pendingLanding, setPendingLanding] = useState<
-    { id: string; expand: boolean; alignEnd: boolean } | null
+    { id: string; expand: boolean } | null
   >(null);
 
   // Cold-start splash: shown once on first mount, then fades out into Overview.
@@ -204,9 +203,7 @@ export function Shell({ session }: { session: Session }) {
       landingRef.current = null;
       alignRef.current?.cancel();
       if (el.scrollTop !== 0) el.scrollTop = 0;
-      // A target nav'd with `alignEnd: true` docks to the panel's bottom
-      // (block:"end") instead of the usual top — see NavOptions.alignEnd.
-      startAlign(landing.id, el, pendingLanding?.id === landing.id && pendingLanding.alignEnd);
+      startAlign(landing.id, el);
       return;
     }
     landingAppliedRef.current = true;
@@ -234,9 +231,8 @@ export function Shell({ session }: { session: Session }) {
   // Clear the landing signal once it's been consumed. This is a PASSIVE
   // effect, and React flushes descendants' passive effects before an
   // ancestor's — so the target card (deep inside a panel) has already read
-  // `expand` via NavExpandContext, and the layout effect above has already
-  // read `alignEnd` synchronously, before we reset here. Resetting lets a
-  // later PLAIN entry to that tab see null and NOT auto-open/bottom-dock.
+  // `expand` via NavExpandContext before we reset here. Resetting lets a
+  // later PLAIN entry to that tab see null and NOT auto-open its detail.
   useEffect(() => {
     if (pendingLanding == null) return;
     setPendingLanding(null);
@@ -252,7 +248,7 @@ export function Shell({ session }: { session: Session }) {
   // swap). No feedback loop: scrolling doesn't resize elements, so scrollIntoView
   // never re-fires the observer. scrollIntoView honours the card's
   // scroll-margin-top (a breath) and auto-scrolls this panel (nearest scroller).
-  function startAlign(targetId: string, scroller: HTMLElement, dockEnd = false) {
+  function startAlign(targetId: string, scroller: HTMLElement) {
     let cancelled = false;
     let ro: ResizeObserver | null = null;
     let lastHeight = 0;
@@ -278,7 +274,7 @@ export function Shell({ session }: { session: Session }) {
     const align = () => {
       const el = document.getElementById(targetId);
       if (!el) return;
-      el.scrollIntoView({ block: dockEnd ? "end" : "start" });
+      el.scrollIntoView({ block: "start" });
       if (!arrived && !el.classList.contains("loading-card")) {
         arrived = true;
         fireArrival(el);
@@ -391,14 +387,13 @@ export function Shell({ session }: { session: Session }) {
       // there instead.
       if (options?.scrollTo) {
         // The target is already mounted with real data (we're already on this
-        // tab), so honour expand/alignEnd the same way a cross-tab landing
-        // does: set pendingLanding so the card's own useNavExpand() sees the
-        // expand request, and match the scroll edge to alignEnd.
-        setPendingLanding({ id: options.scrollTo, expand: !!options.expand, alignEnd: !!options.alignEnd });
+        // tab), so honour `expand` the same way a cross-tab landing does: set
+        // pendingLanding so the card's own useNavExpand() sees the request.
+        setPendingLanding({ id: options.scrollTo, expand: !!options.expand });
         // Auto-scrolls the active panel (its nearest scrollable ancestor).
         document.getElementById(options.scrollTo)?.scrollIntoView({
           behavior: "smooth",
-          block: options.alignEnd ? "end" : "start",
+          block: "start",
         });
       } else {
         panelRefs.current[tab]?.scrollTo({ top: 0, behavior: "smooth" });
@@ -416,7 +411,7 @@ export function Shell({ session }: { session: Session }) {
       // alignment and silently override it back to the top.
       if (slideRef.current.to === next) {
         if (options?.scrollTo) {
-          setPendingLanding({ id: options.scrollTo, expand: !!options.expand, alignEnd: !!options.alignEnd });
+          setPendingLanding({ id: options.scrollTo, expand: !!options.expand });
           landingRef.current = { kind: "element", id: options.scrollTo };
           landingAppliedRef.current = false;
         } else {
@@ -425,7 +420,7 @@ export function Shell({ session }: { session: Session }) {
         return;
       }
       if (options?.scrollTo) {
-        setPendingLanding({ id: options.scrollTo, expand: !!options.expand, alignEnd: !!options.alignEnd });
+        setPendingLanding({ id: options.scrollTo, expand: !!options.expand });
       }
       // Cancel the in-flight slide's pending finalize and clear the slide state
       // itself. Otherwise the stale timer fires later and commits the OLD slide
@@ -447,7 +442,7 @@ export function Shell({ session }: { session: Session }) {
       return;
     }
     if (options?.scrollTo) {
-      setPendingLanding({ id: options.scrollTo, expand: !!options.expand, alignEnd: !!options.alignEnd });
+      setPendingLanding({ id: options.scrollTo, expand: !!options.expand });
     }
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
