@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { series, bucketSeries, rollingAvg, regressionSlope, theilSenSlope, median, weightAcceleration, computeRecovery } from "./math";
+import { series, bucketSeries, rollingAvg, rollingBand, regressionSlope, theilSenSlope, median, weightAcceleration, computeRecovery } from "./math";
 import type { BodyMetric } from "./api";
 
 // Helper: build a sequential daily series from a start date.
@@ -135,6 +135,22 @@ describe("rollingAvg", () => {
     ]);
     expect(rollingAvg(pts, 7, 0)).toBeCloseTo(9, 10);
     expect(rollingAvg(pts, 7, 7)).toBeCloseTo(1, 10);
+  });
+});
+
+describe("rollingBand", () => {
+  it("returns mean ± 1 SD over the trailing window", () => {
+    // 6 alternating readings: mean 90, population SD 10
+    const pts = daily("2026-06-24", [80, 100, 80, 100, 80, 100, 50]);
+    // offset 1 excludes the final 50 — the band describes the window before it
+    const band = rollingBand(pts, 30, 1)!;
+    expect(band.lo).toBeCloseTo(80, 10);
+    expect(band.hi).toBeCloseTo(100, 10);
+  });
+
+  it("returns null under the minimum reading count", () => {
+    const pts = daily("2026-06-27", [80, 100, 80, 100, 50]); // 4 in window after offset
+    expect(rollingBand(pts, 30, 1)).toBeNull();
   });
 });
 

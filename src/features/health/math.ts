@@ -145,8 +145,11 @@ export function bucketSeries(
     });
 }
 
-export function rollingAvg(pts: { date: string; value: number }[], days = 7, offsetDays = 0): number | null {
-  if (!pts.length) return null;
+/** Values inside the trailing window `days` long ending `offsetDays` before the
+ *  latest point — shared by rollingAvg and rollingBand so the average and its
+ *  spread always read the exact same window. */
+function windowValues(pts: { date: string; value: number }[], days: number, offsetDays: number): number[] {
+  if (!pts.length) return [];
   const last = pts.at(-1)!.date;
   const end = new Date(last + "T12:00:00");
   end.setDate(end.getDate() - offsetDays);
@@ -154,9 +157,32 @@ export function rollingAvg(pts: { date: string; value: number }[], days = 7, off
   start.setDate(start.getDate() - days + 1);
   const endStr = end.toISOString().slice(0, 10);
   const startStr = start.toISOString().slice(0, 10);
-  const window = pts.filter((p) => p.date >= startStr && p.date <= endStr);
-  if (!window.length) return null;
-  return window.reduce((s, p) => s + p.value, 0) / window.length;
+  return pts.filter((p) => p.date >= startStr && p.date <= endStr).map((p) => p.value);
+}
+
+export function rollingAvg(pts: { date: string; value: number }[], days = 7, offsetDays = 0): number | null {
+  const vals = windowValues(pts, days, offsetDays);
+  if (!vals.length) return null;
+  return vals.reduce((s, v) => s + v, 0) / vals.length;
+}
+
+export interface Band {
+  lo: number;
+  hi: number;
+}
+
+const MIN_BAND_POINTS = 5;
+
+/** Normal range = mean ± 1 SD over the same trailing window the baseline
+ *  averages (~68% of readings land inside it). Null under MIN_BAND_POINTS
+ *  readings — a band built from a handful of days asserts a "normal" that
+ *  doesn't exist yet, so consumers fall back to baseline-only. */
+export function rollingBand(pts: { date: string; value: number }[], days = 30, offsetDays = 1): Band | null {
+  const vals = windowValues(pts, days, offsetDays);
+  if (vals.length < MIN_BAND_POINTS) return null;
+  const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+  const sd = Math.sqrt(vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length);
+  return { lo: mean - sd, hi: mean + sd };
 }
 
 /** Trailing rolling average keyed by hours, not calendar days — smooths a
@@ -204,6 +230,10 @@ export interface RecoverySnapshot {
   sleepBaseline: number | null;
   hrvBaseline: number | null;
   rhrBaseline: number | null;
+  /** 30-day normal range (mean ± 1 SD) per metric — null until enough readings */
+  sleepBand: Band | null;
+  hrvBand: Band | null;
+  rhrBand: Band | null;
   /** 0–3: how many metrics are at or above their personal baseline */
   score: number;
   status: RecoveryStatus | null;
@@ -236,6 +266,12 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   const sleepBaseline = sleepBaseRaw != null ? sleepBaseRaw / 3600 : null;
   const hrvBaseline  = rollingAvg(hrvPts,  30, 1);
   const rhrBaseline  = rollingAvg(rhrPts,  30, 1);
+
+  // Normal range over the same 30-day window the baseline averages
+  const sleepBandRaw = rollingBand(sleepBaselinePts, 30, 1);
+  const sleepBand = sleepBandRaw ? { lo: sleepBandRaw.lo / 3600, hi: sleepBandRaw.hi / 3600 } : null;
+  const hrvBand = rollingBand(hrvPts, 30, 1);
+  const rhrBand = rollingBand(rhrPts, 30, 1);
 
   let score = 0;
   if (sleepHours != null && sleepBaseline != null && sleepHours >= sleepBaseline * 0.95) score++;
@@ -294,7 +330,7 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
     ? metrics.find((m) => m.metric_date === date)?.updated_at ?? null
     : null;
 
-  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, score, status, insight, date, updatedAt, stale };
+  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, sleepBand, hrvBand, rhrBand, score, status, insight, date, updatedAt, stale };
 }
 
 // A day counts as "trained" at ≥20 exercise minutes; ≥2 such days in the trailing

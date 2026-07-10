@@ -474,26 +474,28 @@
   color: var(--ink-2);
 }
 
-/* Baseline gauge: the fill length is the reading on a fixed 0→ceiling scale; the
-   tick is the 30-day baseline on that same scale. Filled past the tick = at or
-   better than baseline — a pre-attentive read that needs no unit parsing. */
+/* Range gauge: a faint full-scale track, a darker segment for the 30-day
+   normal range (mean ± 1 SD), a tick at the baseline mean, and a coloured dot
+   for the current 7-day average. Dot inside or past the band = a normal-or-
+   better read at a glance — the reading is judged against the user's own
+   spread, not a bare fill length. */
 .health-recovery-gauge {
   position: relative;
   flex: 1;
   height: 6px;
-  background: var(--rule-strong);
+  background: var(--bg-soft);
   border-radius: var(--radius-pill);
 }
 
-.health-recovery-gauge-fill {
+.health-recovery-gauge-band {
   position: absolute;
-  left: 0;
   top: 0;
   bottom: 0;
   border-radius: var(--radius-pill);
+  background: var(--rule-strong);
 }
 
-/* 2px mark that overhangs the track ±3px so it reads over any fill colour. */
+/* 2px mark that overhangs the track ±3px so it reads over the band. */
 .health-recovery-gauge-tick {
   position: absolute;
   top: -3px;
@@ -501,6 +503,17 @@
   width: 2px;
   border-radius: var(--radius-pill);
   background: var(--ink-4);
+}
+
+/* Today's marker — ringed with card bg so it separates from band and tick. */
+.health-recovery-gauge-dot {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px var(--bg-card);
 }
 
 .health-recovery-row-val {

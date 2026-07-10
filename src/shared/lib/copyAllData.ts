@@ -87,14 +87,19 @@ const OVERVIEW_UNIT_KEYS = [...HEALTH_UNIT_KEYS, "calories", "protein", "e1rm", 
 // formatting, but the JSON shouldn't carry 15-digit float noise.
 function roundRecovery(r: ReturnType<typeof computeRecovery>) {
   const d1 = (v: number | null) => (v == null ? null : +v.toFixed(1));
+  const band = (b: { lo: number; hi: number } | null) =>
+    b == null ? null : { lo: +b.lo.toFixed(1), hi: +b.hi.toFixed(1) };
   return {
     ...r,
     sleepHours: d1(r.sleepHours),
     sleepBaseline: d1(r.sleepBaseline),
+    sleepBand: band(r.sleepBand),
     hrv: d1(r.hrv),
     hrvBaseline: d1(r.hrvBaseline),
+    hrvBand: band(r.hrvBand),
     rhr: r.rhr == null ? null : Math.round(r.rhr),
     rhrBaseline: d1(r.rhrBaseline),
+    rhrBand: band(r.rhrBand),
   };
 }
 

@@ -276,10 +276,10 @@ function AnimatedMetric({
 }
 
 /* Fixed 0→ceiling display scales for the recovery gauges. Each metric maps its
-   reading to a fill fraction on its own physiological scale; RHR is inverted
-   (lower = better) so a low resting HR fills further right and reads as "good".
-   The tick is the 30-day baseline on the SAME scale, so "filled past the tick"
-   always means "at or better than your own baseline" — no units to parse. */
+   reading to a position on its own physiological scale; RHR is inverted
+   (lower = better) so a low resting HR sits further right and reads as "good".
+   The band, tick and dot all map through the SAME scale, so "dot at or past the
+   band" always means "at or better than your own normal" — no units to parse. */
 type GaugeMetric = "sleep" | "hrv" | "rhr";
 const GAUGE_SCALE: Record<GaugeMetric, { lo: number; hi: number; invert: boolean }> = {
   sleep: { lo: 0, hi: 10, invert: false },
@@ -296,7 +296,7 @@ function gaugePct(metric: GaugeMetric, v: number): number {
   return Math.max(2, Math.min(98, frac * 100));
 }
 
-/** Fill tone: green when the reading is at/past baseline in the healthy
+/** Dot tone: green when the reading is at/past baseline in the healthy
     direction, amber when it's meaningfully below — the SAME per-metric pass
     thresholds computeRecovery scores on (±5% tolerance), so a gauge's colour and
     the overall status can never disagree. Amber is --warn (the app's caution
@@ -307,31 +307,50 @@ function gaugeTone(metric: GaugeMetric, v: number, baseline: number | null): str
   return pass ? "var(--good)" : "var(--warn)";
 }
 
-/* The fill grows from 0 → its position on first reveal, on the same clock and
-   easing as the card's count-ups (COUNT_UP_MS, ease-out-quad bezier — mirrors
-   GoalBarFill in overview). The baseline tick is static. */
-function RecoveryGauge({ fill, tick, tone }: { fill: number; tick: number | null; tone: string }) {
+/* Range gauge: the shaded band is the 30-day normal range, the tick its
+   baseline mean, the coloured dot the current 7-day average. Band and tick are
+   static; on first reveal the dot travels baseline → today, on the same clock
+   and easing as the card's count-ups (COUNT_UP_MS, ease-out-quad bezier —
+   mirrors GoalBarFill in overview), so the motion itself reads as "where today
+   left your baseline". */
+function RecoveryGauge({
+  pos,
+  band,
+  tick,
+  tone,
+}: {
+  pos: number;
+  band: { lo: number; hi: number } | null;
+  tick: number | null;
+  tone: string;
+}) {
   const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
-  const [w, setW] = useState(0);
+  const [x, setX] = useState(tick ?? pos);
   useEffect(() => {
     if (delayMs == null) return;
     const timer = setTimeout(() => {
-      requestAnimationFrame(() => setW(fill));
+      requestAnimationFrame(() => setX(pos));
     }, delayMs);
     return () => clearTimeout(timer);
-  }, [delayMs, fill]);
+  }, [delayMs, pos]);
 
   return (
     <div ref={ref} className="health-recovery-gauge">
-      <div
-        className="health-recovery-gauge-fill"
+      {band != null && (
+        <span
+          className="health-recovery-gauge-band"
+          style={{ left: `${band.lo}%`, width: `${band.hi - band.lo}%` }}
+        />
+      )}
+      {tick != null && <span className="health-recovery-gauge-tick" style={{ left: `${tick}%` }} />}
+      <span
+        className="health-recovery-gauge-dot"
         style={{
-          width: `${w}%`,
+          left: `${x}%`,
           backgroundColor: tone,
-          transition: `width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`,
+          transition: `left ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`,
         }}
       />
-      {tick != null && <span className="health-recovery-gauge-tick" style={{ left: `${tick}%` }} />}
     </div>
   );
 }
@@ -342,21 +361,30 @@ function RecoveryRow({
   value,
   unit,
   baseline,
+  band,
 }: {
   label: string;
   metric: GaugeMetric;
   value: number | null;
   unit: string;
   baseline: number | null;
+  band: { lo: number; hi: number } | null;
 }) {
   const decimals = unit === "h" ? 1 : 0;
+
+  // Map both band ends through the metric scale, then sort — the RHR scale is
+  // inverted, so the value-space lo lands right of the hi in percent space.
+  const bandPct = band != null
+    ? [gaugePct(metric, band.lo), gaugePct(metric, band.hi)].sort((a, b) => a - b)
+    : null;
 
   return (
     <div className="health-recovery-row">
       <span className="health-recovery-row-label">{label}</span>
       {value != null ? (
         <RecoveryGauge
-          fill={gaugePct(metric, value)}
+          pos={gaugePct(metric, value)}
+          band={bandPct != null ? { lo: bandPct[0], hi: bandPct[1] } : null}
           tick={baseline != null ? gaugePct(metric, baseline) : null}
           tone={gaugeTone(metric, value, baseline)}
         />
@@ -440,11 +468,11 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
         </span>
       </div>
       <div className="health-recovery-rows">
-        <RecoveryRow label="Sleep" metric="sleep" value={snap.sleepHours} unit="h"   baseline={snap.sleepBaseline} />
-        <RecoveryRow label="HRV"   metric="hrv"   value={snap.hrv}        unit="ms"  baseline={snap.hrvBaseline} />
-        <RecoveryRow label="RHR"   metric="rhr"   value={snap.rhr}        unit="bpm" baseline={snap.rhrBaseline} />
+        <RecoveryRow label="Sleep" metric="sleep" value={snap.sleepHours} unit="h"   baseline={snap.sleepBaseline} band={snap.sleepBand} />
+        <RecoveryRow label="HRV"   metric="hrv"   value={snap.hrv}        unit="ms"  baseline={snap.hrvBaseline} band={snap.hrvBand} />
+        <RecoveryRow label="RHR"   metric="rhr"   value={snap.rhr}        unit="bpm" baseline={snap.rhrBaseline} band={snap.rhrBand} />
       </div>
-      <p className="health-recovery-legend">Tick = 30-day baseline · past it = at or better</p>
+      <p className="health-recovery-legend">Band = 30-day normal range · dot = 7-day average</p>
       {snap.insight && <p className="health-recovery-footer">{snap.insight}</p>}
     </section>
   );
