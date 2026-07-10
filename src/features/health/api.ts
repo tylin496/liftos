@@ -41,17 +41,6 @@ async function fetchTargetTdee(): Promise<number | null> {
   return data?.target_tdee ?? null;
 }
 
-/** Persist the user's maintenance TDEE goal. */
-export async function saveTargetTdee(targetTdee: number | null): Promise<void> {
-  const { data: userData, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userData.user) throw userErr ?? new Error("Not signed in");
-  const { error } = await supabase
-    .from("nutrition_config")
-    .update({ target_tdee: targetTdee })
-    .eq("user_id", userData.user.id);
-  if (error) throw error;
-}
-
 export async function fetchHealthData(days = 180): Promise<HealthData> {
   // Fetch extra history so previous-period TDEE windows are covered.
   const fetchDays = Math.max(days, 60);
