@@ -96,7 +96,8 @@ export function MetricDelta({
         <>
           {" "}
           {absStr}
-          {unit ? ` ${unit}` : ""}
+          {/* "%" is a tight suffix (8%); worded units get a space (8 kg/wk). */}
+          {unit ? (unit === "%" ? unit : ` ${unit}`) : ""}
         </>
       )}
     </span>

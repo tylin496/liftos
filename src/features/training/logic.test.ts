@@ -78,3 +78,74 @@ describe("classifyPR — score mode", () => {
     ).toBe("performance");
   });
 });
+
+// ─── computeWeeklyVolume ─────────────────────────────────────────────────────
+
+import { computeWeeklyVolume } from "./logic";
+import type { TrainingLog } from "./api";
+
+// Minimal log builder — computeWeeklyVolume only reads log_date + raw (via
+// toLogEntry); everything else is carried along untouched.
+const vlog = (date: string, raw: string): TrainingLog =>
+  ({ log_date: date, raw }) as TrainingLog;
+
+// setCount 1 keeps the arithmetic readable: "100*10" → 100kg × 10 reps = 1000.
+const pullRoster = [
+  { slug: "row", split: "pull", setCount: 1 },
+  { slug: "curl", split: "pull", setCount: 1 },
+];
+
+// today = Fri 2026-07-10 → this week starts Mon 2026-07-06, last week 06-29.
+const TODAY = "2026-07-10";
+
+describe("computeWeeklyVolume — split-completion carry-forward", () => {
+  it("completes the roster from each lift's latest prior record", () => {
+    const logs = {
+      // Last week (Tue 6/30): both lifts logged → 1000 + 500.
+      // This week (Wed 7/8): only row re-logged → curl carries forward its 6/30 set.
+      row: [vlog("2026-07-08", "110*10"), vlog("2026-06-30", "100*10")],
+      curl: [vlog("2026-06-30", "50*10")],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.lastWeekKg).toBe(1500);
+    expect(stat.thisWeekKg).toBe(1100 + 500); // logged row + carried curl
+    expect(stat.deltaPct).toBeCloseTo(((1600 - 1500) / 1500) * 100, 5);
+    expect(stat.thisWeekSessions).toEqual([
+      { date: "2026-07-08", split: "pull", volumeKg: 1600 },
+    ]);
+  });
+
+  it("carry-forward reads the record as of the session date, not a later one", () => {
+    const logs = {
+      row: [vlog("2026-07-08", "110*10"), vlog("2026-06-28", "100*10")],
+      // curl trained alone last Wed → that session pulls row's 6/28 numbers,
+      // NOT the 7/8 improvement that hadn't happened yet.
+      curl: [vlog("2026-07-01", "50*10")],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.lastWeekSessions).toEqual([
+      { date: "2026-07-01", split: "pull", volumeKg: 500 + 1000 },
+    ]);
+  });
+
+  it("counts each trained date of a split as its own session", () => {
+    const logs = {
+      row: [vlog("2026-07-08", "100*10"), vlog("2026-07-06", "100*10")],
+      curl: [vlog("2026-07-06", "50*10")],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.thisWeekSessions.map((s) => s.date)).toEqual([
+      "2026-07-08",
+      "2026-07-06",
+    ]);
+    // 7/6: 1000+500; 7/8: 1000 + carried 500.
+    expect(stat.thisWeekKg).toBe(3000);
+  });
+
+  it("reports no delta without a prior-week baseline", () => {
+    const logs = { row: [vlog("2026-07-08", "100*10")], curl: [] };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.deltaPct).toBeNull();
+    expect(stat.lastWeekSessions).toEqual([]);
+  });
+});

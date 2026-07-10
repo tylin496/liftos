@@ -371,3 +371,141 @@ export function computeHistDelta(
 }
 
 
+
+// ─── Weekly training volume (Monday-anchored, split-completed) ───────────────
+
+export interface WeeklyVolumeExercise {
+  slug: string;
+  /** The split this exercise belongs to — the carry-forward roster key. */
+  split: string;
+  /** Configured set count, so a single-number reps string ("7") expands to the
+   *  full session's reps (see totalReps). */
+  setCount: number;
+}
+
+/** One trained session (a split × date pair) and its carry-forward volume. */
+export interface WeeklyVolumeSession {
+  date: string; // YYYY-MM-DD
+  split: string;
+  volumeKg: number;
+}
+
+export interface WeeklyVolumeStat {
+  /** Total kg lifted this calendar week (Mon–Sun), with carry-forward. */
+  thisWeekKg: number;
+  lastWeekKg: number;
+  /** % change vs last week. null when there's no prior-week baseline (can't
+   *  judge a change against zero) — MetricDelta then renders nothing. */
+  deltaPct: number | null;
+  /** Per-session breakdown, newest-first — the disclosure detail rows. */
+  thisWeekSessions: WeeklyVolumeSession[];
+  lastWeekSessions: WeeklyVolumeSession[];
+}
+
+// Local YYYY-MM-DD — never toISOString(), which prints UTC and shifts the day
+// off-by-one in any non-UTC timezone (the whole app anchors on local dates).
+function localYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Monday (local) of the week `dateStr` (YYYY-MM-DD) falls in, as YYYY-MM-DD. */
+function weekStartMonday(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return localYmd(d);
+}
+
+function addDays(dateStr: string, n: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return localYmd(d);
+}
+
+/** Full working volume of one logged set: effective load × total reps performed
+ *  (both sets folded in). Returns 0 for an unparseable / bodyweight-only log. */
+function logVolume(log: TrainingLog, setCount: number): number {
+  const e = toLogEntry(log, setCount);
+  if (!e || e.weightKg <= 0) return 0;
+  return e.weightKg * e.totalReps;
+}
+
+/**
+ * Weekly training volume with split-completion carry-forward.
+ *
+ * The unit is a *session*: any day you logged at least one exercise of a split
+ * counts as having trained that whole split. Exercises you didn't re-log that
+ * day carry forward their most recent prior set (the one active as of the
+ * session date) — so a Pull day where you only logged one new set still sums
+ * the full Pull-roster volume, instead of collapsing to that single set.
+ *
+ * `logs` is keyed by slug, each array newest-first (as loaded). Compared this
+ * calendar week (Mon-anchored) vs last week; `today` is the reference date.
+ */
+export function computeWeeklyVolume(
+  logs: Record<string, TrainingLog[]>,
+  roster: WeeklyVolumeExercise[],
+  today: string,
+): WeeklyVolumeStat {
+  const bySplit = new Map<string, WeeklyVolumeExercise[]>();
+  for (const ex of roster) {
+    const arr = bySplit.get(ex.split) ?? [];
+    arr.push(ex);
+    bySplit.set(ex.split, arr);
+  }
+
+  // Most recent set for `slug` on or before `date` — logs are newest-first, so
+  // the first entry within range wins.
+  const latestUpTo = (slug: string, date: string): TrainingLog | null => {
+    for (const l of logs[slug] ?? []) {
+      if (l.log_date && l.log_date <= date) return l;
+    }
+    return null;
+  };
+
+  const weekSessions = (weekStart: string): WeeklyVolumeSession[] => {
+    const weekEndExcl = addDays(weekStart, 7);
+    // split -> the distinct dates that split was trained this week
+    const trained = new Map<string, Set<string>>();
+    for (const ex of roster) {
+      for (const l of logs[ex.slug] ?? []) {
+        const d = l.log_date;
+        if (d && d >= weekStart && d < weekEndExcl) {
+          const set = trained.get(ex.split) ?? new Set<string>();
+          set.add(d);
+          trained.set(ex.split, set);
+        }
+      }
+    }
+
+    const sessions: WeeklyVolumeSession[] = [];
+    for (const [split, dates] of trained) {
+      const rosterForSplit = bySplit.get(split) ?? [];
+      for (const date of dates) {
+        let volumeKg = 0;
+        for (const ex of rosterForSplit) {
+          const src = latestUpTo(ex.slug, date);
+          if (src) volumeKg += logVolume(src, ex.setCount);
+        }
+        sessions.push({ date, split, volumeKg });
+      }
+    }
+    sessions.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    return sessions;
+  };
+
+  const sumKg = (arr: WeeklyVolumeSession[]) => arr.reduce((s, x) => s + x.volumeKg, 0);
+
+  const thisWeekStart = weekStartMonday(today);
+  const lastWeekStart = addDays(thisWeekStart, -7);
+  const thisWeekSessions = weekSessions(thisWeekStart);
+  const lastWeekSessions = weekSessions(lastWeekStart);
+  const thisWeekKg = sumKg(thisWeekSessions);
+  const lastWeekKg = sumKg(lastWeekSessions);
+  const deltaPct =
+    lastWeekKg > 0 ? ((thisWeekKg - lastWeekKg) / lastWeekKg) * 100 : null;
+
+  return { thisWeekKg, lastWeekKg, deltaPct, thisWeekSessions, lastWeekSessions };
+}

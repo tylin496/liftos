@@ -1,0 +1,143 @@
+/* ─── Weekly Volume card ──────────────────────────────────────────────────────
+   Sits below Training Health. Chrome (bg/border/radius/shadow) comes from
+   .page-card; this file is layout + the disclosure + the loading shimmer.
+   Tapping the head discloses per-session rows (date · split · kg). */
+
+.wv-card {
+  scroll-margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Head is the whole visible card face — a bare button so the full face is the
+   tap target (same reset language as other in-card disclosure heads). */
+.wv-head {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wv-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* page-eyebrow carries a bottom margin; the row below owns the rhythm here. */
+.wv-eyebrow {
+  margin-bottom: 0;
+}
+
+.wv-chevron {
+  color: var(--ink-4);
+  flex-shrink: 0;
+  transition: transform var(--dur-move) var(--ease-move);
+}
+
+.wv-chevron.open {
+  transform: rotate(180deg);
+}
+
+.wv-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+/* ── Disclosure ── */
+
+.wv-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  /* Standard disclosure timing: enter on .open, exit on the base state. */
+  transition: grid-template-rows var(--dur-exit) var(--ease-move);
+}
+
+.wv-reveal.open {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--dur-enter) var(--ease-enter);
+}
+
+.wv-sessions {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wv-srow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--rule);
+  font-size: var(--text-sm);
+}
+
+/* First row sits under the head with a breath, and carries the opening rule. */
+.wv-sessions > :first-child {
+  margin-top: var(--space-3);
+}
+
+.wv-srow-date {
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+  /* Fixed-ish column so split names align across rows ("Wed 7/9" ≈ "Mon 7/14"). */
+  min-width: 64px;
+}
+
+.wv-srow-split {
+  color: var(--ink-2);
+  font-weight: 600;
+  flex: 1;
+}
+
+.wv-srow-vol {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.wv-sect-label {
+  font-size: var(--role-eyebrow-size);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: var(--role-eyebrow-spacing);
+  text-transform: uppercase;
+  color: var(--role-eyebrow-color);
+  padding: var(--space-3) 0 var(--space-1);
+}
+
+.wv-empty {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* ── Loading skeleton: same DOM, value shimmers in place (see skeleton-design). */
+
+.wv-card.loading-card .metric-val {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
+    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
+  ) !important;
+  background-size: 300% 100% !important;
+  border-radius: 0.3em !important;
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
+}
+
+.wv-card.loading-card .metric-unit {
+  visibility: hidden;
+}

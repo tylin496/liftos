@@ -23,8 +23,9 @@ import {
   ExerciseCard,
   useToast,
 } from "./ExerciseCard";
-import { computeStats } from "./logic";
+import { computeStats, computeWeeklyVolume } from "./logic";
 import { StrengthHealthCard } from "./StrengthHealthCard";
+import { WeeklyVolumeCard } from "./WeeklyVolumeCard";
 import { computeStrengthSummary } from "@features/overview/api";
 import { defaultSetCount, useScrollAboveKeyboard } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
@@ -38,6 +39,7 @@ import { getActiveScroller } from "@app/layout/activeScroller";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
 import { daysSince } from "@shared/lib/freshness";
+import { localDateStr } from "@shared/lib/date";
 import { EditIcon } from "./EditIcon";
 import "./training.css";
 
@@ -906,6 +908,16 @@ function TrainingPageInner() {
     return { strength: computeStrengthSummary(activeLogs, compoundSlugs, namesBySlug) };
   }, [logs, exercises]);
 
+  // Weekly volume — total kg lifted this calendar week, completing each trained
+  // split's roster via carry-forward (log one Pull set → the whole Pull roster
+  // still counts, at each lift's most recent numbers). Same in-memory logs.
+  const weeklyVolume = useMemo(() => {
+    const roster = (exercises ?? [])
+      .filter((e) => !e.archived)
+      .map((e) => ({ slug: e.slug, split: e.split, setCount: defaultSetCount(e) }));
+    return computeWeeklyVolume(logs, roster, localDateStr());
+  }, [logs, exercises]);
+
   // Every distinct log date on record, any exercise — feeds the session-count
   // milestone (every 100th training day) in ExerciseCard. A log can only ever
   // add one new date, so callers compare against this set as of before the add.
@@ -1115,6 +1127,8 @@ function TrainingPageInner() {
         strength={exercises ? strengthHealth.strength : undefined}
         onJumpToExercise={jumpToExercise}
       />
+
+      <WeeklyVolumeCard stat={exercises ? weeklyVolume : undefined} loading={!exercises} />
 
       {/* ── Archived (owner only) ── */}
       {!readOnly && (
