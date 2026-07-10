@@ -1078,36 +1078,6 @@ function TrainingPageInner() {
         onChange={handleStretchChange}
       />
 
-      {/* ── Archived (owner only) ── */}
-      {!readOnly && (
-        <ArchivedSection
-          exercises={archivedExercises}
-          logs={logs}
-          onRestore={handleRestore}
-          onDelete={handleDeleteArchived}
-        />
-      )}
-
-      {/* ── Add exercise (owner only) ── */}
-      {!readOnly && (
-        <div className="add-exercise">
-          {addingExercise ? (
-            <AddExerciseForm
-              onAdd={handleAddExercise}
-              onCancel={() => setAddingExercise(false)}
-            />
-          ) : (
-            <button
-              type="button"
-              className="add-exercise-btn"
-              onClick={() => setAddingExercise(true)}
-            >
-              + Add exercise
-            </button>
-          )}
-        </div>
-      )}
-
       {/* ── Time filter ── */}
       {/* Tucked behind a disclosure, not shown by default — it only matters once
           you're looking at full history, not while just logging sets. */}
@@ -1143,6 +1113,36 @@ function TrainingPageInner() {
         strength={exercises ? strengthHealth.strength : undefined}
         onJumpToExercise={jumpToExercise}
       />
+
+      {/* ── Archived (owner only) ── */}
+      {!readOnly && (
+        <ArchivedSection
+          exercises={archivedExercises}
+          logs={logs}
+          onRestore={handleRestore}
+          onDelete={handleDeleteArchived}
+        />
+      )}
+
+      {/* ── Add exercise (owner only) ── */}
+      {!readOnly && (
+        <div className="add-exercise">
+          {addingExercise ? (
+            <AddExerciseForm
+              onAdd={handleAddExercise}
+              onCancel={() => setAddingExercise(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              className="add-exercise-btn"
+              onClick={() => setAddingExercise(true)}
+            >
+              + Add exercise
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

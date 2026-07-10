@@ -2324,7 +2324,6 @@
   border-radius: var(--radius-card);
   cursor: pointer;
   transition: border-color var(--dur-press), color var(--dur-press);
-  margin-top: var(--vr-block);
   display: flex;
   align-items: center;
   gap: var(--space-2);
