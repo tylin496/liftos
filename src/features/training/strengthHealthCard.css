@@ -233,7 +233,7 @@
   padding-top: var(--space-5);
   /* Expanding On Track auto-scrolls it into view ({block:"end"}); land it above
      the floating tabbar rather than clipped behind it. */
-  scroll-margin-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
+  scroll-margin-bottom: var(--dock-bottom-clearance);
 }
 
 .ov-th-section:first-child {

@@ -23,6 +23,7 @@ import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metr
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
+import { useNavExpand } from "@app/layout/NavContext";
 import { getActiveScroller } from "@app/layout/activeScroller";
 import { HealthTrendSheet, type HealthTrendConfig } from "./TrendSheet";
 import "./health.css";
@@ -556,6 +557,16 @@ export function HealthPage() {
   const energyCardRef = useRef<HTMLElement | null>(null);
   const activity = useTabActivity();
 
+  // A deep-link from Overview's Active Target card asks Active to open on
+  // arrival (see the `expand: true` nav call) — it's the only way to reveal
+  // the Resting/TDEE breakdown behind it, and Shell docks this target to the
+  // panel's bottom (not top) specifically because it auto-expands, so it
+  // should actually be open when it lands there.
+  const isNavTarget = useNavExpand() === "health-energy-card";
+  useEffect(() => {
+    if (isNavTarget) setEnergyExpanded(true);
+  }, [isNavTarget]);
+
   // Active is the last card; when it expands, the revealed Resting/TDEE rows land
   // below the fold, behind the floating tab bar. Scroll the panel to its bottom
   // (the panel's own padding-bottom already clears the tab bar there) so the
@@ -563,21 +574,36 @@ export function HealthPage() {
   // finish so scrollHeight reflects the settled layout, not the collapsed one.
   useEffect(() => {
     if (!energyExpanded) return;
-    const scroller = getActiveScroller();
-    if (!scroller) return;
     const wrap = energyCardRef.current?.querySelector(".health-energy-model-wrap");
-    const settle = () => scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
-    if (!wrap) {
-      settle();
-      return;
-    }
+    // Not mounted yet — happens on the nav-triggered path, which can flip
+    // energyExpanded before `data` loads (see isNavTarget above), while this
+    // section is still rendering its `data && tdee?.tdee != null` skeleton
+    // branch. Re-running on `data` below retries once it mounts.
+    if (!wrap) return;
+    // Resolve the scroller from the card's own ancestor, not Shell's
+    // activeScroller registry: that registry only updates once the tab-slide
+    // commits (see Shell's `setActiveScroller` effect, keyed on `tab`), but a
+    // nav-triggered expand (isNavTarget above) can flip energyExpanded WHILE
+    // Health is still the incoming, not-yet-committed panel — the registry
+    // would still point at the outgoing tab's panel at that moment.
+    const settle = () => {
+      const scroller = energyCardRef.current?.closest<HTMLElement>(".tab-panel") ?? getActiveScroller();
+      scroller?.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+    };
+    // The nav-triggered path mounts `wrap` already in its open state (data
+    // loads and energyExpanded is already true by then) — grid-template-rows
+    // never transitions from a collapsed state, so transitionend wouldn't
+    // fire. Settle once immediately to cover that case; the manual-toggle
+    // case still gets its transitionend-driven settle below (harmless if
+    // both fire — scrollTo to the same target is idempotent).
+    settle();
     const onEnd = (e: Event) => {
       if ((e as TransitionEvent).propertyName !== "grid-template-rows") return;
       settle();
     };
     wrap.addEventListener("transitionend", onEnd);
     return () => wrap.removeEventListener("transitionend", onEnd);
-  }, [energyExpanded]);
+  }, [energyExpanded, data]);
 
   const load = useCallback(() => {
     return fetchHealthData(FIXED_DAYS)

@@ -335,6 +335,11 @@
   --content-max: 560px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Scroll clearance for a card that docks to its panel's bottom (deep-link
+     alignEnd targets, expanded "last card on a short page" cases) — must
+     clear the floating tab bar itself, not just its own padding. Shared by
+     every bottom-docked card so the formula only lives in one place. */
+  --dock-bottom-clearance: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
 }
 
 :root[data-theme="dark"] {

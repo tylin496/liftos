@@ -1183,7 +1183,7 @@ export function OverviewPage() {
         targetTdee={data?.targetTdee ?? null}
         currentTdee={data?.currentTdee ?? null}
         syncAt={data ? latestUpdatedAt(data.metrics, "active_energy_kcal") : null}
-        onNav={() => nav("health", { scrollTo: "health-energy-card" })}
+        onNav={() => nav("health", { scrollTo: "health-energy-card", expand: true, alignEnd: true })}
       />
 
       {/* Cut Progress — the skeleton and the common loaded state are both

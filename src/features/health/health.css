@@ -328,8 +328,19 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   /* Deep-link target (Overview → Health): land with a breath, not jammed to
-     the edge. Shell owns the scroll; this just sets where it settles. */
+     the edge. Shell owns the scroll; this just sets where it settles.
+     It's the last card in a short page, so a plain "start" alignment can't
+     reach the top (not enough content below to scroll that far) — Shell
+     docks it to the panel's bottom instead (block:"end", see startAlign in
+     Shell.tsx), which is also where it auto-expands to on arrival.
+     scroll-margin-bottom must clear the floating tab bar itself (the panel's
+     own bottom padding only reserves scroll room past it — "end" alignment
+     lands flush with the padding box's edge, i.e. behind the bar, unless the
+     target's own margin pushes it back out) — shared --dock-bottom-clearance
+     token, same as the other bottom-docked cards (strengthHealthCard.css,
+     training.css). */
   scroll-margin-top: var(--space-4);
+  scroll-margin-bottom: var(--dock-bottom-clearance);
 }
 
 .health-energy-chevron {

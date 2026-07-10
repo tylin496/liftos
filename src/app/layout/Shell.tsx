@@ -139,9 +139,14 @@ export function Shell({ session }: { session: Session }) {
   >(null);
   const slideRef = useRef(slide);
   slideRef.current = slide;
-  // The scrollTo id whose detail should auto-expand on this tab entry — set when
-  // a nav passes `expand: true`, read via NavExpandContext by the target card.
-  const [pendingExpand, setPendingExpand] = useState<string | null>(null);
+  // The scrollTo id's landing flags for this tab entry — `expand` is read via
+  // NavExpandContext by the target card to auto-open its detail; `alignEnd`
+  // docks the target to the panel's BOTTOM instead of its top (see NavOptions).
+  // One state (not two parallel ones) so a nav call site can't set one flag
+  // without the other, and there's a single reset-on-consume effect below.
+  const [pendingLanding, setPendingLanding] = useState<
+    { id: string; expand: boolean; alignEnd: boolean } | null
+  >(null);
 
   // Cold-start splash: shown once on first mount, then fades out into Overview.
   // `splash` keeps it mounted; `splashLeaving` triggers the fade-out class just
@@ -199,7 +204,9 @@ export function Shell({ session }: { session: Session }) {
       landingRef.current = null;
       alignRef.current?.cancel();
       if (el.scrollTop !== 0) el.scrollTop = 0;
-      startAlign(landing.id, el);
+      // A target nav'd with `alignEnd: true` docks to the panel's bottom
+      // (block:"end") instead of the usual top — see NavOptions.alignEnd.
+      startAlign(landing.id, el, pendingLanding?.id === landing.id && pendingLanding.alignEnd);
       return;
     }
     landingAppliedRef.current = true;
@@ -213,22 +220,27 @@ export function Shell({ session }: { session: Session }) {
     // actually moved — skipping the no-op write avoids that stray flash.
     const target = landing.kind === "restore" ? landing.y : 0;
     if (el.scrollTop !== target) el.scrollTop = target;
-  }, [slide, tab]);
+    // pendingLanding is in deps for the rare case where a re-tap on a tab
+    // already mid-slide-toward retargets the in-flight landing (see
+    // switchTab's `slideRef.current.to === next` branch) — slide/tab don't
+    // change then, so this effect wouldn't otherwise re-run to pick it up.
+  }, [slide, tab, pendingLanding]);
 
   // Keep the imperative-scroller registry pointed at the active panel.
   useEffect(() => {
     setActiveScroller(panelRefs.current[tab]);
   }, [tab]);
 
-  // Clear the expand signal once the target card has consumed it. This is a
-  // PASSIVE effect, and React flushes descendants' passive effects before an
+  // Clear the landing signal once it's been consumed. This is a PASSIVE
+  // effect, and React flushes descendants' passive effects before an
   // ancestor's — so the target card (deep inside a panel) has already read
-  // pendingExpand and opened its section before we reset it here. Resetting lets
-  // a later PLAIN entry to that tab see null and NOT auto-open.
+  // `expand` via NavExpandContext, and the layout effect above has already
+  // read `alignEnd` synchronously, before we reset here. Resetting lets a
+  // later PLAIN entry to that tab see null and NOT auto-open/bottom-dock.
   useEffect(() => {
-    if (pendingExpand == null) return;
-    setPendingExpand(null);
-  }, [pendingExpand]);
+    if (pendingLanding == null) return;
+    setPendingLanding(null);
+  }, [pendingLanding]);
 
   // Deep-link alignment within the target panel. The Page has just remounted to
   // a skeleton; the target card sits at short-page height now and shifts once
@@ -240,7 +252,7 @@ export function Shell({ session }: { session: Session }) {
   // swap). No feedback loop: scrolling doesn't resize elements, so scrollIntoView
   // never re-fires the observer. scrollIntoView honours the card's
   // scroll-margin-top (a breath) and auto-scrolls this panel (nearest scroller).
-  function startAlign(targetId: string, scroller: HTMLElement) {
+  function startAlign(targetId: string, scroller: HTMLElement, dockEnd = false) {
     let cancelled = false;
     let ro: ResizeObserver | null = null;
     let lastHeight = 0;
@@ -266,7 +278,7 @@ export function Shell({ session }: { session: Session }) {
     const align = () => {
       const el = document.getElementById(targetId);
       if (!el) return;
-      el.scrollIntoView({ block: "start" });
+      el.scrollIntoView({ block: dockEnd ? "end" : "start" });
       if (!arrived && !el.classList.contains("loading-card")) {
         arrived = true;
         fireArrival(el);
@@ -378,10 +390,15 @@ export function Shell({ session }: { session: Session }) {
       // for a specific target (e.g. Weight → Nutrition's insight card) jumps
       // there instead.
       if (options?.scrollTo) {
+        // The target is already mounted with real data (we're already on this
+        // tab), so honour expand/alignEnd the same way a cross-tab landing
+        // does: set pendingLanding so the card's own useNavExpand() sees the
+        // expand request, and match the scroll edge to alignEnd.
+        setPendingLanding({ id: options.scrollTo, expand: !!options.expand, alignEnd: !!options.alignEnd });
         // Auto-scrolls the active panel (its nearest scrollable ancestor).
         document.getElementById(options.scrollTo)?.scrollIntoView({
           behavior: "smooth",
-          block: "start",
+          block: options.alignEnd ? "end" : "start",
         });
       } else {
         panelRefs.current[tab]?.scrollTo({ top: 0, behavior: "smooth" });
@@ -390,15 +407,26 @@ export function Shell({ session }: { session: Session }) {
     }
     if (slideRef.current) {
       // A tap on the tab we're already animating toward — let the in-flight
-      // animation finish instead of snapping it to completion. The tab bar
-      // already highlights `next` at this point (see setHighlight below), so
-      // this reads to the user as "tapping the active tab" — honor the same
-      // go-home scroll-to-top once the slide settles (scheduleFinalize).
+      // animation finish instead of snapping it to completion. A PLAIN
+      // re-tap (no scrollTo) reads as "tapping the active tab" — honor the
+      // same go-home scroll-to-top once the slide settles (scheduleFinalize).
+      // A re-tap that itself carries a scrollTo (e.g. a second deep-link nav
+      // to the same in-flight tab) updates the pending landing instead —
+      // otherwise scheduleFinalize's home-scroll would fire AFTER Shell's own
+      // alignment and silently override it back to the top.
       if (slideRef.current.to === next) {
-        pendingHomeScrollRef.current = next;
+        if (options?.scrollTo) {
+          setPendingLanding({ id: options.scrollTo, expand: !!options.expand, alignEnd: !!options.alignEnd });
+          landingRef.current = { kind: "element", id: options.scrollTo };
+          landingAppliedRef.current = false;
+        } else {
+          pendingHomeScrollRef.current = next;
+        }
         return;
       }
-      if (options?.scrollTo && options.expand) setPendingExpand(options.scrollTo);
+      if (options?.scrollTo) {
+        setPendingLanding({ id: options.scrollTo, expand: !!options.expand, alignEnd: !!options.alignEnd });
+      }
       // Cancel the in-flight slide's pending finalize and clear the slide state
       // itself. Otherwise the stale timer fires later and commits the OLD slide
       // target (its dx is already off-screen), overriding this tap — and the
@@ -418,7 +446,9 @@ export function Shell({ session }: { session: Session }) {
       setSlide(null);
       return;
     }
-    if (options?.scrollTo && options.expand) setPendingExpand(options.scrollTo);
+    if (options?.scrollTo) {
+      setPendingLanding({ id: options.scrollTo, expand: !!options.expand, alignEnd: !!options.alignEnd });
+    }
     setHighlight(next);
     const dir: 1 | -1 = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
     noteLeaving();
@@ -790,7 +820,7 @@ export function Shell({ session }: { session: Session }) {
     <NutritionConfigProvider>
     <SettingsSheetProvider>
       <NavContext.Provider value={switchTab}>
-      <NavExpandContext.Provider value={pendingExpand}>
+      <NavExpandContext.Provider value={pendingLanding?.expand ? pendingLanding.id : null}>
         <div className="shell">
           <main ref={contentRef} className={`shell-content${slide ? " is-sliding" : ""}`}>
             {pull && (

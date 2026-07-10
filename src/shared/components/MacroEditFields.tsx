@@ -34,14 +34,17 @@ function resolveValue(raw: string): number {
   return Math.max(0, terms.reduce((sum, term) => sum + Number(term), 0));
 }
 
-// Tap-to-edit keypad entry for the daily Calories/Protein pair, shared by
-// Overview's Hero card and Nutrition's Today card (same underlying daily
-// entry). Typing the 4th calorie digit auto-advances to Protein; typing the
-// 3rd protein digit auto-submits — callers just supply current values +
-// setters and get the save call with the freshly-typed digits (not stale
-// state) so the auto-submit doesn't race a pending setState. Those digit-count
-// shortcuts only match a pure digit run, so typing an arithmetic expression
-// (e.g. "2312+12") falls through to Enter / the Save button instead.
+// Tap-to-edit keypad entry for the daily Calories/Protein pair, used by
+// Nutrition's Today card. On first-time add (!hasEntry), typing the 4th
+// calorie digit auto-advances to Protein and typing the 3rd protein digit
+// auto-submits —
+// callers just supply current values + setters and get the save call with
+// the freshly-typed digits (not stale state) so the auto-submit doesn't race
+// a pending setState. When updating an existing entry (hasEntry), these
+// digit-count shortcuts are disabled: a second edit often means appending
+// "+12" on top of the existing number to top up a later meal, so auto-advance/
+// auto-submit would cut that off mid-edit — Enter / the Save button are
+// required instead.
 export function MacroEditFields({
   calories,
   protein,
@@ -99,7 +102,7 @@ export function MacroEditFields({
             onChange={(e) => {
               const next = sanitizeDigits(e.target.value, 4);
               onCaloriesChange(next);
-              if (/^\d{4}$/.test(next)) {
+              if (!hasEntry && /^\d{4}$/.test(next)) {
                 onActiveFieldChange("protein");
               }
             }}
@@ -125,7 +128,7 @@ export function MacroEditFields({
             onChange={(e) => {
               const next = sanitizeDigits(e.target.value, 3);
               onProteinChange(next);
-              if (/^\d{3}$/.test(next)) {
+              if (!hasEntry && /^\d{3}$/.test(next)) {
                 onSave(resolvedCalories(), resolveValue(next));
               }
             }}
