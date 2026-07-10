@@ -41,6 +41,25 @@ function wrapIndex(i: number): number {
   return (i + TAB_ORDER.length) % TAB_ORDER.length;
 }
 
+// One-shot "you arrived here" highlight on a deep-link target card (the neutral
+// lift + hairline ring in layout.css). Reflow-restarts if the class somehow
+// lingers from a prior fire, then removes itself on animationend so a later
+// deep-link to the same card re-fires. The animationend guard is essential:
+// the card's own descendants (bars, count-ups, spark wipes) animate during the
+// entrance cascade and their animationend BUBBLES up to the card — we clear
+// only on our own animation ending on the card itself, never a child's.
+function fireArrival(el: HTMLElement) {
+  el.classList.remove("is-arrived");
+  void el.offsetWidth; // force reflow so re-adding restarts the animation
+  el.classList.add("is-arrived");
+  const clear = (e: AnimationEvent) => {
+    if (e.target !== el || e.animationName !== "ov-arrive-lift") return;
+    el.classList.remove("is-arrived");
+    el.removeEventListener("animationend", clear);
+  };
+  el.addEventListener("animationend", clear);
+}
+
 // Single Settings sheet instance for the whole app — both PageTopBar's avatar
 // (per screen) and anything else that calls openSettings() share this one.
 function GlobalSettingsSheet() {
@@ -235,8 +254,24 @@ export function Shell({ session }: { session: Session }) {
     // catch-up align was meant to prevent, not cause. Instant lands the target
     // in the same frame the layout settles, so the cascade is the only motion
     // on screen.
-    const align = () =>
-      document.getElementById(targetId)?.scrollIntoView({ block: "start" });
+    // Fire the neutral arrival highlight once, the first time we land on the
+    // target while it's showing REAL content — not its in-place skeleton. The
+    // deep-link targets are "stable cards" (StrengthHealthCard, health-energy,
+    // nutrition-insight) that render their id during load under a `loading-card`
+    // class, then resolve the same DOM to data. Deferring past `loading-card`
+    // keeps the cue on the settled card instead of a skeleton about to shift:
+    // a warm target has no loading-card so it fires on the pre-position pass; a
+    // cold target fires on the ResizeObserver re-align once data lands.
+    let arrived = false;
+    const align = () => {
+      const el = document.getElementById(targetId);
+      if (!el) return;
+      el.scrollIntoView({ block: "start" });
+      if (!arrived && !el.classList.contains("loading-card")) {
+        arrived = true;
+        fireArrival(el);
+      }
+    };
     const cancel = () => {
       if (cancelled) return;
       cancelled = true;

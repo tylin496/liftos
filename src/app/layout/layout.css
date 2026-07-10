@@ -361,6 +361,44 @@ html.kb-open .tabbar {
   padding: var(--space-5);
 }
 
+/* ── Deep-link arrival highlight ─────────────────────────────────────────────
+   Fired by Shell (startAlign) as .is-arrived when a deep-link from Overview
+   lands on its target card. A neutral, hue-less "lift": the card rises briefly
+   on a soft shadow bloom + a hairline ink ring, holds, then settles exactly
+   back to rest. No colour — an arrival cue says only *where you are*, never a
+   status, so it borrows no semantic hue or the brand ember. References only
+   tokens (--shadow-sm, --ink-4), so it works unmodified in light and dark.
+   1800ms is a bespoke expressive one-off (hold-based orientation cue, outside
+   the UI-rhythm role scale, like save-pulse / day-drag-hint); the curve is the
+   standard reveal ease. Reduced-motion is handled globally in global.css — the
+   blanket guard collapses this to its at-rest end-state, and the deep-link's
+   own scroll-into-view carries the orientation. */
+@keyframes ov-arrive-lift {
+  0% {
+    transform: translateY(0) scale(1);
+    box-shadow: var(--shadow-sm);
+  }
+  22% {
+    transform: translateY(-3px) scale(1.012);
+    box-shadow: var(--shadow-sm), 0 11px 30px rgba(15, 17, 22, 0.17), 0 0 0 1.4px var(--ink-4);
+  }
+  62% {
+    transform: translateY(-3px) scale(1.012);
+    box-shadow: var(--shadow-sm), 0 11px 30px rgba(15, 17, 22, 0.17), 0 0 0 1.4px var(--ink-4);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+.page-card.is-arrived {
+  position: relative;
+  z-index: 1; /* lift above neighbours for the duration of the cue */
+  animation: ov-arrive-lift 1800ms var(--ease-enter) both;
+  will-change: transform;
+}
+
 .page-eyebrow {
   font-size: var(--role-eyebrow-size);
   font-weight: var(--role-eyebrow-weight);
