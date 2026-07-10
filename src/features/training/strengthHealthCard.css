@@ -422,24 +422,70 @@
 
 /* Muscle-cluster fatigue — a muscle-level callout above the per-lift warning
    rows: several lifts of one muscle sliding together in the same block. Passive
-   surface (--bg-soft, no border, per the grey-surface rule); coral ink carries
-   the fatigue tone. Summarises the rows beneath it, so it leads the section. */
+   surface (--bg-soft, no border, per the grey-surface rule). Three stacked
+   lines: coral verdict headline + dot strip (one dot per judged lift in the
+   group, coral fill = sliding), muted "N of M" caption, then the volume-level
+   next step in the warning rows' action grammar (→ + muted ink). */
 .ov-th-cluster {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  flex-direction: column;
+  gap: var(--vr-hairline);
   padding: 10px;
   margin-bottom: var(--space-3);
   background: var(--bg-soft);
   border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--warn-ink);
+}
+.ov-th-cluster-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 .ov-th-cluster-marker {
   flex-shrink: 0;
   color: var(--warn);
   font-weight: 700;
+  font-size: var(--text-sm);
+}
+.ov-th-cluster-headline {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--warn-ink);
+}
+.ov-th-cluster-dots {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  /* Baseline row, but dots have no baseline — center them on the headline. */
+  align-self: center;
+}
+.ov-th-cluster-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+}
+.ov-th-cluster-dot.is-sliding { background: var(--warn); }
+/* Caption on --bg-soft: --ink-3 minimum (grey-surface contrast rule). */
+.ov-th-cluster-detail {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.ov-th-cluster-step {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: var(--vr-hairline);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.ov-th-cluster-step-arrow {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--warn);
 }
 
 /* ── Reward row — two lines: name (top), note (bottom); icon + chip/spark

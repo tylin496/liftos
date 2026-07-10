@@ -555,10 +555,35 @@ export function StrengthHealthCard({
             <div className="ov-th-sect-head-row ov-th-sect-head-row--static">
               <span className="ov-th-sect-head">Needs attention</span>
             </div>
+            {/* Muscle-level callout: verdict headline + a dot strip (one dot per
+                judged lift in the group, coral = sliding) + the volume-level next
+                step. The dots are the systemic read at a glance — the per-lift
+                stories stay in the warning rows below, so no lift names here. */}
             {muscleFatigue.map((f) => (
               <div key={f.muscle} className="ov-th-cluster">
-                <span className="ov-th-cluster-marker" aria-hidden>⚠</span>
-                <span className="ov-th-cluster-text">{f.action}</span>
+                <span className="ov-th-cluster-head">
+                  <span className="ov-th-cluster-marker" aria-hidden>⚠</span>
+                  <span className="ov-th-cluster-headline">{f.headline}</span>
+                  <span
+                    className="ov-th-cluster-dots"
+                    role="img"
+                    aria-label={`${f.lifts.length} of ${f.groupSize} ${f.muscle} lifts sliding`}
+                  >
+                    {Array.from({ length: f.groupSize }).map((_, i) => (
+                      <span
+                        key={i}
+                        className={`ov-th-cluster-dot${i < f.lifts.length ? " is-sliding" : ""}`}
+                      />
+                    ))}
+                  </span>
+                </span>
+                <span className="ov-th-cluster-detail">
+                  {f.lifts.length} of {f.groupSize} {f.muscle} lifts sliding together
+                </span>
+                <span className="ov-th-cluster-step">
+                  <span className="ov-th-cluster-step-arrow" aria-hidden>→</span>
+                  {f.step}
+                </span>
               </div>
             ))}
             {warnings.map((ex) => (

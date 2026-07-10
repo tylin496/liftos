@@ -88,7 +88,16 @@ export interface ClusterFatigueAdvice {
   muscle: Exclude<MuscleGroup, "unknown">;
   /** Display names of the lifts sliding together. */
   lifts: string[];
+  /** All judged lifts in the muscle group (sliding + holding) — the card's dot
+   *  strip denominator, so "2 of 3 chest lifts" is renderable without re-running
+   *  the cluster pass. */
+  groupSize: number;
   confidence: number;
+  /** Structured pieces for the card block: the verdict ("Chest isn't
+   *  recovering") and the next step, separately. `action` remains their
+   *  one-sentence join — the AI export's flat string. */
+  headline: string;
+  step: string;
   /** The muscle-level next step — a SINGLE imperative, same contract as
    *  deload.ts's `action` (no "N weeks" context prefix). The point it makes that
    *  per-lift deload can't: the muscle isn't recovering, so pulling one
@@ -108,10 +117,15 @@ export function suggestClusterFatigue(
   const lifts = cluster.decliningSlugs.map(nameOf);
   const muscle = cluster.muscle;
   const Muscle = muscle.charAt(0).toUpperCase() + muscle.slice(1);
+  const headline = `${Muscle} isn't recovering`;
+  const step = `Back off ${muscle} volume this week, not just one movement.`;
   return {
     muscle,
     lifts,
+    groupSize: cluster.slugs.length,
     confidence: cluster.confidence,
-    action: `${Muscle} isn't recovering — ${lifts.length} lifts sliding together. Back off ${muscle} volume this week, not just one movement.`,
+    headline,
+    step,
+    action: `${headline} — ${lifts.length} lifts sliding together. ${step}`,
   };
 }
