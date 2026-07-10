@@ -109,7 +109,7 @@ function buildNutritionEntries() {
 const NUTRITION_ENTRIES = buildNutritionEntries();
 
 // ── Body metrics ───────────────────────────────────────────────────────────────
-// Real Apple Health export (health_metrics_rows.csv) — last ~186 days, stamped
+// Real Apple Health data (production health_metrics, last 365 days), stamped
 // with the dev user id. Nulls are genuine gaps in the export, left as-is.
 
 function buildBodyMetrics() {
