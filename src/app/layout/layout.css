@@ -303,7 +303,7 @@ html.kb-open .tabbar {
    pops off the translucent glass. Scoped to the tab bar — does not touch the
    global brand accent. */
 .tabbar-item.is-active {
-  color: #ff6b3d;
+  color: var(--tabbar-active);
 }
 
 .tabbar-icon svg {
@@ -506,10 +506,10 @@ html.kb-open .tabbar {
 }
 
 .settings-sheet-title {
-  font-size: var(--text-lg);
-  font-weight: 700;
+  font-size: var(--role-card-title-size);
+  font-weight: var(--role-card-title-weight);
   letter-spacing: -0.01em;
-  color: var(--ink);
+  color: var(--role-card-title-color);
 }
 
 .settings-sheet-header-actions {
@@ -615,7 +615,7 @@ html.kb-open .tabbar {
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--role-eyebrow-color);
   margin: 0;
 }
 
@@ -778,7 +778,7 @@ html.kb-open .tabbar {
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--role-eyebrow-color);
   margin-right: var(--space-2);
 }
 

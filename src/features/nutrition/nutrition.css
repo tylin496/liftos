@@ -85,7 +85,7 @@
    the old shared size since there's no change to announce there. */
 .ni-prog-current {
   font-family: var(--font-mono);
-  font-size: var(--text-xl);
+  font-size: var(--metric-md);
   font-weight: 700;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
@@ -99,7 +99,7 @@
 
 .ni-prog-new {
   font-family: var(--font-mono);
-  font-size: var(--text-3xl);
+  font-size: var(--metric-lg);
   font-weight: 700;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
@@ -133,7 +133,7 @@
 .ni-prog-hold {
   font-size: var(--role-eyebrow-size);
   font-weight: var(--role-eyebrow-weight);
-  color: var(--ink-3);
+  color: var(--role-eyebrow-color);
   text-transform: uppercase;
   letter-spacing: var(--role-eyebrow-spacing);
 }
@@ -149,7 +149,7 @@
 
 .ni-hero-val {
   font-family: var(--font-mono);
-  font-size: var(--text-xl);
+  font-size: var(--metric-md);
   font-weight: 700;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
@@ -312,7 +312,7 @@
   padding: var(--space-4);
   /* Lighter panel in light mode (see .ni-cell); dark keeps --bg-soft. */
   background: color-mix(in srgb, var(--bg-soft), var(--bg-card) 40%);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-sm);
 }
 
 /* Label left, precise observed value big on the right (1b: exact number stays
@@ -347,7 +347,7 @@
   position: relative;
   height: 12px;
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  background: var(--rule-strong);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16);
 }
 
@@ -426,7 +426,7 @@
   font-size: var(--text-2xs);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 .ni-meter-tick {
   position: absolute;
@@ -436,7 +436,7 @@
 .ni-meter-end {
   position: absolute;
   left: 0;
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-family: var(--font-ui);
   font-size: var(--text-2xs);
   letter-spacing: normal;

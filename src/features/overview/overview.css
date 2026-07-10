@@ -112,7 +112,7 @@
 .ov-active-target-status {
   font-size: var(--role-card-headline-size);
   font-weight: var(--role-card-headline-weight);
-  color: var(--ink);
+  color: var(--role-card-headline-color);
 }
 
 .ov-active-target-status .is-behind { color: var(--warn); }
@@ -126,10 +126,10 @@
 /* Two-line min-height keeps the longer behind/ahead copy from growing the
    card — matches layout-stability rule for count-up/loading rows. */
 .ov-active-target-ring-sub {
-  font-size: var(--text-sm);
-  color: var(--ink-3);
+  font-size: var(--role-secondary-size);
+  color: var(--role-secondary-color);
   line-height: var(--leading-body);
-  min-height: calc(2 * var(--text-sm) * var(--leading-body));
+  min-height: calc(2 * var(--role-secondary-size) * var(--leading-body));
 }
 
 .ov-no-entry {
@@ -422,47 +422,9 @@
   text-shadow: var(--gold-glow);
   pointer-events: none;
 }
-.ov-weight-status-pill {
-  display: inline-flex;
-  align-items: center;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
-  gap: 5px;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
-  padding: 3px 10px 3px 8px; /* chip micro-spacing */
-  border-radius: var(--radius-pill);
-  background: var(--bg-soft);
-  color: var(--ink-2);
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
 
-.ov-weight-status-dot {
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
-  width: 6px;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ink-4);
-}
-
-/* Only a conclusive pace verdict recolours the whole pill (12–16% tint, like
-   other badges). Inconclusive states (Forming / Calibrating) stay neutral. */
-.ov-weight-status-pill.is-good { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
-.ov-weight-status-pill.is-good .ov-weight-status-dot { background: var(--good); }
-.ov-weight-status-pill.is-warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
-.ov-weight-status-pill.is-warn .ov-weight-status-dot { background: var(--warn); }
-.ov-weight-status-pill.is-bad { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
-.ov-weight-status-pill.is-bad .ov-weight-status-dot { background: var(--bad); }
-/* Optimal pace (top slice of the target band) is a celebration read, not just
-   a caution-free one — gold + halo, same treatment as PR badges/100% Cut
-   Progress, the app's other "you're doing this as well as it can be done"
-   moments. */
-.ov-weight-status-pill.is-gold {
-  background: color-mix(in srgb, var(--gold) 16%, transparent);
-  color: var(--gold);
-  text-shadow: var(--gold-glow);
-}
-.ov-weight-status-pill.is-gold .ov-weight-status-dot { background: var(--gold); }
+/* Weight-pace status chip now renders via the shared <Badge pill tone> — see
+   shared/components/Badge. The warn tone + ink-2 neutral label live there. */
 
 /* ─── System Card (top-priority recommendation) ──────────────────────────── */
 
@@ -510,7 +472,7 @@
 .ov-system-title {
   font-size: var(--role-card-headline-size);
   font-weight: var(--role-card-headline-weight);
-  color: var(--ink);
+  color: var(--role-card-headline-color);
 }
 
 .ov-system-sub {
@@ -593,7 +555,7 @@
 .goal-bar {
   height: 10px;
   border-radius: var(--radius-pill);
-  background: var(--bg-soft);
+  background: var(--rule-strong);
   margin-top: var(--vr-block);
   overflow: hidden;
 }
@@ -666,7 +628,7 @@
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--role-eyebrow-color);
   margin-bottom: var(--vr-snug);
 }
 

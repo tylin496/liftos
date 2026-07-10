@@ -63,6 +63,7 @@
      "colour = judgement" contract (see feedback-text-color-rule memory). */
   --bad: #ff383c;    /* Error — Apple systemRed (Default light) */
   --good: #2fb24d;   /* Success — yellower, less-deep green (~134°) */
+  --good-100: #dcf3e2;   /* pale green tint — soft fills (e.g. copy-success pill) */
   --warn: #ff9500;   /* Warning / attention — Apple systemOrange (~35°), the
                         traffic-light amber. Was coral (~10°), too close to
                         --bad's red (~355°); orange sits clear of both --bad
@@ -248,6 +249,11 @@
   /* Lens — the active-tab pill: a flat grey tint, darker than the bar in
      light mode, lighter in dark. No specular/edge/shadow. */
   --glass-lens-bg: rgba(120, 120, 128, 0.22);
+  /* Active tab glyph — a brighter, more saturated ember than the brand
+     --accent so the selected icon/label pops off the translucent glass.
+     Theme-invariant on purpose (same over light or dark glass); scoped to the
+     tab bar, never the global brand accent. */
+  --tabbar-active: #ff6b3d;
 
   /* Modal scrim: one dim + blur for every full-screen backdrop, so every
      overlay darkens its background by the same amount. */
@@ -358,6 +364,7 @@
   --progress-5: #0091ff;  /* Apple blue */
   --progress-complete: var(--gold); /* same celebration gold as --gold — one gold app-wide */
   --good: #4ad968;
+  --good-100: #13331d;   /* dark green tint — soft fills (e.g. copy-success pill) */
   --bad: #ff4245;    /* Error — Apple systemRed (Default dark) */
   --warn: #ff9f0a;   /* Warning / attention — Apple systemOrange (dark), clear of --bad/--gold */
   --warn-ink: #ffbe5c; /* Deep-amber counterpart for text/lines — lighter than --warn so amber ink reads on dark */

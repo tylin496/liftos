@@ -14,6 +14,7 @@ import { progressColor } from "@shared/lib/progressColor";
 import { displayNameFor } from "@shared/lib/owner";
 import { timelineDate, localDateStr } from "@shared/lib/date";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
+import { Badge } from "@shared/components/Badge";
 import { ErrorState } from "@shared/components/ErrorState";
 import { StrengthHealthCard } from "@features/training/StrengthHealthCard";
 import { ActivityRing, OverflowRing } from "@shared/components/ActivityRing";
@@ -872,10 +873,7 @@ function WeightCard({
         </div>
         <WeightSparkline points={[]} tone="flat" />
         <div className="ov-weight-rows ov-weight-rows--single">
-          <span className="ov-weight-status-pill">
-            <span className="ov-weight-status-dot" />
-            On pace
-          </span>
+          <Badge pill>On pace</Badge>
           <span className="ov-weight-context">
             <span className="ov-weight-context-num">00.0</span> kg
           </span>
@@ -1027,10 +1025,9 @@ function WeightCard({
           onNavActivity();
         }}
       >
-        <span className={`ov-weight-status-pill${tone ? ` is-${tone}` : ""}`}>
-          <span className="ov-weight-status-dot" />
+        <Badge pill tone={tone ?? "neutral"}>
           {status ?? "—"}
-        </span>
+        </Badge>
         {/* Current weight, demoted to a trailing context number — only shown
             when the rate is the hero (in Forming mode the weight IS the hero
             above, so repeating it here would be redundant). */}

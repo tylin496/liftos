@@ -12,8 +12,8 @@
   text-shadow: var(--gold-glow);
 }
 
-/* Filled pill — same anatomy as .ov-weight-status-pill (Overview weight-pace
-   chip): tint background + status dot, not just colored text. A plain
+/* Filled pill — the single source for the tinted status chip (e.g. the Overview
+   weight-pace chip): tint background + status dot, not just colored text. A plain
    gold-glow text is easy to miss next to plain numbers, so the rare
    celebratory badge gets a background + dot instead. */
 .status-text--pill {
@@ -44,6 +44,15 @@
 .status-text--good.status-text--pill .status-text-dot { background: var(--good); }
 .status-text--bad.status-text--pill { background: color-mix(in srgb, var(--bad) 16%, transparent); }
 .status-text--bad.status-text--pill .status-text-dot { background: var(--bad); }
+.status-text--warn.status-text--pill { background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.status-text--warn.status-text--pill .status-text-dot { background: var(--warn); }
+/* Neutral pill keeps a readable ink-2 label at weight 600 (it's a status chip,
+   not a faint footnote) — matches the Overview weight-pace pill it consolidates.
+   The base --neutral below stays ink-4/400 for any plain, non-pill use. */
+.status-text--neutral.status-text--pill {
+  color: var(--ink-2);
+  font-weight: 600;
+}
 
 .status-text--good {
   color: var(--good);
@@ -51,6 +60,10 @@
 
 .status-text--bad {
   color: var(--bad);
+}
+
+.status-text--warn {
+  color: var(--warn);
 }
 
 .status-text--neutral {

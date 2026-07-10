@@ -96,7 +96,7 @@
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--rule-strong);
+  background: var(--bg-soft);
   border-radius: var(--radius-pill);
   color: var(--ink-3);
   font-size: var(--text-2xs);
@@ -166,10 +166,9 @@
   stroke-dashoffset: 0;
 }
 
-/* Accent, never --good: copy-success is everyday confirmation, and green is
-   reserved for status verdicts (on-plan / hit-target). */
+/* Green success confirmation on copy. */
 .copy-phase-header-btn.copied {
-  color: var(--accent);
+  color: var(--good);
 }
 
 /* "Copied" pill — absolutely placed to the LEFT of the button so it floats over
@@ -186,8 +185,8 @@
   margin-right: var(--space-1);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
-  background: var(--accent-100);
-  color: var(--accent);
+  background: var(--good-100);
+  color: var(--good);
   font-size: var(--text-2xs);
   font-weight: 700;
   line-height: 1;

@@ -499,9 +499,9 @@
 }
 
 .health-recovery-legend {
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--ink-4);
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
   margin: var(--space-2) 0 0;
 }
 
@@ -695,10 +695,12 @@
 }
 
 .health-trend-sheet-stat-v {
+  font-family: var(--font-mono);
   font-size: var(--text-lg);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
   display: flex;
   align-items: baseline;
   gap: 2px;
