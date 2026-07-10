@@ -178,11 +178,71 @@
   gap: 6px;
 }
 
+/* Hero row — loss rate (left) paired with the corridor legend (right), baseline
+   so the small legend sits on the rate's baseline. */
+.ov-weight-hero {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vr-block);
+}
+
 .ov-weight-stat {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* Corridor legend — a dashed swatch keying the chart's dashed target corridor,
+   plus the target loss-rate band. A passive caption (no border/background): the
+   swatch IS the legend glyph. */
+.ov-weight-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ov-weight-legend-swatch {
+  width: var(--space-4);
+  /* Keys the chart's dashed corridor edge — same dashed ink-4 stroke. Border
+     (not a gated property) draws the 1.5px dashed rule as an inline glyph. */
+  border-top: 1.5px dashed var(--ink-4);
+  opacity: 0.8;
+}
+
+.ov-weight-legend-text {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--ink-4);
+}
+
+.ov-weight-legend-text b {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+/* Footer — the current reading, the card's single tactical anchor number. Mono
+   to match every other weight figure; value lifted to ink-2, label quiet. */
+.ov-weight-footer {
+  display: flex;
+  align-items: baseline;
+}
+
+.ov-weight-now {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ov-weight-now b {
+  color: var(--ink-2);
+  font-weight: 600;
 }
 
 .ov-weight-label {
@@ -223,9 +283,11 @@
   margin-left: var(--space-2);
 }
 
-/* 14-day trend line — the card's dominant element. Fixed 80px height so the
+/* 21-day trend line — the card's dominant element. Fixed 96px height so the
    card never reflows between loading / empty / loaded (the SVG holds this space
-   with a flat placeholder when data is thin). */
+   with a flat placeholder when data is thin). Height mirrors the sparkline's
+   H=96 viewBox 1:1, so the HTML-overlay dots (px `top` from the SVG y) land on
+   the line. */
 .ov-weight-spark-wrap {
   position: relative;
 }
@@ -233,7 +295,8 @@
 .ov-weight-spark {
   display: block;
   width: 100%;
-  height: 80px;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  height: 96px;
   margin-top: var(--vr-block);
   cursor: grab;
   touch-action: none;
@@ -299,18 +362,6 @@
   animation-delay: var(--enter-wait);
 }
 @keyframes ov-spark-wipe { to { clip-path: inset(0 0 0 0); } }
-
-/* Top-right window caption on the chart — quiet, matches the freshness tag's
-   tone. Purely descriptive, never interactive. */
-.ov-weight-spark-caption {
-  position: absolute;
-  top: calc(var(--vr-block) - 2px);
-  right: 0;
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--ink-4);
-  pointer-events: none;
-}
 
 /* Latest trend point — always enlarged; the drawn line's own tone is used
    normally, but a new low over the visible window is a celebration read
@@ -556,8 +607,8 @@
   position: absolute;
   top: 0;
   /* Static fallback = GoalTrack's inline clamp floor (skeleton / pre-roll);
-     widened to 26px since the weight makes the tag wider. */
-  left: 26px;
+     widened to 30px since the weight makes the tag wider. */
+  left: 30px;
   transform: translateX(-50%);
   font-size: calc(var(--role-eyebrow-size) - 2px);
   font-weight: var(--role-eyebrow-weight);
@@ -599,20 +650,28 @@
   transition: width var(--dur-enter) var(--ease-enter);
 }
 
-/* Today's position on the route. Sibling of .goal-bar (not inside the fill) so
-   the bar can keep overflow:hidden for the celebration sheen while the dot
-   overhangs the 6px path. Ring of card background separates it from the fill
-   it rides on. Fallback colour = ramp start, same as .goal-pct. */
+/* Today's position on the route — the card's core "you are here" beacon, given
+   deliberate weight (it's the message, not the %). Sibling of .goal-bar (not
+   inside the fill) so the bar can keep overflow:hidden for the celebration
+   sheen while the dot overhangs the 6px path. A card-bg gap ring lifts it off
+   the fill; the box-shadow is the beacon — a thin near-white outer ring + a
+   soft ramp-coloured halo (--dot-core, set inline to the fill's ramp colour).
+   Fallback colour = ramp start, same as .goal-pct. */
 .goal-dot {
   position: absolute;
   top: 50%;
   left: 0;
-  width: 14px;
-  height: 14px;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  width: 15px;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  height: 15px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   background: var(--progress-1);
   border: 2px solid var(--bg-card);
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--ink) 55%, transparent),
+    0 0 12px color-mix(in srgb, var(--dot-core, var(--progress-1)) 60%, transparent);
 }
 
 /* "Down X kg" — distance travelled, sitting in the footer's right slot as the

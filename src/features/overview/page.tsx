@@ -343,7 +343,7 @@ function GoalTrack({
     <div ref={ref} className="goal-track">
       <span
         className="goal-today"
-        style={{ left: `clamp(26px, ${w}%, calc(100% - 26px))`, transition: `left ${ramp}` }}
+        style={{ left: `clamp(30px, ${w}%, calc(100% - 30px))`, transition: `left ${ramp}` }}
       >
         Today · {currentWeight.toFixed(1)} kg
       </span>
@@ -360,7 +360,16 @@ function GoalTrack({
         </div>
         <div
           className="goal-dot"
-          style={{ left: `${w}%`, backgroundColor: color, transition: `left ${ramp}, background-color ${ramp}` }}
+          style={{
+            left: `${w}%`,
+            backgroundColor: color,
+            // --dot-core feeds the beacon halo in CSS (the near-white ring +
+            // soft ramp-coloured glow that gives the "you are here" marker its
+            // weight). Kept as a var so the .goal.is-complete gold-glow override
+            // still wins by selector specificity at 100%.
+            ["--dot-core" as string]: color,
+            transition: `left ${ramp}, background-color ${ramp}`,
+          }}
         />
       </div>
       {/* Endpoint signposts under the route's two ends — the departure and
@@ -525,7 +534,17 @@ function CutProgressCard({
       {/* Footer — pace verdict (left) vs distance travelled (right), no divider. */}
       <div className="goal-footer">
         {paceWord && (
-          <Badge pill tone={tone ?? "neutral"}>{paceWord}</Badge>
+          <Badge
+            pill
+            tone={tone ?? "neutral"}
+            // The ONLY worded verdict on the pair — so it leads with a verdict
+            // mark: ✓ when on/optimal, ! when off-band. tone null (Calibrating /
+            // Forming / Not tracked) → no mark, neutral chip (no verdict colour,
+            // no false glyph).
+            mark={tone ? (tone === "good" || tone === "gold" ? "✓" : "!") : undefined}
+          >
+            {paceWord}
+          </Badge>
         )}
         {lost != null && lost >= 0.1 && (
           <span className="goal-sub goal-lost">
@@ -630,11 +649,22 @@ function diffDays(a: string, b: string): number {
 function WeightSparkline({
   points,
   tone,
+  paceTone = null,
   targetRange,
   canCelebrateLow = false,
 }: {
   points: { date: string; value: number }[];
-  tone: "good" | "bad" | "flat" | "gold";
+  // The LINE's own tone: "losing = good" green (down week-over-week), red when
+  // gaining, flat otherwise. Deliberately independent of pace — the pace verdict
+  // is the Journey pill's job, so the trend line NEVER goes gold (coordination
+  // rule: gold stays rare, reserved for the new-low dot). See WeightCard.
+  tone: "good" | "bad" | "flat";
+  // The pace read (same paceTone the Journey pill uses). Drives ONLY the latest
+  // dot when it's not a celebration: an off-band pace (warn/bad) tints the dot
+  // so it echoes the pill's caution — the one place pace shows on this card
+  // besides the acceleration arrow. null (Forming/Calibrating) → dot falls back
+  // to the line tone.
+  paceTone?: "good" | "gold" | "warn" | "bad" | null;
   targetRange?: { min: number; max: number } | null;
   // A window low is only a GOLD celebration when the pace read is healthy
   // (on/optimal). On a steady cut the latest smoothed point is the window low
@@ -644,19 +674,17 @@ function WeightSparkline({
   canCelebrateLow?: boolean;
 }) {
   const stroke =
-    tone === "gold"
-      ? "var(--gold)"
-      : tone === "good"
-        ? "var(--good)"
-        : tone === "bad"
-          ? "var(--bad)"
-          : "var(--ink-4)";
-  // Target-pace corridor is normally the neutral "healthy" green; at an optimal
-  // pace it goes gold too, so the whole card (line, dot, corridor) shares the
-  // one celebration tone instead of a gold line sitting in a green zone.
-  const corridorColor = tone === "gold" ? "var(--gold)" : "var(--good)";
+    tone === "good"
+      ? "var(--good)"
+      : tone === "bad"
+        ? "var(--bad)"
+        : "var(--ink-4)";
+  // Corridor keeps the neutral "healthy" green regardless of pace — it labels a
+  // target BAND (a healthy range), never a verdict, so it must not turn gold and
+  // flood the chart. Matches the hero legend's dashed swatch.
+  const corridorColor = "var(--good)";
   const gradId = `ov-spark-grad-${tone}`;
-  const W = 100, H = 80, pad = 4;
+  const W = 100, H = 96, pad = 4;
 
   // Scrub: press-drag anywhere on the line to inspect any day's date/weight.
   // Hooks can't be conditional, so this runs even on the <2-point placeholder
@@ -768,6 +796,14 @@ function WeightSparkline({
   // is reserved for genuine celebration, never a below-pace new low.
   const latest = coords[coords.length - 1];
   const isNewLow = canCelebrateLow && trendValues.at(-1)! <= Math.min(...trendValues);
+  // Not-celebrated dot core: an off-band pace (warn/bad) tints the dot to echo
+  // the Journey pill's caution — the one spot pace surfaces on the line's own
+  // surface. On/optimal/inconclusive pace → the dot keeps the line tone (green),
+  // so a healthy-but-not-record reading stays quiet. isNewLow can only fire on a
+  // healthy pace, so it always lands on the line tone (green) inside the gold
+  // celebration ring (see .is-new-low).
+  const dotCore =
+    paceTone === "warn" ? "var(--warn)" : paceTone === "bad" ? "var(--bad)" : stroke;
 
   const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
   const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
@@ -800,7 +836,7 @@ function WeightSparkline({
       >
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={stroke} stopOpacity="0.30" />
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.24" />
             <stop offset="100%" stopColor={stroke} stopOpacity="0" />
           </linearGradient>
         </defs>
@@ -809,19 +845,19 @@ function WeightSparkline({
             <polygon
               points={`${corridor.x0.toFixed(1)},${corridor.y0.toFixed(1)} ${corridor.xEnd.toFixed(1)},${corridor.yMin.toFixed(1)} ${corridor.xEnd.toFixed(1)},${corridor.yMax.toFixed(1)}`}
               fill={corridorColor}
-              opacity="0.08"
+              opacity="0.07"
               stroke="none"
             />
             <line
               x1={corridor.x0.toFixed(1)} y1={corridor.y0.toFixed(1)}
               x2={corridor.xEnd.toFixed(1)} y2={corridor.yMin.toFixed(1)}
-              stroke={corridorColor} strokeWidth="1" opacity="0.28"
+              stroke={corridorColor} strokeWidth="1" opacity="0.4"
               strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
             />
             <line
               x1={corridor.x0.toFixed(1)} y1={corridor.y0.toFixed(1)}
               x2={corridor.xEnd.toFixed(1)} y2={corridor.yMax.toFixed(1)}
-              stroke={corridorColor} strokeWidth="1" opacity="0.28"
+              stroke={corridorColor} strokeWidth="1" opacity="0.4"
               strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
             />
           </>
@@ -847,7 +883,6 @@ function WeightSparkline({
           />
         )}
       </svg>
-      <span className="ov-weight-spark-caption">target zone · 21d</span>
       {/* Rendered outside the SVG, not as a <circle>: the chart's viewBox is
           stretched non-uniformly (W=100 vs a ~350px card, H fixed 1:1 at 80px),
           so an in-SVG circle inherits that stretch and renders as a flat
@@ -859,10 +894,11 @@ function WeightSparkline({
         style={{
           left: `${(latest.x / W) * 100}%`,
           top: `calc(var(--vr-block) + ${latest.y.toFixed(1)}px)`,
-          // Record dot = the line's own tone as a solid core inside a gold
-          // celebration ring (same badge as the Health chart's is-record). The
-          // core tracks the line so it reads as "this point, at its record".
-          ["--dot-core" as string]: stroke,
+          // Record dot = a solid core inside a gold celebration ring (same badge
+          // as the Health chart's is-record). Core is the line tone normally, but
+          // an off-band pace tints it (dotCore) so a non-record reading can carry
+          // the pill's caution instead of a bare green dot.
+          ["--dot-core" as string]: dotCore,
         }}
       />
       {isNewLow && (
@@ -966,10 +1002,17 @@ function WeightCard({
           <span className="ov-weight-label">Weight</span>
           <span className="ov-weight-chevron" aria-hidden>›</span>
         </div>
-        <div className="ov-weight-stat">
-          <MetricValue size="xl" unit="kg/wk">0.00</MetricValue>
+        <div className="ov-weight-hero">
+          <div className="ov-weight-stat">
+            <MetricValue size="xl" unit="kg/wk">0.00</MetricValue>
+          </div>
         </div>
         <WeightSparkline points={[]} tone="flat" />
+        {/* Footer placeholder — mirrors the loaded card's "Now" row so the
+            skeleton holds the same height (LAYOUT-STABILITY). */}
+        <div className="ov-weight-footer">
+          <span className="ov-weight-now">Now <b>00.0</b> kg</span>
+        </div>
       </div>
     );
   }
@@ -1006,6 +1049,12 @@ function WeightCard({
   const sparkPoints = trailingAvg(weightPts, TREND_WINDOW_HOURS).filter((p) => p.date >= sparkCutoff);
   const sparkTone: "good" | "bad" | "flat" =
     weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
+
+  // Corridor legend (hero-right): the target loss-rate band, shown beside the
+  // rate so the dashed swatch keys the chart's dashed corridor. Only when a real
+  // active band exists (min !== max — an inactive target collapses the range).
+  const targetRange = state?.evaluation.targetRange ?? null;
+  const hasTargetBand = !!targetRange && targetRange.min !== targetRange.max;
 
   if (weightLatest == null) {
     return (
@@ -1078,47 +1127,69 @@ function WeightCard({
           arrow. Before the trend settles the hero falls back to the weight
           level + its weekly delta — same `xl` size so the card never changes
           scale between states. */}
-      {rate != null ? (
-        <div className="ov-weight-stat">
-          <MetricValue size="xl" unit="kg/wk">
-            <HeadlineCountUp
-              value={Math.abs(rate)}
-              decimals={2}
-              format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            />
-          </MetricValue>
-          {accelDirection && (
-            <span
-              className={`ov-weight-rate-arrow ov-weight-rate-arrow--hero is-${accelArrowTone}`}
-              aria-hidden
-            >
-              {accelDirection === "faster" ? "▲" : "▼"}
+      {/* Hero row — the loss RATE (left) paired with the corridor legend (right).
+          Keeping the target band up here ties the dashed swatch to the geometry
+          it labels (the chart's dashed corridor), rather than restating it in
+          the footer. */}
+      <div className="ov-weight-hero">
+        {rate != null ? (
+          <div className="ov-weight-stat">
+            <MetricValue size="xl" unit="kg/wk">
+              <HeadlineCountUp
+                value={Math.abs(rate)}
+                decimals={2}
+                format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              />
+            </MetricValue>
+            {accelDirection && (
+              <span
+                className={`ov-weight-rate-arrow ov-weight-rate-arrow--hero is-${accelArrowTone}`}
+                aria-hidden
+              >
+                {accelDirection === "faster" ? "▲" : "▼"}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="ov-weight-stat">
+            <MetricValue size="xl" unit="kg">
+              <HeadlineCountUp
+                value={weightLatest}
+                decimals={1}
+                format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+              />
+            </MetricValue>
+            <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
+          </div>
+        )}
+        {hasTargetBand && (
+          <span className="ov-weight-legend">
+            <span className="ov-weight-legend-swatch" aria-hidden />
+            <span className="ov-weight-legend-text">
+              Target <b>{targetRange!.min.toFixed(2)}–{targetRange!.max.toFixed(2)}</b> kg/wk
             </span>
-          )}
-        </div>
-      ) : (
-        <div className="ov-weight-stat">
-          <MetricValue size="xl" unit="kg">
-            <HeadlineCountUp
-              value={weightLatest}
-              decimals={1}
-              format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-            />
-          </MetricValue>
-          <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
-        </div>
-      )}
+          </span>
+        )}
+      </div>
 
       <WeightSparkline
         points={sparkPoints}
-        // Line colour normally follows the week-over-week direction (good/bad),
-        // but an OPTIMAL pace (paceTone gold — same read as the status pill's
-        // is-gold) overrides it to the celebration gold, so the whole trend
-        // reads as "doing this as well as it can be done", not just the pill.
-        tone={tone === "gold" ? "gold" : sparkTone}
+        // Line colour follows the week-over-week direction (down = good on a
+        // cut), and STAYS there regardless of pace — gold is reserved for the
+        // new-low dot, so the trend line never floods the card. The pace read is
+        // the Journey pill's job; here it only tints the latest dot (paceTone).
+        tone={sparkTone}
+        paceTone={tone}
         targetRange={state?.evaluation.targetRange ?? null}
         canCelebrateLow={tone === "good" || tone === "gold"}
       />
+      {/* Footer — current reading only. The target band lives in the hero
+          legend (it keys the corridor), so it isn't repeated here. */}
+      <div className="ov-weight-footer">
+        <span className="ov-weight-now">
+          Now <b>{fmt1kg(weightLatest)}</b> kg
+        </span>
+      </div>
     </div>
   );
 }

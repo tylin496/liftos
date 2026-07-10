@@ -38,6 +38,15 @@
   background: var(--ink-4);
 }
 
+/* Verdict glyph (✓ / !) that stands in for the dot on a worded verdict chip —
+   heavier than the label so it reads as the mark, and inherits the tone's text
+   colour + gold-glow (set on .status-text--{tone}) so it can never disagree
+   with the word beside it. */
+.status-text-mark {
+  font-weight: 800;
+  line-height: 1;
+}
+
 .status-text--gold.status-text--pill { background: color-mix(in srgb, var(--gold) 16%, transparent); }
 .status-text--gold.status-text--pill .status-text-dot { background: var(--gold); }
 .status-text--good.status-text--pill { background: color-mix(in srgb, var(--good) 16%, transparent); }
