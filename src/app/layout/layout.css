@@ -115,8 +115,7 @@
   height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0 var(--space-4)
-    calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
+  padding: 0 var(--space-4) calc(var(--tabbar-h) + var(--safe-bottom));
   /* Hide the scrollbar rather than reserve a stable gutter for it. A mouse-driven
      browser (unlike a touch device's auto-hiding overlay scrollbar) renders a
      classic, space-taking scrollbar the instant a tab's content grows past the
