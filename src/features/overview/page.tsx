@@ -434,7 +434,7 @@ function CutProgressCard({
           <div className="goal-row is-end">
             <div className="goal-col-label">Goal</div>
             <MetricValue size="md" unit="kg">00.0</MetricValue>
-            <div className="goal-sub">00% body fat</div>
+            <div className="goal-sub">00% BF</div>
           </div>
         </div>
       </button>
@@ -502,7 +502,7 @@ function CutProgressCard({
         <div className="goal-row is-end">
           <div className="goal-col-label">Goal</div>
           <MetricValue size="md" unit="kg">{e.goalWeight.toFixed(1)}</MetricValue>
-          <div className="goal-sub">{e.targetBodyFat}% body fat</div>
+          <div className="goal-sub">{e.targetBodyFat}% BF</div>
         </div>
       </div>
     </button>
