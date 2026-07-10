@@ -199,56 +199,6 @@
   line-height: 1;
 }
 
-.ov-weight-rows {
-  display: flex;
-  flex-direction: column;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
-  gap: 11px; /* per design spec: optical spacing between Trend/Status rows */
-  margin-top: var(--vr-section);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
-}
-
-.ov-weight-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-/* The rows block navigates elsewhere (Nutrition, not Health), so it's a
-   real nested <button> — reset the UA button chrome back to plain-div
-   appearance without disturbing .ov-weight-rows's own top border/spacing. */
-.ov-weight-rows--nav {
-  width: 100%;
-  background: none;
-  border-width: 0;
-  border-top-width: 1px;
-  padding-left: 0;
-  padding-right: 0;
-  padding-bottom: 0;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Current weight, demoted to a trailing context number on the verdict line now
-   that the rate is the hero. Mono + tabular like every metric number, but
-   caption-scale and muted so it reads as context, not a headline. */
-.ov-weight-context {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.ov-weight-context-num {
-  color: var(--ink-2);
-}
-
 /* Delta arrow trailing the rate value (app-wide delta-after-value convention,
    see .ov-weight-accel's margin-left below) — direction is the loss TREND
    (accelerating ▲ / slowing ▼, from accelDirection), colour reads that trend
@@ -349,14 +299,6 @@
   animation-delay: var(--enter-wait);
 }
 @keyframes ov-spark-wipe { to { clip-path: inset(0 0 0 0); } }
-
-/* Rate + Status collapse from two stacked rows into a single baseline row. */
-.ov-weight-rows--single {
-  flex-direction: row;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
 
 /* Top-right window caption on the chart — quiet, matches the freshness tag's
    tone. Purely descriptive, never interactive. */
@@ -545,7 +487,9 @@
 .goal-pct {
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: var(--metric-lg);
+  /* Hero number: bumped a step (34px) now it anchors its own row rather than
+     sitting inline in the head. */
+  font-size: var(--metric-xl);
   /* Colour is set inline to follow the progress bar (see GoalPct). This is only
      the fallback for the pre-count-up empty state — ramp start (Apple red). */
   color: var(--progress-1);
@@ -559,30 +503,68 @@
   min-height: 1em;
 }
 
+/* Hero row — how-far-come (%) on the left, how-far-left (kg) on the right,
+   bottom-aligned so the big % and the smaller distance share a baseline. */
+.goal-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: var(--vr-block);
+}
+
+.goal-hero-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.goal-hero-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+/* "COMPLETE" micro-caption under the hero % — the smallest caption size (one
+   step below the eyebrow), naming what the % measures. */
+.goal-complete {
+  font-size: calc(var(--role-eyebrow-size) - 2px);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-top: var(--vr-snug);
+}
+
 /* Journey track — Start ───●┄┄┄ Goal. A dashed route with the travelled part
    filled solid and a dot riding the fill's leading edge, its "Today" tag
    floating above. left / width / colour are inline from GoalTrack so all
    three share the count-up transition. */
 .goal-track {
   position: relative;
+  /* flex-column so the absolute Today tag (top:0) has a flow to sit above and
+     .goal-path's margin-top can't collapse through the track onto the bar. */
+  display: flex;
+  flex-direction: column;
   margin-top: var(--vr-block);
 }
 
-/* Deliberately subordinate to the dot it annotates — the dot is the focal
-   point, the word just names it. One step below the smallest type token
-   (annotation, not copy) and faded. */
+/* Marks the dot's position AND carries today's weight ("Today · 91.7 kg"), so
+   it's a touch brighter than a bare name would be — it's data now, not just a
+   label. Still subordinate to the dot: one step below the smallest type token. */
 .goal-today {
   position: absolute;
   top: 0;
-  /* Static fallback = GoalTrack's inline clamp floor (skeleton / pre-roll). */
-  left: 18px;
+  /* Static fallback = GoalTrack's inline clamp floor (skeleton / pre-roll);
+     widened to 26px since the weight makes the tag wider. */
+  left: 26px;
   transform: translateX(-50%);
   font-size: calc(var(--role-eyebrow-size) - 2px);
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--role-eyebrow-color);
-  opacity: 0.6;
+  color: var(--ink-2);
+  opacity: 0.85;
   line-height: 1;
   white-space: nowrap;
 }
@@ -633,13 +615,13 @@
   border: 2px solid var(--bg-card);
 }
 
-/* "Down X kg" — distance travelled, stacked under the Start column so it reads
-   with the departure point. Base look comes from .goal-sub; wrapping (instead
-   of the sub's ellipsis) keeps the rare stale suffix readable in a
-   third-width column. */
+/* "Down X kg" — distance travelled, sitting in the footer's right slot as the
+   quiet context to the pace verdict. Base look comes from .goal-sub; wrapping
+   (instead of the sub's ellipsis) keeps the rare stale suffix readable. */
 .goal-sub.goal-lost {
   white-space: normal;
   overflow: visible;
+  text-align: right;
 }
 
 .goal-lost b {
@@ -652,45 +634,42 @@
   opacity: 0.75;
 }
 
-.goal-detail {
+/* Endpoint signposts — the Start / Goal weights sitting directly under the two
+   ends of the route, so the departure and destination read as anchors of the
+   track rather than a stats table. No dividers: the alignment does the work. */
+.goal-signposts {
   display: flex;
-  align-items: stretch;
-  margin-top: var(--vr-section);
+  justify-content: space-between;
+  margin-top: var(--vr-loose);
 }
 
-/* Three columns anchored to the track's geometry: Start under the route's
-   left end, Goal under its right end, Remaining between them — so the footer
-   reads as the journey's signposts, not a stats table. No dividers: the
-   alignment does the separating. */
-.goal-row {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.goal-row.is-mid {
-  align-items: center;
-  text-align: center;
-}
-
-.goal-row.is-end {
-  align-items: flex-end;
-  text-align: right;
-}
-
-.goal-col-label {
-  font-size: var(--role-eyebrow-size);
+.goal-signpost {
+  font-size: calc(var(--role-eyebrow-size) - 2px);
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
-  color: var(--role-eyebrow-color);
-  margin-bottom: var(--vr-snug);
+  color: var(--ink-4);
 }
 
-/* Qualifier stacked directly under its value ("12% body fat", ETA) — optical
-   2px keeps it reading as the number's metadata, not a separate row. */
+.goal-signpost b {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+/* Footer — pace verdict chip (left) vs distance travelled (right) on one line,
+   no divider. Centre-aligned so the tinted <Badge pill> chip sits level with
+   the "Down X kg" text rather than hanging off its baseline. */
+.goal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--vr-block);
+}
+
+/* Qualifier stacked directly under its value (the ETA under "kg left") —
+   optical 2px keeps it reading as the number's metadata, not a separate row. */
 .goal-sub {
   font-size: var(--text-2xs);
   color: var(--ink-3);
@@ -837,8 +816,7 @@
    Training so loading feels consistent across tabs. */
 .loading-card .metric-val,
 .loading-card .metric-caption,
-.loading-card .ov-weight-context-num,
-.loading-card .ov-th-fold-text {
+.loading-card .ov-th-ret-count {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   background: linear-gradient(

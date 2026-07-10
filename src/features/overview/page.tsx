@@ -18,7 +18,7 @@ import { Badge } from "@shared/components/Badge";
 import { ErrorState } from "@shared/components/ErrorState";
 import { StrengthHealthCard } from "@features/training/StrengthHealthCard";
 import { ActivityRing, OverflowRing } from "@shared/components/ActivityRing";
-import { AnimatedNumber, HeadlineCountUp } from "@shared/components/AnimatedNumber";
+import { HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import "@shared/components/activityRing.css";
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
@@ -300,7 +300,19 @@ function GoalPct({ target }: { target: number }) {
   return <GoalPctRoll target={target} delayMs={delayMs} />;
 }
 
-function GoalTrack({ target }: { target: number }) {
+function GoalTrack({
+  target,
+  currentWeight,
+  startWeight,
+  goalWeight,
+}: {
+  target: number;
+  /** Today's weight — rides the Today tag as a position readout ("you are here,
+   *  at 91.7 kg"), NOT a trend (that stays the Weight card's job). */
+  currentWeight: number;
+  startWeight: number | null;
+  goalWeight: number;
+}) {
   // Sit at 0 until the bottom-up delay elapses, then grow to target so the CSS
   // width transition fires. The delay overlaps the tab slide-in, so the bar
   // starts filling from empty as the card lands (not already part-way).
@@ -331,9 +343,9 @@ function GoalTrack({ target }: { target: number }) {
     <div ref={ref} className="goal-track">
       <span
         className="goal-today"
-        style={{ left: `clamp(18px, ${w}%, calc(100% - 18px))`, transition: `left ${ramp}` }}
+        style={{ left: `clamp(26px, ${w}%, calc(100% - 26px))`, transition: `left ${ramp}` }}
       >
-        Today
+        Today · {currentWeight.toFixed(1)} kg
       </span>
       <div className="goal-path">
         <div className="goal-bar">
@@ -351,19 +363,29 @@ function GoalTrack({ target }: { target: number }) {
           style={{ left: `${w}%`, backgroundColor: color, transition: `left ${ramp}, background-color ${ramp}` }}
         />
       </div>
+      {/* Endpoint signposts under the route's two ends — the departure and
+          destination weights, replacing the old 3-column detail block. */}
+      <div className="goal-signposts">
+        <span className="goal-signpost">
+          Start <b>{startWeight != null ? startWeight.toFixed(1) : "—"}</b>
+        </span>
+        <span className="goal-signpost">
+          <b>{goalWeight.toFixed(1)}</b> Goal
+        </span>
+      </div>
     </div>
   );
 }
 
-// Answers one question only: "how far am I from my destination?" — framed as a
-// JOURNEY, not a meter: a dashed route from Start to Goal with a dot marking
-// today's position, and the two endpoint weights anchoring the footer columns
-// (Start · Remaining · Goal) under their ends of the track. Pure render —
-// every number is finished upstream in computeGoal (the Goal provider); the
-// card holds no business logic. Deliberately does NOT show current weight or
-// trend: that's the Weight card's job ("where am I today, and am I progressing
-// at the planned rate?"). Responsibilities stay distinct — the Today dot is a
-// position on the route, not a weigh-in readout.
+// A one-second read of the cut, framed as a JOURNEY not a meter, answering four
+// questions top-to-bottom: where am I now (hero %, Today dot + weight), how far
+// have I come (Down X kg), how far is left (remaining kg + ETA), am I on track
+// (pace verdict word). A dashed route from Start to Goal with a dot at today's
+// position; the endpoint weights anchor the ends of the track. Pure render —
+// every number is finished upstream in computeGoal (the Goal provider) and the
+// nutrition engine; the card holds no business logic. The Today tag now carries
+// the current weight as a POSITION readout ("you are here, at 91.7 kg"); trend
+// and rate stay the Weight card's job — responsibilities stay distinct.
 function CutProgressCard({
   goal,
   cutStartDate,
@@ -407,35 +429,38 @@ function CutProgressCard({
     return (
       <button type="button" ref={ref} className="page-card goal loading-card" onClick={onNav}>
         <div className="goal-head">
-          <span className="goal-label">Cut Progress</span>
+          <span className="goal-label">Cut Journey</span>
           <span className="goal-head-right">
-            <span className="goal-pct">00%</span>
+            <span className="goal-label goal-day">Day <b>000</b></span>
             <span className="goal-chevron" aria-hidden>›</span>
           </span>
         </div>
+        <div className="goal-hero">
+          <div className="goal-hero-left">
+            <span className="goal-pct">00%</span>
+            <span className="goal-complete">Complete</span>
+          </div>
+          <div className="goal-hero-right">
+            <MetricValue size="md" unit="kg left">0.0</MetricValue>
+            <div className="goal-sub">≈0 weeks</div>
+          </div>
+        </div>
         <div className="goal-track">
-          <span className="goal-today">Today</span>
+          <span className="goal-today">Today · 00.0 kg</span>
           <div className="goal-path">
             <div className="goal-bar">
               <div className="goal-bar-fill" style={{ width: 0 }} />
             </div>
             <div className="goal-dot" />
           </div>
+          <div className="goal-signposts">
+            <span className="goal-signpost">Start <b>00.0</b></span>
+            <span className="goal-signpost"><b>00.0</b> Goal</span>
+          </div>
         </div>
-        <div className="goal-detail">
-          <div className="goal-row">
-            <div className="goal-col-label">Start</div>
-            <MetricValue size="md" unit="kg">00.0</MetricValue>
-          </div>
-          <div className="goal-row is-mid">
-            <div className="goal-col-label">Remaining</div>
-            <MetricValue size="md" unit="kg">0.0</MetricValue>
-          </div>
-          <div className="goal-row is-end">
-            <div className="goal-col-label">Goal</div>
-            <MetricValue size="md" unit="kg">00.0</MetricValue>
-            <div className="goal-sub">00% BF</div>
-          </div>
+        <div className="goal-footer">
+          <Badge pill tone="neutral">Calibrating</Badge>
+          <span className="goal-sub goal-lost">Down <b>0.0</b> kg</span>
         </div>
       </button>
     );
@@ -454,6 +479,13 @@ function CutProgressCard({
   const lost = cutStartWeight != null ? cutStartWeight - e.currentWeight : null;
   const lostStale = isStale("weight", weightLatestDate ?? null);
 
+  // Pace verdict chip — same paceLabel/paceTone the Weight card uses (so the two
+  // surfaces can never disagree), rendered through the shared <Badge pill> so
+  // tone colour + gold-glow are owned in one place. tone null (Calibrating /
+  // Forming / Not tracked) → neutral chip (COLOR-SYSTEM: no verdict → no verdict
+  // colour). When state is null the pace chip is omitted entirely.
+  const paceWord = state ? paceLabel(state.evaluation) : null;
+  const tone = state ? paceTone(state.evaluation) : null;
   return (
     <button
       type="button"
@@ -463,47 +495,46 @@ function CutProgressCard({
       onClick={onNav}
     >
       <div className="goal-head">
-        <span className="goal-label">
-          {isComplete ? "Goal reached" : "Cut Progress"}
+        <span className="goal-label">{isComplete ? "Goal reached" : "Cut Journey"}</span>
+        <span className="goal-head-right">
           {!isComplete && cutDay != null && (
-            <span className="goal-day">
-              {" "}Day <b>{cutDay}</b>
+            <span className="goal-label goal-day">
+              Day <b>{cutDay}</b>
             </span>
           )}
-        </span>
-        <span className="goal-head-right">
-          <GoalPct target={pct} />
           <span className="goal-chevron" aria-hidden>›</span>
         </span>
       </div>
-      <GoalTrack target={pct} />
-      <div className="goal-detail">
-        <div className="goal-row">
-          <div className="goal-col-label">Start</div>
-          {cutStartWeight != null ? (
-            <MetricValue size="md" unit="kg">{cutStartWeight.toFixed(1)}</MetricValue>
-          ) : (
-            <MetricValue size="md">—</MetricValue>
-          )}
-          {lost != null && lost >= 0.1 && (
-            <div className="goal-sub goal-lost">
-              Down <b>{lost.toFixed(1)}</b> kg
-              {lostStale && weightLatestDate && (
-                <span className="goal-lost-stale"> as of {formatAgo(weightLatestDate)}</span>
-              )}
-            </div>
-          )}
+      {/* Hero — the two headline reads: how far come (%) vs how far left (kg). */}
+      <div className="goal-hero">
+        <div className="goal-hero-left">
+          <GoalPct target={pct} />
+          <span className="goal-complete">Complete</span>
         </div>
-        <div className="goal-row is-mid">
-          <div className="goal-col-label">Remaining</div>
-          <MetricValue size="md" unit="kg">{e.remainingWeight.toFixed(1)}</MetricValue>
+        <div className="goal-hero-right">
+          <MetricValue size="md" unit="kg left">{e.remainingWeight.toFixed(1)}</MetricValue>
           {eta && <div className="goal-sub">{eta}</div>}
         </div>
-        <div className="goal-row is-end">
-          <div className="goal-col-label">Goal</div>
-          <MetricValue size="md" unit="kg">{e.goalWeight.toFixed(1)}</MetricValue>
-          <div className="goal-sub">{e.targetBodyFat}% BF</div>
-        </div>
+      </div>
+      <GoalTrack
+        target={pct}
+        currentWeight={e.currentWeight}
+        startWeight={cutStartWeight}
+        goalWeight={e.goalWeight}
+      />
+      {/* Footer — pace verdict (left) vs distance travelled (right), no divider. */}
+      <div className="goal-footer">
+        {paceWord && (
+          <Badge pill tone={tone ?? "neutral"}>{paceWord}</Badge>
+        )}
+        {lost != null && lost >= 0.1 && (
+          <span className="goal-sub goal-lost">
+            Down <b>{lost.toFixed(1)}</b> kg
+            {lostStale && weightLatestDate && (
+              <span className="goal-lost-stale"> as of {formatAgo(weightLatestDate)}</span>
+            )}
+          </span>
+        )}
       </div>
     </button>
   );
@@ -890,14 +921,12 @@ function WeightCard({
   metrics,
   state,
   onNav,
-  onNavActivity,
   loading = false,
 }: {
   weightLatest: number | null;
   metrics: BodyMetric[];
   state: NutritionStateFull | null;
   onNav: () => void;
-  onNavActivity: () => void;
   loading?: boolean;
 }) {
   // observedRate is a real 0-fallback when no trend could be fit (<5 readings in
@@ -906,7 +935,6 @@ function WeightCard({
     state != null && state.diagnostics.weightDataPoints >= MIN_TREND_POINTS
       ? state.evaluation.observedRate
       : null;
-  const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
   // Rate-TREND arrow beside the hero — the glyph is the second-order read: is
   // the loss speeding up (▲) or slowing toward a plateau (▼)?, NOT the weight's
@@ -942,12 +970,6 @@ function WeightCard({
           <MetricValue size="xl" unit="kg/wk">0.00</MetricValue>
         </div>
         <WeightSparkline points={[]} tone="flat" />
-        <div className="ov-weight-rows ov-weight-rows--single">
-          <Badge pill>On pace</Badge>
-          <span className="ov-weight-context">
-            <span className="ov-weight-context-num">00.0</span> kg
-          </span>
-        </div>
       </div>
     );
   }
@@ -1097,35 +1119,6 @@ function WeightCard({
         targetRange={state?.evaluation.targetRange ?? null}
         canCelebrateLow={tone === "good" || tone === "gold"}
       />
-
-      <button
-        type="button"
-        className="ov-weight-rows ov-weight-rows--nav ov-weight-rows--single"
-        onClick={(e) => {
-          e.stopPropagation();
-          onNavActivity();
-        }}
-      >
-        <Badge pill tone={tone ?? "neutral"}>
-          {status ?? "—"}
-        </Badge>
-        {/* Current weight, demoted to a trailing context number — only shown
-            when the rate is the hero (in Forming mode the weight IS the hero
-            above, so repeating it here would be redundant). */}
-        {rate != null && (
-          <span className="ov-weight-context">
-            Now{" "}
-            <span className="ov-weight-context-num">
-              <AnimatedNumber
-                value={weightLatest}
-                decimals={1}
-                format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-              />
-            </span>{" "}
-            kg
-          </span>
-        )}
-      </button>
     </div>
   );
 }
@@ -1245,7 +1238,6 @@ export function OverviewPage() {
         metrics={data?.metrics ?? []}
         state={data?.nutritionState ?? null}
         onNav={() => nav("health")}
-        onNavActivity={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
       />
 
       <StrengthHealthCard
