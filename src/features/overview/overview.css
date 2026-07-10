@@ -408,15 +408,12 @@
 
 /* "New low" record badge — parked in the empty space BELOW the trend line
    (right-aligned under the dot), not overlaid on the dot, where it was cramped
-   and unreadable. A hollow gold ring glyph echoes the record dot, then the
-   uppercase gold label — same celebration language as PR badges. */
+   and unreadable. Uppercase gold label — same celebration language as PR
+   badges; the gold record dot on the line already carries the ring glyph. */
 .ov-weight-spark-new-low {
   position: absolute;
   right: 0;
   bottom: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px; /* chip micro-spacing */
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: var(--role-eyebrow-spacing);
@@ -425,17 +422,6 @@
   text-shadow: var(--gold-glow);
   pointer-events: none;
 }
-.ov-weight-spark-new-low::before {
-  content: "";
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
-  width: 10px;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid var(--gold);
-  box-shadow: var(--gold-glow);
-}
-
 .ov-weight-status-pill {
   display: inline-flex;
   align-items: center;
