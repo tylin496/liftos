@@ -6,13 +6,14 @@
      L46   Dev-only phone frame
      L79   Header
      L89   Content（tab viewport / per-tab scroll containers）
-     L148  Pull-to-refresh indicator
-     L191  Tab bar（floating Liquid Glass capsule）
-     L321  Generic page placeholder (P0)
-     L329  Tab entrance（flat reveal + per-card tiers）
-     L373  Section header row
-     L420  Settings sheet
-     L828  Brand splash / cold-start
+     L147  Pull-to-refresh indicator
+     L190  Tab bar（floating Liquid Glass capsule）
+     L320  Generic page placeholder (P0)
+     L328  Tab entrance（flat reveal + per-card tiers）
+     L363  Deep-link arrival highlight
+     L410  Section header row
+     L457  Settings sheet
+     L865  Brand splash / cold-start
    ───────────────────────────────────────────────────────────────────────────── */
 .shell {
   position: relative;
