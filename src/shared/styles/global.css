@@ -170,7 +170,11 @@ button {
   inset: -9px;
 }
 
-/* ── Celebration confetti (shared: nutrition double-hit, training PR) ───────── */
+/* ── Celebration confetti (shared: nutrition double-hit, training PR) ─────────
+   Choreographed one-shot sequence — the .celeb-* beat offsets and pop curves are
+   bespoke by design and intentionally NOT bound to the --dur-* / --ease-* scale.
+   Tune them as a unit; don't "fix" individual literals onto role tokens. (The
+   card in/out and the ring do ride role tokens, since those are ordinary UI.) */
 .save-celebration {
   position: fixed;
   inset: 0;
@@ -333,6 +337,9 @@ button {
   top: 50%;
   left: 50%;
   will-change: transform, opacity;
+  /* 1150ms is deliberate — the confetti hang-time is longer than --dur-celebrate
+     (900ms) so particles finish drooping after the ring settles. Part of the
+     choreographed sequence above; do not collapse onto the duration scale. */
   animation: celeb-confetti-arc 1150ms cubic-bezier(0.15, 0.6, 0.4, 1) both;
   transform-origin: center center;
 }

@@ -28,7 +28,12 @@ const PAGES: Record<TabId, () => JSX.Element> = {
 
 const TAB_ORDER: TabId[] = ["overview", "training", "nutrition", "health"];
 
-const SLIDE_MS = 320;
+// Sourced from the --dur-slide token so the JS finalize timer and the CSS
+// transition can't drift apart (same pattern as useCountUp / --dur-countup).
+const SLIDE_MS =
+  parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue("--dur-slide"),
+  ) || 320;
 
 // Wraps an index into TAB_ORDER so swiping past the last/first tab loops
 // around instead of dead-ending.
@@ -773,7 +778,7 @@ export function Shell({ session }: { session: Session }) {
                 if (slide) {
                   const width = window.innerWidth || 1;
                   const ease = slide.settling
-                    ? `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
+                    ? `transform var(--dur-slide) var(--ease-snap)`
                     : "none";
                   if (tabId === tab) {
                     style = { transform: `translateX(${slide.dx}px)`, transition: ease };

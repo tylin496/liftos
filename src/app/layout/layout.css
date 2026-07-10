@@ -154,7 +154,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: height 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: height var(--dur-exit) var(--ease-snap);
 }
 
 .pull-refresh-spinner {

@@ -278,13 +278,15 @@
      ROLE-DRIVEN. You never pick a number — you pick a ROLE. Each role has
      exactly one duration and one curve, so two things with the same role
      animate identically and can't drift apart. Every animation and transition
-     in the app resolves to one of these. Adding a raw ms or a fourth curve is
-     the bug. */
+     in the app resolves to one of these. Hand-writing a raw ms or an ad-hoc
+     curve at the usage site is the bug — a genuinely new role gets a named
+     token here first (see --ease-snap), never a literal. */
 
   /* Durations — one per role */
   --dur-press:     120ms;  /* tap · hover · colour/opacity feedback */
   --dur-exit:      200ms;  /* anything leaving (fade / slide out) */
   --dur-move:      280ms;  /* positional travel: slide · sheet · nav · sheen */
+  --dur-slide:     320ms;  /* full-panel gesture travel: tab slide · swipe snap-back */
   --dur-enter:     400ms;  /* anything appearing: card · form · row · bar · toast */
   --dur-pop:       440ms;  /* attention / celebration pulse */
   /* Data-reveal tier — numbers & charts arriving. Sits between the UI tier and
@@ -298,11 +300,15 @@
   --dur-shimmer:  1600ms;  /* skeleton loading loop */
   --dur-ambient:  3000ms;  /* splash breathe / float loops */
 
-  /* Curves — one per role. --ease-pop is the ONLY bounce; nothing else overshoots. */
+  /* Curves — one per role. --ease-pop is the ONLY bounce; nothing else overshoots.
+     --ease-snap is the sanctioned 5th curve, reserved for finger-driven panel
+     travel (tab slide, swipe snap-back) — a stronger decel tail than --ease-move,
+     which stays for programmatic positional travel. */
   --ease-press: cubic-bezier(0.2, 0.8, 0.2, 1);    /* feedback */
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);     /* reveals — slight settle */
   --ease-move:  cubic-bezier(0.4, 0, 0.2, 1);      /* positional */
   --ease-pop:   cubic-bezier(0.34, 1.56, 0.64, 1); /* pops only */
+  --ease-snap:  cubic-bezier(0.22, 1, 0.36, 1);    /* gesture settle — finger-driven panel travel */
 
   /* Entrance budget: everything waits --enter-wait then plays for --dur-enter
      (→ 500ms total). Page reveals are FLAT (all start together, no wave); only

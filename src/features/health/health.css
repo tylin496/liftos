@@ -92,6 +92,11 @@
 .health-sparkline-btn:active { opacity: 0.7; }
 
 .health-sparkline {
+  /* Local draw-cluster clock. Kept OUT of the global --dur-* scale on purpose:
+     the spark micro-timings (draw 450 / bead 180 / anchor 320) are an expressive
+     exception outside the UI rhythm, but naming the draw duration here removes the
+     magic number and gives the cluster one place to tune. */
+  --spark-dur: 450ms;
   flex-shrink: 0;
   overflow: visible;
 }

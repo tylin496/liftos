@@ -116,7 +116,8 @@ export function HistoryView({
   const [weekNavDir, setWeekNavDir] = useState<"forward" | "backward" | null>(null);
   useEffect(() => {
     if (!weekNavDir) return;
-    const t = window.setTimeout(() => setWeekNavDir(null), 360);
+    // Clears just after the --dur-move (280ms) slide finishes — small buffer.
+    const t = window.setTimeout(() => setWeekNavDir(null), 300);
     return () => window.clearTimeout(t);
   }, [weekNavDir]);
 
@@ -171,7 +172,7 @@ export function HistoryView({
           el.style.transition = "none";
           el.style.transform = "";
         } else {
-          el.style.transition = "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)";
+          el.style.transition = "transform var(--dur-exit) var(--ease-snap)";
           el.style.transform = "";
         }
       },

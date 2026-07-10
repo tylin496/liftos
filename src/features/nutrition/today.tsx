@@ -350,7 +350,8 @@ export function TodayView({
   // doesn't linger and replay when the tab is re-shown (display: none → block).
   useEffect(() => {
     if (!navDir) return;
-    const t = setTimeout(() => setNavDir(null), 360);
+    // Clears just after the --dur-move (280ms) slide finishes — small buffer.
+    const t = setTimeout(() => setNavDir(null), 300);
     return () => clearTimeout(t);
   }, [navDir, date]);
 
@@ -410,7 +411,7 @@ export function TodayView({
         el.style.transition = "none";
         el.style.transform = "";
       } else {
-        el.style.transition = "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)";
+        el.style.transition = "transform var(--dur-exit) var(--ease-snap)";
         el.style.transform = "";
       }
     },

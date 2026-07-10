@@ -633,7 +633,7 @@ function TrainingPageInner() {
         el.style.transition = "none";
         el.style.transform = "";
       } else {
-        el.style.transition = "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)";
+        el.style.transition = "transform var(--dur-exit) var(--ease-snap)";
         el.style.transform = "";
       }
     },
