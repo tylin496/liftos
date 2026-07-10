@@ -18,6 +18,30 @@
   margin-bottom: var(--vr-tight);
 }
 
+/* Right cluster on a trend card's title row: freshness tag + the open-trend
+   chevron, pinned to the corner together. */
+.health-card-top-right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Right-chevron disclosure button — opens the full trend sheet, same action as
+   tapping the sparkline. Plain SVG, no button chrome, matches .health-sparkline-btn. */
+.health-trend-open {
+  display: flex;
+  align-items: center;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--ink-3);
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--dur-press) var(--ease-press);
+}
+
+.health-trend-open:active { opacity: 0.7; }
+
 .health-tdee-head {
   display: flex;
   align-items: center;
@@ -87,6 +111,7 @@
   padding: 0;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
 
 .health-sparkline-btn:active { opacity: 0.7; }
@@ -416,7 +441,7 @@
 .health-recovery-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-3);
   padding: 10px 0;
   border-bottom: 1px solid var(--rule);
 }
@@ -426,15 +451,53 @@
 }
 
 .health-recovery-row-label {
+  flex: none;
+  width: 44px;
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink-2);
 }
 
-.health-recovery-row-stat {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+/* Baseline gauge: the fill length is the reading on a fixed 0→ceiling scale; the
+   tick is the 30-day baseline on that same scale. Filled past the tick = at or
+   better than baseline — a pre-attentive read that needs no unit parsing. */
+.health-recovery-gauge {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  background: var(--rule-strong);
+  border-radius: var(--radius-pill);
+}
+
+.health-recovery-gauge-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--radius-pill);
+}
+
+/* 2px mark that overhangs the track ±3px so it reads over any fill colour. */
+.health-recovery-gauge-tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--ink-4);
+}
+
+.health-recovery-row-val {
+  flex: none;
+  min-width: 58px;
+  text-align: right;
+}
+
+.health-recovery-legend {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--ink-4);
+  margin: var(--space-2) 0 0;
 }
 
 .health-recovery-footer {
@@ -534,10 +597,27 @@
   border: 2.4px solid var(--gold);
 }
 
+/* Metrics with no genuine win (celebrateExtreme false — Resting / TDEE) still
+   mark their extreme, but as a neutral locator: gold is a celebration tone and
+   an estimate's extreme is not earned. (Lean Mass keeps gold — a Peak is a real
+   win — even though its delta opts out of good/bad judgment.) */
+.health-trend-sheet-dot--peak.is-muted {
+  border-color: var(--ink-4);
+}
+
 .health-trend-sheet-dot--last {
   width: 9px;
   height: 9px;
   border: 2.4px solid currentColor;
+}
+
+/* Latest reading IS the record: a solid magenta core inside a gold celebration
+   ring replaces the two overlapping hollow dots. Each band (gap + gold ring) is
+   2.4px, matching the peak/last dots' border weight. */
+.health-trend-sheet-dot--last.is-record {
+  border: none;
+  background: currentColor;
+  box-shadow: 0 0 0 2.4px var(--bg-card), 0 0 0 4.8px var(--gold);
 }
 
 .health-trend-sheet-guide {
@@ -621,7 +701,8 @@
 
 /* Both are the metric's best extreme for its own polarity (peak for up-good,
    low for down-good — see TrendSheet's bestLabel) — same gold as the chart's
-   peak dot, never --bad. */
+   peak dot, never --bad. Only applied when celebrateExtreme; metrics with no
+   genuine win (Resting / TDEE) render the extreme in plain --ink (no modifier). */
 .health-trend-sheet-stat-v--peak,
 .health-trend-sheet-stat-v--low {
   color: var(--gold);

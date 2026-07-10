@@ -569,7 +569,7 @@ function WeightSparkline({
   canCelebrateLow = false,
 }: {
   points: { date: string; value: number }[];
-  tone: "good" | "bad" | "flat";
+  tone: "good" | "bad" | "flat" | "gold";
   targetRange?: { min: number; max: number } | null;
   // A window low is only a GOLD celebration when the pace read is healthy
   // (on/optimal). On a steady cut the latest smoothed point is the window low
@@ -578,7 +578,18 @@ function WeightSparkline({
   // the same paceTone the pill uses, so dot and pill never disagree.
   canCelebrateLow?: boolean;
 }) {
-  const stroke = tone === "good" ? "var(--good)" : tone === "bad" ? "var(--bad)" : "var(--ink-4)";
+  const stroke =
+    tone === "gold"
+      ? "var(--gold)"
+      : tone === "good"
+        ? "var(--good)"
+        : tone === "bad"
+          ? "var(--bad)"
+          : "var(--ink-4)";
+  // Target-pace corridor is normally the neutral "healthy" green; at an optimal
+  // pace it goes gold too, so the whole card (line, dot, corridor) shares the
+  // one celebration tone instead of a gold line sitting in a green zone.
+  const corridorColor = tone === "gold" ? "var(--gold)" : "var(--good)";
   const gradId = `ov-spark-grad-${tone}`;
   const W = 100, H = 80, pad = 4;
 
@@ -695,20 +706,20 @@ function WeightSparkline({
           <>
             <polygon
               points={`${corridor.x0.toFixed(1)},${corridor.y0.toFixed(1)} ${corridor.xEnd.toFixed(1)},${corridor.yMin.toFixed(1)} ${corridor.xEnd.toFixed(1)},${corridor.yMax.toFixed(1)}`}
-              fill="var(--good)"
+              fill={corridorColor}
               opacity="0.08"
               stroke="none"
             />
             <line
               x1={corridor.x0.toFixed(1)} y1={corridor.y0.toFixed(1)}
               x2={corridor.xEnd.toFixed(1)} y2={corridor.yMin.toFixed(1)}
-              stroke="var(--good)" strokeWidth="1" opacity="0.28"
+              stroke={corridorColor} strokeWidth="1" opacity="0.28"
               strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
             />
             <line
               x1={corridor.x0.toFixed(1)} y1={corridor.y0.toFixed(1)}
               x2={corridor.xEnd.toFixed(1)} y2={corridor.yMax.toFixed(1)}
-              stroke="var(--good)" strokeWidth="1" opacity="0.28"
+              stroke={corridorColor} strokeWidth="1" opacity="0.28"
               strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
             />
           </>
@@ -746,6 +757,10 @@ function WeightSparkline({
         style={{
           left: `${(latest.x / W) * 100}%`,
           top: `calc(var(--vr-block) + ${latest.y.toFixed(1)}px)`,
+          // Record dot = the line's own tone as a solid core inside a gold
+          // celebration ring (same badge as the Health chart's is-record). The
+          // core tracks the line so it reads as "this point, at its record".
+          ["--dot-core" as string]: stroke,
         }}
       />
       {isNewLow && (
@@ -807,9 +822,22 @@ function WeightCard({
       : null;
   const status = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
-  // Band-aware severity of the rate NUMBER itself (distance from the target
-  // band, confidence-free) — drives the arrow beside the Rate value.
-  const rateArrowTone = state ? rateTone(state.evaluation) : null;
+  // Rate-TREND arrow beside the hero — the glyph is the second-order read: is
+  // the loss speeding up (▲) or slowing toward a plateau (▼)?, NOT the weight's
+  // own direction. In-band acceleration reads good (green); a slowdown warns
+  // (amber, early-plateau catch); only a real out-of-band drift goes red
+  // (rateTone=bad). Never gold: how good the value IS lives on the status pill
+  // below, not on this arrow. Mirrors Nutrition's pace arrow.
+  const accelDirection = state?.evaluation.accelDirection ?? null;
+  const rateBandTone = state ? rateTone(state.evaluation) : null;
+  const accelArrowTone =
+    rateBandTone === "bad"
+      ? "bad"
+      : rateBandTone === "warn"
+        ? "warn"
+        : accelDirection === "slowing"
+          ? "warn"
+          : "good";
   // Only a conclusive verdict (tone set) carries the cut baseline day count; an
   // inconclusive read ("Forming"/"Calibrating") is just the word, no suffix.
   const { ref, inView } = useInView<HTMLDivElement>();
@@ -937,12 +965,12 @@ function WeightCard({
               format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             />
           </MetricValue>
-          {rate !== 0 && (
+          {accelDirection && (
             <span
-              className={`ov-weight-rate-arrow ov-weight-rate-arrow--hero${rateArrowTone ? ` is-${rateArrowTone}` : ""}`}
+              className={`ov-weight-rate-arrow ov-weight-rate-arrow--hero is-${accelArrowTone}`}
               aria-hidden
             >
-              {rate < 0 ? "▼" : "▲"}
+              {accelDirection === "faster" ? "▲" : "▼"}
             </span>
           )}
         </div>
@@ -961,7 +989,11 @@ function WeightCard({
 
       <WeightSparkline
         points={sparkPoints}
-        tone={sparkTone}
+        // Line colour normally follows the week-over-week direction (good/bad),
+        // but an OPTIMAL pace (paceTone gold — same read as the status pill's
+        // is-gold) overrides it to the celebration gold, so the whole trend
+        // reads as "doing this as well as it can be done", not just the pill.
+        tone={tone === "gold" ? "gold" : sparkTone}
         targetRange={state?.evaluation.targetRange ?? null}
         canCelebrateLow={tone === "good" || tone === "gold"}
       />

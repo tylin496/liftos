@@ -17,6 +17,8 @@ import { type MetricKind } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { ErrorState } from "@shared/components/ErrorState";
 import { AnimatedNumber, HeadlineCountUp } from "@shared/components/AnimatedNumber";
+import { COUNT_UP_MS } from "@shared/hooks/useCountUp";
+import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { PageTopBar } from "@shared/components/PageTopBar";
 import { buildHealthJson } from "@shared/lib/copyAllData";
@@ -271,30 +273,99 @@ function AnimatedMetric({
   return <Comp value={value} decimals={decimals} format={(n) => fmt(n, decimals)} />;
 }
 
+/* Fixed 0→ceiling display scales for the recovery gauges. Each metric maps its
+   reading to a fill fraction on its own physiological scale; RHR is inverted
+   (lower = better) so a low resting HR fills further right and reads as "good".
+   The tick is the 30-day baseline on the SAME scale, so "filled past the tick"
+   always means "at or better than your own baseline" — no units to parse. */
+type GaugeMetric = "sleep" | "hrv" | "rhr";
+const GAUGE_SCALE: Record<GaugeMetric, { lo: number; hi: number; invert: boolean }> = {
+  sleep: { lo: 0, hi: 10, invert: false },
+  hrv: { lo: 0, hi: 80, invert: false },
+  rhr: { lo: 40, hi: 90, invert: true },
+};
+
+/** Position (2–98%) of a reading on its metric's fixed gauge scale. Clamped off
+    the extreme ends so a fill sliver or baseline tick never vanishes at an edge. */
+function gaugePct(metric: GaugeMetric, v: number): number {
+  const { lo, hi, invert } = GAUGE_SCALE[metric];
+  const raw = (v - lo) / (hi - lo);
+  const frac = invert ? 1 - raw : raw;
+  return Math.max(2, Math.min(98, frac * 100));
+}
+
+/** Fill tone: green when the reading is at/past baseline in the healthy
+    direction, amber when it's meaningfully below — the SAME per-metric pass
+    thresholds computeRecovery scores on (±5% tolerance), so a gauge's colour and
+    the overall status can never disagree. Amber is --warn (the app's caution
+    colour); --gold stays reserved for celebration, never a "below baseline" read. */
+function gaugeTone(metric: GaugeMetric, v: number, baseline: number | null): string {
+  if (baseline == null) return "var(--good)";
+  const pass = metric === "rhr" ? v <= baseline * 1.05 : v >= baseline * 0.95;
+  return pass ? "var(--good)" : "var(--warn)";
+}
+
+/* The fill grows from 0 → its position on first reveal, on the same clock and
+   easing as the card's count-ups (COUNT_UP_MS, ease-out-quad bezier — mirrors
+   GoalBarFill in overview). The baseline tick is static. */
+function RecoveryGauge({ fill, tick, tone }: { fill: number; tick: number | null; tone: string }) {
+  const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    if (delayMs == null) return;
+    const timer = setTimeout(() => {
+      requestAnimationFrame(() => setW(fill));
+    }, delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs, fill]);
+
+  return (
+    <div ref={ref} className="health-recovery-gauge">
+      <div
+        className="health-recovery-gauge-fill"
+        style={{
+          width: `${w}%`,
+          backgroundColor: tone,
+          transition: `width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`,
+        }}
+      />
+      {tick != null && <span className="health-recovery-gauge-tick" style={{ left: `${tick}%` }} />}
+    </div>
+  );
+}
+
 function RecoveryRow({
   label,
+  metric,
   value,
   unit,
-  delta,
-  direction,
+  baseline,
 }: {
   label: string;
+  metric: GaugeMetric;
   value: number | null;
   unit: string;
-  delta: number | null;
-  direction: "up-good" | "down-good";
+  baseline: number | null;
 }) {
   const decimals = unit === "h" ? 1 : 0;
 
   return (
     <div className="health-recovery-row">
       <span className="health-recovery-row-label">{label}</span>
-      <div className="health-recovery-row-stat">
+      {value != null ? (
+        <RecoveryGauge
+          fill={gaugePct(metric, value)}
+          tick={baseline != null ? gaugePct(metric, baseline) : null}
+          tone={gaugeTone(metric, value, baseline)}
+        />
+      ) : (
+        <div className="health-recovery-gauge" />
+      )}
+      <span className="health-recovery-row-val">
         <MetricValue size="md" unit={value != null ? unit : undefined}>
           {value != null ? <AnimatedMetric value={value} decimals={decimals} /> : "—"}
         </MetricValue>
-        <MetricDelta value={delta} direction={direction} decimals={decimals} />
-      </div>
+      </span>
     </div>
   );
 }
@@ -318,9 +389,10 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
           ].map((r) => (
             <div key={r.label} className="health-recovery-row">
               <span className="health-recovery-row-label">{r.label}</span>
-              <div className="health-recovery-row-stat">
+              <div className="health-recovery-gauge" />
+              <span className="health-recovery-row-val">
                 <MetricValue size="md" unit={r.unit}>{r.value}</MetricValue>
-              </div>
+              </span>
             </div>
           ))}
         </div>
@@ -354,13 +426,6 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
   // collapses (rare; needs sleep/HRV/RHR history).
   if (!snap || !snap.status) return null;
 
-  const sleepDelta = snap.sleepHours != null && snap.sleepBaseline != null
-    ? snap.sleepHours - snap.sleepBaseline : null;
-  const hrvDelta = snap.hrv != null && snap.hrvBaseline != null
-    ? snap.hrv - snap.hrvBaseline : null;
-  const rhrDelta = snap.rhr != null && snap.rhrBaseline != null
-    ? snap.rhr - snap.rhrBaseline : null;
-
   const color = RECOVERY_STATUS_COLOR[snap.status];
 
   return (
@@ -373,10 +438,11 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
         </span>
       </div>
       <div className="health-recovery-rows">
-        <RecoveryRow label="Sleep" value={snap.sleepHours} unit="h"   delta={sleepDelta} direction="up-good" />
-        <RecoveryRow label="HRV"   value={snap.hrv}        unit="ms"  delta={hrvDelta}   direction="up-good" />
-        <RecoveryRow label="RHR"   value={snap.rhr}        unit="bpm" delta={rhrDelta}   direction="down-good" />
+        <RecoveryRow label="Sleep" metric="sleep" value={snap.sleepHours} unit="h"   baseline={snap.sleepBaseline} />
+        <RecoveryRow label="HRV"   metric="hrv"   value={snap.hrv}        unit="ms"  baseline={snap.hrvBaseline} />
+        <RecoveryRow label="RHR"   metric="rhr"   value={snap.rhr}        unit="bpm" baseline={snap.rhrBaseline} />
       </div>
+      <p className="health-recovery-legend">Tick = 30-day baseline · past it = at or better</p>
       {snap.insight && <p className="health-recovery-footer">{snap.insight}</p>}
     </section>
   );
@@ -431,7 +497,26 @@ function TrendCard({
     <section className={`page-card health-trend${loading ? " loading-card" : ""}`}>
       <div className="health-card-top">
         <span className="health-card-eyebrow">{label}</span>
-        {!loading && <FreshnessTag date={syncDate} kind={freshnessKind} updatedAt={updatedAt} />}
+        {!loading && (
+          <div className="health-card-top-right">
+            <FreshnessTag date={syncDate} kind={freshnessKind} updatedAt={updatedAt} />
+            {onOpenTrend && (
+              // Explicit disclosure affordance — the sparkline is tappable too, but
+              // this right-chevron in the corner is the discoverable "open the full
+              // trend sheet" signal. Only shown when there's actually a sheet to open.
+              <button
+                type="button"
+                className="health-trend-open"
+                aria-label={`View ${label} trend`}
+                onClick={onOpenTrend}
+              >
+                <svg width="7" height="12" viewBox="0 0 7 12" fill="none" aria-hidden>
+                  <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <div className="health-trend-head">
         <div className="health-trend-info">
@@ -807,7 +892,7 @@ export function HealthPage() {
                   // there's enough history for a line.
                   onOpen={
                     restingFull.length >= 2
-                      ? () => openTrend({ label: "Resting", unit: " kcal", decimals: 0, color: "var(--accent)", points: restingFull, higherIsBetter: false, judgeDelta: false, bucketDays: RESTING_BUCKET })
+                      ? () => openTrend({ label: "Resting", unit: " kcal", decimals: 0, color: "var(--accent)", points: restingFull, higherIsBetter: false, judgeDelta: false, celebrateExtreme: false, bucketDays: RESTING_BUCKET })
                       : undefined
                   }
                 />
@@ -817,7 +902,7 @@ export function HealthPage() {
                   window="resting + active"
                   onOpen={
                     tdeeFull.length >= 2
-                      ? () => openTrend({ label: "TDEE", unit: " kcal", decimals: 0, color: "var(--accent)", points: tdeeFull, higherIsBetter: true, judgeDelta: false, bucketDays: ENERGY_BUCKET })
+                      ? () => openTrend({ label: "TDEE", unit: " kcal", decimals: 0, color: "var(--accent)", points: tdeeFull, higherIsBetter: true, judgeDelta: false, celebrateExtreme: false, bucketDays: ENERGY_BUCKET })
                       : undefined
                   }
                 />

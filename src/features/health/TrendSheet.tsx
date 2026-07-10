@@ -34,6 +34,14 @@ export interface HealthTrendConfig {
       body-fat reading, so a raw down-move isn't a judgeable "bad" — the Decision
       Engine's LeanMassEvaluation owns that verdict. Default true. */
   judgeDelta?: boolean;
+  /** false → the milestone extreme (Peak/Low) renders as a neutral locator, not
+      a gold win. Gold is a celebration tone, so it's earned only when the metric
+      has a genuine good direction: reaching a new extreme is an achievement.
+      Distinct from judgeDelta — Lean Mass opts out of delta judgment (noisy BIA)
+      yet a Peak IS a real win (more muscle), so it still celebrates. Resting /
+      TDEE have no such win (an estimate's extreme isn't earned) → false.
+      Default true. */
+  celebrateExtreme?: boolean;
 }
 
 const fmt = (v: number, d: number) =>
@@ -42,7 +50,7 @@ const fmt = (v: number, d: number) =>
 /* Daily-reading progression line. Same shape as Training's exercise trend
    chart (measured getTotalLength() draw-in, press-drag scrub anywhere) —
    this is the "big graph" a Sparkline tap opens. */
-function TrendChart({ points, color, unit, decimals, higherIsBetter, bucketDays }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean; bucketDays: number }) {
+function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateExtreme, bucketDays }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean; celebrateExtreme: boolean; bucketDays: number }) {
   const W = 320;
   const H = 130;
   const padX = 10;
@@ -62,11 +70,20 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, bucketDays 
   }));
   const line = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const area = `${coords[0].x.toFixed(1)},${baseline} ${line} ${coords[coords.length - 1].x.toFixed(1)},${baseline}`;
-  // The gold "best" marker sits on the metric's OWN best extreme — the max for
-  // an up-good metric (Lean Mass / Active), the min for a down-good one
-  // (Weight / Body Fat), where the low-water mark is the win.
-  const best = coords[vals.indexOf(higherIsBetter ? max : min)];
-  const last = coords[coords.length - 1];
+  // The "best" marker sits on the metric's OWN best extreme — the max for an
+  // up-good metric (Lean Mass / Active), the min for a down-good one (Weight /
+  // Body Fat), where the low-water mark is the win. Gold (a celebration tone)
+  // only when celebrateExtreme: metrics with no genuine win (Resting / TDEE)
+  // surface the extreme as a neutral locator instead.
+  const bestIdx = vals.indexOf(higherIsBetter ? max : min);
+  const best = coords[bestIdx];
+  const lastIdx = coords.length - 1;
+  const last = coords[lastIdx];
+  // When the latest reading IS the record (a new low/high set right now), the
+  // gold best-dot and the magenta last-dot land on the same point and overlap as
+  // two hollow rings. Merge them into one record badge: a solid magenta core in a
+  // gold ring. Only when the win is celebrated.
+  const isRecordNow = celebrateExtreme && bestIdx === lastIdx;
 
   // Draw-in animation: measure the polyline's real length rather than using a
   // normalized `pathLength` — see training/TrendSheet.tsx for why (pathLength +
@@ -147,12 +164,16 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, bucketDays 
           circle into an ellipse (see overview/page.tsx's weight-spark fix).
           Left is a % (the chart's width is fluid); top is px since H maps 1:1
           to its fixed 130px CSS height. */}
+      {/* Separate best marker only when the record isn't the latest point —
+          otherwise it merges into the last dot below (see isRecordNow). */}
+      {bestIdx !== lastIdx && (
+        <div
+          className={`health-trend-sheet-dot health-trend-sheet-dot--peak${celebrateExtreme ? "" : " is-muted"}`}
+          style={{ left: `${(best.x / W) * 100}%`, top: `${best.y.toFixed(1)}px` }}
+        />
+      )}
       <div
-        className="health-trend-sheet-dot health-trend-sheet-dot--peak"
-        style={{ left: `${(best.x / W) * 100}%`, top: `${best.y.toFixed(1)}px` }}
-      />
-      <div
-        className="health-trend-sheet-dot health-trend-sheet-dot--last"
+        className={`health-trend-sheet-dot health-trend-sheet-dot--last${isRecordNow ? " is-record" : ""}`}
         style={{ left: `${(last.x / W) * 100}%`, top: `${last.y.toFixed(1)}px`, color }}
       />
       {scrubCoord && (
@@ -198,7 +219,7 @@ function SheetInner({
   onClose: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true, bucketDays } = config;
+  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true, celebrateExtreme = true, bucketDays } = config;
 
   const first = points[0];
   const latest = points[points.length - 1];
@@ -277,7 +298,7 @@ function SheetInner({
                 </span>
               </div>
 
-              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} bucketDays={bucketDays} />
+              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} celebrateExtreme={celebrateExtreme} bucketDays={bucketDays} />
 
               <div className="health-trend-sheet-stats">
                 <div className="health-trend-sheet-stat">
@@ -288,7 +309,7 @@ function SheetInner({
                 </div>
                 <div className="health-trend-sheet-stat">
                   <span className="health-trend-sheet-stat-k">{bestLabel}</span>
-                  <span className={`health-trend-sheet-stat-v health-trend-sheet-stat-v--${higherIsBetter ? "peak" : "low"}`}>
+                  <span className={`health-trend-sheet-stat-v${celebrateExtreme ? ` health-trend-sheet-stat-v--${higherIsBetter ? "peak" : "low"}` : ""}`}>
                     {fmt(bestVal, decimals)}<span className="health-trend-sheet-stat-u">{unit}</span>
                   </span>
                 </div>

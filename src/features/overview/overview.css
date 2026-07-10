@@ -250,17 +250,18 @@
 }
 
 /* Delta arrow trailing the rate value (app-wide delta-after-value convention,
-   see .ov-weight-accel's margin-left below) — direction from the rate's sign,
-   colour from rateTone (band-aware severity of the number: in band / near an
-   edge / far out). The number itself stays neutral ink; the pill still owns
-   the confidence-gated pace verdict. */
+   see .ov-weight-accel's margin-left below) — direction is the loss TREND
+   (accelerating ▲ / slowing ▼, from accelDirection), colour reads that trend
+   against the band: in-band acceleration = good, a slowdown or drift toward an
+   edge = warn, far out = bad. Never gold — how good the value IS lives on the
+   pill, which owns the confidence-gated pace verdict; the number stays neutral
+   ink. Mirrors Nutrition's pace arrow so the two read identically. */
 .ov-weight-rate-arrow {
   margin-left: 2px; /* optical: snug the glyph to its number */
 }
 .ov-weight-rate-arrow.is-good { color: var(--good); }
 .ov-weight-rate-arrow.is-warn { color: var(--warn); }
 .ov-weight-rate-arrow.is-bad  { color: var(--bad); }
-.ov-weight-rate-arrow.is-gold { color: var(--gold); text-shadow: var(--gold-glow); }
 
 /* At hero scale the arrow sits beside the 34px rate number — sized up from the
    old inline text-sm so it reads as part of the headline, not a footnote, but
@@ -386,9 +387,16 @@
   border: 2px solid var(--bg-card);
   pointer-events: none;
 }
+/* Record dot: the line's tone as a solid core, a bg-card gap, then a gold
+   celebration ring + halo — same "you set a record right now" badge the Health
+   chart's is-record dot uses (a hollow gold ring around a coloured core). */
 .ov-weight-spark-latest-dot.is-new-low {
-  background: var(--gold);
-  box-shadow: var(--gold-glow);
+  border: none;
+  background: var(--dot-core, var(--gold));
+  box-shadow:
+    0 0 0 2px var(--bg-card),
+    0 0 0 4px var(--gold),
+    var(--gold-glow);
 }
 
 /* "New low" microlabel beside the gold dot — right-offset so it clears the
