@@ -4,7 +4,7 @@ import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import type { StrengthSummary, StrengthExercise } from "../overview/api";
 import type { MuscleGroup } from "./muscleGroup";
-import { buildMuscleGrid, liftStatus, STATUS_ICON } from "./muscleGrid";
+import { buildMuscleGrid, liftStatus, STATUS_ICON, steadyNote } from "./muscleGrid";
 import type { LiftStatus } from "./muscleGrid";
 import { suggestDeload } from "./deload";
 import "./strengthHealthCard.css";
@@ -80,7 +80,7 @@ function drillNote(ex: StrengthExercise, status: LiftStatus): string {
     case "rebounding":
       return `${icon} rebounding — climbing back`;
     default:
-      return `${icon} holding peak`;
+      return `${icon} ${steadyNote(ex)}`;
   }
 }
 

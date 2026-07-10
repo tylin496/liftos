@@ -96,6 +96,23 @@ function retention(ex: StrengthExercise): number {
   return ex.prE1RM > 0 ? ex.latestE1RM / ex.prE1RM : 0;
 }
 
+// "Peak" is reserved for a lift sitting essentially AT its own best e1RM; a
+// steady lift a few % below that is holding, but not at the peak — so the note
+// grades by retention instead of calling every steady lift "holding peak"
+// (which overstated a 90%-of-best hold). Not a PR: an actual fresh PR is its
+// own gold status (see liftStatus), this is the quiet steady tier.
+const PEAK_RETENTION = 0.99; // at / essentially at the PR
+const NEAR_PEAK_RETENTION = 0.95; // within ~5% of the PR
+
+/** Steady-tier note by how close the lift sits to its own PR e1RM. Lowercase so
+ *  it can trail a status glyph in a drill row; the grid cell upper-cases it. */
+export function steadyNote(ex: StrengthExercise): string {
+  const r = retention(ex);
+  if (r >= PEAK_RETENTION) return "holding peak";
+  if (r >= NEAR_PEAK_RETENTION) return "near peak";
+  return "holding steady";
+}
+
 function weeksAgo(isoDate: string, nowMs: number): number {
   const t = Date.parse(isoDate);
   if (!Number.isFinite(t)) return Infinity;
@@ -132,8 +149,10 @@ function buildInsight(status: LiftStatus, worst: StrengthExercise): string {
       return `${worst.name} — new PR this week`;
     case "rebounding":
       return `${worst.name} climbing back`;
-    default:
-      return "Holding peak";
+    default: {
+      const n = steadyNote(worst);
+      return n[0].toUpperCase() + n.slice(1);
+    }
   }
 }
 
