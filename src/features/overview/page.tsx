@@ -3,7 +3,7 @@ import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { series, rollingAvg, trailingAvg, latestUpdatedAt } from "@features/health/math";
+import { series, rollingAvg, trailingAvg, median, latestUpdatedAt } from "@features/health/math";
 import { isStale, formatAgo } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
@@ -639,17 +639,35 @@ function WeightSparkline({
   const trendValues = trend.map((p) => p.value);
   const windowDays = diffDays(trend[0].date, trend.at(-1)!.date);
 
-  // Target-pace corridor: two rays from the trend's first point, sloped at the
-  // target band's min/max loss rate (positive kg/wk) converted to kg dropped
-  // over this window. A horizontal band is geometrically wrong on a
-  // weight-level chart — the band only reads flat on a rate axis.
+  // Target-pace corridor: two rays sloped at the target band's min/max loss
+  // rate (positive kg/wk) converted to kg dropped over this window. A
+  // horizontal band is geometrically wrong on a weight-level chart — the band
+  // only reads flat on a rate axis.
   const hasCorridor = !!targetRange && targetRange.min !== targetRange.max && windowDays > 0;
-  const corridorMinVal = hasCorridor ? trendValues[0] - targetRange!.min * (windowDays / 7) : null;
-  const corridorMaxVal = hasCorridor ? trendValues[0] - targetRange!.max * (windowDays / 7) : null;
+  // The rays anchor at the Theil-Sen fit of the drawn trend evaluated at the
+  // window start — NOT at the first drawn point. The pace badge grades the
+  // window's MEDIAN pairwise slope, so the wedge must fan out from the same
+  // fit's starting level: anchoring on one edge point let a single low/high
+  // day tilt the whole wedge (observed: anchor ~0.8 kg low rendered a
+  // badge-verified on-pace window as visually outside the zone).
+  let corridorAnchor: number | null = null;
+  if (hasCorridor) {
+    const t0 = new Date(trend[0].date + "T12:00:00").getTime();
+    const xs = trend.map((p) => (new Date(p.date + "T12:00:00").getTime() - t0) / 86400000);
+    const pairSlopes: number[] = [];
+    for (let i = 0; i < trend.length; i++)
+      for (let j = i + 1; j < trend.length; j++)
+        if (xs[j] !== xs[i]) pairSlopes.push((trendValues[j] - trendValues[i]) / (xs[j] - xs[i]));
+    const fitSlope = median(pairSlopes);
+    corridorAnchor = median(trendValues.map((v, i) => v - fitSlope * xs[i]));
+  }
+  const corridorMinVal = corridorAnchor != null ? corridorAnchor - targetRange!.min * (windowDays / 7) : null;
+  const corridorMaxVal = corridorAnchor != null ? corridorAnchor - targetRange!.max * (windowDays / 7) : null;
 
   // Vertical scale spans the trend line AND the corridor's in-view vertices,
   // so the wedge never clips against a scale sized to the line alone.
   const scaleValues = [...trendValues];
+  if (corridorAnchor != null) scaleValues.push(corridorAnchor);
   if (corridorMinVal != null) scaleValues.push(corridorMinVal);
   if (corridorMaxVal != null) scaleValues.push(corridorMaxVal);
   const min = Math.min(...scaleValues), max = Math.max(...scaleValues);
@@ -669,9 +687,12 @@ function WeightSparkline({
   const first = coords[0], last = coords[coords.length - 1];
   const area = `${pts} ${last.x.toFixed(1)},${H} ${first.x.toFixed(1)},${H}`;
 
-  const corridor = hasCorridor
+  const corridor = corridorAnchor != null
     ? {
-        x0: first.x, y0: first.y,
+        // Apex sits at the FIT's start level, which can legitimately float off
+        // the drawn line's first point — the line starting below the apex
+        // correctly reads "this stretch was faster than target".
+        x0: first.x, y0: valueToY(corridorAnchor),
         xEnd: last.x,
         yMin: valueToY(corridorMinVal!),
         yMax: valueToY(corridorMaxVal!),
@@ -907,7 +928,14 @@ function WeightCard({
   // window's first few points would average over their own truncated stub
   // (day 0 averaging with nothing before it) instead of true prior history,
   // understating the smoothing right where the corridor anchors its start.
-  const sparkPoints = trailingAvg(weightPts, TREND_WINDOW_HOURS).slice(-21);
+  // Window is 21 calendar DAYS (same cutoff convention as theilSenSlope:
+  // last date − 20), not the last 21 readings — a missed weigh-in day must
+  // not silently stretch the chart onto a longer window than the rate it
+  // sits beside was fit on.
+  const sparkCutoff = weightDate
+    ? localDateStr(new Date(new Date(weightDate + "T12:00:00").getTime() - 20 * 86400000))
+    : "";
+  const sparkPoints = trailingAvg(weightPts, TREND_WINDOW_HOURS).filter((p) => p.date >= sparkCutoff);
   const sparkTone: "good" | "bad" | "flat" =
     weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
 
