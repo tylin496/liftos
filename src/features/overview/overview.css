@@ -423,6 +423,13 @@
   pointer-events: none;
 }
 
+/* When the line ends in the chart's bottom band there is no empty space under
+   it — the badge flips above the record dot instead (top comes inline from the
+   dot's y, same --vr-block offset convention as the dot itself). */
+.ov-weight-spark-new-low.is-above {
+  bottom: auto;
+}
+
 /* Weight-pace status chip now renders via the shared <Badge pill tone> — see
    shared/components/Badge. The warn tone + ink-2 neutral label live there. */
 

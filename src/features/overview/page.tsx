@@ -802,7 +802,20 @@ function WeightSparkline({
         }}
       />
       {isNewLow && (
-        <span className="ov-weight-spark-new-low">New low</span>
+        // The badge parks in the empty space below the line's end — but when
+        // the line ends in the chart's bottom band that space doesn't exist
+        // and the badge collides with the record dot. Flip it above the dot,
+        // anchored to the dot's actual y (26px clears the dot's ring + a gap).
+        <span
+          className={`ov-weight-spark-new-low${latest.y > H * 0.55 ? " is-above" : ""}`}
+          style={
+            latest.y > H * 0.55
+              ? { top: `calc(var(--vr-block) + ${(latest.y - 26).toFixed(1)}px)` }
+              : undefined
+          }
+        >
+          New low
+        </span>
       )}
       {scrubCoord && (
         <div
