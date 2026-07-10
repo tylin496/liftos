@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS } from "./evaluation";
-import { nutritionDecision, rateTone, OPTIMAL_BAND_FRACTION } from "./recommendation";
+import { nutritionDecision, rateTone, paceTone, OPTIMAL_BAND_FRACTION } from "./recommendation";
 import "./nutrition.css";
 
 /* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
@@ -76,11 +76,16 @@ function PaceMeter({
   lo,
   hi,
   accelDirection,
+  optimal,
 }: {
   observedRate: number;
   lo: number;
   hi: number;
   accelDirection: "faster" | "slowing" | null;
+  /** Earned-Optimal celebration flag (paceTone gold — top-slice AND settled
+      confidence), computed by the caller so this meter's gold matches the pace
+      pill and the Overview Weight card exactly. */
+  optimal: boolean;
 }) {
   const obs = Math.abs(observedRate);
   const w = hi - lo;
@@ -92,9 +97,14 @@ function PaceMeter({
   const inState = obs >= lo && obs <= hi;
   // Same rateTone the Overview Weight card's Rate arrow uses (band-aware
   // severity, not just in/off) — one source, so the dot, the arrow, and
-  // Overview never disagree on how far off this number is.
+  // Overview never disagree on how far off this number is. Gold, though, is a
+  // celebration and must be EARNED: rateTone paints any top-slice rate gold on
+  // magnitude alone, but on unsettled data (fresh target / Calibrating) that's
+  // premature — the Overview card gates its gold on paceTone (confidence-aware),
+  // so here a top-slice rate that isn't `optimal` yet reads as plain in-band
+  // good. Both surfaces then flip to gold together, never one alone.
   const rTone = rateTone({ observedRate, targetRange: { min: lo, max: hi } });
-  const tone = rTone ?? "good";
+  const tone = optimal ? "gold" : rTone === "gold" ? "good" : (rTone ?? "good");
   // Top slice of the band (same OPTIMAL_BAND_FRACTION rateTone/paceTone use)
   // rendered as a gold slice on the track itself, so the meter shows *where*
   // optimal is, not just the marker's colour when it lands there. Independent
@@ -146,7 +156,10 @@ function PaceMeter({
       <div className="ni-meter">
         <div className="ni-meter-track">
           <div className={`ni-meter-band ${inState ? `is-in status-${tone}` : "is-off"}`} />
-          {inState && (
+          {/* Gold optimal slice only when the read is actually gold — in plain
+              in-band green it would be a gold marker sitting off the gold slice,
+              reading as "you're not quite there" on a perfectly on-pace result. */}
+          {tone === "gold" && (
             <div
               className="ni-meter-band-optimal is-in"
               style={{ left: `${optimalPct}%` }}
@@ -308,6 +321,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
               lo={e.targetRange.min}
               hi={e.targetRange.max}
               accelDirection={e.accelDirection}
+              optimal={paceTone(e) === "gold"}
             />
           ) : (
             <div className="ni-cell ni-cell-full">

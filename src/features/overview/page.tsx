@@ -12,7 +12,7 @@ import { useInView } from "@shared/hooks/useInView";
 import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { progressColor } from "@shared/lib/progressColor";
 import { displayNameFor } from "@shared/lib/owner";
-import { timelineDate } from "@shared/lib/date";
+import { timelineDate, localDateStr } from "@shared/lib/date";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { ErrorState } from "@shared/components/ErrorState";
 import { StrengthHealthCard } from "@features/training/StrengthHealthCard";
@@ -683,6 +683,19 @@ function WeightSparkline({
   const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
   const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
   const scrubDate = scrubPoint ? timelineDate(scrubPoint.date) : null;
+  // The line is a 3.5-day trailing average, so a scrubbed point is NOT a single
+  // weigh-in — showing one date read as "you weighed X on this day". Label the
+  // window the average covers (the ~4 daily readings inside the trailing 3.5d)
+  // as a range, and show the smoothed value that actually sits on the line, so
+  // number and dot agree. Start = date − 3d (the trailing window rounds to the
+  // last 4 readings).
+  const scrubStart =
+    scrubPoint
+      ? timelineDate(
+          localDateStr(new Date(new Date(scrubPoint.date + "T12:00:00").getTime() - 3 * 86400000)),
+        )
+      : null;
+  const scrubValue = scrubIdx != null ? trendValues[scrubIdx] : null;
 
   return (
     <div className="ov-weight-spark-wrap">
@@ -745,7 +758,7 @@ function WeightSparkline({
           />
         )}
       </svg>
-      <span className="ov-weight-spark-caption">target zone · 14d</span>
+      <span className="ov-weight-spark-caption">target zone · 21d</span>
       {/* Rendered outside the SVG, not as a <circle>: the chart's viewBox is
           stretched non-uniformly (W=100 vs a ~350px card, H fixed 1:1 at 80px),
           so an in-SVG circle inherits that stretch and renders as a flat
@@ -764,19 +777,17 @@ function WeightSparkline({
         }}
       />
       {isNewLow && (
-        <span
-          className="ov-weight-spark-new-low"
-          style={{ top: `calc(var(--vr-block) + ${latest.y.toFixed(1)}px)` }}
-        >
-          New low
-        </span>
+        <span className="ov-weight-spark-new-low">New low</span>
       )}
       {scrubCoord && (
         <div
           className="ov-weight-spark-scrub-dot"
           style={{
+            // Same --vr-block offset as the SVG's margin-top (and the latest
+            // dot) — anything else drops the scrub dot a few px off the line, so
+            // it misaligns when you drag onto the latest point.
             left: `${(scrubCoord.x / W) * 100}%`,
-            top: `calc(var(--space-4) + ${scrubCoord.y.toFixed(1)}px)`,
+            top: `calc(var(--vr-block) + ${scrubCoord.y.toFixed(1)}px)`,
           }}
         />
       )}
@@ -790,8 +801,12 @@ function WeightSparkline({
             className={`ov-weight-spark-tooltip ov-weight-spark-tooltip--${anchor}`}
             style={{ left: `${pct}%` }}
           >
-            <span className="ov-weight-spark-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
-            <span className="mono">{fmt1kg(scrubPoint.value)}kg</span>
+            <span className="ov-weight-spark-tooltip-date">
+              {scrubStart
+                ? `${scrubStart.mon} ${scrubStart.day}–${scrubStart.mon === scrubDate.mon ? "" : `${scrubDate.mon} `}${scrubDate.day}`
+                : `${scrubDate.mon} ${scrubDate.day}`}
+            </span>
+            <span className="mono">{fmt1kg(scrubValue ?? scrubPoint.value)}kg</span>
           </div>
         );
       })()}
@@ -879,11 +894,15 @@ function WeightCard({
   const prevWeek = rollingAvg(weightPts, 7, 7);
   const weightDelta = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
 
-  // Last 14 daily readings — the trend shape under the number. Line tone is
-  // driven by the SAME weightDelta sign as MetricDelta below (down = good on a
-  // cut): direction from the number's sign, colour from the tone — kept
-  // independent, matching the delta-arrow rule.
-  const sparkPoints = weightPts.slice(-14);
+  // Last 21 daily readings — the trend shape under the number, over the SAME
+  // 21-day window the recommendation's observed rate (and this card's hero rate)
+  // is fit on, so the corridor and the number never span different periods. The
+  // line itself stays a 3.5-day trailing average (TREND_WINDOW_HOURS), so a
+  // longer window shows more trend, not more jitter. Line tone is driven by the
+  // SAME weightDelta sign as MetricDelta below (down = good on a cut): direction
+  // from the number's sign, colour from the tone — kept independent, matching
+  // the delta-arrow rule.
+  const sparkPoints = weightPts.slice(-21);
   const sparkTone: "good" | "bad" | "flat" =
     weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
 

@@ -375,6 +375,10 @@
    (gold + glow), same language as PR badges. Positioned as an HTML dot for
    the same reason as the scrub dot: the stretched viewBox turns SVG circles
    into ellipses. */
+/* Latest reading = the same marker the Weight-loss pace meter uses: the line's
+   tone as a solid core, a card-bg gap ring, a thin same-tone ring, and a soft
+   glow (see .ni-meter-marker). Core colour tracks the line (--dot-core = the
+   stroke tone), so the two surfaces read as one language. */
 .ov-weight-spark-latest-dot {
   position: absolute;
   /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
@@ -383,8 +387,11 @@
   height: 11px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--dot-core, var(--ink));
   border: 2px solid var(--bg-card);
+  box-shadow:
+    0 0 0 1px var(--dot-core, var(--ink)),
+    0 0 8px color-mix(in srgb, var(--dot-core, var(--ink)) 55%, transparent);
   pointer-events: none;
 }
 /* Record dot: the line's tone as a solid core, a bg-card gap, then a gold
@@ -399,17 +406,34 @@
     var(--gold-glow);
 }
 
-/* "New low" microlabel beside the gold dot — right-offset so it clears the
-   dot's radius + ring, vertically centered on it. */
+/* "New low" record badge — parked in the empty space BELOW the trend line
+   (right-aligned under the dot), not overlaid on the dot, where it was cramped
+   and unreadable. A hollow gold ring glyph echoes the record dot, then the
+   uppercase gold label — same celebration language as PR badges. */
 .ov-weight-spark-new-low {
   position: absolute;
-  right: 22px;
-  transform: translateY(-50%);
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px; /* chip micro-spacing */
   font-size: var(--text-2xs);
   font-weight: 700;
+  letter-spacing: var(--role-eyebrow-spacing);
+  text-transform: uppercase;
   color: var(--gold);
   text-shadow: var(--gold-glow);
   pointer-events: none;
+}
+.ov-weight-spark-new-low::before {
+  content: "";
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  width: 10px;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  box-shadow: var(--gold-glow);
 }
 
 .ov-weight-status-pill {
