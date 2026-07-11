@@ -274,7 +274,7 @@ export function Shell({ session }: { session: Session }) {
     const align = () => {
       const el = document.getElementById(targetId);
       if (!el) return;
-      el.scrollIntoView({ block: "start" });
+      el.scrollIntoView({ block: "center" });
       if (!arrived && !el.classList.contains("loading-card")) {
         arrived = true;
         fireArrival(el);
