@@ -157,25 +157,19 @@ function ActiveTargetWeekStrip({
     if (date === todayISO) {
       const ratio = view.today.accrued / Math.max(1, view.today.target);
       const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
-      return { date, letter, kind: "today" as const, fill: Math.min(1, ratio), color: ringColor, ringColor };
+      return { date, letter, kind: "today" as const, fill: Math.min(1, ratio), ringColor };
     }
-    if (date > todayISO) return { date, letter, kind: "future" as const, fill: 0, color: undefined, ringColor: undefined };
+    if (date > todayISO) return { date, letter, kind: "future" as const, fill: 0, ringColor: undefined };
     const active = metrics.find((m) => m.metric_date === date)?.active_energy_kcal ?? 0;
     const ratio = perDay > 0 ? active / perDay : 0;
-    // Muted, not full --good: past bars record "how much of that day got
-    // logged" — a historical fact, not a verdict — so they don't need verdict
-    // saturation. Five full-strength bars made this the page's second-biggest
-    // green block, competing with the Journey card right below (page rule:
-    // Journey owns green). Today's bar keeps the ring's full ramp colour —
-    // it's the live readout. `ringColor` (used only for the selected-day
-    // glow) still follows the same ramp the ring itself would show for that
-    // day — the glow is a preview of the ring, not the bar's own hue.
+    // Every bar (past or today) follows the same ramp the ring itself would
+    // show for that day — the strip is a row of tiny rings, not a separate
+    // "logged" colour language.
     return {
       date,
       letter,
       kind: "past" as const,
       fill: Math.min(1, ratio),
-      color: "color-mix(in srgb, var(--good) 45%, transparent)",
       ringColor: ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio),
     };
   });
@@ -205,7 +199,7 @@ function ActiveTargetWeekStrip({
                   className="ov-active-target-week-fill"
                   style={{
                     width: `${Math.round(c.fill * 100)}%`,
-                    backgroundColor: selected ? c.ringColor : c.color,
+                    backgroundColor: c.ringColor,
                   }}
                 />
               )}
