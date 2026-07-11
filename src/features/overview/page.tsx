@@ -203,7 +203,10 @@ function ActiveTargetWeekStrip({
               {c.kind !== "future" && (
                 <div
                   className="ov-active-target-week-fill"
-                  style={{ width: `${Math.round(c.fill * 100)}%`, backgroundColor: c.color }}
+                  style={{
+                    width: `${Math.round(c.fill * 100)}%`,
+                    backgroundColor: selected ? c.ringColor : c.color,
+                  }}
                 />
               )}
             </div>
