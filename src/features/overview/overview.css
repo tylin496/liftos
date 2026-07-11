@@ -23,6 +23,22 @@
   text-align: left;
 }
 
+/* The card is a plain div now (the week strip needs its own per-day buttons,
+   which can't nest inside a button) — head/ring/footer stay tappable via two
+   sibling reset-to-block buttons that flank the strip. */
+.ov-active-target-navblock {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
 .ov-active-target-head {
   display: flex;
   align-items: center;
@@ -161,6 +177,15 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  border: none;
+  background: transparent;
+  padding: var(--space-1) 0;
+  margin: calc(var(--space-1) * -1) 0;
+  cursor: pointer;
+}
+
+.ov-active-target-week-cell:disabled {
+  cursor: default;
 }
 
 .ov-active-target-week-bar {
@@ -170,6 +195,15 @@
   background: var(--bg-soft);
   position: relative;
   overflow: hidden;
+}
+
+/* Marks "here" the way Weight/Journey/Training do — an emphasized point, not
+   a frame around it. Negative margin offsets the extra height so the row's
+   flex track doesn't reflow; the segment simply floats 2px taller. */
+.ov-active-target-week-bar.is-selected {
+  height: 7px;
+  margin-top: -2px;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 .ov-active-target-week-fill {
@@ -196,6 +230,11 @@
 
 .ov-active-target-week-day.is-future {
   opacity: 0.65;
+}
+
+.ov-active-target-week-day.is-selected {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 /* ── Footer — banked readout (left) + demoted TDEE readout (right) ───────── */

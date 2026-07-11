@@ -136,7 +136,17 @@ function ActiveTargetRing({ accrued, target, synced }: { accrued: number; target
 // ratio (and colour) as the ring, future days sit empty. Reads the raw metrics
 // rows directly (same Mon-start week `computeActiveTarget` filters) rather
 // than adding per-day state — this is the only consumer.
-function ActiveTargetWeekStrip({ view, metrics }: { view: ActiveTargetView; metrics: BodyMetric[] }) {
+function ActiveTargetWeekStrip({
+  view,
+  metrics,
+  selectedDate,
+  onSelectDate,
+}: {
+  view: ActiveTargetView;
+  metrics: BodyMetric[];
+  selectedDate: string | null;
+  onSelectDate: (date: string) => void;
+}) {
   const todayISO = localDateStr();
   const perDay = view.activeTargetPerDay;
   const monday = new Date(`${view.mondayISO}T12:00:00`);
@@ -169,19 +179,34 @@ function ActiveTargetWeekStrip({ view, metrics }: { view: ActiveTargetView; metr
 
   return (
     <div className="ov-active-target-week">
-      {cells.map((c) => (
-        <div key={c.date} className="ov-active-target-week-cell">
-          <div className={`ov-active-target-week-bar is-${c.kind}`}>
-            {c.kind !== "future" && (
-              <div
-                className="ov-active-target-week-fill"
-                style={{ width: `${Math.round(c.fill * 100)}%`, backgroundColor: c.color }}
-              />
-            )}
-          </div>
-          <span className={`ov-active-target-week-day is-${c.kind}`}>{c.letter}</span>
-        </div>
-      ))}
+      {cells.map((c) => {
+        const selected = c.kind !== "future" && (selectedDate ?? todayISO) === c.date;
+        return (
+          <button
+            key={c.date}
+            type="button"
+            className="ov-active-target-week-cell"
+            disabled={c.kind === "future"}
+            aria-pressed={selected}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectDate(c.date);
+            }}
+          >
+            <div className={`ov-active-target-week-bar is-${c.kind}${selected ? " is-selected" : ""}`}>
+              {c.kind !== "future" && (
+                <div
+                  className="ov-active-target-week-fill"
+                  style={{ width: `${Math.round(c.fill * 100)}%`, backgroundColor: c.color }}
+                />
+              )}
+            </div>
+            <span className={`ov-active-target-week-day is-${c.kind}${selected ? " is-selected" : ""}`}>
+              {c.letter}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -206,6 +231,9 @@ function ActiveTargetCard({
   loading?: boolean;
 }) {
   const { openSettings } = useSettingsSheet();
+  // null = viewing today (the live floating target); a past ISO date pins the
+  // ring/status to that day instead, sourced from the week strip tap.
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // Cold load — same button shell + ring skeleton, resolves in place. Uses the
   // configured (button) tag so the common loaded case updates the same node.
@@ -270,76 +298,124 @@ function ActiveTargetCard({
   const banked = view ? view.accruedThroughYesterday - view.activeTargetPerDay * (view.weekday - 1) : 0;
   const bankedTone = banked > 30 ? "good" : banked < -30 ? "warn" : "neutral";
 
-  return (
-    <button type="button" className="page-card ov-active-target" onClick={onNav}>
-      <div className="ov-active-target-head">
-        <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
-        <div className="ov-active-target-head-right">
-          <FreshnessTag date={view?.today.lastSyncDate ?? null} kind="sync" updatedAt={syncAt} />
-          <span className="ov-active-target-chevron" aria-hidden>›</span>
-        </div>
-      </div>
+  const todayISO = localDateStr();
+  const viewingPastDay = view != null && selectedDate != null && selectedDate !== todayISO;
+  // Past days have no floating target (that's a today-only concept, folding
+  // the week's pace into what's left) — approximate with the flat per-day
+  // goal, the same denominator the week-strip bars already fill against.
+  const pastDayAccrued = viewingPastDay
+    ? Math.round(metrics.find((m) => m.metric_date === selectedDate)?.active_energy_kcal ?? 0)
+    : 0;
+  const pastDaySynced = viewingPastDay
+    ? metrics.some((m) => m.metric_date === selectedDate && m.active_energy_kcal != null)
+    : false;
+  const pastDayRatio = view ? pastDayAccrued / Math.max(1, view.activeTargetPerDay) : 0;
+  const pastDayLabel =
+    viewingPastDay && selectedDate
+      ? `${WEEKDAY_ABBR[new Date(`${selectedDate}T12:00:00`).getDay()]}, ${MONTH_ABBR[new Date(`${selectedDate}T12:00:00`).getMonth()]} ${new Date(`${selectedDate}T12:00:00`).getDate()}`
+      : "";
 
-      {view ? (
-        <>
+  return (
+    <div className="page-card ov-active-target">
+      <button type="button" className="ov-active-target-navblock" onClick={onNav}>
+        <div className="ov-active-target-head">
+          <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
+          <div className="ov-active-target-head-right">
+            <FreshnessTag date={view?.today.lastSyncDate ?? null} kind="sync" updatedAt={syncAt} />
+            <span className="ov-active-target-chevron" aria-hidden>›</span>
+          </div>
+        </div>
+
+        {view ? (
           <div className="ov-active-target-ring-row">
             <ActiveTargetRing
-              accrued={view.today.accrued}
-              target={view.today.target}
-              synced={view.today.synced}
+              accrued={viewingPastDay ? pastDayAccrued : view.today.accrued}
+              target={viewingPastDay ? view.activeTargetPerDay : view.today.target}
+              synced={viewingPastDay ? pastDaySynced : view.today.synced}
             />
             <div className="ov-active-target-ring-body">
-              <span className="ov-active-target-status">
-                {ratio > 1.05
-                  ? <><span className="is-closed">Closed</span> — {Math.round(ratio * 100)}% of target</>
-                  : position === "behind"
-                    ? <><span className="is-behind">Behind</span> this week</>
-                    : position === "ahead"
-                      ? <><span className="is-ahead">Ahead</span> this week</>
-                      : <><span className="is-on">On pace</span> this week</>}
-              </span>
-              {/* Detail line states the floating target explicitly, with its
-                  cause (this week's pace vs the flat baseline) — replaces the
-                  old "about your baseline" restatement that never named a
-                  number. Target value is the one bolded figure; usual/logged
-                  stay plain mono. */}
-              <span className="ov-active-target-detail">
-                {ratio > 1.05 ? (
-                  <>Above your <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span> baseline · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
-                ) : position === "behind" ? (
-                  <>Raised to <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> (usual <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span>) · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
-                ) : position === "ahead" ? (
-                  <>Eased to <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> (usual <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span>) · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
-                ) : (
-                  <>Today <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> — your usual pace · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
-                )}
-              </span>
+              {viewingPastDay ? (
+                <>
+                  <span className="ov-active-target-status">{pastDayLabel}</span>
+                  <span className="ov-active-target-detail">
+                    {pastDaySynced ? (
+                      <>
+                        <span className="ov-active-target-mono">{pastDayAccrued.toLocaleString()}</span> /{" "}
+                        <span className="ov-active-target-num">{view.activeTargetPerDay.toLocaleString()}</span> active
+                        {" · "}
+                        {Math.round(pastDayRatio * 100)}%
+                      </>
+                    ) : (
+                      "No active-energy reading synced"
+                    )}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="ov-active-target-status">
+                    {ratio > 1.05
+                      ? <><span className="is-closed">Closed</span> — {Math.round(ratio * 100)}% of target</>
+                      : position === "behind"
+                        ? <><span className="is-behind">Behind</span> this week</>
+                        : position === "ahead"
+                          ? <><span className="is-ahead">Ahead</span> this week</>
+                          : <><span className="is-on">On pace</span> this week</>}
+                  </span>
+                  {/* Detail line states the floating target explicitly, with its
+                      cause (this week's pace vs the flat baseline) — replaces the
+                      old "about your baseline" restatement that never named a
+                      number. Target value is the one bolded figure; usual/logged
+                      stay plain mono. */}
+                  <span className="ov-active-target-detail">
+                    {ratio > 1.05 ? (
+                      <>Above your <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span> baseline · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                    ) : position === "behind" ? (
+                      <>Raised to <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> (usual <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span>) · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                    ) : position === "ahead" ? (
+                      <>Eased to <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> (usual <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span>) · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                    ) : (
+                      <>Today <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> — your usual pace · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                    )}
+                  </span>
+                </>
+              )}
             </div>
           </div>
+        ) : (
+          <p className="page-note">
+            No resting-energy baseline yet — the target needs a few days of Apple Health data.
+          </p>
+        )}
+      </button>
 
-          <ActiveTargetWeekStrip view={view} metrics={metrics} />
+      {view && (
+        <>
+          <ActiveTargetWeekStrip
+            view={view}
+            metrics={metrics}
+            selectedDate={selectedDate}
+            onSelectDate={(date) => setSelectedDate((prev) => (prev === date ? null : date === todayISO ? null : date))}
+          />
 
-          <div className="ov-active-target-footer">
-            <span className={`ov-active-target-banked is-${bankedTone}`}>
-              {bankedTone !== "neutral" && <span className="ov-active-target-banked-dot" aria-hidden />}
-              {bankedTone === "good"
-                ? `+${banked.toLocaleString()} banked this week`
-                : bankedTone === "warn"
-                  ? `${banked.toLocaleString()} short this week`
-                  : "on pace this week"}
-            </span>
-            <span className="ov-active-target-goal">
-              {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
-              {targetTdee.toLocaleString()} TDEE
-            </span>
-          </div>
+          <button type="button" className="ov-active-target-navblock" onClick={onNav}>
+            <div className="ov-active-target-footer">
+              <span className={`ov-active-target-banked is-${bankedTone}`}>
+                {bankedTone !== "neutral" && <span className="ov-active-target-banked-dot" aria-hidden />}
+                {bankedTone === "good"
+                  ? `+${banked.toLocaleString()} banked this week`
+                  : bankedTone === "warn"
+                    ? `${banked.toLocaleString()} short this week`
+                    : "on pace this week"}
+              </span>
+              <span className="ov-active-target-goal">
+                {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
+                {targetTdee.toLocaleString()} TDEE
+              </span>
+            </div>
+          </button>
         </>
-      ) : (
-        <p className="page-note">
-          No resting-energy baseline yet — the target needs a few days of Apple Health data.
-        </p>
       )}
-    </button>
+    </div>
   );
 }
 
