@@ -29,8 +29,9 @@ import { useSessionUser, useIsReadOnly } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
 import { paceLabel, paceTone, rateTone, cutEtaLabel } from "@features/nutrition/recommendation";
-import type { Recommendation } from "@features/overview/recommendations";
-import type { Goal } from "./goal";
+import { CONSIDER_ENTER_COUNT, type Recommendation } from "@features/overview/recommendations";
+import type { Goal, GoalStatusEvaluation } from "./goal";
+import type { PhaseTriggerResult } from "./phaseTriggers";
 import type { TabId } from "@app/layout/TabBar";
 import "./overview.css";
 
@@ -585,12 +586,94 @@ function GoalTrack({
 // nutrition engine; the card holds no business logic. The Today tag now carries
 // the current weight as a POSITION readout ("you are here, at 91.7 kg"); trend
 // and rate stay the Weight card's job — responsibilities stay distinct.
+// The long-term roadmap + its early-exit monitor, folded into the Journey card
+// (a plan is part of the journey, not a card of its own). Collapsed by default;
+// the reveal holds the three-stage plan (Cut → Maintenance 4–6 wk → Lean Bulk),
+// a one-line read of where the plan stands, and the plateau-trigger lights —
+// the SAME evaluatePhaseTriggers result the Decision Engine consumed, so the
+// lights can never disagree with the SystemCard directive. Lean Bulk is a
+// roadmap stage only (no surplus mechanics yet), so it's never "current".
+function PhasePlanSection({
+  phase,
+  goalStatus,
+  cutMode,
+}: {
+  phase: PhaseTriggerResult;
+  goalStatus: GoalStatusEvaluation;
+  cutMode: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  // Phase stays derived from the live deficit (phaseFromDeficit): anything
+  // still running a deficit is the Cut stage; intake at maintenance = stage 2.
+  const atMaintenance = cutMode === "Maintenance";
+  const n = phase.firingCount;
+
+  // One-line read, in priority order mirroring the engine's ladder: goal
+  // reached → start (never "consider"); signals stacked (same gate the engine
+  // decided with) → consider; otherwise explain what the lights watch for.
+  const note = atMaintenance
+    ? { text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" }
+    : goalStatus.reached
+      ? { text: `Body fat has reached your ${goalStatus.targetBodyFatPct}% goal — start maintenance.`, tone: " is-go" }
+      : n >= CONSIDER_ENTER_COUNT
+        ? { text: `${n} of ${phase.triggers.length} signals are on — consider switching to maintenance.`, tone: " is-consider" }
+        : { text: "Switch early if these stack up:", tone: "" };
+
+  return (
+    <div className="goal-plan">
+      <button
+        type="button"
+        className="goal-plan-head"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        <span className="goal-label">Plan</span>
+        <span className="goal-plan-stagechip">{atMaintenance ? "Maintenance" : "Cut"}</span>
+        {!atMaintenance && n > 0 && (
+          <span className="goal-plan-flag">{n} signal{n === 1 ? "" : "s"} on</span>
+        )}
+        <span className={`goal-plan-chevron${open ? " open" : ""}`} aria-hidden>⌄</span>
+      </button>
+      <div className={`goal-plan-reveal${open ? " open" : ""}`}>
+        <div className="goal-plan-body">
+          <ol className="goal-plan-stages">
+            <li className={`goal-plan-step${atMaintenance ? " is-done" : " is-current"}`}>Cut</li>
+            <li className={`goal-plan-step${atMaintenance ? " is-current" : ""}`}>
+              Maintenance <span className="goal-plan-step-sub">4–6 wk</span>
+            </li>
+            <li className="goal-plan-step">Lean Bulk</li>
+          </ol>
+          <p className={`goal-plan-note${note.tone}`}>{note.text}</p>
+          <ul className="goal-plan-triggers">
+            {phase.triggers.map((t) => (
+              <li key={t.key} className="goal-plan-chip" data-state={t.state}>
+                <span className="goal-plan-dot" aria-hidden />
+                {t.label}
+                <span className="goal-plan-chip-detail">{t.detail}</span>
+              </li>
+            ))}
+            {/* The 5th trigger from the plan — mental state — isn't tracked by
+                the app, so it stays a manual self-check, never a light. */}
+            <li className="goal-plan-chip" data-state="manual">
+              <span className="goal-plan-dot" aria-hidden />
+              Mental fatigue
+              <span className="goal-plan-chip-detail">self-check</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CutProgressCard({
   goal,
   cutStartDate,
   cutStartWeight,
   weightLatestDate,
   state,
+  phase,
+  goalStatus,
   onNav,
   loading = false,
 }: {
@@ -601,12 +684,17 @@ function CutProgressCard({
    *  this, so a stale reading gets an "as of N days ago" note. */
   weightLatestDate?: string | null;
   state: NutritionStateFull | null;
+  phase: PhaseTriggerResult | null;
+  goalStatus: GoalStatusEvaluation | null;
   onNav: () => void;
   loading?: boolean;
 }) {
   // Hooks run unconditionally so the count stays stable across the loading →
   // loaded transition (same mounted instance). inView drives the % / bar reveal.
-  const { ref, inView } = useInView<HTMLButtonElement>();
+  // Root is a div — the Plan toggle can't nest inside a button — with the
+  // original content kept tappable via a reset-to-block .goal-navblock button
+  // (same restructure as .ov-active-target-navblock).
+  const { ref, inView } = useInView<HTMLDivElement>();
   const e = goal?.evaluation;
 
   // Celebrate reaching 100% exactly once per cut (keyed by goal weight — a new
@@ -626,7 +714,8 @@ function CutProgressCard({
 
   if (loading || !e) {
     return (
-      <button type="button" ref={ref} className="page-card goal loading-card" onClick={onNav}>
+      <div ref={ref} className="page-card goal loading-card">
+        <button type="button" className="goal-navblock" onClick={onNav}>
         <div className="goal-head">
           <span className="goal-label">Cut Journey</span>
           <span className="goal-head-right">
@@ -661,7 +750,17 @@ function CutProgressCard({
           <Badge pill tone="neutral">Calibrating</Badge>
           <span className="goal-sub goal-lost">Down <b>0.0</b> kg</span>
         </div>
-      </button>
+        </button>
+        {/* Collapsed Plan head placeholder — same height as the loaded head so
+            the card doesn't jump when data lands (layout stability). */}
+        <div className="goal-plan">
+          <div className="goal-plan-head">
+            <span className="goal-label">Plan</span>
+            <span className="goal-plan-stagechip">Cut</span>
+            <span className="goal-plan-chevron" aria-hidden>⌄</span>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -686,13 +785,12 @@ function CutProgressCard({
   const paceWord = state ? paceLabel(state.evaluation) : null;
   const tone = state ? paceTone(state.evaluation) : null;
   return (
-    <button
-      type="button"
+    <div
       ref={ref}
       data-inview={inView}
       className={`page-card goal${isComplete ? " is-complete" : ""}${justCelebrated ? " is-celebrating" : ""}`}
-      onClick={onNav}
     >
+      <button type="button" className="goal-navblock" onClick={onNav}>
       <div className="goal-head">
         <span className="goal-label">{isComplete ? "Goal reached" : "Cut Journey"}</span>
         <span className="goal-head-right">
@@ -745,7 +843,15 @@ function CutProgressCard({
           </span>
         )}
       </div>
-    </button>
+      </button>
+      {phase && goalStatus && (
+        <PhasePlanSection
+          phase={phase}
+          goalStatus={goalStatus}
+          cutMode={state?.diagnostics.cutMode ?? null}
+        />
+      )}
+    </div>
   );
 }
 
@@ -1470,6 +1576,8 @@ export function OverviewPage() {
           cutStartWeight={data?.cutStartWeight ?? null}
           weightLatestDate={data ? (series(data.metrics, "weight_kg").at(-1)?.date ?? null) : null}
           state={data?.nutritionState ?? null}
+          phase={data?.phase ?? null}
+          goalStatus={data?.goalStatus ?? null}
           onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />
       )}

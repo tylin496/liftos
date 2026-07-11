@@ -54,7 +54,9 @@ export const CONSIDER_MAINTENANCE_TITLE = "Consider switching to maintenance";
 // decision that "2 of 4 = act" lives here with the rest of the ladder's policy.
 // Triggers are already multi-week smoothed, so residual chatter sits exactly at
 // the 2↔1 boundary — an advisory directive errs sticky and releases at 0.
-const CONSIDER_ENTER_COUNT = 2;
+// Exported for the Journey card's Plan note, so the UI echoes the same gate it
+// was decided with rather than hardcoding its own copy of the policy.
+export const CONSIDER_ENTER_COUNT = 2;
 const CONSIDER_HOLD_COUNT = 1;
 
 // Recovery is held until readiness climbs back to at least "Good" (score ≥ 2),
