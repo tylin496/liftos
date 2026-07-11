@@ -76,7 +76,7 @@
      generic warning (that's the coral --warn) or a progress colour. Identity
      is carried by animation/stars/confetti plus the gold itself. Named --gold
      (was --pr) so the token that IS gold is actually called gold. */
-  --gold: #d4af37;   /* trophy gold — the classic metallic gold (warm ~46°, luminous, not lemon-yellow) */
+  --gold: #e0a90e;   /* trophy gold — vivid metallic gold (warm ~44°, more saturated than the muted #d4af37, not lemon-yellow) */
   /* Celebration halo — a soft gold glow marking the special/celebration gold
      (PR badges, 100% completion, Double Hit). References --gold so it tracks the
      theme; shows as a real glow on dark, a faint warm haze on light.
