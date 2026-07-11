@@ -140,7 +140,9 @@ export function countOverBudgetDays(
  *  stepping back from the latest weigh-in. All three flat → a real plateau, not
  *  a slow week. Data-anchored and now-free, like theilSenSlope itself. */
 function weightStallTrigger(metrics: BodyMetric[]): PhaseTrigger {
-  const label = "Weight stall";
+  // Labels are neutral metric names, not problem names — the lights read
+  // green-when-fine, so "Weight trend" (not "Weight stall") is what's green.
+  const label = "Weight trend";
   const pts = series(metrics, "weight_kg");
   const latest = pts.at(-1)?.date;
   if (!latest) return { key: "weight_stall", label, state: "unknown", detail: "No weigh-ins yet" };

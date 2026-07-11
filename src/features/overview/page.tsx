@@ -597,33 +597,25 @@ function PhasePlanSection({
   phase,
   goalStatus,
   cutMode,
-  maintenanceSince,
 }: {
   phase: PhaseTriggerResult;
   goalStatus: GoalStatusEvaluation;
   cutMode: string | null;
-  maintenanceSince: string | null;
 }) {
   const [open, setOpen] = useState(false);
   // Phase stays derived from the live deficit (phaseFromDeficit): anything
   // still running a deficit is the Cut stage; intake at maintenance = stage 2.
   const atMaintenance = cutMode === "Maintenance";
   const n = phase.firingCount;
-  // Week N of the maintenance block, counted from the first logged maintenance
-  // day (derived from entry snapshots — null until one is logged).
-  const maintenanceWeek =
-    atMaintenance && maintenanceSince ? Math.floor(daysSince(maintenanceSince) / 7) + 1 : null;
 
   // One-line read, in priority order mirroring the engine's ladder: goal
   // reached → start (never "consider"); signals stacked (same gate the engine
   // decided with) → consider; otherwise explain what the lights watch for.
+  // Deliberately nothing more — the Journey card already answers "where am I"
+  // and "is it going well"; this section only answers "what's the road ahead
+  // and when should the plan change". No week counters, no numbers.
   const note = atMaintenance
-    ? {
-        text: maintenanceWeek
-          ? `Week ${maintenanceWeek} of maintenance — start the lean bulk after week 4–6.`
-          : "Hold for 4–6 weeks, then start the lean bulk.",
-        tone: "",
-      }
+    ? { text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" }
     : goalStatus.reached
       ? { text: `Body fat has reached your ${goalStatus.targetBodyFatPct}% goal — start maintenance.`, tone: " is-go" }
       : n >= CONSIDER_ENTER_COUNT
@@ -638,8 +630,9 @@ function PhasePlanSection({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
-        <span className="goal-label">Plan</span>
-        <span className="goal-plan-stagechip">{atMaintenance ? "Maintenance" : "Cut"}</span>
+        {/* Quiet caption, not the card-eyebrow style — this is the Journey's
+            appendix, never a sibling section competing with it. */}
+        <span className="goal-plan-title">Roadmap</span>
         {!atMaintenance && n > 0 && (
           <span className="goal-plan-flag">{n} signal{n === 1 ? "" : "s"} on</span>
         )}
@@ -647,31 +640,35 @@ function PhasePlanSection({
       </button>
       <div className={`goal-plan-reveal${open ? " open" : ""}`}>
         <div className="goal-plan-body">
+          {/* Vertical waypoint list — reads as the journey's road, not a
+              breadcrumb: filled dot = you are here, hollow = ahead. */}
           <ol className="goal-plan-stages">
-            <li className={`goal-plan-step${atMaintenance ? " is-done" : " is-current"}`}>Cut</li>
-            <li className={`goal-plan-step${atMaintenance ? " is-current" : ""}`}>
-              Maintenance{" "}
-              <span className="goal-plan-step-sub">
-                {maintenanceWeek ? `wk ${maintenanceWeek} of 4–6` : "4–6 wk"}
-              </span>
+            <li className={`goal-plan-step${atMaintenance ? " is-done" : " is-current"}`}>
+              <span className="goal-plan-step-dot" aria-hidden />Cut
             </li>
-            <li className="goal-plan-step">Lean Bulk</li>
+            <li className={`goal-plan-step${atMaintenance ? " is-current" : ""}`}>
+              <span className="goal-plan-step-dot" aria-hidden />Maintenance{" "}
+              <span className="goal-plan-step-sub">4–6 wk</span>
+            </li>
+            <li className="goal-plan-step">
+              <span className="goal-plan-step-dot" aria-hidden />Lean Bulk
+            </li>
           </ol>
           <p className={`goal-plan-note${note.tone}`}>{note.text}</p>
+          {/* Status lights only — dot + name, no readings. The evidence lives
+              in the title tooltip; anything more turns this into a dashboard. */}
           <ul className="goal-plan-triggers">
             {phase.triggers.map((t) => (
-              <li key={t.key} className="goal-plan-chip" data-state={t.state}>
+              <li key={t.key} className="goal-plan-chip" data-state={t.state} title={t.detail}>
                 <span className="goal-plan-dot" aria-hidden />
                 {t.label}
-                <span className="goal-plan-chip-detail">{t.detail}</span>
               </li>
             ))}
             {/* The 5th trigger from the plan — mental state — isn't tracked by
                 the app, so it stays a manual self-check, never a light. */}
-            <li className="goal-plan-chip" data-state="manual">
+            <li className="goal-plan-chip" data-state="manual" title="Not tracked — your own call">
               <span className="goal-plan-dot" aria-hidden />
               Mental fatigue
-              <span className="goal-plan-chip-detail">self-check</span>
             </li>
           </ul>
         </div>
@@ -688,7 +685,6 @@ function CutProgressCard({
   state,
   phase,
   goalStatus,
-  maintenanceSince,
   onNav,
   loading = false,
 }: {
@@ -701,7 +697,6 @@ function CutProgressCard({
   state: NutritionStateFull | null;
   phase: PhaseTriggerResult | null;
   goalStatus: GoalStatusEvaluation | null;
-  maintenanceSince: string | null;
   onNav: () => void;
   loading?: boolean;
 }) {
@@ -771,8 +766,7 @@ function CutProgressCard({
             the card doesn't jump when data lands (layout stability). */}
         <div className="goal-plan">
           <div className="goal-plan-head">
-            <span className="goal-label">Plan</span>
-            <span className="goal-plan-stagechip">Cut</span>
+            <span className="goal-plan-title">Roadmap</span>
             <span className="goal-plan-chevron" aria-hidden>⌄</span>
           </div>
         </div>
@@ -865,7 +859,6 @@ function CutProgressCard({
           phase={phase}
           goalStatus={goalStatus}
           cutMode={state?.diagnostics.cutMode ?? null}
-          maintenanceSince={maintenanceSince}
         />
       )}
     </div>
@@ -1595,7 +1588,6 @@ export function OverviewPage() {
           state={data?.nutritionState ?? null}
           phase={data?.phase ?? null}
           goalStatus={data?.goalStatus ?? null}
-          maintenanceSince={data?.maintenanceSince ?? null}
           onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />
       )}

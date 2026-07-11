@@ -67,7 +67,9 @@ export interface OverviewData {
   goalStatus: GoalStatusEvaluation;
   /** First day of the current maintenance block (derived from the entries' own
    *  deficit snapshots — see maintenanceStartDate), or null while cutting /
-   *  before any maintenance day is logged. Drives "week N of 4–6". */
+   *  before any maintenance day is logged. Data-layer only for now: the Plan
+   *  section deliberately shows no week counter (kept lean by design); this is
+   *  ready for wherever the block's progress ends up surfacing. */
   maintenanceSince: string | null;
 }
 
