@@ -167,6 +167,15 @@
   margin-top: var(--vr-section);
 }
 
+/* Full-variant header gauge — %, bar, and count read as ONE unit (value →
+   picture → caption), so the bar pulls tight under the hero % and the count
+   line sits right under the bar it captions instead of floating above it. */
+.ov-th-ret-hero + .ov-th-bar { margin-top: var(--space-3); }
+.ov-th-bar + .ov-th-ret-count {
+  display: block;
+  margin-top: var(--space-2);
+}
+
 .ov-th-bar-seg {
   flex: 1;
   height: 6px;
@@ -200,12 +209,15 @@
 .loading-card .ov-th-bar-seg::before { display: none; }
 
 /* ═══ §5  Status colour language ═══════════════════════════════════════════ */
-/* Applied to icons, marks, legend glyphs, and (via currentColor) sparklines.
-   PR is a 🏆 emoji — it carries its own colour, so status-pr sets none. */
+/* Applied to icons, marks, legend glyphs, and (via currentColor) sparklines. */
 .status-declining { color: var(--bad); }
 .status-stalled { color: var(--warn); }
 .status-rebounding { color: var(--good); }
 .status-steady { color: var(--th-steady-ink); }
+/* PR's StatusGlyph is a real SVG (trophy), not an emoji — needs its own
+   colour like every other status, paired with the gold-glow convention
+   (tokens.css) since it's text/icon, not a fill. */
+.status-pr { color: var(--gold); text-shadow: var(--gold-glow); }
 
 /* Cell / signal tint + outline by tone. Border colour IS the status signal
    here (the one place a passive-looking surface earns an outline). */
@@ -323,16 +335,40 @@
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ink) 45%, transparent);
 }
 
+.ov-thg-cell.tone-warn.size-lg.is-selected {
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+
 .ov-thg-cell-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 6px;
 }
+/* Left group — muscle icon + name (handoff: gap 7px; snapped to the app's
+   6px micro-spacing whitelist — see tokens.css Token Discipline). flex:1 so
+   this group claims the row's leftover space instead of shrinking under
+   justify-content:space-between — without it, adding the icon halved the
+   name's budget and "QUADS"/"SHOULDERS" truncated to "QU…"/"SH…" even though
+   the metric group (status glyph + %) has flex-shrink:0 and never gives up
+   its own space first. */
+.ov-thg-cell-head-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.ov-thg-cell-muscle-icon {
+  flex-shrink: 0;
+}
 .ov-thg-cell-name {
-  font-size: var(--text-2xs);
+  /* 10px (whitelisted micro size) + tightened tracking: with the muscle icon
+     in the row, 11px/0.05em truncated "QUADS"/"SHOULDERS" to "QU…"/"SH…" on
+     half-width tiles — a full name a step smaller beats a bigger fragment. */
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--ink);
   min-width: 0;
@@ -340,21 +376,51 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Count rides the title ("HAMSTRINGS · 2 lifts") instead of the footer — the
+   footer's right side (status + %) was the only thing worth weight there
+   (handoff-review: hero's left/right was lopsided with count parked below).
+   Lower-case, not the eyebrow's uppercase — it's a quiet aside, not a label. */
+.ov-thg-cell-name-count {
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: var(--ink-4);
+}
 .ov-thg-cell-metric {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-1);
   flex-shrink: 0;
 }
-.ov-thg-cell-icon {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  line-height: 1;
+/* Status glyph — the "PR" gold tone has no ambient colour of its own (unlike
+   an emoji), so it needs its own rule here; every other status already
+   resolves through §5's shared .status-* classes. */
+.ov-thg-cell-icon.status-pr { color: var(--gold); filter: drop-shadow(var(--gold-glow)); }
+
+/* Spotlight (hero) icon halo — a status-tinted circle behind the 36px muscle
+   icon, the one place the icon itself carries a tint (handoff §Spotlight
+   row). Reuses the same tone backgrounds the cell shell uses elsewhere, so no
+   new colour is introduced. */
+.ov-thg-hero-halo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
-/* Retention % — always neutral white, mono, tabular. Never tinted. */
+.ov-thg-hero-halo.status-declining { background: var(--th-bad-bg); }
+.ov-thg-hero-halo.status-stalled { background: var(--th-warn-bg); }
+.ov-thg-hero-halo.status-rebounding { background: var(--th-good-bg); }
+.ov-thg-hero-halo.status-pr { background: var(--th-gold-bg); }
+.ov-thg-hero-halo.status-steady { background: var(--th-steady-bg); }
+/* Retention % — always neutral white, mono, tabular. Never tinted.
+   text-sm (not base) on ordinary tiles: every px the metric group gives up
+   goes straight to the muscle name's budget (the hero overrides back up). */
 .ov-thg-cell-pct {
   font-family: var(--font-mono);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -367,59 +433,35 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Spotlight-only — an ordinary tile's job is "is this muscle a problem"
+   (name·count, status glyph, %, one insight line); the per-lift breakdown
+   belongs to the hero's words line and the drill-down, not a cryptic dot row
+   repeated on every tile (handoff-review). */
 .ov-thg-cell-foot {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.ov-thg-marks {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.ov-thg-mark {
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-}
-.ov-thg-cell-count {
-  font-size: 10px;
+
+/* Spotlight footer — the marks row in words ("1 stalled · 1 rebounding"),
+   legible on first read without knowing the glyph colour code. */
+.ov-thg-hero-marks-words {
+  font-size: var(--text-2xs);
   font-weight: 500;
-  color: var(--ink-4);
-  margin-left: auto;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Hero cell bumps its label/%/icon a tier. */
+/* Hero cell bumps its label/% a tier (its status glyph is already sized up
+   via the StatusGlyph size prop, not CSS). */
 .ov-thg-cell.is-hero .ov-thg-cell-name { font-size: var(--text-sm); }
-.ov-thg-cell.is-hero .ov-thg-cell-icon { font-size: var(--text-sm); }
 .ov-thg-cell.is-hero .ov-thg-cell-pct { font-size: var(--text-xl); }
 
-/* Smallest cells drop the header icon — the marks row already carries it. */
-.ov-thg-cell.size-sm .ov-thg-cell-icon { display: none; }
-
-/* ═══ §8  Legend ═══════════════════════════════════════════════════════════ */
-.ov-thg-legend {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-}
-.ov-thg-leg {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-.ov-thg-leg-icon {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  line-height: 1;
-}
-.ov-thg-leg-word {
-  font-size: var(--text-2xs);
-  color: var(--ink-4);
-}
+/* ═══ §8  (Legend removed) ═════════════════════════════════════════════════ */
+/* The status colour language is learnable from the tiles and drill rows; a
+   permanent legend cost a full row. Reintroduce as onboarding if needed. */
 
 /* ═══ §9  Drill-down ═══════════════════════════════════════════════════════ */
 .ov-thg-drill {
@@ -485,6 +527,17 @@
   font-size: var(--text-base);
   font-weight: 600;
   color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Action line — the deload cue, FIRST under the name (this card answers "what
+   do I do", so the recommendation outranks the status that caused it). Neutral
+   ink-2, not status-tinted: it's an instruction, not a verdict. */
+.ov-thg-drill-action {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

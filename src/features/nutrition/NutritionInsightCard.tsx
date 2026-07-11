@@ -155,11 +155,20 @@ function PaceMeter({
 
       <div className="ni-meter">
         <div className="ni-meter-track">
-          <div className={`ni-meter-band ${inState ? `is-in status-${tone}` : "is-off"}`} />
-          {/* Gold optimal slice only when the read is actually gold — in plain
-              in-band green it would be a gold marker sitting off the gold slice,
-              reading as "you're not quite there" on a perfectly on-pace result. */}
-          {tone === "gold" && (
+          {/* Tone drives the band, not the raw in-band check: `optimal` (and
+              therefore a gold tone) can be true right at the band's edge,
+              where float/clamp rounding can leave `inState` false — the band
+              must still go fully gold whenever the marker does, or the two
+              visibly disagree. */}
+          <div
+            className={`ni-meter-band ${tone === "gold" ? "is-in status-gold" : inState ? `is-in status-${tone}` : "is-off"}`}
+          />
+          {/* Gold optimal slice marks where the top slice sits while the read
+              is still green — once the read itself reaches gold, the whole
+              band above already tints gold (.ni-meter-band.is-in.status-gold),
+              so layering this slice on top would double the gold opacity into
+              a visible seam instead of one uniform gold band. */}
+          {inState && tone !== "gold" && (
             <div
               className="ni-meter-band-optimal is-in"
               style={{ left: `${optimalPct}%` }}

@@ -361,12 +361,12 @@ html.kb-open .tabbar {
     box-shadow: var(--shadow-sm);
   }
   22% {
-    transform: translateY(-3px) scale(1.012);
-    box-shadow: var(--shadow-sm), 0 11px 30px rgba(15, 17, 22, 0.17), 0 0 0 1.4px var(--ink-4);
+    transform: translateY(-6px) scale(1.024);
+    box-shadow: var(--shadow-sm), 0 18px 44px rgba(15, 17, 22, 0.26), 0 0 0 2px var(--ink-4);
   }
   62% {
-    transform: translateY(-3px) scale(1.012);
-    box-shadow: var(--shadow-sm), 0 11px 30px rgba(15, 17, 22, 0.17), 0 0 0 1.4px var(--ink-4);
+    transform: translateY(-6px) scale(1.024);
+    box-shadow: var(--shadow-sm), 0 18px 44px rgba(15, 17, 22, 0.26), 0 0 0 2px var(--ink-4);
   }
   100% {
     transform: translateY(0) scale(1);

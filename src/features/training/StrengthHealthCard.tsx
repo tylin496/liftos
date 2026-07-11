@@ -5,8 +5,10 @@ import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import type { StrengthSummary, StrengthExercise } from "../overview/api";
 import type { MuscleGroup } from "./muscleGroup";
 import { buildMuscleGrid, liftStatus, STATUS_ICON, steadyNote } from "./muscleGrid";
-import type { LiftStatus } from "./muscleGrid";
+import type { LiftStatus, MuscleGridCell } from "./muscleGrid";
 import { suggestDeload } from "./deload";
+import { MuscleIcon } from "./MuscleIcon";
+import { StatusGlyph } from "./StatusGlyph";
 import "./strengthHealthCard.css";
 
 // ── Semantics (the whole point of the redesign) ──────────────────────────────
@@ -36,6 +38,48 @@ function TrendChip({ trend }: { trend: NonNullable<StrengthSummary["healthTrend"
 function trendSuffix(trend: StrengthSummary["healthTrend"]): string {
   if (!trend || trend.dir === "flat") return "";
   return trend.dir === "up" ? " · improving this month" : " · slipping this month";
+}
+
+/** Hero-cell footer — the marks row spelled out in words ("1 stalled · 1
+ *  rebounding"). Bare glyphs (● ↑) are fine as texture on small tiles, but the
+ *  spotlight is the first thing a new reader parses, so it must be legible
+ *  without the colour code. Statuses listed worst-first (marks are already
+ *  severity-sorted); steady is skipped unless it's ALL there is (an all-steady
+ *  group reads "N steady", not an empty footer). */
+function heroMarksSummary(marks: { status: LiftStatus }[]): string {
+  const counts = new Map<LiftStatus, number>();
+  for (const m of marks) counts.set(m.status, (counts.get(m.status) ?? 0) + 1);
+  const parts: string[] = [];
+  for (const [status, n] of counts) {
+    if (status === "steady" && counts.size > 1) continue;
+    parts.push(status === "pr" ? `${n} ${n === 1 ? "PR" : "PRs"}` : `${n} ${status}`);
+  }
+  return parts.join(" · ");
+}
+
+/** Hero-cell insight — a KPI-card summary ("Worst lift: RDL stalled"), not the
+ *  full deload action. The spotlight's job is "what's happening", not "what
+ *  do I do" — that action detail already lives one tap away in the drill-down
+ *  (see drillLines). Duplicating it here made the hero read like the Summary
+ *  pasted in early. Steady falls back to the grid's own insight (already
+ *  short — "Near your best" etc. needs no further trimming). */
+function heroInsight(cell: MuscleGridCell): string {
+  const worst = cell.lifts[0];
+  switch (cell.status) {
+    case "declining":
+      return `Worst lift: ${worst.name} declining`;
+    case "stalled":
+      // "below peak", not "stalled": with windowed retention this status means
+      // "the recent sessions haven't come back to the all-time best", not
+      // "today's set dropped" — say the state, not a verdict on one session.
+      return `Worst lift: ${worst.name} below peak`;
+    case "pr":
+      return `${worst.name} — new PR this week`;
+    case "rebounding":
+      return `${worst.name} climbing back`;
+    default:
+      return cell.insight;
+  }
 }
 
 /** Snapshot flagged-row detail line — same "one next step" language as
@@ -72,37 +116,42 @@ function Sparkline({ bests, status }: { bests: number[]; status: LiftStatus }) {
   );
 }
 
-/** The per-lift note in a drill-down row: status glyph + the one next step
- *  (deload target for flagged lifts, a short state note otherwise). */
-function drillNote(ex: StrengthExercise, status: LiftStatus): string {
-  const icon = STATUS_ICON[status];
+/** Drill-down row lines, ACTION FIRST: this card is Health, not History — the
+ *  reader's next question is "what do I do", so the deload cue leads and the
+ *  status ("Stalled 43 wks") demotes to the line under it. Lifts with nothing
+ *  to do (pr/rebounding/steady, or a flagged lift with no computable target)
+ *  have no action line and keep their single status note. */
+function drillLines(ex: StrengthExercise, status: LiftStatus): { action: string | null; state: string } {
   switch (status) {
     case "declining": {
       const s = suggestDeload(ex);
-      return s?.targetKg != null ? `${icon} declining — ease to ~${s.targetKg} kg` : `${icon} declining last 3 sessions`;
+      return {
+        action: s?.targetKg != null ? `Ease to ~${s.targetKg} kg` : null,
+        state: "Declining last 3 sessions",
+      };
     }
     case "stalled": {
       const s = suggestDeload(ex);
       const wk = `${ex.stalledWeeks} ${ex.stalledWeeks === 1 ? "wk" : "wks"}`;
-      return s?.targetKg != null ? `${icon} stalled ${wk} — drop to ~${s.targetKg} kg` : `${icon} stalled ${wk}`;
+      return {
+        action: s?.targetKg != null ? `Drop to ~${s.targetKg} kg` : null,
+        state: `Stalled ${wk}`,
+      };
     }
     case "pr":
-      return `${icon} new PR this week`;
+      return { action: null, state: "New PR this week" };
     case "rebounding":
-      return `${icon} rebounding — climbing back`;
-    default:
-      return `${icon} ${steadyNote(ex)}`;
+      return { action: null, state: "Rebounding — climbing back" };
+    default: {
+      const n = steadyNote(ex);
+      return { action: null, state: n[0].toUpperCase() + n.slice(1) };
+    }
   }
 }
 
-// Legend row — icon + word pairs. The 4-colour dot legend is replaced by glyphs.
-const LEGEND: { status: LiftStatus; word: string }[] = [
-  { status: "declining", word: "declining" },
-  { status: "stalled", word: "stalled" },
-  { status: "pr", word: "PR" },
-  { status: "rebounding", word: "rebounding" },
-  { status: "steady", word: "steady" },
-];
+// (Legend row removed — the status colour language is learnable from the tiles
+// and drill rows themselves; a permanent legend cost a full row of height. If
+// discoverability regresses, reintroduce as first-run onboarding, not chrome.)
 
 const ChevronRight = ({ className }: { className?: string }) => (
   <svg className={className} width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
@@ -234,6 +283,9 @@ export function StrengthHealthCard({
     </div>
   ));
 
+  // Full-variant header reads as ONE gauge, top to bottom: the % (with its
+  // trend chip), the segmented bar it summarises, then the count line captioning
+  // the bar — value → picture → words, no orphaned blocks between them.
   const hero = (
     <div className="ov-th-ret-hero">
       <span className="ov-th-hero-row">
@@ -244,12 +296,19 @@ export function StrengthHealthCard({
         </MetricValue>
         {trend && <TrendChip trend={trend} />}
       </span>
-      {/* "tracked" qualifies the denominator — only lifts with enough history
-          (≥4 sessions) are judged. */}
-      <span className="ov-th-ret-count">
-        {onTrack} of {strength.total} tracked lifts on track{trendSuffix(trend)}
-      </span>
+      {/* Names the KPI — "88%" alone reads as "9 of 15 = 60%" to a first-time
+          reader; this is retention (current ÷ best), not the on-track count
+          the line below states. Same caption the snapshot variant already
+          uses, just previously missing here. */}
+      <span className="ov-th-avg-retention">Avg retention</span>
     </div>
+  );
+  // "tracked" qualifies the denominator — only lifts with enough history
+  // (≥4 sessions) are judged.
+  const countLine = (
+    <span className="ov-th-ret-count">
+      {onTrack} of {strength.total} tracked lifts on track{trendSuffix(trend)}
+    </span>
   );
 
   // Bar cells are severity-sorted (good → stalled → declining) so the on-track
@@ -337,6 +396,7 @@ export function StrengthHealthCard({
       {header}
       {hero}
       {bar}
+      {countLine}
 
       <div className="ov-thg-grid">
         {grid.map((cell) => (
@@ -347,31 +407,38 @@ export function StrengthHealthCard({
             onClick={() => setPicked(cell.group)}
           >
             <span className="ov-thg-cell-head">
-              <span className="ov-thg-cell-name">{cell.group}</span>
+              <span className="ov-thg-cell-head-left">
+                {cell.hero ? (
+                  <span className={`ov-thg-hero-halo status-${cell.status}`}>
+                    <MuscleIcon name={cell.group} size={36} />
+                  </span>
+                ) : (
+                  <MuscleIcon name={cell.group} size={18} className="ov-thg-cell-muscle-icon" />
+                )}
+                <span className="ov-thg-cell-name">
+                  {cell.group}
+                  {/* Count rides the title, not a separate footer row — the
+                      right side (status + %) is the only thing that should
+                      carry weight there (handoff-review: left/right balance). */}
+                  <span className="ov-thg-cell-name-count"> · {cell.count}</span>
+                </span>
+              </span>
               <span className="ov-thg-cell-metric">
-                <span className={`ov-thg-cell-icon status-${cell.status}`} aria-hidden>{STATUS_ICON[cell.status]}</span>
+                <StatusGlyph status={cell.status} size={cell.hero ? 15 : 12} className="ov-thg-cell-icon" />
                 <span className="ov-thg-cell-pct">{cell.pct}%</span>
               </span>
             </span>
-            <span className="ov-thg-cell-insight">{cell.insight}</span>
-            <span className="ov-thg-cell-foot">
-              <span className="ov-thg-marks">
-                {cell.marks.map((m) => (
-                  <span key={m.slug} className={`ov-thg-mark status-${m.status}`} aria-hidden>{m.icon}</span>
-                ))}
+            <span className="ov-thg-cell-insight">{cell.hero ? heroInsight(cell) : cell.insight}</span>
+            {/* Marks row is spotlight-only: an ordinary tile's ONE job is "is
+                this muscle a problem" (name + status glyph + %) — the per-lift
+                breakdown belongs to the hero's words line and the drill-down,
+                not repeated as cryptic dots on every tile (handoff-review). */}
+            {cell.hero && (
+              <span className="ov-thg-cell-foot">
+                <span className="ov-thg-hero-marks-words">{heroMarksSummary(cell.marks)}</span>
               </span>
-              <span className="ov-thg-cell-count">{cell.count}</span>
-            </span>
+            )}
           </button>
-        ))}
-      </div>
-
-      <div className="ov-thg-legend">
-        {LEGEND.map((l) => (
-          <span key={l.status} className="ov-thg-leg">
-            <span className={`ov-thg-leg-icon status-${l.status}`} aria-hidden>{STATUS_ICON[l.status]}</span>
-            <span className="ov-thg-leg-word">{l.word}</span>
-          </span>
         ))}
       </div>
 
@@ -383,12 +450,14 @@ export function StrengthHealthCard({
           </div>
           {selectedCell.lifts.map((ex) => {
             const st = liftStatus(ex, nowMs);
+            const { action, state } = drillLines(ex, st);
             const row = (
               <>
                 <Sparkline bests={ex.recentBests} status={st} />
                 <span className="ov-thg-drill-lift">
                   <span className="ov-thg-drill-name">{ex.name}</span>
-                  <span className={`ov-thg-drill-note status-${st}`}>{drillNote(ex, st)}</span>
+                  {action && <span className="ov-thg-drill-action">{action}</span>}
+                  <span className={`ov-thg-drill-note status-${st}`}>{state}</span>
                 </span>
                 <span className="ov-thg-drill-pct">{retentionPct(ex)}%</span>
               </>

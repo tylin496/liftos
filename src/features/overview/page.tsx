@@ -152,7 +152,19 @@ function ActiveTargetWeekStrip({ view, metrics }: { view: ActiveTargetView; metr
     if (date > todayISO) return { date, letter, kind: "future" as const, fill: 0, color: undefined };
     const active = metrics.find((m) => m.metric_date === date)?.active_energy_kcal ?? 0;
     const fill = perDay > 0 ? Math.min(1, active / perDay) : 0;
-    return { date, letter, kind: "past" as const, fill, color: "var(--good)" };
+    // Muted, not full --good: past bars record "how much of that day got
+    // logged" — a historical fact, not a verdict — so they don't need verdict
+    // saturation. Five full-strength bars made this the page's second-biggest
+    // green block, competing with the Journey card right below (page rule:
+    // Journey owns green). Today's bar keeps the ring's full ramp colour —
+    // it's the live readout.
+    return {
+      date,
+      letter,
+      kind: "past" as const,
+      fill,
+      color: "color-mix(in srgb, var(--good) 45%, transparent)",
+    };
   });
 
   return (
@@ -769,10 +781,13 @@ function WeightSparkline({
       : tone === "bad"
         ? "var(--bad)"
         : "var(--ink-4)";
-  // Corridor keeps the neutral "healthy" green regardless of pace — it labels a
-  // target BAND (a healthy range), never a verdict, so it must not turn gold and
-  // flood the chart. Matches the hero legend's dashed swatch.
-  const corridorColor = "var(--good)";
+  // Corridor is NEUTRAL ink, not green — it labels a target BAND (a range),
+  // which is a "where's the goal" reference, not a verdict. Keeping it green
+  // double-counted the healthy read the line already carries and flooded the
+  // card (Journey stays the page's green hero — see the coordination rule). The
+  // one green left on this card is the line's own stroke. Matches the hero
+  // legend's dashed swatch (kept in sync in overview.css).
+  const corridorColor = "var(--ink-4)";
   const gradId = `ov-spark-grad-${tone}`;
   const W = 100, H = 96, pad = 4;
 
@@ -923,7 +938,7 @@ function WeightSparkline({
       >
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={stroke} stopOpacity="0.24" />
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.16" />
             <stop offset="100%" stopColor={stroke} stopOpacity="0" />
           </linearGradient>
         </defs>

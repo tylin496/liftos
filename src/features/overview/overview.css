@@ -176,7 +176,10 @@
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: var(--radius-pill);
-  background: var(--good);
+  /* Fallback only — the JSX always sets backgroundColor inline (past days =
+     muted 45% --good, today = the ring's ramp colour). Kept at the muted past
+     value so the fallback matches the common case. */
+  background: color-mix(in srgb, var(--good) 45%, transparent);
 }
 
 .ov-active-target-week-day {
@@ -296,10 +299,11 @@
 
 .ov-weight-legend-swatch {
   width: var(--space-4);
-  /* Keys the chart's dashed corridor edge — same dashed good-toned stroke the
-     sparkline draws its corridor with. Border (not a gated property) draws
+  /* Keys the chart's dashed corridor edge — same dashed NEUTRAL stroke the
+     sparkline draws its corridor with (corridorColor = --ink-4; the band is a
+     range reference, not a green verdict). Border (not a gated property) draws
      the 1.5px dashed rule as an inline glyph. */
-  border-top: 1.5px dashed color-mix(in srgb, var(--good) 70%, transparent);
+  border-top: 1.5px dashed color-mix(in srgb, var(--ink-4) 70%, transparent);
 }
 
 .ov-weight-legend-text {
