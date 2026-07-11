@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
+import { HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import type { WeeklyVolumeSession, WeeklyVolumeStat } from "./logic";
 import { SPLITS } from "./seed";
 import "./weeklyVolumeCard.css";
@@ -54,7 +55,11 @@ export function WeeklyVolumeCard({
       </div>
       <div className="wv-row">
         <MetricValue size="lg" unit="kg">
-          {loading ? "00,000" : Math.round(kg).toLocaleString()}
+          {loading ? (
+            "00,000"
+          ) : (
+            <HeadlineCountUp value={Math.round(kg)} format={(n) => n.toLocaleString()} />
+          )}
         </MetricValue>
         {!loading && (
           <MetricDelta value={stat?.deltaPct} direction="up-good" unit="%" decimals={0} />
