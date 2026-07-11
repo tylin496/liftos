@@ -149,10 +149,10 @@ export interface StrengthExercise {
   slug: string;
   name: string;
   status: StrengthStatus;
-  latestE1RM: number;  // most recent session best
+  latestE1RM: number;  // best of the last 3 sessions (retention numerator; name predates the window)
   prE1RM: number;      // all-time best across all sessions
   trend: number;       // latestE1RM / prE1RM — distance-from-PR ratio that drives `status`
-  stalledWeeks: number; // whole weeks since the last PR on EITHER axis (e1RM ceiling or heaviest weight)
+  stalledWeeks: number; // whole weeks since the lift was last AT its ceiling — a PR on either axis OR a plain tie
   lastLogDate: string;  // ISO date of the most recent session — for staleness labelling
   /** ISO date of the most recent session that SET a PR on either axis (new e1RM
    *  ceiling OR heaviest weight) — the stall clock's reset point. Powers the
@@ -319,14 +319,19 @@ export function computeStrengthSummary(
 
     // latestE1RM / prE1RM carry the mode's SCORE (e1RM or tonnage) — the field
     // names predate the isolation axis; the values are always the right yardstick.
-    const latestE1RM = sessionBests[sessionBests.length - 1];
+    // The numerator is the best of the last 3 logged sessions, not the latest
+    // alone: a lift that touched its ceiling within the recent window IS at its
+    // ceiling — one lighter rep-scheme day right after can't flip it to "watch"
+    // (single-session noise), while a real drop still shows once all 3 recent
+    // sessions sit below peak. The anchor stays all-time best, deliberately.
+    const latestE1RM = Math.max(...sessionBests.slice(-3));
     const prE1RM = Math.max(...sessionBests);
 
     // Status = distance from PR, NOT recent-vs-prior slope. This user logs
     // asymmetrically — they only record a session when strength DROPS (or on a
     // PR); maintained days are left unlogged. So a recent-vs-prior slope reads
     // that biased sample as decline even while they're holding. Judging purely
-    // by "how far below PR is the last recorded session" makes maintenance the
+    // by "how far below PR the recent window sits" makes maintenance the
     // healthy default and only flags a genuine, meaningful drop.
     // Cutoffs (product judgment, not outcome-calibrated):
     //  0.997 → "at PR": within 0.3% of the ceiling — smaller than the lightest
@@ -341,8 +346,9 @@ export function computeStrengthSummary(
     else if (pct >= 0.94) { strength.stable++; status = "stable"; }    // holding
     else { strength.watch++; status = "watch"; }                      // real drop below PR
 
-    // Weeks stalled: span from the last session that set a PR on the mode's axes
-    // to the most recent session. Mirrors classifyPR (training/logic.ts): compound
+    // Weeks stalled: span from the last session AT the ceiling (a PR on the
+    // mode's axes, or a plain tie of it — see peakDate) to the most recent
+    // session. PR detection mirrors classifyPR (training/logic.ts): compound
     // resets on a new rounded-e1RM ceiling (strength), a new heaviest completed
     // weight, OR — at a TIED ceiling — more total reps (the Performance reps
     // tiebreak); isolation resets on a new best-set tonnage ceiling (a single
@@ -353,6 +359,12 @@ export function computeStrengthSummary(
     let runMaxWeight = -Infinity;
     let runMaxCeilingReps = -Infinity; // most total reps seen AT the current e1RM ceiling (compound)
     let prDate = datedBests[0][0];
+    // Stall clock anchor — the last session AT the ceiling, PR or not. A tied
+    // ceiling (same rounded score, no new axis) is not a PR — no celebration,
+    // prDate stays put — but it proves the capability is still there, so it
+    // resets the clock: "stalled" means "hasn't come back to their best", not
+    // "hasn't exceeded it". Always ≥ prDate (every PR is also an at-peak visit).
+    let peakDate = datedBests[0][0];
     // First-ever session PRs on its mode's ceiling axis.
     let lastPRKind: StrengthExercise["lastPRKind"] = mode === "isolation" ? "hypertrophy" : "strength";
     // Round-weight milestone crossed at the LAST PR session (compound only). Set
@@ -363,6 +375,7 @@ export function computeStrengthSummary(
     for (const [date, v] of datedBests) {
       const scoreVal = scoreOf(v);
       const newCeiling = Math.round(scoreVal * 10) / 10 > Math.round(runMaxScore * 10) / 10;
+      const tiedCeiling = !newCeiling && Math.round(scoreVal * 10) / 10 === Math.round(runMaxScore * 10) / 10;
       if (mode === "isolation") {
         // Single-tier: a new tonnage ceiling is THE Hypertrophy PR. (Tied-tonnage
         // weight/reps tiebreaks that cmpStrength would honour are negligibly rare;
@@ -372,7 +385,6 @@ export function computeStrengthSummary(
         const newWeight = v.weightKg > runMaxWeight;
         // Reps tiebreak: at a TIED e1RM ceiling, beating the most total reps ever
         // done at that ceiling is a Performance PR too — resets the clock.
-        const tiedCeiling = !newCeiling && Math.round(scoreVal * 10) / 10 === Math.round(runMaxScore * 10) / 10;
         const newReps = tiedCeiling && v.ceilingReps > runMaxCeilingReps;
         if (newCeiling || newWeight || newReps) {
           prDate = date;
@@ -384,12 +396,14 @@ export function computeStrengthSummary(
         if (newCeiling) runMaxCeilingReps = v.ceilingReps;
         else if (tiedCeiling) runMaxCeilingReps = Math.max(runMaxCeilingReps, v.ceilingReps);
       }
+      // Any PR (prDate just moved) or a plain tie parks the lift at its peak.
+      if (newCeiling || tiedCeiling || prDate === date) peakDate = date;
       if (scoreVal > runMaxScore) runMaxScore = scoreVal;
       if (v.weightKg > runMaxWeight) runMaxWeight = v.weightKg;
     }
     const lastDate = datedBests[datedBests.length - 1][0];
     const stalledWeeks = Math.floor(
-      (Date.parse(lastDate) - Date.parse(prDate)) / (7 * 24 * 60 * 60 * 1000),
+      (Date.parse(lastDate) - Date.parse(peakDate)) / (7 * 24 * 60 * 60 * 1000),
     );
     const prBest = byDate[prDate];
     const lastPRDetail = prBest ? `${Math.round(prBest.weightKg * 10) / 10} kg × ${prBest.topReps}` : "";

@@ -55,6 +55,48 @@ describe("computeStrengthSummary — two-axis stall clock", () => {
     expect(bench.lastPRKind).toBe("performance"); // reps tiebreak, not a new ceiling
   });
 
+  it("a plain tie of the ceiling resets the stall clock WITHOUT counting as a PR", () => {
+    // 80×8 sets the ceiling. Weeks later 80×8 again: no new axis (same e1RM,
+    // same weight, same reps) → not a PR, lastPRDate stays on the original —
+    // but the capability is proven again, so stalledWeeks resets. "Stalled"
+    // means "hasn't come back to their best", not "hasn't exceeded it".
+    const summary = computeStrengthSummary({
+      bench: [
+        log("2026-01-01", "80*8"), // ceiling + heaviest
+        log("2026-01-08", "70*8"),
+        log("2026-01-15", "72*8"),
+        log("2026-02-19", "80*8"), // plain tie → clock resets, no PR
+      ],
+    });
+    const bench = summary.exercises.find((e) => e.slug === "bench")!;
+    expect(bench.stalledWeeks).toBe(0);
+    expect(bench.lastPRDate).toBe("2026-01-01"); // the tie did NOT move the PR
+  });
+
+  it("retention reads the best of the last 3 sessions, not the latest alone (Pec Deck case)", () => {
+    // Ties the all-time tonnage ceiling two sessions ago, then a lighter
+    // rep-scheme day. Latest-only retention would read 83% → watch; the
+    // windowed read keeps it at peak — one session's set configuration is
+    // noise, not a drop.
+    const s = computeStrengthSummary(
+      {
+        pec: [
+          log("2026-04-05", "62.5*12/11/5"), // tonnage 750 — all-time ceiling
+          log("2026-05-23", "59*10/10/10"), //  590
+          log("2026-06-08", "62.5*8/8/8"), //   500
+          log("2026-07-04", "62.5*12/12/7"), // 750 — ties the ceiling
+          log("2026-07-08", "62.5*10/10/10"), // 625 — lighter day right after
+        ],
+      },
+      new Set(), // isolation → tonnage axis
+    );
+    const pec = s.exercises.find((e) => e.slug === "pec")!;
+    expect(pec.trend).toBe(1); // window best (750) / all-time best (750)
+    expect(pec.status).toBe("improving");
+    expect(pec.stalledWeeks).toBe(0); // the 7/04 tie reset the clock
+    expect(pec.needsAttention).toBe(false);
+  });
+
   it("the two-axis reset flows through to the Decision Engine's training verdict", () => {
     // The plateau lift is watch + stalled → contributes to a 'declining' verdict.
     const plateau = computeStrengthSummary({
@@ -132,16 +174,21 @@ describe("computeStrengthSummary — trajectory (trend layer)", () => {
 
 describe("computeStrengthSummary — needs-attention gating (recent-PR grace)", () => {
   it("a watch lift that PR'd within the grace window is NOT flagged (the Assisted Pullup case)", () => {
+    // The PR sits OUTSIDE the 3-session retention window (so the lift reads
+    // watch) but only ~2 weeks back on the calendar — the stall-clock grace
+    // keeps it off the red list. Post-PR sessions are non-monotonic so neither
+    // the declining flag nor the recovery override fires.
     const s = computeStrengthSummary({
       bench: [
         log("2026-06-01", "70*8"),
-        log("2026-06-10", "75*8"),
         log("2026-06-15", "76*8"), // fresh PR on both axes
-        log("2026-07-04", "65*8"), // one lighter session → ~85% of PR
+        log("2026-06-20", "65*8"),
+        log("2026-06-27", "63*8"),
+        log("2026-07-04", "66*8"), // window best 66×8 → ~87% of PR
       ],
     });
     const bench = s.exercises.find((e) => e.slug === "bench")!;
-    expect(bench.status).toBe("watch"); // latest session is below 94% of PR
+    expect(bench.status).toBe("watch"); // recent window is below 94% of PR
     expect(bench.stalledWeeks).toBeLessThan(3); // but it PR'd ~2 weeks ago
     expect(bench.needsAttention).toBe(false); // → stays out of the red
     expect(s.attention).toBe(0);
@@ -199,15 +246,19 @@ describe("computeStrengthSummary — needs-attention gating (recent-PR grace)", 
 
 describe("computeStrengthSummary — isolation scores on tonnage, not e1RM", () => {
   // The motivating bug: a lateral raise PRs at 14×12 (e1RM 19.6, tonnage 168),
-  // then the user deliberately shifts to a higher-rep block, 10×16 (e1RM ~15.3,
-  // tonnage 160). On e1RM that's 78% retention → watch/declining — a FALSE
-  // positive from a programming change. On tonnage it's ~95% → still on track.
+  // then the user deliberately shifts to a higher-rep block (10×16-ish: e1RM
+  // ~15, tonnage ~150-160). On e1RM that's ~78% retention → watch/declining — a
+  // FALSE positive from a programming change. On tonnage it's ~95% → on track.
+  // Three post-PR sessions so the PR sits outside the 3-session retention
+  // window and the verdict comes from the high-rep block itself.
   const isoLogs = {
     lateral: [
       log("2026-05-01", "12*12"),
       log("2026-05-15", "13*12"),
       log("2026-06-01", "14*12"), // PR: e1RM 19.6, tonnage 168
-      log("2026-07-01", "10*16"), // rep-target change: e1RM ~15.3, tonnage 160
+      log("2026-06-15", "10*16"), // rep-target change: e1RM ~15.3, tonnage 160
+      log("2026-06-22", "9*16"), //  e1RM ~13.8, tonnage 144
+      log("2026-07-01", "10*15"), // e1RM ~15.0, tonnage 150
     ],
   };
 
