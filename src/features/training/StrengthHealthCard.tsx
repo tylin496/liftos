@@ -38,6 +38,17 @@ function trendSuffix(trend: StrengthSummary["healthTrend"]): string {
   return trend.dir === "up" ? " · improving this month" : " · slipping this month";
 }
 
+/** Snapshot flagged-row detail line — same "one next step" language as
+ *  `drillNote`, minus its leading icon (the row already carries a dot). */
+function flaggedDetail(ex: StrengthExercise, status: "declining" | "stalled"): string {
+  const s = suggestDeload(ex);
+  if (status === "declining") {
+    return s?.targetKg != null ? `declining — ease to ~${s.targetKg} kg` : "declining last 3 sessions";
+  }
+  const wk = `${ex.stalledWeeks} ${ex.stalledWeeks === 1 ? "wk" : "wks"}`;
+  return s?.targetKg != null ? `stalled ${wk} — drop to ~${s.targetKg} kg` : `stalled ${wk}`;
+}
+
 // A drill-down row's mini trend line — last ≤6 session bests, coloured by the
 // lift's status via currentColor (set by the status-* class), so the stroke
 // stays on the one status language. Nodes stay round (explicit width/height).
@@ -258,24 +269,21 @@ export function StrengthHealthCard({
     </div>
   );
 
-  // ── Snapshot (Overview): whole card navigates to Training. The old "N of
-  //    total tracked lifts on track" line + single worst-signal row are
-  //    replaced by a grouped proportion bar (counts the labels carry) and a
-  //    chip per flagged lift (nothing hides behind "worst only" anymore). ──
+  // ── Snapshot (Overview): whole card navigates to Training. Every flagged
+  //    lift gets its own named row (retention %, stalled/declining detail,
+  //    deload cue) — nothing hides behind "worst only". Healthy lifts
+  //    collapse to a one-line summary with PRs called out. ──
   if (variant === "snapshot") {
-    const decliningLifts = strength.exercises.filter((ex) => ex.declining);
-    const stalledLifts = strength.exercises.filter((ex) => ex.needsAttention && !ex.declining);
-    const allOnTrack = decliningLifts.length === 0 && stalledLifts.length === 0;
-
-    const segments = allOnTrack
-      ? [{ key: "good", count: strength.total, cls: "is-good", label: `ALL ${strength.total} ON TRACK` }]
-      : (
-          [
-            onTrack > 0 && { key: "good", count: onTrack, cls: "is-good", label: `${onTrack} ON TRACK` },
-            stalledLifts.length > 0 && { key: "watch", count: stalledLifts.length, cls: "is-watch", label: `${stalledLifts.length}` },
-            decliningLifts.length > 0 && { key: "declining", count: decliningLifts.length, cls: "is-declining", label: `${decliningLifts.length}` },
-          ].filter(Boolean) as { key: string; count: number; cls: string; label: string }[]
-        );
+    // Declining (acute) sorts before stalled (chronic) — same worst-first
+    // rule as the muscle grid's SEVERITY order.
+    const flagged = strength.exercises
+      .filter((ex) => ex.needsAttention)
+      .sort((a, b) => Number(b.declining) - Number(a.declining));
+    const steadyCount = strength.total - flagged.length;
+    const prsThisWeek = strength.exercises.filter((ex) => liftStatus(ex, nowMs) === "pr").length;
+    const prClause = prsThisWeek > 0 && (
+      <span className="ov-th-pr-clause"> · 🏆 {prsThisWeek} {prsThisWeek === 1 ? "PR" : "PRs"} this week</span>
+    );
 
     return (
       <button type="button" className="page-card ov-training-health ov-training-health--nav" onClick={onNav}>
@@ -288,38 +296,33 @@ export function StrengthHealthCard({
             {trend && <TrendChip trend={trend} />}
           </span>
           <span className="ov-th-avg-retention">Avg retention</span>
+          <span className="ov-th-ret-count">
+            {onTrack} of {strength.total} tracked lifts on track{trendSuffix(trend)}
+          </span>
         </div>
-        <div className="ov-th-group-bar" role="img" aria-label={`${onTrack} of ${strength.total} tracked lifts on track`}>
-          {segments.map((seg, i) => (
-            <span
-              key={seg.key}
-              className={`ov-th-group-seg ${seg.cls}`}
-              style={{
-                flex: seg.count,
-                borderTopLeftRadius: i === 0 ? "var(--radius-pill)" : "4px",
-                borderBottomLeftRadius: i === 0 ? "var(--radius-pill)" : "4px",
-                borderTopRightRadius: i === segments.length - 1 ? "var(--radius-pill)" : "4px",
-                borderBottomRightRadius: i === segments.length - 1 ? "var(--radius-pill)" : "4px",
-              }}
-            >
-              {seg.label}
-            </span>
-          ))}
-        </div>
-        {!allOnTrack && (
-          <div className="ov-th-flagged">
-            {stalledLifts.map((ex) => (
-              <span key={ex.slug} className="ov-th-flagged-chip is-warn">
-                ● {ex.name} · {ex.stalledWeeks} {ex.stalledWeeks === 1 ? "wk" : "wks"}
-              </span>
-            ))}
-            {decliningLifts.map((ex) => (
-              <span key={ex.slug} className="ov-th-flagged-chip is-bad">
-                ↓ {ex.name} · declining
-              </span>
-            ))}
+
+        {flagged.length > 0 && (
+          <div className="ov-th-flagged-list">
+            {flagged.map((ex) => {
+              const status = ex.declining ? "declining" : "stalled";
+              return (
+                <div key={ex.slug} className="ov-th-flagged-row">
+                  <span className={`ov-th-flagged-dot status-${status}`} aria-hidden>{STATUS_ICON[status]}</span>
+                  <span className="ov-th-flagged-mid">
+                    <span className="ov-th-flagged-name">{ex.name}</span>
+                    <span className={`ov-th-flagged-detail status-${status}`}>{flaggedDetail(ex, status)}</span>
+                  </span>
+                  <span className="ov-th-flagged-pct">{retentionPct(ex)}%</span>
+                </div>
+              );
+            })}
           </div>
         )}
+
+        <div className="ov-th-steady-summary">
+          {flagged.length === 0 ? `All ${strength.total} lifts on track` : `– ${steadyCount} steady`}
+          {prClause}
+        </div>
       </button>
     );
   }

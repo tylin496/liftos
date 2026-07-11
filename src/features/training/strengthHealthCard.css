@@ -215,69 +215,76 @@
 .tone-gold { background: var(--th-gold-bg); border-color: var(--th-gold-bd); }
 .tone-steady { background: var(--th-steady-bg); border-color: var(--th-steady-bd); }
 
-/* ═══ §6  Snapshot grouped bar + flagged-lift chips ════════════════════════ */
-/* Replaces the old per-lift segmented bar + single worst-signal row for the
-   Overview snapshot: one flex row grouped by severity (on-track → stalled →
-   declining), each group sized by count and carrying its own count label —
-   so the proportion AND the numbers read in one glance, no drill-down
-   needed. Group radii are set inline per-segment (outer ends pill, inner
-   joints 4px) since which segment is "outer" depends on which groups are
-   present. */
-.ov-th-group-bar {
-  display: flex;
-  gap: 3px;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
-  height: 18px;
+/* ═══ §6  Snapshot flagged-lift rows + healthy summary ═════════════════════ */
+/* One full row per flagged lift — name, stalled/declining detail (with the
+   deload cue), and its own retention % — so nothing hides behind
+   "worst only" the way the old single-signal row did. Rule-bounded list,
+   divider between rows. */
+.ov-th-flagged-list {
   margin-top: var(--vr-section);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
 }
 
-.ov-th-group-seg {
+.ov-th-flagged-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: calc(var(--role-eyebrow-size) - 1px);
+  gap: 10px;
+  padding: 10px 0;
+}
+.ov-th-flagged-row + .ov-th-flagged-row {
+  border-top: 1px solid var(--rule);
+}
+
+.ov-th-flagged-dot {
+  font-size: var(--text-sm);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  /* Near-black regardless of theme: the fills below (--good / warn / bad)
-     stay a similar mid-bright tone in both palettes, so a theme-adaptive ink
-     token (near-white in dark mode) would fail contrast here specifically —
-     this is the one place the text needs to stay dark on a light-ish fill. */
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
-  color: rgba(0, 0, 0, 0.82);
-  white-space: nowrap;
-  overflow: hidden;
+  flex-shrink: 0;
 }
-.ov-th-group-seg.is-good { background: var(--good); }
-.ov-th-group-seg.is-watch { background: color-mix(in srgb, var(--warn) 75%, transparent); }
-.ov-th-group-seg.is-declining { background: color-mix(in srgb, var(--bad) 70%, transparent); }
 
-/* Flagged-lift chips — one per declining/stalled lift, so nothing hides
-   behind "worst only" the way the old single signal row did. */
-.ov-th-flagged {
+.ov-th-flagged-mid {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: 10px;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
-.ov-th-flagged-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px var(--space-3);
-  border-radius: var(--radius-pill);
-  font-size: var(--text-2xs);
+.ov-th-flagged-name {
+  font-size: var(--text-base);
   font-weight: 600;
+  color: var(--ink);
 }
-.ov-th-flagged-chip.is-warn {
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
-  color: var(--warn-ink);
+
+.ov-th-flagged-detail {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.ov-th-flagged-chip.is-bad {
-  background: color-mix(in srgb, var(--bad) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
-  color: var(--bad);
+.ov-th-flagged-detail.status-stalled { color: var(--warn-ink); }
+
+.ov-th-flagged-pct {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* Healthy-lifts summary — replaces the row list entirely when nothing's
+   flagged ("All N lifts on track"), otherwise the "– N steady" tail line. */
+.ov-th-steady-summary {
+  margin-top: 10px;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.ov-th-pr-clause {
+  color: var(--gold);
+  text-shadow: var(--gold-glow);
 }
 
 /* ═══ §7  Muscle grid + cells ══════════════════════════════════════════════ */
