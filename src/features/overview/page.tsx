@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type Ref } from "react";
+import { useEffect, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type Ref } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
@@ -193,7 +193,10 @@ function ActiveTargetWeekStrip({
               onSelectDate(c.date);
             }}
           >
-            <div className={`ov-active-target-week-bar is-${c.kind}${selected ? " is-selected" : ""}`}>
+            <div
+              className={`ov-active-target-week-bar is-${c.kind}${selected ? " is-selected" : ""}`}
+              style={selected && c.color ? ({ "--week-glow": c.color } as CSSProperties) : undefined}
+            >
               {c.kind !== "future" && (
                 <div
                   className="ov-active-target-week-fill"

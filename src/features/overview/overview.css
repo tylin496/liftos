@@ -203,7 +203,10 @@
 .ov-active-target-week-bar.is-selected {
   height: 7px;
   margin-top: -2px;
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent);
+  /* --week-glow is set inline per-cell to that day's own fill colour (ramp
+     colour for today, muted --good for past days) — the glow echoes the
+     segment's own state rather than introducing a new colour. */
+  box-shadow: 0 0 6px color-mix(in srgb, var(--week-glow, var(--good)) 70%, transparent);
 }
 
 .ov-active-target-week-fill {
