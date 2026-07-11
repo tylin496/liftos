@@ -156,24 +156,27 @@ function ActiveTargetWeekStrip({
     const letter = WEEKDAY_ABBR[new Date(`${date}T12:00:00`).getDay()][0];
     if (date === todayISO) {
       const ratio = view.today.accrued / Math.max(1, view.today.target);
-      const color = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
-      return { date, letter, kind: "today" as const, fill: Math.min(1, ratio), color };
+      const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
+      return { date, letter, kind: "today" as const, fill: Math.min(1, ratio), color: ringColor, ringColor };
     }
-    if (date > todayISO) return { date, letter, kind: "future" as const, fill: 0, color: undefined };
+    if (date > todayISO) return { date, letter, kind: "future" as const, fill: 0, color: undefined, ringColor: undefined };
     const active = metrics.find((m) => m.metric_date === date)?.active_energy_kcal ?? 0;
-    const fill = perDay > 0 ? Math.min(1, active / perDay) : 0;
+    const ratio = perDay > 0 ? active / perDay : 0;
     // Muted, not full --good: past bars record "how much of that day got
     // logged" — a historical fact, not a verdict — so they don't need verdict
     // saturation. Five full-strength bars made this the page's second-biggest
     // green block, competing with the Journey card right below (page rule:
     // Journey owns green). Today's bar keeps the ring's full ramp colour —
-    // it's the live readout.
+    // it's the live readout. `ringColor` (used only for the selected-day
+    // glow) still follows the same ramp the ring itself would show for that
+    // day — the glow is a preview of the ring, not the bar's own hue.
     return {
       date,
       letter,
       kind: "past" as const,
-      fill,
+      fill: Math.min(1, ratio),
       color: "color-mix(in srgb, var(--good) 45%, transparent)",
+      ringColor: ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio),
     };
   });
 
@@ -195,7 +198,7 @@ function ActiveTargetWeekStrip({
           >
             <div
               className={`ov-active-target-week-bar is-${c.kind}${selected ? " is-selected" : ""}`}
-              style={selected && c.color ? ({ "--week-glow": c.color } as CSSProperties) : undefined}
+              style={selected && c.ringColor ? ({ "--week-glow": c.ringColor } as CSSProperties) : undefined}
             >
               {c.kind !== "future" && (
                 <div
