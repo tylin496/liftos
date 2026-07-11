@@ -666,13 +666,12 @@ function WeightSparkline({
   tone,
   paceTone = null,
   targetRange,
-  canCelebrateLow = false,
 }: {
   points: { date: string; value: number }[];
   // The LINE's own tone: "losing = good" green (down week-over-week), red when
   // gaining, flat otherwise. Deliberately independent of pace — the pace verdict
   // is the Journey pill's job, so the trend line NEVER goes gold (coordination
-  // rule: gold stays rare, reserved for the new-low dot). See WeightCard.
+  // rule: gold stays rare). See WeightCard.
   tone: "good" | "bad" | "flat";
   // The pace read (same paceTone the Journey pill uses). Drives ONLY the latest
   // dot when it's not a celebration: an off-band pace (warn/bad) tints the dot
@@ -681,12 +680,6 @@ function WeightSparkline({
   // to the line tone.
   paceTone?: "good" | "gold" | "warn" | "bad" | null;
   targetRange?: { min: number; max: number } | null;
-  // A window low is only a GOLD celebration when the pace read is healthy
-  // (on/optimal). On a steady cut the latest smoothed point is the window low
-  // almost every render, so ungated gold would fire constantly — noise, not a
-  // rare celebration — and it could contradict a "Below pace" pill. Gated on
-  // the same paceTone the pill uses, so dot and pill never disagree.
-  canCelebrateLow?: boolean;
 }) {
   const stroke =
     tone === "good"
@@ -806,17 +799,14 @@ function WeightSparkline({
       }
     : null;
 
-  // Latest point is always enlarged; it only turns gold + "New low" when it's
-  // both the window low AND the pace read is healthy (canCelebrateLow) — gold
-  // is reserved for genuine celebration, never a below-pace new low.
+  // Latest point is always enlarged (no gold "New low" badge: on a steady cut
+  // the smoothed trend is at a window low almost every render, so it read as a
+  // permanent state, not a rare celebration — the line's own tone already says
+  // "healthy loss"). Its dot core echoes pace instead:
   const latest = coords[coords.length - 1];
-  const isNewLow = canCelebrateLow && trendValues.at(-1)! <= Math.min(...trendValues);
-  // Not-celebrated dot core: an off-band pace (warn/bad) tints the dot to echo
-  // the Journey pill's caution — the one spot pace surfaces on the line's own
-  // surface. On/optimal/inconclusive pace → the dot keeps the line tone (green),
-  // so a healthy-but-not-record reading stays quiet. isNewLow can only fire on a
-  // healthy pace, so it always lands on the line tone (green) inside the gold
-  // celebration ring (see .is-new-low).
+  // An off-band pace (warn/bad) tints the dot to echo the Journey pill's
+  // caution — the one spot pace surfaces on the line's own surface. On/optimal/
+  // inconclusive pace → the dot keeps the line tone (green), staying quiet.
   const dotCore =
     paceTone === "warn" ? "var(--warn)" : paceTone === "bad" ? "var(--bad)" : stroke;
 
@@ -905,33 +895,16 @@ function WeightSparkline({
           (matches the SVG's fluid width); top is px + the SVG's own
           margin-top offset, since H maps 1:1 to its fixed 80px CSS height. */}
       <div
-        className={`ov-weight-spark-latest-dot${isNewLow ? " is-new-low" : ""}`}
+        className="ov-weight-spark-latest-dot"
         style={{
           left: `${(latest.x / W) * 100}%`,
           top: `calc(var(--vr-block) + ${latest.y.toFixed(1)}px)`,
-          // Record dot = a solid core inside a gold celebration ring (same badge
-          // as the Health chart's is-record). Core is the line tone normally, but
-          // an off-band pace tints it (dotCore) so a non-record reading can carry
-          // the pill's caution instead of a bare green dot.
+          // The latest reading, enlarged. Core is the line tone normally, but an
+          // off-band pace tints it (dotCore) so a non-record reading carries the
+          // pill's caution instead of a bare green dot.
           ["--dot-core" as string]: dotCore,
         }}
       />
-      {isNewLow && (
-        // The badge parks in the empty space below the line's end — but when
-        // the line ends in the chart's bottom band that space doesn't exist
-        // and the badge collides with the record dot. Flip it above the dot,
-        // anchored to the dot's actual y (26px clears the dot's ring + a gap).
-        <span
-          className={`ov-weight-spark-new-low${latest.y > H * 0.55 ? " is-above" : ""}`}
-          style={
-            latest.y > H * 0.55
-              ? { top: `calc(var(--vr-block) + ${(latest.y - 26).toFixed(1)}px)` }
-              : undefined
-          }
-        >
-          New low
-        </span>
-      )}
       {scrubCoord && (
         <div
           className="ov-weight-spark-scrub-dot"
@@ -1190,13 +1163,12 @@ function WeightCard({
       <WeightSparkline
         points={sparkPoints}
         // Line colour follows the week-over-week direction (down = good on a
-        // cut), and STAYS there regardless of pace — gold is reserved for the
-        // new-low dot, so the trend line never floods the card. The pace read is
-        // the Journey pill's job; here it only tints the latest dot (paceTone).
+        // cut), and STAYS there regardless of pace — the trend line never floods
+        // the card with gold. The pace read is the Journey pill's job; here it
+        // only tints the latest dot (paceTone).
         tone={sparkTone}
         paceTone={tone}
         targetRange={state?.evaluation.targetRange ?? null}
-        canCelebrateLow={tone === "good" || tone === "gold"}
       />
       {/* Footer — current reading only. The target band lives in the hero
           legend (it keys the corridor), so it isn't repeated here. */}
