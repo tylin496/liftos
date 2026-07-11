@@ -71,22 +71,20 @@ function daysSince(isoDate: string): number {
 // centre so its on-screen position can be measured for the stagger.
 function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { shown: number | null; target: number; synced?: boolean; innerRef?: Ref<HTMLDivElement> }) {
   const ratio = (shown ?? 0) / Math.max(1, target);
-  // Absence ≠ a measured zero: before today syncs, the centre reads "—", not "0".
-  const numText = shown == null ? "" : !synced ? "—" : shown.toLocaleString();
-  // Sub-line reframes the target as "how much left to CLOSE the ring" — the
-  // actionable number when you're chasing the goal. Derived from the same tween
-  // as the hero number (shown), so it counts DOWN (target → remaining) in lock-
-  // step with the ring filling. Blank pre-roll (matches the blank hero); "of N"
-  // when today isn't synced yet (no measured accrued to subtract); "Closed" once
-  // the ring is full. */
+  // Hero number IS "how much left to CLOSE the ring" — counts DOWN (target →
+  // 0) in lock-step with the ring filling, derived from the same tween as
+  // `shown`. Absence ≠ a measured zero: before today syncs, the centre reads
+  // "—", not "0"; "Closed" once the ring is full (sub-label carries that, the
+  // number itself stays 0).
   const remaining = Math.max(0, Math.round(target - (shown ?? 0)));
+  const numText = shown == null ? "" : !synced ? "—" : remaining.toLocaleString();
   const subText =
     shown == null
       ? ""
       : !synced
         ? `of ${target.toLocaleString()}`
         : remaining > 0
-          ? `${remaining.toLocaleString()} left`
+          ? "left"
           : "Closed";
   // Follows the shared Apple-spectrum progress ramp by fill (progressColor) —
   // red→orange→green→cyan→blue, the same as the Cut Progress bar and top-bar
@@ -94,14 +92,14 @@ function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { show
   // (--progress-complete), never a ramp stop.
   const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
   return ratio > 1 ? (
-    <OverflowRing ratio={ratio} size={80} strokeWidth={8} color={ringColor}>
+    <OverflowRing ratio={ratio} size={64} strokeWidth={7} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">{subText}</span>
       </div>
     </OverflowRing>
   ) : (
-    <ActivityRing pct={ratio} size={80} strokeWidth={8} color={ringColor} transition="none">
+    <ActivityRing pct={ratio} size={64} strokeWidth={7} color={ringColor} transition="none">
       <div className="ov-active-target-ring-center" ref={innerRef}>
         <span className="ov-active-target-ring-num">{numText}</span>
         <span className="ov-active-target-ring-of">{subText}</span>
@@ -133,11 +131,55 @@ function ActiveTargetRing({ accrued, target, synced }: { accrued: number; target
    Settings (single source of truth, shared with Nutrition) — this card only
    ever shows current TDEE against it for comparison; tapping the chip jumps
    to Settings rather than editing inline. */
+// 7-cell Mon→Sun proportion strip under the ring row — past days show how much
+// of that day's active target was actually logged, today rides the same fill
+// ratio (and colour) as the ring, future days sit empty. Reads the raw metrics
+// rows directly (same Mon-start week `computeActiveTarget` filters) rather
+// than adding per-day state — this is the only consumer.
+function ActiveTargetWeekStrip({ view, metrics }: { view: ActiveTargetView; metrics: BodyMetric[] }) {
+  const todayISO = localDateStr();
+  const perDay = view.activeTargetPerDay;
+  const monday = new Date(`${view.mondayISO}T12:00:00`);
+
+  const cells = Array.from({ length: 7 }, (_, i) => {
+    const date = localDateStr(new Date(monday.getTime() + i * 86400000));
+    const letter = WEEKDAY_ABBR[new Date(`${date}T12:00:00`).getDay()][0];
+    if (date === todayISO) {
+      const ratio = view.today.accrued / Math.max(1, view.today.target);
+      const color = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
+      return { date, letter, kind: "today" as const, fill: Math.min(1, ratio), color };
+    }
+    if (date > todayISO) return { date, letter, kind: "future" as const, fill: 0, color: undefined };
+    const active = metrics.find((m) => m.metric_date === date)?.active_energy_kcal ?? 0;
+    const fill = perDay > 0 ? Math.min(1, active / perDay) : 0;
+    return { date, letter, kind: "past" as const, fill, color: "var(--good)" };
+  });
+
+  return (
+    <div className="ov-active-target-week">
+      {cells.map((c) => (
+        <div key={c.date} className="ov-active-target-week-cell">
+          <div className={`ov-active-target-week-bar is-${c.kind}`}>
+            {c.kind !== "future" && (
+              <div
+                className="ov-active-target-week-fill"
+                style={{ width: `${Math.round(c.fill * 100)}%`, backgroundColor: c.color }}
+              />
+            )}
+          </div>
+          <span className={`ov-active-target-week-day is-${c.kind}`}>{c.letter}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ActiveTargetCard({
   view,
   targetTdee,
   currentTdee,
   syncAt,
+  metrics,
   onNav,
   loading = false,
 }: {
@@ -146,6 +188,8 @@ function ActiveTargetCard({
   currentTdee: number | null;
   /** updated_at of the latest active-energy reading — the tag's same-day clock. */
   syncAt?: string | null;
+  /** Raw metrics rows — only used for the week strip's per-day fill. */
+  metrics: BodyMetric[];
   onNav: () => void;
   loading?: boolean;
 }) {
@@ -166,9 +210,20 @@ function ActiveTargetCard({
           <ActiveTargetRingBody shown={null} target={0} />
           <div className="ov-active-target-ring-body">
             <span className="ov-active-target-status">Loading…</span>
-            <span className="ov-active-target-ring-sub">Loading…</span>
-            <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
+            <span className="ov-active-target-detail">Loading…</span>
           </div>
+        </div>
+        <div className="ov-active-target-week" aria-hidden>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div key={i} className="ov-active-target-week-cell">
+              <div className="ov-active-target-week-bar is-future" />
+              <span className="ov-active-target-week-day is-future">&nbsp;</span>
+            </div>
+          ))}
+        </div>
+        <div className="ov-active-target-footer">
+          <span className="ov-active-target-banked is-neutral">Loading…</span>
+          <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
         </div>
       </button>
     );
@@ -195,6 +250,13 @@ function ActiveTargetCard({
   // purely anti-flicker (see above), not a meaningful "close enough" bar.
   const position = Math.abs(diff) <= 30 ? "on" : diff > 0 ? "behind" : "ahead";
   const ratio = view ? view.today.accrued / Math.max(1, view.today.target) : 0;
+
+  // Footer banked readout — same "through yesterday vs flat pace" figure the
+  // floating target is built from, restated as a running weekly balance. A
+  // ±30 kcal deadband (same anti-flicker bar as `position`) collapses to a
+  // neutral "on pace" read instead of a near-zero ± banked count.
+  const banked = view ? view.accruedThroughYesterday - view.activeTargetPerDay * (view.weekday - 1) : 0;
+  const bankedTone = banked > 30 ? "good" : banked < -30 ? "warn" : "neutral";
 
   return (
     <button type="button" className="page-card ov-active-target" onClick={onNav}>
@@ -224,20 +286,40 @@ function ActiveTargetCard({
                       ? <><span className="is-ahead">Ahead</span> this week</>
                       : <><span className="is-on">On pace</span> this week</>}
               </span>
-              <span className="ov-active-target-ring-sub">
-                {ratio > 1.05
-                  ? `Above your ${dailyAvg.toLocaleString()}/day baseline`
-                  : position === "behind"
-                    ? `Today's target raised from your ${dailyAvg.toLocaleString()}/day baseline`
-                    : position === "ahead"
-                      ? `Today's target eased below your ${dailyAvg.toLocaleString()}/day baseline`
-                      : `About your ${dailyAvg.toLocaleString()}/day baseline`}
-              </span>
-              <span className="ov-active-target-goal">
-                {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
-                {targetTdee.toLocaleString()} TDEE
+              {/* Detail line states the floating target explicitly, with its
+                  cause (this week's pace vs the flat baseline) — replaces the
+                  old "about your baseline" restatement that never named a
+                  number. Target value is the one bolded figure; usual/logged
+                  stay plain mono. */}
+              <span className="ov-active-target-detail">
+                {ratio > 1.05 ? (
+                  <>Above your <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span> baseline · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                ) : position === "behind" ? (
+                  <>Raised to <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> (usual <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span>) · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                ) : position === "ahead" ? (
+                  <>Eased to <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> (usual <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span>) · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                ) : (
+                  <>Today <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> — your usual pace · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                )}
               </span>
             </div>
+          </div>
+
+          <ActiveTargetWeekStrip view={view} metrics={metrics} />
+
+          <div className="ov-active-target-footer">
+            <span className={`ov-active-target-banked is-${bankedTone}`}>
+              {bankedTone !== "neutral" && <span className="ov-active-target-banked-dot" aria-hidden />}
+              {bankedTone === "good"
+                ? `+${banked.toLocaleString()} banked this week`
+                : bankedTone === "warn"
+                  ? `${banked.toLocaleString()} short this week`
+                  : "on pace this week"}
+            </span>
+            <span className="ov-active-target-goal">
+              {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
+              {targetTdee.toLocaleString()} TDEE
+            </span>
           </div>
         </>
       ) : (
@@ -1122,6 +1204,11 @@ function WeightCard({
       <div className="ov-weight-hero">
         {rate != null ? (
           <div className="ov-weight-stat">
+            {/* Direction word — the hero rate is always shown as an unsigned
+                magnitude (the size IS the emphasis), so this names which way
+                it's moving in words rather than making the reader infer it
+                from a sign that isn't there. */}
+            <span className="ov-weight-direction">{rate > 0 ? "Gaining" : "Losing"}</span>
             <MetricValue size="xl" unit="kg/wk">
               <HeadlineCountUp
                 value={Math.abs(rate)}
@@ -1129,12 +1216,12 @@ function WeightCard({
                 format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               />
             </MetricValue>
+            {/* Acceleration chip — a worded pill replacing the old bare arrow
+                glyph, same accelArrowTone (band-aware: in-band = good, a
+                slowdown or drift toward an edge = warn, far out = bad). */}
             {accelDirection && (
-              <span
-                className={`ov-weight-rate-arrow ov-weight-rate-arrow--hero is-${accelArrowTone}`}
-                aria-hidden
-              >
-                {accelDirection === "faster" ? "▲" : "▼"}
+              <span className={`ov-weight-accel-chip is-${accelArrowTone}`}>
+                {accelDirection === "faster" ? "▲ speeding up" : "▼ slowing"}
               </span>
             )}
           </div>
@@ -1150,14 +1237,6 @@ function WeightCard({
             <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
           </div>
         )}
-        {hasTargetBand && (
-          <span className="ov-weight-legend">
-            <span className="ov-weight-legend-swatch" aria-hidden />
-            <span className="ov-weight-legend-text">
-              Target <b>{targetRange!.min.toFixed(2)}–{targetRange!.max.toFixed(2)}</b> kg/wk
-            </span>
-          </span>
-        )}
       </div>
 
       <WeightSparkline
@@ -1170,12 +1249,21 @@ function WeightCard({
         paceTone={tone}
         targetRange={state?.evaluation.targetRange ?? null}
       />
-      {/* Footer — current reading only. The target band lives in the hero
-          legend (it keys the corridor), so it isn't repeated here. */}
+      {/* Footer — current reading (left) + the target corridor legend
+          (right), moved down from the hero row so the hero's right side is
+          free for the acceleration chip. */}
       <div className="ov-weight-footer">
         <span className="ov-weight-now">
           Now <b>{fmt1kg(weightLatest)}</b> kg
         </span>
+        {hasTargetBand && (
+          <span className="ov-weight-legend">
+            <span className="ov-weight-legend-swatch" aria-hidden />
+            <span className="ov-weight-legend-text">
+              Target <b>{targetRange!.min.toFixed(2)}–{targetRange!.max.toFixed(2)}</b> kg/wk
+            </span>
+          </span>
+        )}
       </div>
     </div>
   );
@@ -1267,6 +1355,7 @@ export function OverviewPage() {
         targetTdee={data?.targetTdee ?? null}
         currentTdee={data?.currentTdee ?? null}
         syncAt={data ? latestUpdatedAt(data.metrics, "active_energy_kcal") : null}
+        metrics={data?.metrics ?? []}
         onNav={() => nav("health", { scrollTo: "health-energy-card", expand: true })}
       />
 

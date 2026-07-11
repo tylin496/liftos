@@ -1,8 +1,9 @@
 /* ─── Strength / Training Health Card ─────────────────────────────────────────
    Muscle-Grid redesign. Shared by two surfaces:
-   - Overview  → `variant="snapshot"` (hero % + trend chip + bar + one
-     worst-signal row, taps to Training). Non-expandable.
-   - Training  → `variant="full"` (hero + bar + muscle grid + legend + drill-down).
+   - Overview  → `variant="snapshot"` (hero % + trend chip + grouped bar +
+     flagged-lift chips, taps to Training). Non-expandable.
+   - Training  → `variant="full"` (hero + per-lift bar + muscle grid + legend
+     + drill-down).
    Class names keep the historical `ov-th-*` prefix so the Overview loading
    skeleton (overview.css) and this card stay on one set of selectors; grid-only
    classes use the `ov-thg-*` prefix.
@@ -11,15 +12,15 @@
    colour is status and lives only on outlines, tints, icons, marks, sparklines.
 
    TOC (line ≈)
-     §1  Card chrome + nav states .................  20
-     §2  Header / label / chevron / empty .........  55
-     §3  Hero (% + trend chip) + count ............  90
-     §4  Segmented bar ...........................  130
-     §5  Status colour language (tints + tokens) .  185
-     §6  Snapshot worst-signal row ...............  225
-     §7  Muscle grid + cells .....................  260
-     §8  Legend ..................................  345
-     §9  Drill-down ..............................  370
+     §1  Card chrome + nav states .................  25
+     §2  Header / label / chevron / empty .........  76
+     §3  Hero (% + trend chip) + count ............  105
+     §4  Segmented bar (full variant) .............  160
+     §5  Status colour language (tints + tokens) .  201
+     §6  Snapshot grouped bar + flagged chips .....  217
+     §7  Muscle grid + cells .....................  282
+     §8  Legend ..................................  393
+     §9  Drill-down ..............................  416
 */
 
 /* ═══ §1  Card chrome + nav states ══════════════════════════════════════════ */
@@ -122,6 +123,17 @@
   color: var(--ink-3);
 }
 
+/* Snapshot-only micro-caption under the hero % — replaces the count line
+   (the grouped bar below now carries the counts). Same pattern as the Cut
+   Progress card's .goal-complete caption. */
+.ov-th-avg-retention {
+  font-size: calc(var(--role-eyebrow-size) - 2px);
+  font-weight: var(--role-eyebrow-weight);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
 /* Trend chip — overall health-% delta vs ~1 month ago. Mono, tinted by
    direction (its OWN 12% wash, stronger than the cell tints so a small pill
    still reads). The one sanctioned good/bad colour pairing outside a delta. */
@@ -203,42 +215,69 @@
 .tone-gold { background: var(--th-gold-bg); border-color: var(--th-gold-bd); }
 .tone-steady { background: var(--th-steady-bg); border-color: var(--th-steady-bd); }
 
-/* ═══ §6  Snapshot worst-signal row ════════════════════════════════════════ */
-/* The hook into Detail: worst declining/stalled lift, tinted to its tone. */
-.ov-th-signal {
+/* ═══ §6  Snapshot grouped bar + flagged-lift chips ════════════════════════ */
+/* Replaces the old per-lift segmented bar + single worst-signal row for the
+   Overview snapshot: one flex row grouped by severity (on-track → stalled →
+   declining), each group sized by count and carrying its own count label —
+   so the proportion AND the numbers read in one glance, no drill-down
+   needed. Group radii are set inline per-segment (outer ends pill, inner
+   joints 4px) since which segment is "outer" depends on which groups are
+   present. */
+.ov-th-group-bar {
+  display: flex;
+  gap: 3px;
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  height: 18px;
+  margin-top: var(--vr-section);
+}
+
+.ov-th-group-seg {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--vr-section);
-  padding: 10px var(--space-3);
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-}
-.ov-th-signal-icon {
-  font-size: var(--text-sm);
+  justify-content: center;
+  font-size: calc(var(--role-eyebrow-size) - 1px);
   font-weight: 700;
-  line-height: 1;
-  flex-shrink: 0;
-}
-.ov-th-signal-group {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink);
-  text-transform: capitalize;
-  flex-shrink: 0;
-}
-.ov-th-signal-detail {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: 0.04em;
+  /* Near-black regardless of theme: the fills below (--good / warn / bad)
+     stay a similar mid-bright tone in both palettes, so a theme-adaptive ink
+     token (near-white in dark mode) would fail contrast here specifically —
+     this is the one place the text needs to stay dark on a light-ish fill. */
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  color: rgba(0, 0, 0, 0.82);
   white-space: nowrap;
+  overflow: hidden;
 }
-.ov-th-signal-chev {
-  color: var(--ink-4);
-  flex-shrink: 0;
-  margin-left: auto;
+.ov-th-group-seg.is-good { background: var(--good); }
+.ov-th-group-seg.is-watch { background: color-mix(in srgb, var(--warn) 75%, transparent); }
+.ov-th-group-seg.is-declining { background: color-mix(in srgb, var(--bad) 70%, transparent); }
+
+/* Flagged-lift chips — one per declining/stalled lift, so nothing hides
+   behind "worst only" the way the old single signal row did. */
+.ov-th-flagged {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: 10px;
+}
+
+.ov-th-flagged-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+.ov-th-flagged-chip.is-warn {
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+  color: var(--warn-ink);
+}
+.ov-th-flagged-chip.is-bad {
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
+  color: var(--bad);
 }
 
 /* ═══ §7  Muscle grid + cells ══════════════════════════════════════════════ */

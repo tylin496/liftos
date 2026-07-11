@@ -154,11 +154,27 @@ export function StrengthHealthCard({
         {variant === "snapshot" && <ChevronRight className="ov-th-chevron" />}
       </div>
     );
-    const skelBody = (
-      <>
+    if (variant === "snapshot") {
+      return (
+        <button type="button" className="page-card ov-training-health ov-training-health--nav loading-card" onClick={onNav}>
+          {skelHeader}
+          <div className="ov-th-ret-hero">
+            <span className="ov-th-hero-row">
+              <MetricValue size="xl">00%</MetricValue>
+            </span>
+            <span className="ov-th-avg-retention">Avg retention</span>
+          </div>
+          <div className="ov-th-group-bar" aria-hidden>
+            <span className="ov-th-group-seg is-good" style={{ flex: 1, borderRadius: "var(--radius-pill)" }} />
+          </div>
+        </button>
+      );
+    }
+    return (
+      <div id={id} className="page-card ov-training-health loading-card">
         {skelHeader}
         <div className="ov-th-ret-hero">
-          <MetricValue size={variant === "snapshot" ? "xl" : "lg"}>00%</MetricValue>
+          <MetricValue size="lg">00%</MetricValue>
           <span className="ov-th-ret-count">0 of 0 tracked lifts on track</span>
         </div>
         <div className="ov-th-bar" aria-hidden>
@@ -166,15 +182,6 @@ export function StrengthHealthCard({
             <span key={i} className="ov-th-bar-seg is-good" />
           ))}
         </div>
-      </>
-    );
-    return variant === "snapshot" ? (
-      <button type="button" className="page-card ov-training-health ov-training-health--nav loading-card" onClick={onNav}>
-        {skelBody}
-      </button>
-    ) : (
-      <div id={id} className="page-card ov-training-health loading-card">
-        {skelBody}
       </div>
     );
   }
@@ -251,28 +258,66 @@ export function StrengthHealthCard({
     </div>
   );
 
-  // ── Snapshot (Overview): whole card navigates to Training; one worst-signal
-  //    row is the hook into Detail. Hidden when nothing is declining/stalled. ──
+  // ── Snapshot (Overview): whole card navigates to Training. The old "N of
+  //    total tracked lifts on track" line + single worst-signal row are
+  //    replaced by a grouped proportion bar (counts the labels carry) and a
+  //    chip per flagged lift (nothing hides behind "worst only" anymore). ──
   if (variant === "snapshot") {
-    const worst = grid[0];
-    const showSignal = worst && (worst.status === "declining" || worst.status === "stalled");
-    const signalLift = showSignal ? worst.lifts[0] : null;
-    const signalDetail = signalLift
-      ? worst.status === "declining"
-        ? `${signalLift.name} declining · 3 sessions`
-        : `${signalLift.name} stalled · ${signalLift.stalledWeeks} ${signalLift.stalledWeeks === 1 ? "wk" : "wks"}`
-      : "";
+    const decliningLifts = strength.exercises.filter((ex) => ex.declining);
+    const stalledLifts = strength.exercises.filter((ex) => ex.needsAttention && !ex.declining);
+    const allOnTrack = decliningLifts.length === 0 && stalledLifts.length === 0;
+
+    const segments = allOnTrack
+      ? [{ key: "good", count: strength.total, cls: "is-good", label: `ALL ${strength.total} ON TRACK` }]
+      : (
+          [
+            onTrack > 0 && { key: "good", count: onTrack, cls: "is-good", label: `${onTrack} ON TRACK` },
+            stalledLifts.length > 0 && { key: "watch", count: stalledLifts.length, cls: "is-watch", label: `${stalledLifts.length}` },
+            decliningLifts.length > 0 && { key: "declining", count: decliningLifts.length, cls: "is-declining", label: `${decliningLifts.length}` },
+          ].filter(Boolean) as { key: string; count: number; cls: string; label: string }[]
+        );
+
     return (
       <button type="button" className="page-card ov-training-health ov-training-health--nav" onClick={onNav}>
         {header}
-        {hero}
-        {bar}
-        {showSignal && signalLift && (
-          <div className={`ov-th-signal tone-${worst.tone}`}>
-            <span className={`ov-th-signal-icon status-${worst.status}`} aria-hidden>{STATUS_ICON[worst.status]}</span>
-            <span className="ov-th-signal-group">{worst.group}</span>
-            <span className="ov-th-signal-detail">{signalDetail}</span>
-            <ChevronRight className="ov-th-signal-chev" />
+        <div className="ov-th-ret-hero">
+          <span className="ov-th-hero-row">
+            <MetricValue size="xl">
+              {heroPct !== null ? <RetentionPct target={heroPct} /> : "—"}
+            </MetricValue>
+            {trend && <TrendChip trend={trend} />}
+          </span>
+          <span className="ov-th-avg-retention">Avg retention</span>
+        </div>
+        <div className="ov-th-group-bar" role="img" aria-label={`${onTrack} of ${strength.total} tracked lifts on track`}>
+          {segments.map((seg, i) => (
+            <span
+              key={seg.key}
+              className={`ov-th-group-seg ${seg.cls}`}
+              style={{
+                flex: seg.count,
+                borderTopLeftRadius: i === 0 ? "var(--radius-pill)" : "4px",
+                borderBottomLeftRadius: i === 0 ? "var(--radius-pill)" : "4px",
+                borderTopRightRadius: i === segments.length - 1 ? "var(--radius-pill)" : "4px",
+                borderBottomRightRadius: i === segments.length - 1 ? "var(--radius-pill)" : "4px",
+              }}
+            >
+              {seg.label}
+            </span>
+          ))}
+        </div>
+        {!allOnTrack && (
+          <div className="ov-th-flagged">
+            {stalledLifts.map((ex) => (
+              <span key={ex.slug} className="ov-th-flagged-chip is-warn">
+                ● {ex.name} · {ex.stalledWeeks} {ex.stalledWeeks === 1 ? "wk" : "wks"}
+              </span>
+            ))}
+            {decliningLifts.map((ex) => (
+              <span key={ex.slug} className="ov-th-flagged-chip is-bad">
+                ↓ {ex.name} · declining
+              </span>
+            ))}
           </div>
         )}
       </button>

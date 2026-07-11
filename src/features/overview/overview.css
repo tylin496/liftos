@@ -96,7 +96,10 @@
 }
 
 .ov-active-target-ring-num {
-  font-size: var(--metric-md);
+  font-family: var(--font-mono);
+  /* One step below --metric-md (20) — the ring shrank to 64/7, so its centre
+     number no longer needs to carry the card's largest scale. */
+  font-size: var(--text-lg);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
@@ -123,13 +126,100 @@
   text-shadow: var(--gold-glow);
 }
 
-/* Two-line min-height keeps the longer behind/ahead copy from growing the
-   card — matches layout-stability rule for count-up/loading rows. */
-.ov-active-target-ring-sub {
+/* Detail line — states the floating target explicitly (target/usual/logged),
+   replacing the old "about your baseline" restatement. One-line min-height
+   only (layout-stability): the copy no longer wraps to two lines the way the
+   old sub-line's longer variants sometimes did. */
+.ov-active-target-detail {
   font-size: var(--role-secondary-size);
   color: var(--role-secondary-color);
   line-height: var(--leading-body);
-  min-height: calc(2 * var(--role-secondary-size) * var(--leading-body));
+  min-height: calc(var(--role-secondary-size) * var(--leading-body));
+}
+
+.ov-active-target-mono {
+  font-family: var(--font-mono);
+}
+
+/* The floating target value — the one bolded figure in the detail line. */
+.ov-active-target-num {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+/* ── Week strip — 7-cell Mon→Sun proportion read of the week so far ──────── */
+.ov-active-target-week {
+  display: flex;
+  gap: 4px;
+  margin-top: var(--space-3);
+}
+
+.ov-active-target-week-cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ov-active-target-week-bar {
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  position: relative;
+  overflow: hidden;
+}
+
+.ov-active-target-week-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--radius-pill);
+  background: var(--good);
+}
+
+.ov-active-target-week-day {
+  text-align: center;
+  font-size: calc(var(--role-eyebrow-size) - 3px);
+  font-weight: 600;
+  color: var(--ink-4);
+}
+
+.ov-active-target-week-day.is-today {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.ov-active-target-week-day.is-future {
+  opacity: 0.65;
+}
+
+/* ── Footer — banked readout (left) + demoted TDEE readout (right) ───────── */
+.ov-active-target-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}
+
+.ov-active-target-banked {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.ov-active-target-banked.is-good { color: var(--good); }
+.ov-active-target-banked.is-warn { color: var(--warn); }
+
+.ov-active-target-banked-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .ov-no-entry {
@@ -206,10 +296,10 @@
 
 .ov-weight-legend-swatch {
   width: var(--space-4);
-  /* Keys the chart's dashed corridor edge — same dashed ink-4 stroke. Border
-     (not a gated property) draws the 1.5px dashed rule as an inline glyph. */
-  border-top: 1.5px dashed var(--ink-4);
-  opacity: 0.8;
+  /* Keys the chart's dashed corridor edge — same dashed good-toned stroke the
+     sparkline draws its corridor with. Border (not a gated property) draws
+     the 1.5px dashed rule as an inline glyph. */
+  border-top: 1.5px dashed color-mix(in srgb, var(--good) 70%, transparent);
 }
 
 .ov-weight-legend-text {
@@ -229,6 +319,8 @@
 .ov-weight-footer {
   display: flex;
   align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .ov-weight-now {
@@ -259,29 +351,32 @@
   line-height: 1;
 }
 
-/* Delta arrow trailing the rate value (app-wide delta-after-value convention,
-   see .ov-weight-accel's margin-left below) — direction is the loss TREND
-   (accelerating ▲ / slowing ▼, from accelDirection), colour reads that trend
-   against the band: in-band acceleration = good, a slowdown or drift toward an
-   edge = warn, far out = bad. Never gold — how good the value IS lives on the
-   pill, which owns the confidence-gated pace verdict; the number stays neutral
-   ink. Mirrors Nutrition's pace arrow so the two read identically. */
-.ov-weight-rate-arrow {
-  margin-left: 2px; /* optical: snug the glyph to its number */
+/* Direction word — "Losing"/"Gaining", baseline-aligned before the hero rate
+   value so the unsigned magnitude reads with a direction without a sign. */
+.ov-weight-direction {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
 }
-.ov-weight-rate-arrow.is-good { color: var(--good); }
-.ov-weight-rate-arrow.is-warn { color: var(--warn); }
-.ov-weight-rate-arrow.is-bad  { color: var(--bad); }
 
-/* At hero scale the arrow sits beside the 34px rate number — sized up from the
-   old inline text-sm so it reads as part of the headline, not a footnote, but
-   the triangle glyph's own bounding box runs taller than digits at the same
-   font-size, so it needs to sit a step below the number's scale rather than
-   matching it 1:1. */
-.ov-weight-rate-arrow--hero {
-  font-size: var(--text-lg);
-  margin-left: var(--space-2);
+/* Acceleration chip — a worded pill (▲ speeding up / ▼ slowing) replacing the
+   old bare arrow glyph. Tone reads the trend against the band: in-band
+   acceleration = good, a slowdown or drift toward an edge = warn, far out =
+   bad. Never gold — how good the value IS lives on the pace pill below, not
+   here. Mirrors Nutrition's pace arrow's tone logic. */
+.ov-weight-accel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  line-height: 1.4;
 }
+.ov-weight-accel-chip.is-good { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.ov-weight-accel-chip.is-warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.ov-weight-accel-chip.is-bad  { color: var(--bad);  background: color-mix(in srgb, var(--bad) 14%, transparent); }
 
 /* 21-day trend line — the card's dominant element. Fixed 96px height so the
    card never reflows between loading / empty / loaded (the SVG holds this space

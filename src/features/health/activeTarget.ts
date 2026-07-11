@@ -14,6 +14,16 @@ export interface ActiveTargetView {
   /** The user-set TDEE goal this is derived from. */
   targetTdee: number;
 
+  /** Mon-start week bounds for today (weekday: Mon=1…Sun=7) — lets callers
+   *  (the Overview week strip) slice the same metrics rows this computation
+   *  used, without re-deriving the week-start logic. */
+  mondayISO: string;
+  weekday: number;
+  /** Active banked through yesterday this week (excludes today's partial
+   *  reading) — same figure the floating target is computed from, exposed
+   *  for the week-strip footer's banked/short readout. */
+  accruedThroughYesterday: number;
+
   /** Today's floating target — the ring. Rises/falls with the rest of the
    *  week's pace so far, so a banked surplus quietly lowers today's ask and a
    *  shortfall raises it. This is what makes the ring mean something. */
@@ -96,6 +106,9 @@ export function computeActiveTarget(
     activeTargetPerDay,
     restingAvg,
     targetTdee,
+    mondayISO,
+    weekday,
+    accruedThroughYesterday: Math.round(accruedThroughYesterday),
     today: {
       target: todayTarget,
       accrued: Math.round(todayAccrued),
