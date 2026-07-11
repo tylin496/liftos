@@ -315,14 +315,11 @@
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   padding: 2px var(--space-2);
-  outline: none;
-  box-shadow: var(--focus-ring);
 }
 
 .meta-input {
   background: transparent;
   border: none;
-  outline: none;
   font-family: var(--font-ui);
   color: var(--ink-3);
   padding: 0;
@@ -1051,13 +1048,8 @@
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   padding: var(--space-1) var(--space-2);
-  outline: none;
   flex: 1;
   min-width: 0;
-}
-
-.log-date-chip:focus {
-  box-shadow: var(--focus-ring);
 }
 
 /* ── Weight zone ─────────────────────────────────────────────────────────────*/
@@ -1105,7 +1097,6 @@
   color: var(--ink);
   background: transparent;
   border: none;
-  outline: none;
   padding: 0;
   line-height: 1;
   transition: font-size var(--dur-press);
@@ -1186,13 +1177,11 @@
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   padding: var(--space-2);
-  outline: none;
   transition: border-color var(--dur-press), box-shadow var(--dur-press);
 }
 
 .reps-input.mono:focus {
   border-color: var(--accent);
-  box-shadow: var(--focus-ring);
 }
 
 .reps-input.mono::placeholder {
@@ -1220,12 +1209,7 @@
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
-  outline: none;
   box-sizing: border-box;
-}
-
-.log-note:focus {
-  box-shadow: var(--focus-ring);
 }
 
 /* ── Log buttons ─────────────────────────────────────────────────────────────*/
@@ -1321,7 +1305,6 @@
   font-variant-numeric: tabular-nums;
   background: transparent;
   border: none;
-  outline: none;
   color: var(--ink);
 }
 
@@ -1552,11 +1535,9 @@
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--text-base);
-  outline: none;
 }
 
 .ex-input:focus {
-  box-shadow: var(--focus-ring);
   border-color: var(--accent);
 }
 
@@ -1804,12 +1785,7 @@
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
-  outline: none;
   box-sizing: border-box;
-}
-
-.stretch-edit-form input:focus {
-  box-shadow: var(--focus-ring);
 }
 
 .stretch-edit-actions {
@@ -2094,13 +2070,11 @@
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
-  outline: none;
   box-sizing: border-box;
   transition: border var(--dur-press), box-shadow var(--dur-press);
 }
 
 .field-input:focus {
-  box-shadow: var(--focus-ring);
   border-color: var(--accent);
 }
 

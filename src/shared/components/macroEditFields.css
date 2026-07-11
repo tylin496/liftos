@@ -35,7 +35,6 @@
   min-width: 0;
   background: none;
   border: none;
-  outline: none;
   font-family: var(--font-ui);
   font-size: clamp(36px, 7.6vw, 50px);
   font-weight: 800;

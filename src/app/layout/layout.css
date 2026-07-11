@@ -739,11 +739,6 @@ html.kb-open .tabbar {
   width: 130px;
 }
 
-.settings-row-input:focus {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
 .settings-stepper {
   display: flex;
   align-items: center;
