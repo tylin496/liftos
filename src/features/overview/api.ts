@@ -3,7 +3,8 @@ import { fetchHealthData, type BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { computeGoal, cutBaselineAt, buildGoalStatus, type Goal, type GoalStatusEvaluation } from "./goal";
-import { evaluatePhaseTriggers, ADHERENCE_WINDOW_DAYS, type PhaseTriggerResult } from "./phaseTriggers";
+import { evaluatePhaseTriggers, type PhaseTriggerResult } from "./phaseTriggers";
+import { maintenanceStartDate, MAINTENANCE_LOOKBACK_DAYS } from "@features/nutrition/logic";
 import { localDateStrDaysAgo } from "@shared/lib/date";
 import { saveConfig } from "@features/nutrition/api";
 import {
@@ -64,6 +65,10 @@ export interface OverviewData {
   /** "Is the cut's body-fat endpoint reached?" — same formula as the engine's
    *  goal slice and computeGoal's bodyFat14dAvg, so the three never disagree. */
   goalStatus: GoalStatusEvaluation;
+  /** First day of the current maintenance block (derived from the entries' own
+   *  deficit snapshots — see maintenanceStartDate), or null while cutting /
+   *  before any maintenance day is logged. Drives "week N of 4–6". */
+  maintenanceSince: string | null;
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
@@ -88,13 +93,15 @@ export async function fetchOverview(): Promise<OverviewData> {
       .from("nutrition_config")
       .select("target_body_fat_pct, cut_start_date, cut_start_body_fat_pct, cut_start_weight")
       .maybeSingle(),
-    // Recent per-day nutrition entries for the adherence trigger light.
-    // Best-effort (not in the throw guard below): a failed read means the
-    // adherence trigger shows "unknown", never a broken Overview.
+    // Recent per-day nutrition entries — the adherence trigger reads the last
+    // fortnight, the maintenance-week counter scans further back for the
+    // block's first day (the wider window is harmless to the trigger, which
+    // applies its own cutoff). Best-effort (not in the throw guard below): a
+    // failed read means an "unknown" light, never a broken Overview.
     supabase
       .from("nutrition_entries")
       .select("entry_date, calories, tdee, deficit_target")
-      .gte("entry_date", localDateStrDaysAgo(ADHERENCE_WINDOW_DAYS))
+      .gte("entry_date", localDateStrDaysAgo(MAINTENANCE_LOOKBACK_DAYS))
       .order("entry_date", { ascending: true }),
   ]);
 
@@ -154,14 +161,16 @@ export async function fetchOverview(): Promise<OverviewData> {
   // Decision Engine consumed at recompute time, replayed here on Overview's own
   // (fresher, wider) data. One implementation, two evaluation moments — exactly
   // like the persisted recommendation vs the live cards.
+  const entries = entriesRes.error ? [] : (entriesRes.data ?? []);
   const phase = evaluatePhaseTriggers({
     metrics: metrics as BodyMetric[],
     strength,
     compoundSlugs,
-    entries: entriesRes.error ? [] : (entriesRes.data ?? []),
+    entries,
     today: localDateStrDaysAgo(0),
   });
   const goalStatus = buildGoalStatus(metrics as BodyMetric[], configRes.data?.target_body_fat_pct ?? null);
+  const maintenanceSince = maintenanceStartDate(entries);
 
   return {
     weightLatest,
@@ -179,6 +188,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     activeTarget: health.activeTarget,
     phase,
     goalStatus,
+    maintenanceSince,
   };
 }
 

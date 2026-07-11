@@ -3,6 +3,7 @@ import {
   getCalorieResult,
   getProteinResult,
   phaseFromDeficit,
+  maintenanceStartDate,
   monthlyStats,
   type DayInput,
 } from "./logic";
@@ -128,5 +129,42 @@ describe("phaseFromDeficit", () => {
     expect(phaseFromDeficit(300)).toBe("Cruise");
     expect(phaseFromDeficit(600)).toBe("Moderate Cut");
     expect(phaseFromDeficit(900)).toBe("Aggressive Cut");
+  });
+});
+
+describe("maintenanceStartDate", () => {
+  const day = (entry_date: string, deficit_target: number | null) => ({ entry_date, deficit_target });
+
+  it("returns the first day of the trailing maintenance run", () => {
+    const entries = [
+      day("2026-07-01", 500),
+      day("2026-07-02", 500),
+      day("2026-07-03", 150), // block starts here
+      day("2026-07-04", 150),
+      day("2026-07-05", 100),
+    ];
+    expect(maintenanceStartDate(entries)).toBe("2026-07-03");
+  });
+
+  it("null while the latest logged day is still cutting", () => {
+    expect(maintenanceStartDate([day("2026-07-01", 150), day("2026-07-02", 500)])).toBeNull();
+  });
+
+  it("an earlier maintenance stint doesn't leak into the current block", () => {
+    const entries = [
+      day("2026-06-01", 150), // old diet break
+      day("2026-06-02", 500),
+      day("2026-06-03", 150),
+    ];
+    expect(maintenanceStartDate(entries)).toBe("2026-06-03");
+  });
+
+  it("a null snapshot (legacy row) reads as cutting via the default deficit", () => {
+    expect(maintenanceStartDate([day("2026-07-01", null)])).toBeNull();
+    expect(maintenanceStartDate([day("2026-07-01", null), day("2026-07-02", 150)])).toBe("2026-07-02");
+  });
+
+  it("empty log → null", () => {
+    expect(maintenanceStartDate([])).toBeNull();
   });
 });

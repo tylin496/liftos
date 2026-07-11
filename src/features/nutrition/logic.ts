@@ -305,6 +305,29 @@ export function monthlyStats(days: DayInput[]): MonthlyStats {
   };
 }
 
+/** How far back the Overview fetches entries to find the maintenance block's
+ *  first day — comfortably past the block's planned 4–6 weeks. */
+export const MAINTENANCE_LOOKBACK_DAYS = 60;
+
+/** First day of the CURRENT maintenance block, or null when the latest logged
+ *  day isn't at maintenance. Derived, not persisted: every entry snapshots the
+ *  day's own deficit_target, so the trailing run of days whose snapshot names
+ *  "Maintenance" (same phaseFromDeficit boundary as everywhere else) IS the
+ *  block — no schema needed. Feeds the Plan section's "week N of 4–6" read.
+ *  Entries must be ascending by date; a null snapshot (pre-snapshot legacy row)
+ *  falls back to the default deficit, i.e. reads as cutting. */
+export function maintenanceStartDate(
+  entries: { entry_date: string; deficit_target: number | null }[],
+): string | null {
+  let start: string | null = null;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const deficit = entries[i].deficit_target ?? DEFAULTS.deficitTarget;
+    if (phaseFromDeficit(deficit) !== "Maintenance") break;
+    start = entries[i].entry_date;
+  }
+  return start;
+}
+
 // Before this hour, a log defaults to yesterday — you're closing out the day
 // that just ended, not starting a new one. 5am assumes you won't log later.
 const DAY_ROLLOVER_HOUR = 5;

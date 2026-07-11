@@ -597,22 +597,33 @@ function PhasePlanSection({
   phase,
   goalStatus,
   cutMode,
+  maintenanceSince,
 }: {
   phase: PhaseTriggerResult;
   goalStatus: GoalStatusEvaluation;
   cutMode: string | null;
+  maintenanceSince: string | null;
 }) {
   const [open, setOpen] = useState(false);
   // Phase stays derived from the live deficit (phaseFromDeficit): anything
   // still running a deficit is the Cut stage; intake at maintenance = stage 2.
   const atMaintenance = cutMode === "Maintenance";
   const n = phase.firingCount;
+  // Week N of the maintenance block, counted from the first logged maintenance
+  // day (derived from entry snapshots — null until one is logged).
+  const maintenanceWeek =
+    atMaintenance && maintenanceSince ? Math.floor(daysSince(maintenanceSince) / 7) + 1 : null;
 
   // One-line read, in priority order mirroring the engine's ladder: goal
   // reached → start (never "consider"); signals stacked (same gate the engine
   // decided with) → consider; otherwise explain what the lights watch for.
   const note = atMaintenance
-    ? { text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" }
+    ? {
+        text: maintenanceWeek
+          ? `Week ${maintenanceWeek} of maintenance — start the lean bulk after week 4–6.`
+          : "Hold for 4–6 weeks, then start the lean bulk.",
+        tone: "",
+      }
     : goalStatus.reached
       ? { text: `Body fat has reached your ${goalStatus.targetBodyFatPct}% goal — start maintenance.`, tone: " is-go" }
       : n >= CONSIDER_ENTER_COUNT
@@ -639,7 +650,10 @@ function PhasePlanSection({
           <ol className="goal-plan-stages">
             <li className={`goal-plan-step${atMaintenance ? " is-done" : " is-current"}`}>Cut</li>
             <li className={`goal-plan-step${atMaintenance ? " is-current" : ""}`}>
-              Maintenance <span className="goal-plan-step-sub">4–6 wk</span>
+              Maintenance{" "}
+              <span className="goal-plan-step-sub">
+                {maintenanceWeek ? `wk ${maintenanceWeek} of 4–6` : "4–6 wk"}
+              </span>
             </li>
             <li className="goal-plan-step">Lean Bulk</li>
           </ol>
@@ -674,6 +688,7 @@ function CutProgressCard({
   state,
   phase,
   goalStatus,
+  maintenanceSince,
   onNav,
   loading = false,
 }: {
@@ -686,6 +701,7 @@ function CutProgressCard({
   state: NutritionStateFull | null;
   phase: PhaseTriggerResult | null;
   goalStatus: GoalStatusEvaluation | null;
+  maintenanceSince: string | null;
   onNav: () => void;
   loading?: boolean;
 }) {
@@ -849,6 +865,7 @@ function CutProgressCard({
           phase={phase}
           goalStatus={goalStatus}
           cutMode={state?.diagnostics.cutMode ?? null}
+          maintenanceSince={maintenanceSince}
         />
       )}
     </div>
@@ -1578,6 +1595,7 @@ export function OverviewPage() {
           state={data?.nutritionState ?? null}
           phase={data?.phase ?? null}
           goalStatus={data?.goalStatus ?? null}
+          maintenanceSince={data?.maintenanceSince ?? null}
           onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />
       )}
