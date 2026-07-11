@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS } from "./evaluation";
-import { nutritionDecision, rateTone, paceTone, OPTIMAL_BAND_FRACTION } from "./recommendation";
+import { nutritionDecision, rateTone, paceTone } from "./recommendation";
 import "./nutrition.css";
 
 /* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
@@ -105,12 +105,6 @@ function PaceMeter({
   // good. Both surfaces then flip to gold together, never one alone.
   const rTone = rateTone({ observedRate, targetRange: { min: lo, max: hi } });
   const tone = optimal ? "gold" : rTone === "gold" ? "good" : (rTone ?? "good");
-  // Top slice of the band (same OPTIMAL_BAND_FRACTION rateTone/paceTone use)
-  // rendered as a gold slice on the track itself, so the meter shows *where*
-  // optimal is, not just the marker's colour when it lands there. Independent
-  // of lo/hi: the band is always the fixed middle third [33.33%, 66.67%], so
-  // the slice reduces to a constant fraction of that.
-  const optimalPct = ((2 - OPTIMAL_BAND_FRACTION) / 3) * 100;
 
   const sign = observedRate < 0 ? "−" : observedRate > 0 ? "+" : "±";
   // Caption only fires off-band, where it adds the "why" the meter can't show;
@@ -163,17 +157,9 @@ function PaceMeter({
           <div
             className={`ni-meter-band ${tone === "gold" ? "is-in status-gold" : inState ? `is-in status-${tone}` : "is-off"}`}
           />
-          {/* Gold optimal slice marks where the top slice sits while the read
-              is still green — once the read itself reaches gold, the whole
-              band above already tints gold (.ni-meter-band.is-in.status-gold),
-              so layering this slice on top would double the gold opacity into
-              a visible seam instead of one uniform gold band. */}
-          {inState && tone !== "gold" && (
-            <div
-              className="ni-meter-band-optimal is-in"
-              style={{ left: `${optimalPct}%` }}
-            />
-          )}
+          {/* No gold "optimal slice" preview on the track: the band is all-green
+              until the read itself earns gold, then it flips all-gold — the band
+              states the verdict, it never advertises the range. */}
           <div
             className={`ni-meter-marker status-${tone}`}
             style={{ left: `${markerPct}%` }}

@@ -4,27 +4,27 @@
    目錄
      L36   Nutrition Insight (v2 evaluation card)
      L293  Pace meter
-     L455  Skeleton loading state
-     L473  History
-     L494  Adherence distribution
-     L534  Date nav
-     L605  Form
-     L632  Nutrition calendar modal
-     L823  Section head
-     L826  7-day trend bars
-     L871  KPI row
-     L887  This Week header
-     L911  Colour legend
-     L936  Last 30 Days
-     L970  Skeleton loading — This Week / Last 30 Days
-     L1002 Daily card
-     L1034 Stat grid
-     L1056 Inline settlement form
-     L1061 Saved-pulse
-     L1066 History: dual-bar trend
-     L1286 Date label slide
-     L1298 Day navigation carousel
-     L1346 Cold-load page skeleton
+     L441  Skeleton loading state
+     L459  History
+     L480  Adherence distribution
+     L520  Date nav
+     L591  Form
+     L618  Nutrition calendar modal
+     L809  Section head
+     L812  7-day trend bars
+     L857  KPI row
+     L873  This Week header
+     L897  Colour legend
+     L922  Last 30 Days
+     L956  Skeleton loading — This Week / Last 30 Days
+     L988  Daily card
+     L1020 Stat grid
+     L1042 Inline settlement form
+     L1047 Saved-pulse
+     L1052 History: dual-bar trend
+     L1272 Date label slide
+     L1284 Day navigation carousel
+     L1332 Cold-load page skeleton
    ───────────────────────────────────────────────────────────────────────────── */
 
 .nutri {
@@ -362,20 +362,6 @@
   background: color-mix(in srgb, var(--gold) 26%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent);
 }
-
-/* Top slice of the band — same OPTIMAL_BAND_FRACTION rateTone/paceTone use —
-   tinted gold so the track itself shows where optimal sits, not just the
-   marker when it lands there. Sits above the band fill, below the marker. */
-.ni-meter-band-optimal {
-  position: absolute;
-  top: -1px;
-  bottom: -1px;
-  right: 33.33%;
-  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
-}
-/* Only shown in-band — off-band the gold optimal zone is dropped entirely so
-   the red marker + caption carry the "get back in range" story alone. */
-.ni-meter-band-optimal.is-in  { background: color-mix(in srgb, var(--gold) 26%, transparent); }
 
 /* Marker — a raised dot with a card-coloured gap ring so it reads as floating
    above the track. Colour follows the same rateTone as the status dot above
