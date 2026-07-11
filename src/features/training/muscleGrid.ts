@@ -96,20 +96,21 @@ function retention(ex: StrengthExercise): number {
   return ex.prE1RM > 0 ? ex.latestE1RM / ex.prE1RM : 0;
 }
 
-// "Peak" is reserved for a lift sitting essentially AT its own best e1RM; a
-// steady lift a few % below that is holding, but not at the peak — so the note
-// grades by retention instead of calling every steady lift "holding peak"
-// (which overstated a 90%-of-best hold). Not a PR: an actual fresh PR is its
-// own gold status (see liftStatus), this is the quiet steady tier.
-const PEAK_RETENTION = 0.99; // at / essentially at the PR
-const NEAR_PEAK_RETENTION = 0.95; // within ~5% of the PR
+// The steady note speaks the same language as the cell's % (which is "share of
+// your best e1RM"): it says how close to YOUR BEST the lift is sitting, in plain
+// words — "at your best" only when it's essentially AT the PR, not for any
+// steady hold (an earlier "holding peak" overstated a 90%-of-best hold, and
+// "peak" read as jargon). Not a PR: a fresh PR is its own gold status
+// (see liftStatus); this is the quiet steady tier.
+const AT_BEST_RETENTION = 0.99; // at / essentially at the PR
+const NEAR_BEST_RETENTION = 0.95; // within ~5% of the PR
 
 /** Steady-tier note by how close the lift sits to its own PR e1RM. Lowercase so
  *  it can trail a status glyph in a drill row; the grid cell upper-cases it. */
 export function steadyNote(ex: StrengthExercise): string {
   const r = retention(ex);
-  if (r >= PEAK_RETENTION) return "holding peak";
-  if (r >= NEAR_PEAK_RETENTION) return "near peak";
+  if (r >= AT_BEST_RETENTION) return "at your best";
+  if (r >= NEAR_BEST_RETENTION) return "near your best";
   return "holding steady";
 }
 
