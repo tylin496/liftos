@@ -146,6 +146,37 @@ export function computeGoal(
   };
 }
 
+// ─── Goal Status (the Decision Engine's "at target body fat?" slice) ─────────
+
+/** How far past target (percentage points) body fat may drift back up before
+ *  the "Start maintenance" directive releases. Exit-hysteresis only — entry is
+ *  a plain `bf14 ≤ target`, this margin just stops the directive flickering
+ *  when the 14-day average hovers on the line. */
+export const GOAL_EXIT_MARGIN_PP = 0.3;
+
+/** The engine's goal slice: is the cut's endpoint reached? Deliberately NOT a
+ *  phase trigger (those ask "is the cut degrading?"); this asks "is the cut
+ *  done?" — a goal judgment, so it lives with the goal math. */
+export interface GoalStatusEvaluation {
+  /** 14-day body-fat average at or under the configured target. */
+  reached: boolean;
+  bodyFat14dAvg: number | null;
+  targetBodyFatPct: number | null;
+}
+
+/** Same 14-day smoothing as computeGoal's bodyFat14dAvg — one formula, so the
+ *  directive and the Journey card can never disagree about "at goal". Missing
+ *  target or too few body-fat readings → not reached (never a false claim). */
+export function buildGoalStatus(metrics: BodyMetric[], targetBodyFatPct: number | null): GoalStatusEvaluation {
+  const bfPts = metrics
+    .filter((m) => m.body_fat_pct != null)
+    .map((m) => ({ date: m.metric_date, value: m.body_fat_pct as number }));
+  const bodyFat14dAvg = rollingAvg(bfPts, 14, 0);
+  const reached =
+    targetBodyFatPct != null && bodyFat14dAvg != null && bodyFat14dAvg <= targetBodyFatPct;
+  return { reached, bodyFat14dAvg, targetBodyFatPct };
+}
+
 // ─── Lean Mass Evaluation (the Decision Engine's body-composition slice) ─────
 
 /** kg/month of lean-mass loss before "hold off on further cuts" is even

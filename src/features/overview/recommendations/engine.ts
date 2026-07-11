@@ -36,6 +36,7 @@ import type { RecContext, Recommendation } from "./types";
 import type { RecoveryEvaluation } from "@features/health/math";
 import type { TrainingEvaluation } from "@features/overview/strength";
 import type { LeanMassEvaluation } from "@features/overview/goal";
+import { GOAL_EXIT_MARGIN_PP } from "@features/overview/goal";
 import { recoveryRecommendation } from "./recovery";
 import { nutritionProvider } from "./nutrition";
 
@@ -44,6 +45,17 @@ import { nutritionProvider } from "./nutrition";
 const RECOVERY_TITLE = "Prioritize recovery";
 const REDUCE_DEFICIT_TITLE = "Reduce deficit slightly";
 const INCREASE_ACTIVITY_TITLE = "Increase activity";
+export const START_MAINTENANCE_TITLE = "Start maintenance";
+export const CONSIDER_MAINTENANCE_TITLE = "Consider switching to maintenance";
+
+// Phase policy — how many firing plateau triggers warrant the maintenance
+// suggestion (enter), and how many keep it showing (hold). The triggers
+// themselves are evaluation-only (phaseTriggers.ts reports what IS); the
+// decision that "2 of 4 = act" lives here with the rest of the ladder's policy.
+// Triggers are already multi-week smoothed, so residual chatter sits exactly at
+// the 2↔1 boundary — an advisory directive errs sticky and releases at 0.
+const CONSIDER_ENTER_COUNT = 2;
+const CONSIDER_HOLD_COUNT = 1;
 
 // Recovery is held until readiness climbs back to at least "Good" (score ≥ 2),
 // rather than dropping the instant it leaves "Needs Recovery" (score 0) for
@@ -101,6 +113,14 @@ function leanMassFalling(l: LeanMassEvaluation | null | undefined): boolean {
   return !!l && l.confidence === "high" && l.trend === "falling";
 }
 
+// The maintenance directives only make sense while actually cutting. cutMode is
+// derived from the live deficit (phaseFromDeficit) — once the user moves intake
+// to maintenance, both rungs go quiet on the next evaluation. No nutrition
+// slice → can't confirm a cut → don't fire (unknown never fires advice).
+function isCutting(n: RecContext["nutrition"]): boolean {
+  return !!n && n.diagnostics.cutMode !== "Maintenance";
+}
+
 // ── The ladder ────────────────────────────────────────────────────────────────
 
 /** `prior` = the last-surfaced recommendation (persisted), used only for
@@ -123,6 +143,32 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
     (priorTitle === RECOVERY_TITLE && r?.status != null && r.score < RECOVERY_RELEASE_SCORE);
   if (recFires && r) return recoveryRecommendation(r);
 
+  // 1a′ Start maintenance. The cut's endpoint is reached (14-day body fat at or
+  //     under target) — the plan says hold calories 4–6 weeks, then lean bulk.
+  //     Below 1a (an acute recovery debt is this week's problem; the goal
+  //     doesn't expire and re-fires next evaluation) but above 1b: both say
+  //     "stop the deficit", and at goal "Start maintenance" is the same action
+  //     with the complete frame. Exit-hysteresis: once showing, it holds until
+  //     the 14-day average drifts back above target + margin, so a boundary
+  //     wobble can't flip it to "Consider".
+  const g = ctx.goal;
+  const goalFires =
+    isCutting(ctx.nutrition) &&
+    g != null &&
+    (g.reached ||
+      (priorTitle === START_MAINTENANCE_TITLE &&
+        g.bodyFat14dAvg != null &&
+        g.targetBodyFatPct != null &&
+        g.bodyFat14dAvg <= g.targetBodyFatPct + GOAL_EXIT_MARGIN_PP));
+  if (goalFires) {
+    return {
+      source: "phase",
+      priority: 78,
+      title: START_MAINTENANCE_TITLE,
+      subtitle: `Body fat has reached your ${g.targetBodyFatPct}% goal — hold calories at maintenance for 4–6 weeks before the lean bulk`,
+    };
+  }
+
   // 1b Hold off on further cuts. Lean mass is genuinely sliding — the scariest
   //    call, so it only fires on a confident, sustained downslope.
   if (leanMassFalling(ctx.leanMass)) {
@@ -136,6 +182,30 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
   }
 
   // ─ Tier 2 — Correct ─────────────────────────────────────────────────────────
+  // 2-pre Consider switching to maintenance. Enough independent plateau signals
+  //    (weight stall / strength decline / recovery / adherence) are on at once
+  //    that a planned 4–6 week maintenance block beats grinding the cut. Top of
+  //    Tier 2 deliberately: it must outrank 2b — when a 3-week stall and
+  //    worsening recovery fire together, "add activity" is the wrong
+  //    prescription for a fatigued dieter — but it stays below Tier 1 because
+  //    it's advisory, not protective. At goal, 1a′ pre-empts this rung, so the
+  //    user is never told to "consider" what they should simply start.
+  const p = ctx.phase;
+  const considerFires =
+    isCutting(ctx.nutrition) &&
+    p != null &&
+    (p.firingCount >= CONSIDER_ENTER_COUNT ||
+      (priorTitle === CONSIDER_MAINTENANCE_TITLE && p.firingCount >= CONSIDER_HOLD_COUNT));
+  if (considerFires) {
+    const n = p.firingCount;
+    return {
+      source: "phase",
+      priority: 72,
+      title: CONSIDER_MAINTENANCE_TITLE,
+      subtitle: `${n} of ${p.triggers.length} plateau signal${n === 1 ? " is" : "s are"} on — a 4–6 week maintenance block would consolidate before pushing further`,
+    };
+  }
+
   // 2a Reduce deficit. Losing too fast AND it's starting to cost training — the
   //    cross-domain read the ladder exists for. (Nutrition alone would flag the
   //    rate; naming the training slip is the point.)

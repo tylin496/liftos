@@ -9,7 +9,8 @@ import type {
 } from "@features/nutrition/evaluation";
 import type { RecoveryEvaluation, RecoveryStatus } from "@features/health/math";
 import type { TrainingEvaluation } from "@features/overview/strength";
-import type { LeanMassEvaluation } from "@features/overview/goal";
+import type { LeanMassEvaluation, GoalStatusEvaluation } from "@features/overview/goal";
+import type { PhaseTriggerResult, PhaseTrigger } from "@features/overview/phaseTriggers";
 
 function nutrition(
   over: {
@@ -19,6 +20,7 @@ function nutrition(
     max?: number;
     confidence?: Confidence;
     daysOnTarget?: number;
+    cutMode?: string;
   } = {},
 ): NonNullable<RecContext["nutrition"]> {
   const evaluation: NutritionEvaluation = {
@@ -34,7 +36,7 @@ function nutrition(
     estimatedIntake: 2400,
     intakeDifference: 0,
     calorieTarget: 2145,
-    cutMode: "Moderate Cut",
+    cutMode: over.cutMode ?? "Moderate Cut",
     windowDays: 21,
     weightDataPoints: 21,
     longestGap: 1,
@@ -70,6 +72,19 @@ const leanMass = (
   trend: LeanMassEvaluation["trend"],
   confidence: LeanMassEvaluation["confidence"] = "high",
 ): LeanMassEvaluation => ({ trend, slopePerMonth: trend === "falling" ? -0.3 : 0, confidence });
+
+const phase = (firingCount: number): PhaseTriggerResult => ({
+  triggers: (["weight_stall", "strength_decline", "recovery_worsening", "adherence_slipping"] as const).map(
+    (key, i): PhaseTrigger => ({ key, label: key, state: i < firingCount ? "firing" : "ok", detail: "" }),
+  ),
+  firingCount,
+});
+
+const goal = (
+  reached: boolean,
+  bodyFat14dAvg: number | null = 17.8,
+  targetBodyFatPct: number | null = 18,
+): GoalStatusEvaluation => ({ reached, bodyFat14dAvg, targetBodyFatPct });
 
 describe("Decision Engine — precedence ladder", () => {
   it("abstains on an empty context", () => {
@@ -167,6 +182,97 @@ describe("Decision Engine — precedence ladder", () => {
   it("PR needs training evidence — absence keeps it at maintain", () => {
     const rec = decide({ nutrition: nutrition({ status: "on_target" }), recovery: recovery("Ready") });
     expect(rec?.title).toBe("No action needed");
+  });
+});
+
+describe("Decision Engine — phase directives (maintenance)", () => {
+  it("1a′: goal body fat reached → Start maintenance", () => {
+    const rec = decide({ nutrition: nutrition(), recovery: recovery("Good"), goal: goal(true) });
+    expect(rec?.title).toBe("Start maintenance");
+    expect(rec?.source).toBe("phase");
+    expect(rec?.subtitle).toContain("18%");
+  });
+
+  it("1a beats 1a′: an acute recovery debt outranks the goal (it re-fires later)", () => {
+    const rec = decide({ nutrition: nutrition(), recovery: recovery("Needs Recovery"), goal: goal(true) });
+    expect(rec?.title).toBe("Prioritize recovery");
+  });
+
+  it("1a′ beats 1b: at goal, 'Start maintenance' is the complete frame for stopping the deficit", () => {
+    const rec = decide({ nutrition: nutrition(), goal: goal(true), leanMass: leanMass("falling") });
+    expect(rec?.title).toBe("Start maintenance");
+  });
+
+  it("at goal the user is never told to merely 'Consider' — Start pre-empts it", () => {
+    const rec = decide({ nutrition: nutrition(), goal: goal(true), phase: phase(4) });
+    expect(rec?.title).toBe("Start maintenance");
+  });
+
+  it("2-pre: two plateau signals firing → Consider switching to maintenance", () => {
+    const rec = decide({ nutrition: nutrition(), recovery: recovery("Good"), phase: phase(2) });
+    expect(rec?.title).toBe("Consider switching to maintenance");
+    expect(rec?.source).toBe("phase");
+    expect(rec?.subtitle).toContain("2 of 4 plateau signals are");
+  });
+
+  it("2-pre beats 2b: a stalled-but-adherent dieter with stacked signals is told maintenance, not more activity", () => {
+    const rec = decide({
+      nutrition: nutrition({ status: "below_target", observedRate: -0.05, confidence: "high", daysOnTarget: 20 }),
+      phase: phase(2),
+    });
+    expect(rec?.title).toBe("Consider switching to maintenance");
+    expect(rec?.title).not.toBe("Increase activity");
+  });
+
+  it("one signal alone does not surface the consideration", () => {
+    const rec = decide({ nutrition: nutrition(), phase: phase(1) });
+    expect(rec?.title).not.toBe("Consider switching to maintenance");
+  });
+
+  it("neither phase directive fires once the user is already at maintenance", () => {
+    const maintenance = nutrition({ cutMode: "Maintenance" });
+    expect(decide({ nutrition: maintenance, goal: goal(true) })?.title).not.toBe("Start maintenance");
+    expect(decide({ nutrition: maintenance, phase: phase(4) })?.title).not.toBe(
+      "Consider switching to maintenance",
+    );
+  });
+
+  it("no nutrition slice → can't confirm a cut → phase directives stay quiet", () => {
+    expect(decide({ goal: goal(true), phase: phase(4) })).toBeNull();
+  });
+
+  it("no phase/goal slices → the ladder behaves exactly as before (regression)", () => {
+    const rec = decide({ nutrition: nutrition({ status: "on_target" }), recovery: recovery("Ready") });
+    expect(rec?.title).toBe("No action needed");
+  });
+});
+
+describe("Decision Engine — phase directive hysteresis", () => {
+  it("holds 'Start maintenance' while body fat hovers within the exit margin", () => {
+    const ctx: RecContext = {
+      nutrition: nutrition(),
+      goal: goal(false, 18.2, 18), // drifted 0.2pp back above target
+    };
+    expect(decide(ctx)?.title).not.toBe("Start maintenance");
+    expect(decide(ctx, priorRec("Start maintenance"))?.title).toBe("Start maintenance");
+  });
+
+  it("releases 'Start maintenance' once body fat drifts past the margin", () => {
+    const rec = decide(
+      { nutrition: nutrition(), goal: goal(false, 18.5, 18) },
+      priorRec("Start maintenance"),
+    );
+    expect(rec?.title).not.toBe("Start maintenance");
+  });
+
+  it("holds 'Consider' at one remaining signal, drops it at zero", () => {
+    const prior = priorRec("Consider switching to maintenance");
+    expect(decide({ nutrition: nutrition(), phase: phase(1) }, prior)?.title).toBe(
+      "Consider switching to maintenance",
+    );
+    expect(decide({ nutrition: nutrition(), phase: phase(0) }, prior)?.title).not.toBe(
+      "Consider switching to maintenance",
+    );
   });
 });
 

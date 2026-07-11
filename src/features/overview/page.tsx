@@ -437,6 +437,8 @@ const REC_TAB: Record<Recommendation["source"], TabId> = {
   training: "training",
   weight: "health",
   recovery: "health",
+  // Maintenance directives resolve by moving the calorie plan → Nutrition.
+  phase: "nutrition",
 };
 
 function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) => void }) {
