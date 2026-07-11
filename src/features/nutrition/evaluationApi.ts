@@ -15,7 +15,8 @@ import { series, buildRecoveryEvaluation } from "@features/health/math";
 import type { BodyMetric } from "@features/health/api";
 import { computeTdeeWindows } from "@features/health/tdee";
 import { computeStrengthSummary, buildTrainingEvaluation } from "@features/overview/strength";
-import { buildLeanMassEvaluation } from "@features/overview/goal";
+import { buildLeanMassEvaluation, buildGoalStatus } from "@features/overview/goal";
+import { evaluatePhaseTriggers } from "@features/overview/phaseTriggers";
 import { targetsFromConfig, type NutritionConfig } from "./api";
 import { DEFAULTS, phaseFromDeficit } from "./logic";
 import {
@@ -175,7 +176,7 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
     supabase.from("nutrition_config").select("*").maybeSingle(),
     supabase
       .from("nutrition_entries")
-      .select("entry_date, calorie_target, calories")
+      .select("entry_date, calorie_target, calories, tdee, deficit_target")
       .gte("entry_date", localDateStrDaysAgo(60))
       .order("entry_date", { ascending: true }),
     // Training + archived exercises for the Decision Engine's training slice.
@@ -236,13 +237,16 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
 
   // Training slice — best-effort. A training read failure must not block the
   // nutrition recompute, so on error we omit the slice (the engine treats absent
-  // training as "no info", never a bad-news signal).
+  // training as "no info", never a bad-news signal). The summary + compound set
+  // are kept in scope: the phase triggers read the same per-lift trajectories.
   let training = null;
+  let strengthSummary = null;
+  let compoundSlugs = new Set<string>();
   if (!logsRes.error && !archivedRes.error) {
     const archivedSlugs = new Set(
       (archivedRes.data ?? []).filter((e) => e.archived).map((e) => e.slug),
     );
-    const compoundSlugs = new Set(
+    compoundSlugs = new Set(
       (archivedRes.data ?? []).filter((e) => e.compound).map((e) => e.slug),
     );
     const bySlug: Record<string, { log_date: string | null; raw: string | null }[]> = {};
@@ -250,11 +254,23 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
       if (!l.exercise_slug || archivedSlugs.has(l.exercise_slug)) continue;
       (bySlug[l.exercise_slug] ??= []).push(l);
     }
-    training = buildTrainingEvaluation(computeStrengthSummary(bySlug, compoundSlugs));
+    strengthSummary = computeStrengthSummary(bySlug, compoundSlugs);
+    training = buildTrainingEvaluation(strengthSummary);
   }
 
+  // Phase slice (plateau triggers — evaluation only, the engine owns the policy)
+  // and goal slice (is the cut's body-fat endpoint reached?).
+  const phase = evaluatePhaseTriggers({
+    metrics,
+    strength: strengthSummary,
+    compoundSlugs,
+    entries,
+    today: localDateStrDaysAgo(0),
+  });
+  const goal = buildGoalStatus(metrics, config?.target_body_fat_pct ?? null);
+
   const recommendation = topRecommendation(
-    { nutrition: { evaluation, diagnostics }, recovery, training, leanMass },
+    { nutrition: { evaluation, diagnostics }, recovery, training, leanMass, phase, goal },
     priorState?.recommendation ?? null,
   );
   const state: NutritionStateFull = { evaluation, diagnostics, recommendation };

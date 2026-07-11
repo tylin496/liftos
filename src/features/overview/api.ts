@@ -2,7 +2,9 @@ import { supabase } from "@shared/lib/supabase";
 import { fetchHealthData, type BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
-import { computeGoal, cutBaselineAt, type Goal } from "./goal";
+import { computeGoal, cutBaselineAt, buildGoalStatus, type Goal, type GoalStatusEvaluation } from "./goal";
+import { evaluatePhaseTriggers, ADHERENCE_WINDOW_DAYS, type PhaseTriggerResult } from "./phaseTriggers";
+import { localDateStrDaysAgo } from "@shared/lib/date";
 import { saveConfig } from "@features/nutrition/api";
 import {
   computeStrengthSummary,
@@ -55,10 +57,17 @@ export interface OverviewData {
   /** Derived active-calorie target + this-week pace, null until both a goal and a
    *  resting-energy baseline exist. See health/activeTarget.ts. */
   activeTarget: ActiveTargetView | null;
+  /** Plateau-trigger lights for the Journey card's Plan section — the SAME pure
+   *  evaluation the Decision Engine reads (phaseTriggers.ts computes, both
+   *  consume; neither re-derives the other's view). */
+  phase: PhaseTriggerResult;
+  /** "Is the cut's body-fat endpoint reached?" — same formula as the engine's
+   *  goal slice and computeGoal's bodyFat14dAvg, so the three never disagree. */
+  goalStatus: GoalStatusEvaluation;
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
-  const [health, logsRes, exercisesRes, nutritionState, configRes] = await Promise.all([
+  const [health, logsRes, exercisesRes, nutritionState, configRes, entriesRes] = await Promise.all([
     // 180 days of body metrics. Recovery's 7/30-day windows anchor to the latest
     // reading, so the wider window doesn't shift its baseline.
     fetchHealthData(180),
@@ -79,6 +88,14 @@ export async function fetchOverview(): Promise<OverviewData> {
       .from("nutrition_config")
       .select("target_body_fat_pct, cut_start_date, cut_start_body_fat_pct, cut_start_weight")
       .maybeSingle(),
+    // Recent per-day nutrition entries for the adherence trigger light.
+    // Best-effort (not in the throw guard below): a failed read means the
+    // adherence trigger shows "unknown", never a broken Overview.
+    supabase
+      .from("nutrition_entries")
+      .select("entry_date, calories, tdee, deficit_target")
+      .gte("entry_date", localDateStrDaysAgo(ADHERENCE_WINDOW_DAYS))
+      .order("entry_date", { ascending: true }),
   ]);
 
   // Supabase resolves failed queries as { data: null, error } instead of
@@ -133,6 +150,19 @@ export async function fetchOverview(): Promise<OverviewData> {
     configRes.data?.cut_start_weight ?? null,
   );
 
+  // Plateau-trigger lights + goal status — the same pure evaluations the
+  // Decision Engine consumed at recompute time, replayed here on Overview's own
+  // (fresher, wider) data. One implementation, two evaluation moments — exactly
+  // like the persisted recommendation vs the live cards.
+  const phase = evaluatePhaseTriggers({
+    metrics: metrics as BodyMetric[],
+    strength,
+    compoundSlugs,
+    entries: entriesRes.error ? [] : (entriesRes.data ?? []),
+    today: localDateStrDaysAgo(0),
+  });
+  const goalStatus = buildGoalStatus(metrics as BodyMetric[], configRes.data?.target_body_fat_pct ?? null);
+
   return {
     weightLatest,
     activeEnergy,
@@ -147,6 +177,8 @@ export async function fetchOverview(): Promise<OverviewData> {
     targetTdee: health.targetTdee,
     currentTdee: health.tdee.tdee,
     activeTarget: health.activeTarget,
+    phase,
+    goalStatus,
   };
 }
 
