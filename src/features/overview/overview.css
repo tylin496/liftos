@@ -937,7 +937,9 @@
   width: 100%;
   border: none;
   background: transparent;
-  padding: 0;
+  /* Breathing room above/below so it reads as a section heading, not a form
+     row jammed against the divider (Apple-Health section-header feel). */
+  padding: 6px 0;
   margin: 0;
   cursor: pointer;
   font: inherit;
@@ -945,11 +947,26 @@
   text-align: left;
 }
 
-/* Quiet caption — deliberately NOT the goal-label eyebrow: the roadmap is the
-   Journey's appendix, so its title must not compete with the card's own. */
+/* Title + subtitle stack — the subtitle names the plan's stages even while
+   collapsed, so the row announces itself instead of reading as an anonymous
+   accordion. */
+.goal-plan-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Section heading: a touch larger than the card eyebrow and grey — present
+   enough to invite a tap, quiet enough to stay the Journey's appendix. */
 .goal-plan-title {
-  font-size: var(--text-2xs);
+  font-size: var(--text-sm);
   font-weight: 600;
+  color: var(--ink-3);
+}
+
+.goal-plan-subtitle {
+  font-size: var(--text-2xs);
   color: var(--ink-4);
 }
 
@@ -1035,8 +1052,8 @@
    a compact cluster: dot + name ONLY, no readings — anything more reads as
    another dashboard when the whole point is just "are the lights green".
    Calm by design: firing = amber (a signal, not a failure); ok = green;
-   unknown = hollow ring (can't assess ≠ a problem); manual = inert ink. The
-   evidence string lives in the title tooltip. */
+   unknown = hollow ring (can't assess ≠ a problem). The evidence string
+   lives in the title tooltip. */
 .goal-plan-triggers {
   list-style: none;
   display: flex;
@@ -1066,10 +1083,6 @@
 .goal-plan-chip[data-state="unknown"] .goal-plan-dot {
   background: transparent;
   box-shadow: inset 0 0 0 1.5px var(--rule-strong);
-}
-.goal-plan-chip[data-state="manual"] .goal-plan-dot {
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px var(--ink-4);
 }
 
 /* ─── Cut baseline initializer (one-time) ────────────────────────────────── */

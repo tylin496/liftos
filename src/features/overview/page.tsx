@@ -622,6 +622,13 @@ function PhasePlanSection({
         ? { text: `${n} of ${phase.triggers.length} signals are on — consider switching to maintenance.`, tone: " is-consider" }
         : { text: "Switch early if these stack up:", tone: "" };
 
+  // The Cut stage names its ENDPOINT, not just "Cut" — the app's whole premise
+  // is cutting TO a target, not indefinitely, so the goal % belongs on the
+  // stage. Falls back to a bare "Cut" only when no target is configured.
+  const cutLabel = goalStatus.targetBodyFatPct != null
+    ? `Cut → ${goalStatus.targetBodyFatPct}% BF`
+    : "Cut";
+
   return (
     <div className="goal-plan">
       <button
@@ -630,9 +637,13 @@ function PhasePlanSection({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
-        {/* Quiet caption, not the card-eyebrow style — this is the Journey's
-            appendix, never a sibling section competing with it. */}
-        <span className="goal-plan-title">Roadmap</span>
+        {/* Section heading + always-visible subtitle: even collapsed, the row
+            says what's inside (Cut → Maintenance → Lean Bulk) so it reads as
+            the plan, not an anonymous accordion. */}
+        <span className="goal-plan-heading">
+          <span className="goal-plan-title">Roadmap</span>
+          <span className="goal-plan-subtitle">Cut → Maintenance → Lean Bulk</span>
+        </span>
         {!atMaintenance && n > 0 && (
           <span className="goal-plan-flag">{n} signal{n === 1 ? "" : "s"} on</span>
         )}
@@ -644,7 +655,7 @@ function PhasePlanSection({
               breadcrumb: filled dot = you are here, hollow = ahead. */}
           <ol className="goal-plan-stages">
             <li className={`goal-plan-step${atMaintenance ? " is-done" : " is-current"}`}>
-              <span className="goal-plan-step-dot" aria-hidden />Cut
+              <span className="goal-plan-step-dot" aria-hidden />{cutLabel}
             </li>
             <li className={`goal-plan-step${atMaintenance ? " is-current" : ""}`}>
               <span className="goal-plan-step-dot" aria-hidden />Maintenance{" "}
@@ -656,7 +667,9 @@ function PhasePlanSection({
           </ol>
           <p className={`goal-plan-note${note.tone}`}>{note.text}</p>
           {/* Status lights only — dot + name, no readings. The evidence lives
-              in the title tooltip; anything more turns this into a dashboard. */}
+              in the title tooltip; anything more turns this into a dashboard.
+              Only auto-tracked signals appear; mental fatigue (untracked in the
+              app) is intentionally omitted rather than shown as a dead light. */}
           <ul className="goal-plan-triggers">
             {phase.triggers.map((t) => (
               <li key={t.key} className="goal-plan-chip" data-state={t.state} title={t.detail}>
@@ -664,12 +677,6 @@ function PhasePlanSection({
                 {t.label}
               </li>
             ))}
-            {/* The 5th trigger from the plan — mental state — isn't tracked by
-                the app, so it stays a manual self-check, never a light. */}
-            <li className="goal-plan-chip" data-state="manual" title="Not tracked — your own call">
-              <span className="goal-plan-dot" aria-hidden />
-              Mental fatigue
-            </li>
           </ul>
         </div>
       </div>
@@ -762,11 +769,14 @@ function CutProgressCard({
           <span className="goal-sub goal-lost">Down <b>0.0</b> kg</span>
         </div>
         </button>
-        {/* Collapsed Plan head placeholder — same height as the loaded head so
-            the card doesn't jump when data lands (layout stability). */}
+        {/* Collapsed Plan head placeholder — same structure/height as the loaded
+            head so the card doesn't jump when data lands (layout stability). */}
         <div className="goal-plan">
           <div className="goal-plan-head">
-            <span className="goal-plan-title">Roadmap</span>
+            <span className="goal-plan-heading">
+              <span className="goal-plan-title">Roadmap</span>
+              <span className="goal-plan-subtitle">Cut → Maintenance → Lean Bulk</span>
+            </span>
             <span className="goal-plan-chevron" aria-hidden>⌄</span>
           </div>
         </div>
