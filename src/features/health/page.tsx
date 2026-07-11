@@ -1100,7 +1100,17 @@ export function HealthPage() {
               c && c.full.length >= 2
                 // Weight and Body Fat are both down-good (matches the hardcoded
                 // down-good MetricDelta on the card above).
-                ? () => openTrend({ label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color, points: c.full, higherIsBetter: false, bucketDays: spec.bucket })
+                // Weight's sheet carries the target-pace corridor (the nutrition
+                // evaluation's band) — the full-history counterpart to Overview's
+                // recent-window corridor. The small sparkline stays bare on
+                // purpose: the recent pace verdict already lives on Overview.
+                ? () => openTrend({
+                    label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color,
+                    points: c.full, higherIsBetter: false, bucketDays: spec.bucket,
+                    corridor: spec.key === "weight_kg" && data?.weightTargetRange
+                      ? { minPerWeek: data.weightTargetRange.min, maxPerWeek: data.weightTargetRange.max }
+                      : null,
+                  })
                 : undefined
             }
           />

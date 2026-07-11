@@ -5,6 +5,7 @@ import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
 import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { timelineDate } from "@shared/lib/date";
+import { median } from "./math";
 
 export interface HealthTrendPoint {
   date: string; // YYYY-MM-DD — representative (middle) day of the bucket
@@ -42,6 +43,14 @@ export interface HealthTrendConfig {
       TDEE have no such win (an estimate's extreme isn't earned) → false.
       Default true. */
   celebrateExtreme?: boolean;
+  /** Target-pace corridor (decline band in this metric's unit per week,
+      positive = falling) drawn behind the line — Weight passes the nutrition
+      evaluation's target band. This is the full-history counterpart to
+      Overview's corridor: Overview grades the RECENT window's pace, while the
+      sheet shows whether the whole drawn stretch tracked target. Neutral ink
+      like Overview's (a target band is a "where's the goal" reference, not a
+      verdict — see overview/page.tsx corridorColor). */
+  corridor?: { minPerWeek: number; maxPerWeek: number } | null;
 }
 
 const fmt = (v: number, d: number) =>
@@ -50,7 +59,7 @@ const fmt = (v: number, d: number) =>
 /* Daily-reading progression line. Same shape as Training's exercise trend
    chart (measured getTotalLength() draw-in, press-drag scrub anywhere) —
    this is the "big graph" a Sparkline tap opens. */
-function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateExtreme, bucketDays }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean; celebrateExtreme: boolean; bucketDays: number }) {
+function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateExtreme, bucketDays, corridor }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean; celebrateExtreme: boolean; bucketDays: number; corridor?: { minPerWeek: number; maxPerWeek: number } | null }) {
   const W = 320;
   const H = 130;
   const padX = 10;
@@ -64,12 +73,42 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateEx
   const innerH = H - padY * 2;
   const baseline = H - padY;
 
+  const valueToY = (v: number) => padY + (1 - (v - min) / span) * innerH;
   const coords = points.map((p, i) => ({
     x: padX + (points.length === 1 ? 0.5 : i / (points.length - 1)) * innerW,
-    y: padY + (1 - (p.value - min) / span) * innerH,
+    y: valueToY(p.value),
   }));
   const line = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const area = `${coords[0].x.toFixed(1)},${baseline} ${line} ${coords[coords.length - 1].x.toFixed(1)},${baseline}`;
+
+  // Target-pace corridor: rays fan from the Theil-Sen fit's start level down at
+  // the band's min/max weekly rates over the drawn window — same robust-anchor
+  // reasoning as the card sparklines (anchoring on the first bead would let one
+  // odd bucket tilt the whole wedge). Time comes from the beads' real dates:
+  // buckets can be sparse, so index spacing isn't a time axis. The wedge is
+  // CLIPPED, not folded into the y-scale: over a ~12-week window the target
+  // drop can dwarf a plateaued line, and letting it stretch the axis would
+  // squash the beads — the wedge exiting the frame IS the honest "target is
+  // much steeper than this stretch" read.
+  const t0 = new Date(points[0].date + "T12:00:00").getTime();
+  const dayXs = points.map((p) => (new Date(p.date + "T12:00:00").getTime() - t0) / 86400000);
+  const windowDays = dayXs[dayXs.length - 1];
+  let corridorGeom: { x0: number; xEnd: number; y0: number; yShallow: number; ySteep: number } | null = null;
+  if (corridor && windowDays > 0 && points.length >= 2) {
+    const pairSlopes: number[] = [];
+    for (let i = 0; i < points.length; i++)
+      for (let j = i + 1; j < points.length; j++)
+        if (dayXs[j] !== dayXs[i]) pairSlopes.push((vals[j] - vals[i]) / (dayXs[j] - dayXs[i]));
+    const fitSlope = median(pairSlopes);
+    const anchor = median(vals.map((v, i) => v - fitSlope * dayXs[i]));
+    corridorGeom = {
+      x0: coords[0].x,
+      xEnd: coords[coords.length - 1].x,
+      y0: valueToY(anchor),
+      yShallow: valueToY(anchor - corridor.minPerWeek * (windowDays / 7)),
+      ySteep: valueToY(anchor - corridor.maxPerWeek * (windowDays / 7)),
+    };
+  }
   // The "best" marker sits on the metric's OWN best extreme — the max for an
   // up-good metric (Lean Mass / Active), the min for a down-good one (Weight /
   // Body Fat), where the low-water mark is the win. Gold (a celebration tone)
@@ -131,7 +170,34 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateEx
             <stop offset="0%" stopColor={color} stopOpacity="0.18" />
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
+          {/* Fixed id is safe — the sheet is a singleton, one chart mounted at
+              a time (same stance as the gradient id above). */}
+          <clipPath id="health-trend-sheet-clip">
+            <rect x="0" y="0" width={W} height={H} />
+          </clipPath>
         </defs>
+        {corridorGeom && (
+          <g clipPath="url(#health-trend-sheet-clip)">
+            <polygon
+              points={`${corridorGeom.x0.toFixed(1)},${corridorGeom.y0.toFixed(1)} ${corridorGeom.xEnd.toFixed(1)},${corridorGeom.yShallow.toFixed(1)} ${corridorGeom.xEnd.toFixed(1)},${corridorGeom.ySteep.toFixed(1)}`}
+              fill="var(--ink-4)"
+              opacity="0.07"
+              stroke="none"
+            />
+            <line
+              x1={corridorGeom.x0.toFixed(1)} y1={corridorGeom.y0.toFixed(1)}
+              x2={corridorGeom.xEnd.toFixed(1)} y2={corridorGeom.yShallow.toFixed(1)}
+              stroke="var(--ink-4)" strokeWidth="1" opacity="0.4"
+              strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
+            />
+            <line
+              x1={corridorGeom.x0.toFixed(1)} y1={corridorGeom.y0.toFixed(1)}
+              x2={corridorGeom.xEnd.toFixed(1)} y2={corridorGeom.ySteep.toFixed(1)}
+              stroke="var(--ink-4)" strokeWidth="1" opacity="0.4"
+              strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
+            />
+          </g>
+        )}
         <polygon className="health-trend-sheet-area" points={area} fill="url(#health-trend-sheet-fill)" />
         <polyline
           ref={lineRef}
@@ -219,7 +285,7 @@ function SheetInner({
   onClose: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true, celebrateExtreme = true, bucketDays } = config;
+  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true, celebrateExtreme = true, bucketDays, corridor } = config;
 
   const first = points[0];
   const latest = points[points.length - 1];
@@ -296,9 +362,19 @@ function SheetInner({
                     return bucketDays > 1 ? `${window} · ${bucketDays}-day averages` : window;
                   })()}
                 </span>
+                {corridor && (
+                  // Keys the chart's dashed corridor — same swatch-is-the-glyph
+                  // legend as Overview's weight card (ov-weight-legend).
+                  <span className="health-trend-sheet-legend">
+                    <i className="health-trend-sheet-legend-swatch" aria-hidden />
+                    <span className="health-trend-sheet-legend-text">
+                      Target <b>{corridor.minPerWeek.toFixed(2)}–{corridor.maxPerWeek.toFixed(2)}</b> {unit}/wk
+                    </span>
+                  </span>
+                )}
               </div>
 
-              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} celebrateExtreme={celebrateExtreme} bucketDays={bucketDays} />
+              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} celebrateExtreme={celebrateExtreme} bucketDays={bucketDays} corridor={corridor} />
 
               <div className="health-trend-sheet-stats">
                 <div className="health-trend-sheet-stat">
