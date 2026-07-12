@@ -84,11 +84,11 @@ export function useSheetSwipe(
     const dt = e.timeStamp - prevT.current;
     const vy = dt > 0 ? (endY - prevY.current) / dt : 0;
     const el = ref.current;
-    el.style.transition = "transform 200ms ease";
+    el.style.transition = "transform var(--dur-slide) var(--ease-snap)";
     // Dismiss on enough travel OR a quick downward flick.
     if (dy > 90 || (vy >= 0.5 && dy >= 12)) {
       el.style.transform = "translateY(100%)";
-      setTimeout(() => onDismissRef.current(), 200);
+      setTimeout(() => onDismissRef.current(), 320); // --dur-slide (matches the transition above)
     } else {
       el.style.transform = "";
       settle(el);
@@ -102,7 +102,7 @@ export function useSheetSwipe(
     if (!dragging.current || !ref.current) return;
     dragging.current = false;
     const el = ref.current;
-    el.style.transition = "transform 200ms ease";
+    el.style.transition = "transform var(--dur-slide) var(--ease-snap)";
     el.style.transform = "";
     settle(el);
   }

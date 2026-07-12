@@ -2242,12 +2242,16 @@
    A tab switch never remounts the sheet, so this plays only per-open. Length
    is measured in JS (getTotalLength) and applied inline — see TrendSheet.tsx. */
 .trend-line {
-  transition: stroke-dashoffset 620ms var(--ease-enter);
+  /* Line drawing on → the --dur-draw / --ease-move role pairing, so it draws at
+     the same rate as every other stroke-in in the app (was an off-system 620ms). */
+  transition: stroke-dashoffset var(--dur-draw) var(--ease-move);
 }
 
 .trend-area {
   opacity: 0;
-  animation: fade-in 500ms var(--ease-enter) 200ms forwards;
+  /* Fill fades up behind the line; trails the draw by a beat (choreography
+     offset, kept raw) but on the standard entrance duration/curve. */
+  animation: fade-in var(--dur-enter) var(--ease-enter) 200ms forwards;
 }
 
 /* HTML dots, not in-SVG <circle>s: a non-uniform preserveAspectRatio="none"
