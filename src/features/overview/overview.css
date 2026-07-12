@@ -114,9 +114,11 @@
 
 .ov-active-target-ring-num {
   font-family: var(--font-mono);
-  /* One step below --metric-md (20) — the ring shrank to 64/7, so its centre
-     number no longer needs to carry the card's largest scale. */
+  /* Ring is 72/7 (~58px centre) — enough room for --text-lg even in the
+     4-glyph over-state ("126%") above the "of goal" line; a tight track keeps
+     both lines clear of the stroke. */
   font-size: var(--text-lg);
+  letter-spacing: -0.02em;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
