@@ -11,9 +11,9 @@ import { inferMuscleGroup } from "./muscleGroup";
 import { suggestDeload } from "./deload";
 
 export type LiftStatus = "declining" | "stalled" | "pr" | "rebounding" | "steady";
-export type Tone = "bad" | "warn" | "good" | "gold" | "steady";
+type Tone = "bad" | "warn" | "good" | "gold" | "steady";
 /** Non-hero cell height tier, set by the muscle's real-world size. */
-export type SizeTier = "lg" | "md" | "sm";
+type SizeTier = "lg" | "md" | "sm";
 
 type TrackedGroup = Exclude<MuscleGroup, "unknown">;
 
@@ -22,10 +22,10 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 /** Glyph per status — this is CONTENT (screen-readable), not decoration; the
  *  colour is applied by CSS keyed on the status class, never inline. */
 export const STATUS_ICON: Record<LiftStatus, string> = {
-  declining: "↓",
+  declining: "▼",
   stalled: "●",
   pr: "🏆",
-  rebounding: "↑",
+  rebounding: "▲",
   steady: "–",
 };
 
@@ -63,7 +63,7 @@ const MUSCLE_SIZE: Record<TrackedGroup, SizeTier> = {
   abs: "sm",
 };
 
-export interface LiftMark {
+interface LiftMark {
   slug: string;
   status: LiftStatus;
   icon: string;
@@ -112,6 +112,86 @@ export function steadyNote(ex: StrengthExercise): string {
   if (r >= AT_BEST_RETENTION) return "at your best";
   if (r >= NEAR_BEST_RETENTION) return "near your best";
   return "holding steady";
+}
+
+// ── Cell language: the grid is a STATUS MAP, not a number grid ───────────────
+// A muscle cell answers "how is this muscle now?" — so its headline is the
+// status in words, not a % that (as a min over the group) reads as a whole-group
+// average and fights a positive note ("74%" beside "Leg Curl climbing back").
+// The retention numbers live where they can't mislead: the top KPI (avg) and the
+// drill-down (per lift). Only the hero keeps a headline % — it's the single worst
+// group, and its % is the actual worst lift, not an average.
+
+/** Right-badge word — the muscle's status as a scannable verdict. Steady is
+ *  retention-dependent (a hold near the PR reads "Retained"; a lower hold
+ *  "Holding"). */
+const STATUS_WORD: Record<Exclude<LiftStatus, "steady">, string> = {
+  declining: "Declining",
+  stalled: "Stalled",
+  rebounding: "Recovering",
+  pr: "New PR",
+};
+
+export function statusWord(status: LiftStatus, pct: number): string {
+  if (status !== "steady") return STATUS_WORD[status];
+  return pct >= NEAR_BEST_RETENTION * 100 ? "Retained" : "Holding";
+}
+
+/** Composition label per status for a multi-lift body line. Steady reads
+ *  "retained" (holding at/near its own best) — the vocabulary that pairs with
+ *  the "Retained" badge; rebounding reads "recovering" to match "Recovering". */
+export const MARK_WORD: Record<LiftStatus, string> = {
+  declining: "declining",
+  stalled: "stalled",
+  rebounding: "recovering",
+  pr: "PR",
+  steady: "retained",
+};
+
+/** Multi-lift cell body — the group's composition, worst-first, so a mixed group
+ *  can't hide behind one number ("1 recovering · 1 retained" instead of a bare
+ *  74% that averages a weak lift with a strong one). Marks arrive severity-
+ *  sorted, so first-seen order is already worst-first. */
+export function composition(marks: { status: LiftStatus }[]): string {
+  const order: LiftStatus[] = [];
+  const counts = new Map<LiftStatus, number>();
+  for (const m of marks) {
+    if (!counts.has(m.status)) order.push(m.status);
+    counts.set(m.status, (counts.get(m.status) ?? 0) + 1);
+  }
+  return order
+    .map((s) => {
+      const n = counts.get(s)!;
+      const w = s === "pr" ? (n === 1 ? "PR" : "PRs") : MARK_WORD[s];
+      return `${n} ${w}`;
+    })
+    .join(" · ");
+}
+
+/** Single-lift cell body — the one lift's own note, richer than a bare "At your
+ *  best": names the lift and what it's doing, so the cell reads as a sentence
+ *  ("Bench maintained PR", "Squat stalled 40 wks"). */
+export function singleLiftNote(ex: StrengthExercise, status: LiftStatus): string {
+  switch (status) {
+    case "declining":
+      return `${ex.name} declining`;
+    case "stalled": {
+      const wk = `${ex.stalledWeeks} ${ex.stalledWeeks === 1 ? "wk" : "wks"}`;
+      return `${ex.name} stalled ${wk}`;
+    }
+    case "rebounding":
+      return `${ex.name} climbing back`;
+    case "pr":
+      return `${ex.name} — new PR`;
+    default:
+      return retention(ex) >= NEAR_BEST_RETENTION ? `${ex.name} maintained PR` : `${ex.name} holding steady`;
+  }
+}
+
+/** The body line for an ordinary (non-hero) cell: composition when the group has
+ *  more than one lift, else the single lift's note. */
+export function cellBody(cell: MuscleGridCell): string {
+  return cell.lifts.length > 1 ? composition(cell.marks) : singleLiftNote(cell.lifts[0], cell.status);
 }
 
 function weeksAgo(isoDate: string, nowMs: number): number {

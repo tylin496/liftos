@@ -6,7 +6,7 @@ interface ToastAction {
   onClick: () => void;
 }
 
-export type ToastType = "success" | "info" | "error";
+type ToastType = "success" | "info" | "error";
 
 const ICON: Record<ToastType, string> = { success: "✓", info: "•", error: "!" };
 

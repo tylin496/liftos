@@ -145,7 +145,7 @@ export function cmpStrength(a: CmpFields, b: CmpFields, mode: ScoreMode): number
 }
 
 /** Does `a` set a new record over `best`? No existing best always counts as new. */
-export function beatsBest(
+function beatsBest(
   a: CmpFields,
   best: CmpFields | null,
   mode: ScoreMode,

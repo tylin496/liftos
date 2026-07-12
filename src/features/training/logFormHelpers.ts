@@ -5,8 +5,8 @@ import { localDateStr } from "@shared/lib/date";
 import { getActiveScroller } from "@app/layout/activeScroller";
 
 export const MIN_SET_COUNT = 1;
-export const MAX_SET_COUNT = 5;
-export const DEFAULT_SET_COUNT = 3;
+const MAX_SET_COUNT = 5;
+const DEFAULT_SET_COUNT = 3;
 export const LAST_BW_KEY = "liftos/lastBodyweight";
 
 export function todayStr() {

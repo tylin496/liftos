@@ -1,33 +1,6 @@
 import type { BodyMetric } from "./api";
 import { isStale } from "@shared/lib/freshness";
 
-// The live shortcut only writes weight / body_fat / active_energy on a
-// today-dated row; the nightly shortcut writes the full day summary (all
-// fields) on a yesterday-dated row. These five fields are exclusive to the
-// nightly run, so a row carrying any of them is a *complete* sync.
-const FULL_SYNC_FIELDS = [
-  "resting_energy_kcal",
-  "exercise_minutes",
-  "sleep_seconds",
-  "hrv_sdnn_ms",
-  "resting_heart_rate",
-] as const;
-
-/** The most recent row that came from a full (nightly) sync. The Health tab
- *  anchors every card on the complete dataset, so its freshness note must track
- *  the last full sync — NOT a partial live write, which lands a fresher
- *  timestamp on a today-dated but mostly-empty row. Overview intentionally does
- *  the opposite (it shows the live active-energy write via `.at(-1)`). Returns
- *  null when NO full sync exists in range — never a partial live row, which would
- *  falsely read as "Synced today" off a mostly-empty write (freshness must not
- *  be faked; a genuinely never-synced dataset shows no sync note at all). */
-export function latestFullSync(metrics: BodyMetric[]): BodyMetric | null {
-  for (let i = metrics.length - 1; i >= 0; i--) {
-    if (FULL_SYNC_FIELDS.some((f) => metrics[i][f] != null)) return metrics[i];
-  }
-  return null;
-}
-
 export type MetricKey =
   | "weight_kg"
   | "body_fat_pct"
@@ -48,7 +21,7 @@ export type MetricKey =
 const MIN_PLAUSIBLE_BODY_FAT_PCT = 3;
 const MAX_PLAUSIBLE_BODY_FAT_PCT = 60;
 
-export function isImplausibleBodyFat(pct: number): boolean {
+function isImplausibleBodyFat(pct: number): boolean {
   return pct < MIN_PLAUSIBLE_BODY_FAT_PCT || pct > MAX_PLAUSIBLE_BODY_FAT_PCT;
 }
 
@@ -237,6 +210,10 @@ export interface RecoverySnapshot {
   /** 0–3: how many metrics are at or above their personal baseline */
   score: number;
   status: RecoveryStatus | null;
+  /** true when there are readings but NO 30-day baseline yet to grade against
+   *  (new user, <30 days) — status is withheld (null) and the card shows a
+   *  neutral "building baseline" note instead of a verdict. */
+  baselineBuilding: boolean;
   /** one-line, informational read on recent recovery vs. baseline */
   insight: string | null;
   /** date string of the most recent reading used */
@@ -279,7 +256,16 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   if (rhr != null && rhrBaseline != null && rhr <= rhrBaseline * 1.05) score++;
 
   const hasAny = sleepHours != null || hrv != null || rhr != null;
-  const status: RecoveryStatus | null = !hasAny ? null
+  // A reading with no 30-day baseline can't be graded (new user, <30 days of
+  // history). Scoring it as a miss would falsely read "Needs Recovery" while the
+  // gauges — which treat a missing baseline as neutral — show no problem. When we
+  // have readings but NO baseline at all to compare against, withhold the verdict
+  // entirely: status null → the card shows a neutral "building baseline" note and
+  // the engine treats recovery as unknown. Once any baseline exists the normal
+  // 0–3 verdict resumes.
+  const hasBaseline = sleepBaseline != null || hrvBaseline != null || rhrBaseline != null;
+  const baselineBuilding = hasAny && !hasBaseline;
+  const status: RecoveryStatus | null = !hasAny || baselineBuilding ? null
     : score === 3 ? "Ready"
     : score === 2 ? "Good"
     : score === 1 ? "Fair"
@@ -321,6 +307,9 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   else if (rhrHigh) insight = `Resting HR 7-day average is running above baseline — ${read}`;
   else if (above.length) insight = `${above[0].label} 7-day average is running ${above[0].dir} baseline — ${read}`;
   else insight = `Your 7-day averages are holding steady against baseline — ${read}`;
+  // No baseline yet → the "vs baseline" read above is meaningless; the card shows
+  // its own building-baseline note instead, so drop the insight entirely.
+  if (baselineBuilding) insight = null;
 
   const dates = [sleepPts.at(-1)?.date, hrvPts.at(-1)?.date, rhrPts.at(-1)?.date]
     .filter((d): d is string => d != null);
@@ -330,7 +319,7 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
     ? metrics.find((m) => m.metric_date === date)?.updated_at ?? null
     : null;
 
-  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, sleepBand, hrvBand, rhrBand, score, status, insight, date, updatedAt, stale };
+  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, sleepBand, hrvBand, rhrBand, score, status, baselineBuilding, insight, date, updatedAt, stale };
 }
 
 // A day counts as "trained" at ≥20 exercise minutes; ≥2 such days in the trailing
@@ -343,7 +332,7 @@ const TRAINED_DAYS = 2;
 /** Did the user train recently? "trained" / "rested" / null (no exercise data at
  *  all — never populated, so we can't claim either way). Anchored on the latest
  *  metric date so a stale exercise feed reads as "rested", not a phantom "trained". */
-export function recentTrainingLoad(metrics: BodyMetric[]): "trained" | "rested" | null {
+function recentTrainingLoad(metrics: BodyMetric[]): "trained" | "rested" | null {
   if (!metrics.length) return null;
   const pts = series(metrics, "exercise_minutes");
   if (!pts.length) return null;
@@ -373,7 +362,7 @@ export function buildRecoveryEvaluation(metrics: BodyMetric[]): RecoveryEvaluati
   return { status: rec.status, score: rec.score, trainingLoad: recentTrainingLoad(metrics) };
 }
 
-export type AccelDirection = "slowing" | "faster";
+type AccelDirection = "slowing" | "faster";
 
 export interface WeightAcceleration {
   /** Least-squares slope over the last 14 days (kg/week). */

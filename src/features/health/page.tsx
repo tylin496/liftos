@@ -512,10 +512,13 @@ function gaugePct(metric: GaugeMetric, v: number): number {
 /** Dot tone: green when the reading is at/past baseline in the healthy
     direction, amber when it's meaningfully below — the SAME per-metric pass
     thresholds computeRecovery scores on (±5% tolerance), so a gauge's colour and
-    the overall status can never disagree. Amber is --warn (the app's caution
-    colour); --gold stays reserved for celebration, never a "below baseline" read. */
+    the overall status can never disagree. A reading with no baseline yet isn't
+    gradeable, so its dot is a neutral ink (NOT green) — a green dot there would
+    imply "passing" against a baseline that doesn't exist, contradicting the
+    withheld status. Amber is --warn (the app's caution colour); --gold stays
+    reserved for celebration, never a "below baseline" read. */
 function gaugeTone(metric: GaugeMetric, v: number, baseline: number | null): string {
-  if (baseline == null) return "var(--good)";
+  if (baseline == null) return "var(--ink-4)";
   const pass = metric === "rhr" ? v <= baseline * 1.05 : v >= baseline * 0.95;
   return pass ? "var(--good)" : "var(--warn)";
 }
@@ -660,6 +663,27 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
         </div>
         <p className="health-recovery-footer health-recovery-footer--flush">
           Readiness needs a recent sleep &amp; HRV reading.
+        </p>
+      </section>
+    );
+  }
+
+  // Readings are in, but there's no 30-day baseline yet to grade them against
+  // (new user, <30 days). We withhold the verdict rather than score missing
+  // baselines as failures — a neutral note explains why, so recovery doesn't
+  // silently vanish or flash a false "Needs Recovery" (see computeRecovery).
+  if (snap?.baselineBuilding && snap.date) {
+    return (
+      <section className="page-card health-recovery">
+        <div className="health-recovery-head">
+          <span className="health-card-eyebrow">Recovery</span>
+          <span className="health-recovery-head-right">
+            <span className="health-recovery-status is-stale">Building baseline</span>
+            <FreshnessTag date={snap.date} kind="recovery" updatedAt={snap.updatedAt} />
+          </span>
+        </div>
+        <p className="health-recovery-footer health-recovery-footer--flush">
+          Readiness unlocks after ~30 days of sleep &amp; HRV history.
         </p>
       </section>
     );
@@ -1131,7 +1155,7 @@ export function HealthPage() {
           lbmCard && lbmCard.change != null && lbmCard.readingCount >= 2 &&
           Number(Math.abs(lbmCard.change).toFixed(1)) !== 0 ? (
             <span className="health-lbm-change">
-              {lbmCard.change > 0 ? "↑" : "↓"}
+              {lbmCard.change > 0 ? "▲" : "▼"}
               {Math.abs(lbmCard.change).toFixed(1)} kg
             </span>
           ) : null

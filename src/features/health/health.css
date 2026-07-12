@@ -301,59 +301,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── TDEE card — a key Health output, so the value stays prominent (larger
-      than the metric cards). Its dominance is dialed back through layout
-      instead: a tighter internal rhythm (eyebrow → number → components sit
-      closer together) plus its last position in the tab — not a shrunken
-      number, and not a one-off card padding that would break the shared
-      page-card spacing. ─────────────────────────────────────────────────── */
-.health-tdee-num {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  font-size: var(--metric-xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  margin-top: var(--vr-snug);
-  line-height: 1;
-}
-
-.health-tdee-num .health-unit {
-  font-size: var(--text-base);
-  color: var(--ink-3);
-}
-
-.health-tdee-components {
-  display: flex;
-  gap: var(--space-6);
-  margin-top: var(--vr-section);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
-}
-
-.health-tdee-component {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vr-snug);
-}
-
-.health-tdee-component-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  color: var(--ink-3);
-}
-
-/* Active component: value + coloured up-good delta share a baseline row. */
-.health-tdee-component-stat {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
 /* ── Energy card ───────────────────────────────────────────────────────────
    Active leads with a sparkline (behaviour-driven, trend-worthy). The eyebrow +
    chevron get their own row (.health-tdee-head); the number + sparkline share
@@ -586,11 +533,6 @@
   margin-top: var(--vr-tight);
   padding-top: 0;
   border-top: none;
-}
-
-.health-tdee-component-window {
-  font-size: var(--text-sm);
-  color: var(--ink-3);
 }
 
 /* Sync freshness note styling moved to the shared topbar — see

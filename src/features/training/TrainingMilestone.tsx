@@ -9,7 +9,7 @@ const SEEN_KEY = "training-milestone-seen";
 /** Highest milestone (in completed months) at or below the given tenure —
     every 3 months (3, 6, 9, 12, 15…). Quarterly keeps each one a real event
     without diluting the gold the way a monthly cadence would. */
-export function milestoneFor(months: number | null): number | null {
+function milestoneFor(months: number | null): number | null {
   if (months == null) return null;
   const m = Math.floor(months);
   if (m < 3) return null;
@@ -17,7 +17,7 @@ export function milestoneFor(months: number | null): number | null {
 }
 
 /** "3 Months" / "1 Year" / "1 Year 6 Months". */
-export function fmtTenure(months: number): string {
+function fmtTenure(months: number): string {
   if (months < 12) return `${months} Month${months === 1 ? "" : "s"}`;
   const y = Math.floor(months / 12);
   const r = months % 12;

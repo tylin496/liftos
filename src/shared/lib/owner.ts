@@ -16,7 +16,7 @@ import { supabase } from "./supabase";
 // is_owner) in 0002 — those are separate systems and can't share a constant.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const OWNER_EMAIL = "tylin496@gmail.com";
+const OWNER_EMAIL = "tylin496@gmail.com";
 
 /** The viewer/owner rule in one place. `dev@local` (dev-bypass) counts as the
  *  owner so local dev stays fully writable. */

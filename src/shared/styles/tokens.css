@@ -33,7 +33,6 @@
   --accent-100: #ffe0d1;
   --accent: #ec5122;
   --accent-strong: #cf491a;   /* deeper ember — solid white-on-accent fills */
-  --accent-soft: var(--accent-100);
   --accent-glow: rgba(236, 81, 34, 0.16);
 
   /* ── Progress spectrum ────────────────────────────────────────────── */
@@ -84,14 +83,9 @@
      button) are the one exception, since a glow would just look like a shadow
      smudged onto the fill rather than a halo. */
   --gold-glow: 0 0 10px color-mix(in srgb, var(--gold) 55%, transparent);
-  --blue: #007eae;   /* Cyan — neutral series/identity colour, never a status verdict */
 
   /* ── Health chart metric colors (iOS-style; read fine on light + dark) ── */
-  /* Coral — a distinct red-orange from --accent's ember so the Active chart
-     never competes with brand/progress color at a glance. */
-  --health-active: #c55300;      /* Apple orange (IC-light) */
   --health-measurement: #b02fc2; /* Apple purple (IC-light) */
-  --health-sleep: #564ade;       /* Apple indigo (IC-light) */
 
   /* ── Nutrition macro identity colors ─────────────────────────────────
      Calorie/protein dual-bar chart (History). Identity colors, not
@@ -124,7 +118,6 @@
      Unitless so it scales with font-size. tight → single-line numbers &
      labels; snug → 2-line headings; body → multi-line paragraphs. Body
      copy uses --leading-body — do not hand-pick 1.4/1.45/1.55 per element. */
-  --leading-tight: 1;
   --leading-snug: 1.2;
   --leading-body: 1.5;
 
@@ -257,7 +250,6 @@
      overlay darkens its background by the same amount. */
   --scrim-bg: rgba(0, 0, 0, 0.34);
   --scrim-blur: blur(16px);
-  --scrim-strong: rgba(0, 0, 0, 0.85); /* near-opaque backdrop — photo lightbox only */
 
   /* ── Elevation ladder (z-index) ───────────────────────────────────────
      Every FLOATING surface picks a rung by ROLE, never a raw number, so the
@@ -329,7 +321,6 @@
 
   /* ── Layout ───────────────────────────────────────────────────────── */
   --tabbar-h: 56px;
-  --header-h: 68px;
   --content-max: 560px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -372,14 +363,7 @@
   --warn: #ff9f0a;   /* Warning / attention — Apple systemOrange (dark), clear of --bad/--gold */
   --warn-ink: #ffbe5c; /* Deep-amber counterpart for text/lines — lighter than --warn so amber ink reads on dark */
   --gold: #ffd970;   /* PR / gold-reward — vivid warm gold, glows on dark (was --pr) */
-  --blue: #6dd9ff;   /* Cyan (IC-dark) */
-  /* Health chart colours — Apple increased-contrast (dark) for active (brighter
-     on dark); measurement/sleep use Default (dark) instead of IC-dark — the
-     IC-dark purple/indigo sit at ~80% lightness, reading as washed-out pastel
-     rather than a true system colour despite 100% HSL saturation. */
-  --health-active: #ffa056;
   --health-measurement: #db34f2;
-  --health-sleep: #6d7cff;
   --card-blur: blur(22px);
   --glass-bg: rgba(26, 26, 26, 0.42);
   --glass-highlight: rgba(255, 255, 255, 0.22);

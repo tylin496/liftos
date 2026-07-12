@@ -517,77 +517,6 @@
   flex-shrink: 0;
 }
 
-/* ── Date nav ────────────────────────────────────────────────────────── */
-.nutri-datenav {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 38px;
-  gap: 2px;
-  margin-bottom: var(--space-5);
-  border-radius: var(--radius-sm);
-  background: var(--bg-soft);
-  padding: 3px;
-  animation: rise-in var(--dur-enter) var(--ease-enter) both;
-}
-
-.nutri-date {
-  position: relative;
-  display: grid;
-  place-items: center;
-  min-width: 0;
-  min-height: 38px;
-  padding: 0 var(--space-3);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-  font-size: var(--text-lg);
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: center;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.nutri-date:active {
-  transform: scale(var(--tap-scale));
-}
-
-.nutri-navbtn {
-  width: 38px;
-  height: 38px;
-  min-height: 38px;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--ink);
-  font-size: var(--text-2xl);
-  line-height: 1;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: background var(--dur-press), border-color var(--dur-press);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .nutri-navbtn:hover {
-    background: color-mix(in srgb, var(--ink) 8%, transparent);
-  }
-  .nutri-date:hover {
-    background: color-mix(in srgb, var(--ink) 6%, transparent);
-  }
-}
-
-.nutri-navbtn:active {
-  transform: scale(var(--tap-scale));
-}
-
-.nutri-navbtn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
 /* ── Form ────────────────────────────────────────────────────────────── */
 .nutri-save {
   margin-top: var(--vr-tight);
@@ -971,10 +900,6 @@
   animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
 }
 
-.loading-card .hist-week-chevron {
-  visibility: hidden;
-}
-
 .nutri-month-card.loading-card .nutri-dist-legend,
 .nutri-month-card.loading-card .nutri-month-note {
   visibility: hidden;
@@ -1110,7 +1035,6 @@
 /* ── Inline settlement form ──────────────────────────────────────────── */
 /* .settlement-form / .sf-* rules live in shared/components/macroEditFields.css
    (MacroEditFields is shared with Overview's Hero card). */
-.daily-card.is-editing .daily-metrics { display: none; }
 
 /* ── Saved-pulse: flash the card on successful save ──────────────────── */
 .daily-card.saved-pulse {
@@ -1330,24 +1254,6 @@
   background: color-mix(in srgb, var(--accent) 35%, var(--rule-strong));
   box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 20%, transparent);
 }
-
-/* Building badge */
-.badge-building {
-  background: color-mix(in srgb, var(--ink-3) 12%, transparent);
-  color: var(--ink-3);
-}
-
-/* ── Date label slide ────────────────────────────────────────────────── */
-@keyframes date-in-forward {
-  from { opacity: 0; transform: translateX(40%); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes date-in-backward {
-  from { opacity: 0; transform: translateX(-40%); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-.date-slide-forward  { animation: date-in-forward  var(--dur-move) var(--ease-move) both; }
-.date-slide-backward { animation: date-in-backward var(--dur-move) var(--ease-move) both; }
 
 /* ── Day navigation carousel ─────────────────────────────────────────── */
 /* Card enters from the screen edge (its full width off) and springs into place —

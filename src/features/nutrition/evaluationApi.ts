@@ -31,7 +31,7 @@ import {
 /** Min logged days in the trend window before the mean logged intake is trusted
  *  enough to compare against the weight-implied intake. Below this the food-log
  *  signal is too sparse — pass null so it has no effect on confidence. */
-export const MIN_LOGGED_DAYS = 10;
+const MIN_LOGGED_DAYS = 10;
 
 /** Mean of the logged daily calories inside the trailing WINDOW_DAYS, or null
  *  when fewer than MIN_LOGGED_DAYS are logged. Matches the weight-trend window so

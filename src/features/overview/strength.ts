@@ -35,7 +35,7 @@ export type TrendDirection = "recovering" | "stable" | "declining";
  *  deliberately avoids: a fuzzy regression slope over asymmetrically-logged
  *  sessions. Direction only fires off the same trusted consecutive-run
  *  predicates the flags use; velocity is 0 unless one of those runs is present. */
-export interface StrengthTrajectory {
+interface StrengthTrajectory {
   /** Recovering/declining come from the SAME trusted consecutive-run predicates
    *  as the flags (isRecovering/isDeclining), so direction never contradicts
    *  them. "recovering" here is a superset of the `recovering` FIELD: the field
@@ -59,7 +59,7 @@ export interface StrengthTrajectory {
  *  (small stalledWeeks) means one lighter session isn't a plateau — so it buys a
  *  grace period. Shared by the card's Needs-Attention list, the AI export, and the
  *  Decision Engine's decline gate, so the three never disagree. */
-export const ATTENTION_STALL_WEEKS = 3;
+const ATTENTION_STALL_WEEKS = 3;
 
 /** A recovering lift's latest session must clear its recent trough by at least
  *  this ratio (≥2%) — enough to be a real climb, not e1RM float noise. Mirrors
@@ -110,7 +110,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
  *  `windowDates` (ISO dates of the last ≤8 sessions) must be aligned — same
  *  sessions, same order. Pure and now-free: the confidence is derived from the
  *  window's own dates, never from wall-clock "now". */
-export function computeTrajectory(sessionBests: number[], windowDates: string[]): StrengthTrajectory {
+function computeTrajectory(sessionBests: number[], windowDates: string[]): StrengthTrajectory {
   const direction: TrendDirection = isDeclining(sessionBests)
     ? "declining"
     : isRecovering(sessionBests)
@@ -221,7 +221,7 @@ function retentionOf(e: StrengthExercise): number {
 /** Aggregate card health = mean per-lift retention, rounded to a whole %, or
  *  null when no lift qualifies. Pure; the hero number and the month-ago trend
  *  both go through here so they can never disagree. */
-export function healthPct(exercises: StrengthExercise[]): number | null {
+function healthPct(exercises: StrengthExercise[]): number | null {
   if (exercises.length === 0) return null;
   const mean = exercises.reduce((s, e) => s + retentionOf(e), 0) / exercises.length;
   return Math.round(mean * 100);
@@ -525,7 +525,7 @@ function monthAgoTrend(
 
 // ─── Training Evaluation (the Decision Engine's training slice) ──────────────
 
-export type TrainingTrend = "improving" | "holding" | "declining";
+type TrainingTrend = "improving" | "holding" | "declining";
 
 /** Training's derived judgment — a stable trend verdict, NOT a raw watch count.
  *  "declining" requires enough lifts sitting meaningfully below PR *for weeks*

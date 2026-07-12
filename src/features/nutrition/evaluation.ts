@@ -94,7 +94,7 @@ const STATUS_EPS = 0.02;
  *  a HIGH-confidence verdict on it. Below this, the trailing trend is still partly
  *  the PRIOR target, and weight right after a deficit change carries transient
  *  water/glycogen — so a fast rate reads as optimistic, not settled. */
-export const FRESH_TARGET_DAYS = 14;
+const FRESH_TARGET_DAYS = 14;
 
 /** kcal/day the weight-implied intake may differ from the logged intake before
  *  the two sources are "materially disagreeing". A large gap means the trend
@@ -186,7 +186,7 @@ function longestGap(pts: { date: string; value: number }[], days: number): numbe
  *  high label is built from, but un-bucketed so an LLM (the AI export's reader) can
  *  weigh them. Each answers "how much does THIS signal support trusting the weight
  *  verdict?". Descriptive only; the discrete `label` is what gates the decision. */
-export interface ConfidenceComponents {
+interface ConfidenceComponents {
   /** Days held on the current target — a fresh target's trend is half the prior
    *  one, so it earns confidence only as it settles (0 = just changed → 1 = ≥14d). */
   freshness: number;
@@ -335,7 +335,7 @@ export interface TdeeCalibration {
  *  surface a miscalibration claim. Deliberately above INTAKE_DIVERGENCE_KCAL (the
  *  confidence-cap bar): capping trust is cheap, but *telling* the user the target is
  *  built on a wrong number should need a wider, corroborated gap. */
-export const TDEE_MISCALIBRATION_KCAL = 250;
+const TDEE_MISCALIBRATION_KCAL = 250;
 
 /** Is the target's assumed TDEE (config.tdee) still consistent with reality?
  *  Compares it against two INDEPENDENT measured estimates — HealthKit burn, and the

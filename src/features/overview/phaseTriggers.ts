@@ -27,8 +27,8 @@ import { getCalorieResult, DEFAULTS } from "@features/nutrition/logic";
 import { WINDOW_DAYS } from "@features/nutrition/evaluation";
 import type { StrengthSummary } from "./strength";
 
-export type TriggerKey = "weight_stall" | "strength_decline" | "recovery_worsening" | "adherence_slipping";
-export type TriggerState = "firing" | "ok" | "unknown";
+type TriggerKey = "weight_stall" | "strength_decline" | "recovery_worsening" | "adherence_slipping";
+type TriggerState = "firing" | "ok" | "unknown";
 
 export interface PhaseTrigger {
   key: TriggerKey;
@@ -71,33 +71,33 @@ export interface PhaseTriggerResult {
 
 /** Weekly-rate checkpoints, days back from the latest weigh-in. Three flat
  *  21-day windows a week apart ≈ "stalled for three straight weeks". */
-export const STALL_CHECKPOINT_OFFSETS = [0, 7, 14] as const;
+const STALL_CHECKPOINT_OFFSETS = [0, 7, 14] as const;
 /** kg/wk under which a trend reads flat — matches the engine's STALLED_EPS so
  *  the trigger and the ladder's instantaneous "stalled" can never disagree. */
-export const STALL_RATE_EPS = 0.1;
+const STALL_RATE_EPS = 0.1;
 
 /** A declining lift only counts once its trajectory confidence clears this.
  *  Confidence = cadence × (0.5 + 0.5·sample): a fortnightly-or-better lift with
  *  ≥3 sessions reads ≥0.75, one logged 3× in 6 weeks ~0.5 — so 0.6 admits
  *  normally-programmed lifts and excludes exactly the sparse windows where a
  *  two-step slide is scheduling noise, not regression. */
-export const DECLINE_MIN_CONFIDENCE = 0.6;
+const DECLINE_MIN_CONFIDENCE = 0.6;
 /** Simultaneous confident compound declines before the trigger fires. */
-export const DECLINE_MIN_LIFTS = 2;
+const DECLINE_MIN_LIFTS = 2;
 
 /** Recovery-score checkpoints, days back from the latest metric. */
-export const RECOVERY_CHECKPOINT_OFFSETS = [0, 7, 14] as const;
+const RECOVERY_CHECKPOINT_OFFSETS = [0, 7, 14] as const;
 /** Score at or under this = a low week (Fair / Needs Recovery). */
-export const RECOVERY_LOW_SCORE = 1;
+const RECOVERY_LOW_SCORE = 1;
 
 /** Adherence window: the "recently" in "recently eating over budget". */
-export const ADHERENCE_WINDOW_DAYS = 14;
+const ADHERENCE_WINDOW_DAYS = 14;
 /** Over/surplus days in the window before it's a pattern, not a party. The
  *  on-plan band is already ±25% forgiving, so each miss is real; 4+ in a
  *  fortnight ≈ two bad weekends, while 3 can be one weekend plus a dinner. */
-export const ADHERENCE_OVER_DAYS = 4;
+const ADHERENCE_OVER_DAYS = 4;
 /** Logged days needed before the window can tell pattern from coincidence. */
-export const ADHERENCE_MIN_LOGGED = 7;
+const ADHERENCE_MIN_LOGGED = 7;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

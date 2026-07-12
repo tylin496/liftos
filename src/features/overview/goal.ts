@@ -12,9 +12,9 @@
 import { rollingAvg } from "@features/health/math";
 import type { BodyMetric } from "@features/health/api";
 
-export type GoalType = "fat_loss" | "lean_bulk" | "maintenance" | "recomp";
+type GoalType = "fat_loss" | "lean_bulk" | "maintenance" | "recomp";
 
-export interface GoalEvaluation {
+interface GoalEvaluation {
   /** 0–100, fraction of the weight gap (cut-start weight → goalWeight) closed
    *  by the smoothed current weight. Body fat is reference-only — see the
    *  progressPct comment in computeGoal for why it doesn't drive this. */
@@ -198,7 +198,7 @@ const LEAN_MASS_MIN_POINTS = 8;
  *  slope as "high confidence"). */
 const LEAN_MASS_SIGNIF_K = 1.5;
 
-export type LeanMassTrend = "stable" | "falling";
+type LeanMassTrend = "stable" | "falling";
 
 export interface LeanMassEvaluation {
   trend: LeanMassTrend;

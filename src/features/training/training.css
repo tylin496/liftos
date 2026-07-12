@@ -327,51 +327,8 @@
   opacity: 0.6;
 }
 
-.rename-input {
-  flex: 1;
-  min-width: 120px;
-  font-size: var(--text-lg);
-  font-weight: 700;
-  font-family: var(--font-ui);
-  color: var(--ink);
-  background: var(--bg-input);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 2px var(--space-2);
-}
-
-.meta-input {
-  background: transparent;
-  border: none;
-  font-family: var(--font-ui);
-  color: var(--ink-3);
-  padding: 0;
-}
-
-.target-inline {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-family: var(--font-mono);
-  color: var(--ink-3);
-  /* Sized to its content via the `size` attribute (JS) — don't let the flex
-     row shrink it further, so a long exercise name isn't forced to truncate
-     just to make room for a rep-range input wider than its own text. */
-  flex-shrink: 0;
-}
-
 .ex-meta-row {
   margin-top: var(--vr-hairline);
-}
-
-.meta-input.note {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-  width: 100%;
-}
-
-.meta-input::placeholder {
-  color: var(--ink-4);
-  opacity: 0.6;
 }
 
 /* ── Exercise body (PR + image side by side) ─────────────────────────────────*/

@@ -265,7 +265,7 @@ function SheetInner({
                 <div className="trend-stat">
                   <span className="trend-stat-k">Since start</span>
                   <span className={`trend-stat-v trend-delta trend-delta--${deltaDir}`}>
-                    {deltaDir === "flat" ? "—" : `${delta > 0 ? "+" : "−"}${fmtVal(Math.abs(delta), isVol)}`}
+                    {deltaDir === "flat" ? "—" : `${delta > 0 ? "▲" : "▼"}${fmtVal(Math.abs(delta), isVol)}`}
                     {deltaDir !== "flat" && <span className="trend-stat-u">{unit}</span>}
                   </span>
                 </div>

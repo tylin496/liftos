@@ -4,7 +4,7 @@ import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import type { StrengthSummary, StrengthExercise } from "../overview/api";
 import type { MuscleGroup } from "./muscleGroup";
-import { buildMuscleGrid, liftStatus, STATUS_ICON, steadyNote } from "./muscleGrid";
+import { buildMuscleGrid, cellBody, liftStatus, MARK_WORD, STATUS_ICON, statusWord, steadyNote } from "./muscleGrid";
 import type { LiftStatus, MuscleGridCell } from "./muscleGrid";
 import { suggestDeload } from "./deload";
 import { MuscleIcon } from "./MuscleIcon";
@@ -28,7 +28,7 @@ function TrendChip({ trend }: { trend: NonNullable<StrengthSummary["healthTrend"
   const up = trend.dir === "up";
   return (
     <span className={`ov-th-trend ov-th-trend--${up ? "up" : "down"}`}>
-      {up ? "↑" : "↓"}
+      {up ? "▲" : "▼"}
       {trend.delta}%
     </span>
   );
@@ -41,7 +41,7 @@ function trendSuffix(trend: StrengthSummary["healthTrend"]): string {
 }
 
 /** Hero-cell footer — the marks row spelled out in words ("1 stalled · 1
- *  rebounding"). Bare glyphs (● ↑) are fine as texture on small tiles, but the
+ *  rebounding"). Bare glyphs (● ▲) are fine as texture on small tiles, but the
  *  spotlight is the first thing a new reader parses, so it must be legible
  *  without the colour code. Statuses listed worst-first (marks are already
  *  severity-sorted); steady is skipped unless it's ALL there is (an all-steady
@@ -52,7 +52,7 @@ function heroMarksSummary(marks: { status: LiftStatus }[]): string {
   const parts: string[] = [];
   for (const [status, n] of counts) {
     if (status === "steady" && counts.size > 1) continue;
-    parts.push(status === "pr" ? `${n} ${n === 1 ? "PR" : "PRs"}` : `${n} ${status}`);
+    parts.push(status === "pr" ? `${n} ${n === 1 ? "PR" : "PRs"}` : `${n} ${MARK_WORD[status]}`);
   }
   return parts.join(" · ");
 }
@@ -425,14 +425,21 @@ export function StrengthHealthCard({
               </span>
               <span className="ov-thg-cell-metric">
                 <StatusGlyph status={cell.status} size={cell.hero ? 15 : 12} className="ov-thg-cell-icon" />
-                <span className="ov-thg-cell-pct">{cell.pct}%</span>
+                {/* Hero keeps a headline % (its worst lift, the spotlight number);
+                    ordinary tiles lead with the status WORD instead — a min-% there
+                    reads as a whole-group average and fights a positive note. */}
+                {cell.hero ? (
+                  <span className="ov-thg-cell-pct">{cell.pct}%</span>
+                ) : (
+                  <span className={`ov-thg-cell-status status-${cell.status}`}>{statusWord(cell.status, cell.pct)}</span>
+                )}
               </span>
             </span>
-            <span className="ov-thg-cell-insight">{cell.hero ? heroInsight(cell) : cell.insight}</span>
-            {/* Marks row is spotlight-only: an ordinary tile's ONE job is "is
-                this muscle a problem" (name + status glyph + %) — the per-lift
-                breakdown belongs to the hero's words line and the drill-down,
-                not repeated as cryptic dots on every tile (handoff-review). */}
+            <span className="ov-thg-cell-insight">{cell.hero ? heroInsight(cell) : cellBody(cell)}</span>
+            {/* Marks row is spotlight-only: an ordinary tile answers "how is this
+                muscle" with name + status word + a body line (its composition, or
+                the single lift's note). The hero adds the glyph-marks footer on
+                top; ordinary tiles don't repeat it as a cryptic dot row. */}
             {cell.hero && (
               <span className="ov-thg-cell-foot">
                 <span className="ov-thg-hero-marks-words">{heroMarksSummary(cell.marks)}</span>
@@ -458,6 +465,9 @@ export function StrengthHealthCard({
                   <span className="ov-thg-drill-name">{ex.name}</span>
                   {action && <span className="ov-thg-drill-action">{action}</span>}
                   <span className={`ov-thg-drill-note status-${st}`}>{state}</span>
+                  {/* Provenance: the concrete set behind the retention %, so the
+                      drill-down adds the numbers instead of restating the tile. */}
+                  {ex.lastPRDetail && <span className="ov-thg-drill-best">Best {ex.lastPRDetail}</span>}
                 </span>
                 <span className="ov-thg-drill-pct">{retentionPct(ex)}%</span>
               </>

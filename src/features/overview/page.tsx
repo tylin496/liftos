@@ -754,7 +754,7 @@ function CutProgressCard({
     setJustCelebrated(true);
   }, [e]);
 
-  if (loading || !e) {
+  if (loading) {
     return (
       <div ref={ref} className="page-card goal loading-card">
         <button type="button" className="goal-navblock" onClick={onNav}>
@@ -809,6 +809,21 @@ function CutProgressCard({
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Loaded, but no cut is configured (no body-fat target set). A quiet, static
+  // placeholder — NOT the shimmer skeleton above, which has no data left to
+  // resolve to and would hang forever (the original `loading || !e` conflated
+  // "still loading" with "nothing to show").
+  if (!e) {
+    return (
+      <section className="page-card goal">
+        <div className="goal-head">
+          <span className="goal-label">Cut Journey</span>
+        </div>
+        <p className="goal-sub">No active cut — set a body-fat target to start tracking progress here.</p>
+      </section>
     );
   }
 

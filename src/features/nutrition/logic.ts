@@ -103,7 +103,7 @@ export interface ProteinResult {
 // real shortfall (156/160) still reads as short. Redefining "met" here — not
 // just the copy — keeps it the single source of truth for tone, the double-hit
 // count, confetti, and monthly adherence (they all key off `celebrated`).
-export function proteinFloorTolerance(proteinTarget: number): number {
+function proteinFloorTolerance(proteinTarget: number): number {
   return Math.round(roundInt(proteinTarget) * 0.02);
 }
 
@@ -203,7 +203,7 @@ export interface DayInput {
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
-export type Consistency = "Building" | "Stable" | "Moderate" | "Variable";
+type Consistency = "Building" | "Stable" | "Moderate" | "Variable";
 
 export interface WeeklyStats {
   logged: number;

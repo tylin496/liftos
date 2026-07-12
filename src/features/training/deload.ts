@@ -17,7 +17,7 @@ const DELOAD_FACTOR = 0.9; // −10%
 /** Round suggested loads to a gym-friendly increment (kg). */
 const ROUND_KG = 2.5;
 
-export type DeloadReason = "plateau" | "decline";
+type DeloadReason = "plateau" | "decline";
 
 export interface DeloadSuggestion {
   slug: string;

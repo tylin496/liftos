@@ -723,10 +723,13 @@ export function ExerciseCard({
             try {
               const updated = await updateExercise(exercise.slug, patch);
               onUpdate(updated);
-              setEditingMode("view");
               toast("Exercise updated", "success");
             } catch (err) {
               toast(String((err as Error)?.message ?? err), "error");
+              // Rethrow so EditExerciseForm keeps the form open (it calls
+              // onCancel only after a successful save) — a failed save must
+              // never discard the user's edits.
+              throw err;
             }
           }}
           onCancel={() => setEditingMode("view")}

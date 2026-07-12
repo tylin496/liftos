@@ -11,7 +11,7 @@ function sinceDate(days: number): string {
 }
 
 /** Last N days of Apple Health metrics, oldest → newest. RLS-scoped. */
-export async function fetchBodyMetrics(days = 90): Promise<BodyMetric[]> {
+async function fetchBodyMetrics(days = 90): Promise<BodyMetric[]> {
   const { data, error } = await supabase
     .from("health_metrics")
     .select("*")

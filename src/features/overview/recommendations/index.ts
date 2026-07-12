@@ -14,7 +14,7 @@ import { nutritionProvider } from "./nutrition";
 import { recoveryProvider } from "./recovery";
 import { decide } from "./engine";
 
-export const PROVIDERS: RecProvider[] = [nutritionProvider, recoveryProvider];
+const PROVIDERS: RecProvider[] = [nutritionProvider, recoveryProvider];
 
 /** Raw per-provider opinions, most urgent first — diagnostics/tests only. */
 export function deriveRecommendations(ctx: RecContext): Recommendation[] {
@@ -34,5 +34,5 @@ export function topRecommendation(
   return decide(ctx, prior);
 }
 
-export { decide, CONSIDER_ENTER_COUNT } from "./engine";
-export type { Recommendation, RecSource, RecContext, RecProvider } from "./types";
+export { CONSIDER_ENTER_COUNT } from "./engine";
+export type { Recommendation, RecSource, RecContext } from "./types";

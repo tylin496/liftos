@@ -340,11 +340,13 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
         {/* Confidence — meta tier, sinks to the bottom as a closing stamp
             rather than a fourth parallel number. The "why capped" tap-reason was
             dropped: its only content was the target's tenure, which the always-on
-            "On this target · N days" line above now states plainly. Neutral, no
-            dot — a descriptor, not a good/bad verdict (see colour rules). */}
+            "On this target · N days" line above now states plainly. A green dot
+            marks High confidence (the reading is fully trustworthy); Low/Medium
+            stay neutral, so the dot flags the good end rather than verdicting. */}
         <EvidenceCell
           label="Confidence"
           value={!noData && !loading ? (CONFIDENCE_LABEL[e!.confidence] ?? e!.confidence) : "—"}
+          dot={!noData && !loading && e!.confidence === "high" ? "good" : undefined}
           emphasis="tertiary"
           full
         />

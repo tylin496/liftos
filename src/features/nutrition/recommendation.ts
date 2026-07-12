@@ -11,7 +11,7 @@
 import type { NutritionEvaluation, NutritionDiagnostics } from "./evaluation";
 import { MIN_TREND_POINTS } from "./evaluation";
 
-export type NutritionAction = "maintain" | "reduce" | "increase";
+type NutritionAction = "maintain" | "reduce" | "increase";
 
 export interface NutritionDecision {
   action: NutritionAction;
@@ -157,7 +157,7 @@ export function paceLabel(evaluation: NutritionEvaluation): string {
  *  somewhere". Fraction of the band width, not a fixed kg margin, so a wide
  *  band (aggressive cut) and a narrow one (gentle cut) both reserve the same
  *  proportional top slice. */
-export const OPTIMAL_BAND_FRACTION = 0.2;
+const OPTIMAL_BAND_FRACTION = 0.2;
 
 /** Is the observed loss rate on-target AND sitting in the top slice of the
  *  band (closest to the safe max)? Shared by paceLabel/paceTone (the Pace

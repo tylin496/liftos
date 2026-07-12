@@ -378,4 +378,3 @@ export function saveStretches(data: Record<SplitId, StretchItem[]>): void {
 // ─── Re-exports ───────────────────────────────────────────────────────────────
 
 export type { SplitId };
-export type { TimeFilter } from "./logic";

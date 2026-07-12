@@ -35,7 +35,7 @@ const MAX_FRESH_DAYS: Record<MetricKind, number> = {
   bodyComp: 10,
 };
 
-export type Freshness = "fresh" | "stale" | "absent";
+type Freshness = "fresh" | "stale" | "absent";
 
 /** Whole calendar days between an ISO date (YYYY-MM-DD) and today, computed the
  *  same way everywhere so boundaries never disagree. Both sides parse as UTC
@@ -47,7 +47,7 @@ export function daysSince(isoDate: string): number {
 /** Freshness verdict for a metric's latest reading date. A missing date →
  *  "absent" (no reading at all): callers MUST treat this as unknown, never as a
  *  problem — no data ≠ bad news. Only a present-but-old reading is "stale". */
-export function freshnessOf(kind: MetricKind, isoDate: string | null | undefined): Freshness {
+function freshnessOf(kind: MetricKind, isoDate: string | null | undefined): Freshness {
   if (!isoDate) return "absent";
   return daysSince(isoDate) > MAX_FRESH_DAYS[kind] ? "stale" : "fresh";
 }

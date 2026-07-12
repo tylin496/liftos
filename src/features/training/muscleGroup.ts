@@ -10,12 +10,6 @@ export type MuscleGroup =
   | "quads" | "hamstrings" | "glutes" | "calves" | "abs"
   | "unknown";
 
-/** The tag-able groups (excludes "unknown") — for a future override dropdown. */
-export const MUSCLE_GROUPS: Exclude<MuscleGroup, "unknown">[] = [
-  "chest", "back", "shoulders", "biceps", "triceps",
-  "quads", "hamstrings", "glutes", "calves", "abs",
-];
-
 // Ordered rules, FIRST MATCH WINS — specific disambiguations come before the
 // generic keyword that would otherwise swallow them. The ordering IS the logic:
 //  • "Leg Press/Extension/Curl" resolve to legs before the bare press/extension/

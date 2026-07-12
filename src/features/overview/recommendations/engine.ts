@@ -45,8 +45,8 @@ import { nutritionProvider } from "./nutrition";
 const RECOVERY_TITLE = "Prioritize recovery";
 const REDUCE_DEFICIT_TITLE = "Reduce deficit slightly";
 const INCREASE_ACTIVITY_TITLE = "Increase activity";
-export const START_MAINTENANCE_TITLE = "Start maintenance";
-export const CONSIDER_MAINTENANCE_TITLE = "Consider switching to maintenance";
+const START_MAINTENANCE_TITLE = "Start maintenance";
+const CONSIDER_MAINTENANCE_TITLE = "Consider switching to maintenance";
 
 // Phase policy — how many firing plateau triggers warrant the maintenance
 // suggestion (enter), and how many keep it showing (hold). The triggers

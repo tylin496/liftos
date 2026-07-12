@@ -425,6 +425,20 @@
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
+/* Status word — an ordinary tile's headline verdict, in place of the min-% (that
+   number averaged a weak lift with a strong one and misread as a whole-group
+   score; it now lives in the drill-down + top KPI). This IS the status signal, so
+   it carries the status colour like the glyph beside it; the calm grey "Retained"
+   is the common case, so the grid stays low-pressure. */
+.ov-thg-cell-status {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* Amber text needs the deeper --warn-ink to clear contrast (same as drill note). */
+.ov-thg-cell-status.status-stalled { color: var(--warn-ink); }
 .ov-thg-cell-insight {
   font-size: var(--text-2xs);
   font-weight: 500;
@@ -551,6 +565,16 @@
 }
 /* Amber ink needs the deeper --warn-ink to clear contrast as text. */
 .ov-thg-drill-note.status-stalled { color: var(--warn-ink); }
+/* Provenance — the concrete best set behind the retention %, so the drill-down
+   carries numbers the tile doesn't (a real drill-down, not a restatement). */
+.ov-thg-drill-best {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--ink-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .ov-thg-drill-pct {
   font-family: var(--font-mono);

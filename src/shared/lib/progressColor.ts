@@ -20,7 +20,7 @@
 /** [ratio 0–1, CSS colour] stops for the continuous red→…→blue spectrum ramp,
  *  evenly spaced across the Apple-system stops in tokens.css. The discrete 100%
  *  gold flip is handled outside this module. */
-export const PROGRESS_STOPS: readonly [number, string][] = [
+const PROGRESS_STOPS: readonly [number, string][] = [
   [0, "var(--progress-1)"],
   [0.25, "var(--progress-2)"],
   [0.5, "var(--progress-3)"],

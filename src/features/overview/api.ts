@@ -9,7 +9,6 @@ import { localDateStrDaysAgo } from "@shared/lib/date";
 import { saveConfig } from "@features/nutrition/api";
 import {
   computeStrengthSummary,
-  type StrengthStatus,
   type StrengthExercise,
   type StrengthSummary,
 } from "./strength";
@@ -20,7 +19,6 @@ import {
 // exists (breaking an overview/api ↔ evaluationApi import cycle).
 export {
   computeStrengthSummary,
-  type StrengthStatus,
   type StrengthExercise,
   type StrengthSummary,
 };

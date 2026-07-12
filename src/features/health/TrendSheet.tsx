@@ -7,7 +7,7 @@ import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { timelineDate } from "@shared/lib/date";
 import { median } from "./math";
 
-export interface HealthTrendPoint {
+interface HealthTrendPoint {
   date: string; // YYYY-MM-DD — representative (middle) day of the bucket
   dateStart?: string; // first day covered by this point's bucket
   dateEnd?: string; // last day covered by this point's bucket
@@ -392,7 +392,7 @@ function SheetInner({
                 <div className="health-trend-sheet-stat">
                   <span className="health-trend-sheet-stat-k">Since start</span>
                   <span className={`health-trend-sheet-stat-v health-trend-sheet-delta health-trend-sheet-delta--${deltaCls}`}>
-                    {isFlat ? "—" : `${delta > 0 ? "+" : "−"}${fmt(Math.abs(delta), decimals)}`}
+                    {isFlat ? "—" : `${delta > 0 ? "▲" : "▼"}${fmt(Math.abs(delta), decimals)}`}
                     {!isFlat && <span className="health-trend-sheet-stat-u">{unit}</span>}
                   </span>
                 </div>

@@ -6,7 +6,7 @@ import { DEFAULTS, phaseFromDeficit } from "./logic";
 export type NutritionEntry = Database["public"]["Tables"]["nutrition_entries"]["Row"];
 export type NutritionConfig = Database["public"]["Tables"]["nutrition_config"]["Row"];
 
-export const DEFAULT_PHASE_DEFICITS = [805, 655, 455, 150] as const;
+const DEFAULT_PHASE_DEFICITS = [805, 655, 455, 150] as const;
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
