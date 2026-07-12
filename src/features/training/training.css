@@ -1122,6 +1122,7 @@
 }
 
 .unit-btn {
+  position: relative;
   padding: 4px var(--space-3);
   border: none;
   border-radius: var(--radius-sm);
@@ -1132,6 +1133,14 @@
   font-weight: 600;
   cursor: pointer;
   transition: background var(--dur-press), color var(--dur-press);
+}
+
+/* 44px-tall tap target; vertical slop only so the two adjacent unit segments
+   (kg / lb) don't overlap into each other. */
+.unit-btn::before {
+  content: "";
+  position: absolute;
+  inset: -10px 0;
 }
 
 .unit-btn.on {
@@ -1375,6 +1384,7 @@
 }
 
 .ex-log-link {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1386,6 +1396,14 @@
   font-size: var(--text-base);
   font-weight: 600;
   color: var(--ink);
+}
+
+/* Primary "Log set" action — extend to ≥44px tall. Vertical only so it can't
+   reach into the sibling "View all" button's own hit area beside it. */
+.ex-log-link::before {
+  content: "";
+  position: absolute;
+  inset: -9px 0;
 }
 
 .ex-log-link:active { transform: scale(var(--tap-scale)); }
@@ -1507,12 +1525,21 @@
 }
 
 .add-ex-close {
+  position: relative;
   background: transparent;
   border: none;
   color: var(--ink-3);
   font-size: var(--text-lg);
   cursor: pointer;
   padding: 0 4px;
+}
+
+/* ~20px ✕ → 44px tap target; it's the form-header corner control, so the
+   horizontal slop only reaches the (non-interactive) title beside it. */
+.add-ex-close::before {
+  content: "";
+  position: absolute;
+  inset: -11px -10px;
 }
 
 .add-ex-fields {
@@ -1668,6 +1695,7 @@
 }
 
 .archived-actions button {
+  position: relative;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--rule);
@@ -1678,6 +1706,14 @@
   font-weight: var(--role-action-weight);
   cursor: pointer;
   transition: background var(--dur-press);
+}
+
+/* 44px-tall tap targets; vertical slop only so Restore and Delete (distinct,
+   adjacent actions) never overlap into one ambiguous strip. */
+.archived-actions button::before {
+  content: "";
+  position: absolute;
+  inset: -10px 0;
 }
 
 .archived-actions button:hover {
@@ -1751,6 +1787,7 @@
 }
 
 .stretch-menu-btn {
+  position: relative;
   width: 24px;
   height: 24px;
   border: none;
@@ -1763,6 +1800,13 @@
   justify-content: center;
   cursor: pointer;
   line-height: 1;
+}
+
+/* 24→44px tap target; overlay control at the card corner, no adjacent target. */
+.stretch-menu-btn::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
 }
 
 .stretch-menu-popup {
@@ -2032,6 +2076,7 @@
 }
 
 .edit-exercise-dismiss {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2045,6 +2090,13 @@
   cursor: pointer;
   transition: background var(--dur-press), color var(--dur-press);
   flex-shrink: 0;
+}
+
+/* 30→44px tap target; single dismiss control in the form's top bar. */
+.edit-exercise-dismiss::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
 }
 
 .edit-exercise-dismiss:hover {
