@@ -17,6 +17,8 @@ import { computeRecovery, sanitizeMetrics } from "@features/health/math";
 
 export const EXPORT_HEALTH_DAYS = 60;
 export const EXPORT_NUTRITION_DAYS = 60;
+// Budget over the COMPACT (no-indent) serialization — exports are for LLM
+// consumption, and pretty-print indentation was costing ~half the budget.
 export const MAX_AI_EXPORT_CHARS = 80_000;
 // Per-tab "Copy" exports carry the tab's full data (no char budget) — the
 // Overview snapshot stays the condensed executive summary. These windows are
@@ -527,7 +529,6 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
             ? { date: stats.best.log.log_date ?? null, bestSet: stats.best.log.raw ?? null }
             : null,
           logs: sliced.map(({ log: l, parsed: p, w }) => ({
-            id: l.id,
             date: l.log_date,
             raw: l.raw,
             weight: w,
@@ -565,7 +566,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 2.9,
+    schema: 3.0,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
     dataSpan: overviewWindow, // total span of ALL data (see windowOf); distinct from per-section windowDays
     summary: {
@@ -626,11 +627,13 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         avgCalories,
         avgProtein,
       },
-      entries: sortedEntries.map((e) => ({
-        date: e.entry_date,
-        calories: e.calories,
-        protein: e.protein,
-      })),
+      // Columnar like health.timeline (dates + aligned value arrays) — drops
+      // the per-row repeated keys. Per-day targets live in `phases` above.
+      entries: {
+        dates: sortedEntries.map((e) => e.entry_date),
+        calories: sortedEntries.map((e) => e.calories),
+        protein: sortedEntries.map((e) => e.protein),
+      },
     },
     training: buildTraining(logsPerEx),
   });
@@ -641,16 +644,16 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   let lo = 1;
   const maxLogsAnyExercise = Math.max(0, ...exercises.map((ex) => (allLogsBySlug[ex.slug]?.length ?? 0)));
   let hi = Math.max(1, Math.min(MAX_TRAINING_LOGS_PER_EXERCISE, maxLogsAnyExercise));
-  let result = JSON.stringify(buildPayload(lo), null, 2);
+  let result = JSON.stringify(buildPayload(lo));
 
-  if (JSON.stringify(buildPayload(hi), null, 2).length <= MAX_AI_EXPORT_CHARS) {
+  if (JSON.stringify(buildPayload(hi)).length <= MAX_AI_EXPORT_CHARS) {
     // Full data fits — return everything
-    return JSON.stringify(buildPayload(hi), null, 2);
+    return JSON.stringify(buildPayload(hi));
   }
 
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
-    const json = JSON.stringify(buildPayload(mid), null, 2);
+    const json = JSON.stringify(buildPayload(mid));
     if (json.length <= MAX_AI_EXPORT_CHARS) {
       result = json;
       lo = mid;
@@ -675,7 +678,7 @@ export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> 
 
   const payload = {
     source: "LiftOS",
-    schema: 2.8,
+    schema: 3.0,
     tab: "health",
     units: unitsFor(HEALTH_UNIT_KEYS),
     dataSpan: windowOf(metrics.map((m) => m.metric_date)),
@@ -689,7 +692,7 @@ export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> 
     summary: buildHealthSummary(metrics, days),
     timeline: buildHealthTimeline(metrics),
   };
-  return JSON.stringify(payload, null, 2);
+  return JSON.stringify(payload);
 }
 
 /** The nutrition engine's read, shaped for audit rather than obedience: the
@@ -719,7 +722,7 @@ function engineHypothesis(
   }
   return {
     engine: "LiftOS",
-    version: 2.8,
+    version: 3.0,
     note: "LiftOS's current hypothesis from its own rules — audit it against the data above; don't assume it's correct.",
     rulesTriggered,
     evaluation: state.evaluation,
@@ -828,7 +831,7 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
 
   const payload = {
     source: "LiftOS",
-    schema: 2.8,
+    schema: 3.0,
     tab: "nutrition",
     units: unitsFor(NUTRITION_UNIT_KEYS),
     dataSpan: windowOf(sorted.map((e) => e.entry_date)),
@@ -865,17 +868,16 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
       distribution: adherence.distribution,
     },
     weekly,
-    entries: sorted.map((e) => ({
-      date: e.entry_date,
-      calories: e.calories,
-      protein: e.protein,
-      // Per-day snapshot of the target in force when this day was logged, so a
-      // reader never has to infer it from `phases` — the raw truth is inline.
-      calorieTarget: e.calorie_target,
-      proteinTarget: e.protein_target,
-    })),
+    // Columnar like health.timeline (dates + aligned value arrays) — drops the
+    // per-row repeated keys. Per-day targets are NOT inlined: `phases` above
+    // already maps every date range to the target in force on that day.
+    entries: {
+      dates: sorted.map((e) => e.entry_date),
+      calories: sorted.map((e) => e.calories),
+      protein: sorted.map((e) => e.protein),
+    },
   };
-  return JSON.stringify(payload, null, 2);
+  return JSON.stringify(payload);
 }
 
 /** Training tab: every active exercise per split with full log history, PR, stats, trend. */
@@ -947,7 +949,6 @@ export async function buildTrainingJson(): Promise<string> {
           const p = l.raw ? parse(l.raw) : null;
           const w = p ? +score(p).toFixed(2) : null;
           return {
-            id: l.id,
             date: l.log_date,
             raw: l.raw,
             weight: w,
@@ -969,7 +970,7 @@ export async function buildTrainingJson(): Promise<string> {
 
   const payload = {
     source: "LiftOS",
-    schema: 2.9,
+    schema: 3.0,
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
     dataSpan: windowOf(
@@ -981,5 +982,5 @@ export async function buildTrainingJson(): Promise<string> {
     schedule: { split: "PPL", cycle: SPLITS.map((s) => s.name) },
     splits,
   };
-  return JSON.stringify(payload, null, 2);
+  return JSON.stringify(payload);
 }
