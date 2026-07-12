@@ -41,6 +41,7 @@ import { EditIcon, PenLineIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, ArchiveIco
 import { AnimatedNumber } from "@shared/components/AnimatedNumber";
 import { useIsReadOnly } from "@app/layout/SessionContext";
 import { getActiveScroller } from "@app/layout/activeScroller";
+import { useTabSwipeLock } from "@app/layout/swipeLock";
 
 export { useToast };
 
@@ -160,6 +161,11 @@ export function ExerciseCard({
 
   const [editingMode, setEditingMode] = useState<EditingMode>("view");
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
+
+  // While any edit/add form on this card is open, hold the tab-swipe lock so a
+  // horizontal drag doesn't sail off to the next tab (losing the in-progress
+  // input) and a pull-to-refresh doesn't remount the page under the form.
+  useTabSwipeLock(editingMode !== "view" || editingLogId != null);
   const [showAll, setShowAll] = useState(false);
   const [justExpanded, setJustExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

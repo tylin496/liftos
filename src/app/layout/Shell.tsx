@@ -14,6 +14,7 @@ import { NavContext, NavExpandContext, type NavOptions } from "./NavContext";
 import { setActiveScroller } from "./activeScroller";
 import { TabActivityContext } from "./TabActivityContext";
 import { isFeatureHSwipeActive } from "@shared/hooks/useHorizontalSwipe";
+import { isTabSwipeLocked } from "@app/layout/swipeLock";
 import { ToastProvider } from "@shared/components/Toast";
 import { NutritionConfigProvider } from "@features/nutrition/NutritionConfigContext";
 import { TrainingMilestone } from "@features/training/TrainingMilestone";
@@ -582,7 +583,12 @@ export function Shell({ session }: { session: Session }) {
       // never engages the tab swipe, for this touch's whole lifetime — checked
       // here from the target directly, not left to stopPropagation alone (see
       // touchOwnedElsewhere's declaration for why).
-      touchOwnedElsewhere.current = !!(e.target as Element)?.closest?.('[data-own-gesture="true"]');
+      // A held tab-swipe lock (an open Training edit/add form) suppresses BOTH
+      // the horizontal tab swipe and pull-to-refresh for this touch's lifetime —
+      // routed through touchOwnedElsewhere so move/end bail the same way.
+      touchOwnedElsewhere.current =
+        isTabSwipeLocked() ||
+        !!(e.target as Element)?.closest?.('[data-own-gesture="true"]');
       if (touchOwnedElsewhere.current) return;
       if (slideRef.current?.settling || pullRefreshing.current) return; // ignore during a settle/refresh animation
       touchStartX.current = e.touches[0].clientX;
@@ -722,6 +728,7 @@ export function Shell({ session }: { session: Session }) {
       // drag starting on the chart would still reach here and arm Shell's
       // window-level mousemove tracking regardless.
       if ((e.target as Element)?.closest?.('[data-own-gesture="true"]')) return;
+      if (isTabSwipeLocked()) return; // open edit/add form owns the screen — no tab swipe
       if (slideRef.current?.settling || pullRefreshing.current) return;
       mouseActive = true;
       touchStartX.current = e.clientX;
