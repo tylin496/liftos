@@ -81,6 +81,7 @@ function StretchCard({
   onRemove: () => void;
 }) {
   const readOnly = useIsReadOnly();
+  const toast = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(stretch.name);
@@ -102,7 +103,11 @@ function StretchCard({
       setLocalImageUrl(null);
       onSave({ image_url: url });
     } catch {
+      // Don't let the photo silently vanish — revoke the preview, drop it, and
+      // tell the user the upload failed (matches the exercise-image path).
+      URL.revokeObjectURL(blob);
       setLocalImageUrl(null);
+      toast("Couldn’t upload photo", "error");
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -343,9 +348,11 @@ function StretchList({
 function AddExerciseForm({
   onAdd,
   onCancel,
+  submitting = false,
 }: {
   onAdd: (name: string, target: string, note: string, assisted: boolean, compound: boolean) => void;
   onCancel: () => void;
+  submitting?: boolean;
 }) {
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
@@ -360,7 +367,7 @@ function AddExerciseForm({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || submitting) return;
     // Don't clear the fields here: on success the parent unmounts this form, on
     // error it stays open — resetting would wipe the user's input on failure.
     onAdd(name.trim(), target.trim(), note.trim(), assisted, compound);
@@ -424,10 +431,10 @@ function AddExerciseForm({
           <button
             type="submit"
             className="btn-log-primary"
-            disabled={!name.trim()}
+            disabled={!name.trim() || submitting}
             style={{ flex: 1 }}
           >
-            Add exercise
+            {submitting ? "Adding…" : "Add exercise"}
           </button>
         </div>
       </form>
@@ -546,6 +553,7 @@ function TrainingPageInner() {
   // you're digging into full history, not while logging sets.
   const [timeFilterOpen, setTimeFilterOpen] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
+  const [addingSubmitting, setAddingSubmitting] = useState(false);
   const [stretches, setStretches] = useState<Record<SplitId, StretchItem[]>>(loadStretches);
   // The single history row whose est-1RM / %-of-PR detail is open. Lifted here
   // (not per-card) so opening one row's detail closes any other across all
@@ -774,6 +782,8 @@ function TrainingPageInner() {
     assisted: boolean,
     compound: boolean,
   ) {
+    if (addingSubmitting) return;
+    setAddingSubmitting(true);
     try {
       const userId = await currentUserId();
       await addExercise(userId, split, name, target, note, assisted, compound);
@@ -782,6 +792,8 @@ function TrainingPageInner() {
       toast(`${name} added`, "success");
     } catch (err) {
       toast(String((err as Error)?.message ?? err), "error");
+    } finally {
+      setAddingSubmitting(false);
     }
   }
 
@@ -1145,6 +1157,7 @@ function TrainingPageInner() {
             <AddExerciseForm
               onAdd={handleAddExercise}
               onCancel={() => setAddingExercise(false)}
+              submitting={addingSubmitting}
             />
           ) : (
             <button

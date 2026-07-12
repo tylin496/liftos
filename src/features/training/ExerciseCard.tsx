@@ -179,6 +179,9 @@ export function ExerciseCard({
   }, [openTrendSignal]);
 
   const [submitting, setSubmitting] = useState(false);
+  // Separate from `submitting` (the add path) so an in-flight inline edit
+  // doesn't flip the always-mounted add form's button to "Saving…".
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Toggle a history row's detail drawer. On open, the entry row grows as the
   // drawer unfolds inside it; shared disclosure-scroll keeps the row's bottom
@@ -384,6 +387,8 @@ export function ExerciseCard({
     date: string,
     note: string,
   ) {
+    if (editSubmitting) return;
+    setEditSubmitting(true);
     try {
       const parsed = parse(raw);
       if (!parsed || !Number.isFinite(parsed.weight)) throw new Error("Cannot parse");
@@ -449,6 +454,8 @@ export function ExerciseCard({
     } catch (err) {
       haptic("error");
       toast(String((err as Error)?.message ?? err), "error");
+    } finally {
+      setEditSubmitting(false);
     }
   }
 
@@ -970,6 +977,7 @@ export function ExerciseCard({
                         <InlineEditAssistedEntry
                           log={log}
                           setCount={sc}
+                          submitting={editSubmitting}
                           onSave={(raw, date, note) =>
                             handleEdit(log, raw, date, note)
                           }
@@ -980,6 +988,7 @@ export function ExerciseCard({
                         <InlineEditEntry
                           log={log}
                           setCount={sc}
+                          submitting={editSubmitting}
                           onSave={(raw, date, note) =>
                             handleEdit(log, raw, date, note)
                           }

@@ -7,12 +7,15 @@ import "./errorState.css";
 export function ErrorState({
   message,
   onRetry,
+  id,
 }: {
   message: string;
   onRetry?: () => void;
+  /** Preserve a deep-link anchor when this replaces a card another tab jumps to. */
+  id?: string;
 }) {
   return (
-    <section className="page-card error-state">
+    <section id={id} className="page-card error-state">
       <p className="error-state-msg">{message}</p>
       <button
         type="button"

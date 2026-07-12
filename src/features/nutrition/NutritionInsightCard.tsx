@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS } from "./evaluation";
 import { nutritionDecision, rateTone, paceTone } from "./recommendation";
+import { ErrorState } from "@shared/components/ErrorState";
 import "./nutrition.css";
 
 /* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
@@ -185,6 +186,10 @@ function PaceMeter({
 export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }) {
   const [state, setState] = useState<NutritionStateFull | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  // Bumped by the Retry button to re-run the fetch effect (refreshKey is owned
+  // by the parent; this is the card's own self-recovery trigger).
+  const [errorNonce, setErrorNonce] = useState(0);
   const [freshTarget, setFreshTarget] = useState(false);
   // Last proposed target we rendered, so we can pulse only when it actually
   // changes — not on first load and not on every re-render.
@@ -193,6 +198,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
 
   useEffect(() => {
     let alive = true;
+    setError(false);
     getNutritionState()
       .then((s) => {
         if (alive) {
@@ -201,12 +207,17 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
         }
       })
       .catch(() => {
-        if (alive) setLoaded(true);
+        // A failed fetch is NOT "no data yet" — surface it with a retry instead
+        // of the misleading empty-state copy the card would otherwise show.
+        if (alive) {
+          setError(true);
+          setLoaded(true);
+        }
       });
     return () => {
       alive = false;
     };
-  }, [refreshKey]);
+  }, [refreshKey, errorNonce]);
 
   // Fire a one-shot attention pulse on .ni-prog-new when the recommended target
   // changes vs the last time we showed one — the whole point of the card is
@@ -231,7 +242,23 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
   }, [state]);
 
   const loading = !loaded;
-  const noData = loaded && !state;
+  const noData = loaded && !state && !error;
+
+  // Fetch failed — keep the deep-link anchor (Overview jumps here) and offer a
+  // retry, rather than masquerading as the "Not enough data yet" empty state.
+  if (error && !state) {
+    return (
+      <ErrorState
+        id="nutrition-insight-card"
+        message="Couldn’t load your nutrition insight."
+        onRetry={() => {
+          setLoaded(false);
+          setError(false);
+          setErrorNonce((n) => n + 1);
+        }}
+      />
+    );
+  }
 
   const e = state?.evaluation;
   const d = state?.diagnostics;

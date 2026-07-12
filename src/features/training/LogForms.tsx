@@ -532,12 +532,14 @@ export function InlineEditEntry({
   onSave,
   onCancel,
   onDelete,
+  submitting = false,
 }: {
   log: TrainingLog;
   setCount: number;
   onSave: (raw: string, date: string, note: string) => void;
   onCancel: () => void;
   onDelete: () => void;
+  submitting?: boolean;
 }) {
   const initial = log.raw ? parse(log.raw) : null;
   const segCount = initial?.reps ? String(initial.reps).split(/[/\-]/).length : 0;
@@ -569,7 +571,7 @@ export function InlineEditEntry({
 
   function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!isValid) return;
+    if (!isValid || submitting) return;
     onSave(raw, log.log_date ?? "", note.trim());
   }
 
@@ -595,7 +597,8 @@ export function InlineEditEntry({
 
       <LogFormFooter
         primaryLabel="Save changes"
-        disabled={!isValid}
+        submitting={submitting}
+        disabled={!isValid || submitting}
         onCancel={onCancel}
         onDelete={onDelete}
       />
@@ -613,12 +616,14 @@ export function InlineEditAssistedEntry({
   onSave,
   onCancel,
   onDelete,
+  submitting = false,
 }: {
   log: TrainingLog;
   setCount: number;
   onSave: (raw: string, date: string, note: string) => void;
   onCancel: () => void;
   onDelete: () => void;
+  submitting?: boolean;
 }) {
   const initial = log.raw ? parse(log.raw) : null;
   const segCount = initial?.reps ? String(initial.reps).split(/[/\-]/).length : 0;
@@ -646,7 +651,7 @@ export function InlineEditAssistedEntry({
 
   function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!isValid) return;
+    if (!isValid || submitting) return;
     const raw = normalize(`${parsedBw}-(${parsedAssist}) *${reps}`);
     onSave(raw, log.log_date ?? "", note.trim());
   }
@@ -675,7 +680,8 @@ export function InlineEditAssistedEntry({
 
       <LogFormFooter
         primaryLabel="Save changes"
-        disabled={!isValid}
+        submitting={submitting}
+        disabled={!isValid || submitting}
         onCancel={onCancel}
         onDelete={onDelete}
       />
