@@ -160,13 +160,18 @@ function Sparkline({
   // Widen the domain to minSpan around the data's own center rather than
   // shrinking to whatever the actual range is — a flat week and a real move
   // stay visually distinguishable instead of both filling the chart height.
-  // Zones join the domain only where they must stay visible: the corridor's
-  // apex and the band's edges. The wedge's far end is deliberately left out —
-  // over a 12-week window the target drop can dwarf a flat line, and letting
-  // it stretch the axis would squash the beads; instead the wedge just exits
-  // the frame (clipped), which IS the honest "target is much steeper" read.
+  // Zones join the domain so they stay fully in view: the corridor's apex AND
+  // its far vertices (the whole wedge fits, matching Overview's weight
+  // corridor — no clipped rays), and the band's edges. The minSpan floor still
+  // keeps a near-flat line from filling the height.
   const domainVals = [...vals];
   if (corridorAnchor != null) domainVals.push(corridorAnchor);
+  if (corridor && corridorAnchor != null && windowDays > 0) {
+    domainVals.push(
+      corridorAnchor - corridor.minPerWeek * (windowDays / 7),
+      corridorAnchor - corridor.maxPerWeek * (windowDays / 7),
+    );
+  }
   if (band && bandCenter != null) domainVals.push(bandCenter - band.halfWidth, bandCenter + band.halfWidth);
   const dataMin = Math.min(...domainVals);
   const dataMax = Math.max(...domainVals);
