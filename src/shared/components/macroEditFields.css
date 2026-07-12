@@ -43,7 +43,6 @@
   color: var(--ink);
   padding: 0;
   -webkit-tap-highlight-color: transparent;
-  color-scheme: dark;
   appearance: textfield;
   -moz-appearance: textfield;
 }

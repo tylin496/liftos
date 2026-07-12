@@ -363,12 +363,11 @@ export function AddEntryForm({
       <div className="log-topbar">
         <input
           type="date"
-          className="log-date-chip"
+          className={`log-date-chip${isToday ? " is-today" : ""}`}
           value={date}
           max={todayStr()}
           onChange={(e) => setDate(e.target.value)}
           aria-label="Date"
-          style={isToday ? { opacity: 0.45 } : {}}
         />
       </div>
 
@@ -482,12 +481,11 @@ export function AddAssistedForm({
       <div className="log-topbar">
         <input
           type="date"
-          className="log-date-chip"
+          className={`log-date-chip${isToday ? " is-today" : ""}`}
           value={date}
           max={todayStr()}
           onChange={(e) => setDate(e.target.value)}
           aria-label="Date"
-          style={isToday ? { opacity: 0.45 } : {}}
         />
       </div>
 

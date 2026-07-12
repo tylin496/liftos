@@ -777,6 +777,13 @@
   padding: 0;
 }
 
+/* Disabled during an active undo window — dim clearly and drop the pointer so it
+   reads as inactive instead of an identical-looking button that does nothing. */
+.hist-actions button:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
 .hist-edit-btn svg {
   width: 14px;
   height: 14px;
@@ -1050,6 +1057,12 @@
   padding: var(--space-1) var(--space-2);
   flex: 1;
   min-width: 0;
+}
+
+/* Default (today) reads muted — but via ink, not whole-control opacity, which
+   would make an editable input look disabled. Border/background stay full. */
+.log-date-chip.is-today {
+  color: var(--ink-3);
 }
 
 /* ── Weight zone ─────────────────────────────────────────────────────────────*/
