@@ -1192,7 +1192,17 @@
    Training so loading feels consistent across tabs. */
 .loading-card .metric-val,
 .loading-card .metric-caption,
-.loading-card .ov-th-ret-count {
+.loading-card .ov-th-ret-count,
+.loading-card .ov-active-target-status,
+.loading-card .ov-active-target-detail,
+.loading-card .ov-active-target-banked,
+.loading-card .ov-active-target-goal,
+.loading-card .goal-pct,
+.loading-card .goal-day,
+.loading-card .goal-today,
+.loading-card .goal-signpost,
+.loading-card .goal-lost,
+.loading-card .ov-weight-now {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   background: linear-gradient(

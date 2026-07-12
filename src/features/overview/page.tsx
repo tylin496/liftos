@@ -253,24 +253,29 @@ function ActiveTargetCard({
   // ring/status to that day instead, sourced from the week strip tap.
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // Cold load — same button shell + ring skeleton, resolves in place. Uses the
-  // configured (button) tag so the common loaded case updates the same node.
+  // Cold load — mirrors the loaded DOM (a <div> root, head + ring inside a
+  // .ov-active-target-navblock button, the week strip, then a second navblock
+  // button around the footer) so React updates the SAME nodes in place. The old
+  // skeleton used a <button> root, which can't reconcile into the loaded <div>
+  // root — every load remounted the card and replayed its entrance.
   if (loading) {
     return (
-      <button type="button" className="page-card ov-active-target loading-card" onClick={onNav}>
-        <div className="ov-active-target-head">
-          <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
-          <div className="ov-active-target-head-right">
-            <span className="ov-active-target-chevron" aria-hidden>›</span>
+      <div className="page-card ov-active-target loading-card">
+        <button type="button" className="ov-active-target-navblock" onClick={onNav}>
+          <div className="ov-active-target-head">
+            <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
+            <div className="ov-active-target-head-right">
+              <span className="ov-active-target-chevron" aria-hidden>›</span>
+            </div>
           </div>
-        </div>
-        <div className="ov-active-target-ring-row">
-          <ActiveTargetRingBody shown={null} target={0} />
-          <div className="ov-active-target-ring-body">
-            <span className="ov-active-target-status">Loading…</span>
-            <span className="ov-active-target-detail">Loading…</span>
+          <div className="ov-active-target-ring-row">
+            <ActiveTargetRingBody shown={null} target={0} />
+            <div className="ov-active-target-ring-body">
+              <span className="ov-active-target-status">Loading…</span>
+              <span className="ov-active-target-detail">Loading…</span>
+            </div>
           </div>
-        </div>
+        </button>
         <div className="ov-active-target-week" aria-hidden>
           {Array.from({ length: 7 }).map((_, i) => (
             <div key={i} className="ov-active-target-week-cell">
@@ -279,11 +284,13 @@ function ActiveTargetCard({
             </div>
           ))}
         </div>
-        <div className="ov-active-target-footer">
-          <span className="ov-active-target-banked is-neutral">Loading…</span>
-          <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
-        </div>
-      </button>
+        <button type="button" className="ov-active-target-navblock" onClick={onNav}>
+          <div className="ov-active-target-footer">
+            <span className="ov-active-target-banked is-neutral">Loading…</span>
+            <span className="ov-active-target-goal">0,000 / 0,000 TDEE</span>
+          </div>
+        </button>
+      </div>
     );
   }
 
