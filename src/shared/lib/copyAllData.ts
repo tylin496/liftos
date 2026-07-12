@@ -10,6 +10,7 @@ import { computeStats, epley1RM, maxReps } from "@features/training/logic";
 import { computeStrengthSummary, type StrengthExercise } from "@features/overview/api";
 import { inferMuscleGroup } from "@features/training/muscleGroup";
 import { computeMuscleClusters, suggestClusterFatigue } from "@features/training/muscleCluster";
+import { buildMuscleGrid } from "@features/training/muscleGrid";
 import { defaultSetCount } from "@features/training/logFormHelpers";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
@@ -19,15 +20,32 @@ export const EXPORT_HEALTH_DAYS = 60;
 export const EXPORT_NUTRITION_DAYS = 60;
 // Budget over the COMPACT (no-indent) serialization — exports are for LLM
 // consumption, and pretty-print indentation was costing ~half the budget.
-export const MAX_AI_EXPORT_CHARS = 80_000;
+const MAX_AI_EXPORT_CHARS = 80_000;
 // Per-tab "Copy" exports carry the tab's full data (no char budget) — the
 // Overview snapshot stays the condensed executive summary. These windows are
 // generous so an analysis of a single tab has the complete recent history.
-export const FULL_HEALTH_DAYS = 365;
-export const FULL_NUTRITION_DAYS = 180;
+const FULL_HEALTH_DAYS = 365;
+const FULL_NUTRITION_DAYS = 180;
 // Recent training sessions kept per exercise (plus the PR session if it falls
 // outside this window) — full history isn't needed for strength analysis.
 const MAX_TRAINING_LOGS_PER_EXERCISE = 15;
+
+/** A structured "why this status" for a strength lift, read straight off the same
+ *  settled flags the Training card uses — so the export reader shows a reason
+ *  ("Below peak") without re-judging the numbers. `weeksSinceImprovement` is
+ *  `stalledWeeks`: whole weeks since the lift was last AT its ceiling (a PR on
+ *  either axis OR a plain tie), so it counts stalls, not only PR droughts.
+ *  null-safe: a lift with too little data to summarise is `insufficient_data`. */
+function strengthReason(se: StrengthExercise | undefined) {
+  if (!se) return { code: "insufficient_data" as const };
+  if (se.declining) return { code: "recent_drop" as const, weeksSinceImprovement: se.stalledWeeks };
+  if (se.status === "watch")
+    return se.recovering
+      ? { code: "recovering" as const, weeksSinceImprovement: se.stalledWeeks }
+      : { code: "below_peak" as const, weeksSinceImprovement: se.stalledWeeks };
+  if (se.status === "stable") return { code: "holding" as const, weeksSinceImprovement: se.stalledWeeks };
+  return { code: "at_peak" as const }; // status === "improving": at / new PR
+}
 
 type MetricKey =
   | "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal"
@@ -426,8 +444,12 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     .map((x) => ({
       name: nameBySlug.get(x.slug) ?? x.name,
       status: x.status,
+      // Structured reason so the reader shows "Below peak" without re-judging.
+      reason: strengthReason(x),
       retentionPct: +(x.trend * 100).toFixed(1),
-      weeksSincePR: x.stalledWeeks,
+      // Weeks since the lift was last at its ceiling (PR OR tie) — a stall clock,
+      // not a PR drought (holding a PR doesn't advance it). (renamed from weeksSincePR)
+      weeksSinceImprovement: x.stalledWeeks,
     }));
   const improvingCount = [...strengthBySlug.values()].filter((x) => !x.needsAttention).length;
 
@@ -442,6 +464,33 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   )
     .map((c) => suggestClusterFatigue(c, (s) => nameBySlug.get(s) ?? s))
     .filter((a): a is NonNullable<typeof a> => a !== null);
+
+  // Per-muscle rollup (every tracked group, not only systemic-flagged ones) so
+  // the reader gets the group's state pre-computed instead of re-averaging lifts.
+  // Reuses the Training card's grid: `pct` is worst-lift retention (min, not
+  // mean — a problem lift isn't diluted by healthy neighbours), `status` the
+  // most-severe lift's tier. "now" is the latest logged session (recency is
+  // relative to the data, not wall-clock).
+  const strengthExercises = [...strengthBySlug.values()];
+  const trainingNowMs = Math.max(
+    0,
+    ...strengthExercises.map((x) => Date.parse(x.lastLogDate) || 0),
+  );
+  const muscleSummary = buildMuscleGrid(strengthExercises, trainingNowMs).map((cell) => {
+    const byRetention = [...cell.lifts].sort((a, b) => a.trend - b.trend);
+    const worst = byRetention[0];
+    const best = byRetention[byRetention.length - 1];
+    return {
+      group: cell.group,
+      retentionPct: cell.pct,
+      status: cell.status,
+      bestLift: best ? (nameBySlug.get(best.slug) ?? best.name) : null,
+      worstLift: worst ? (nameBySlug.get(worst.slug) ?? worst.name) : null,
+      improving: cell.lifts.filter((l) => l.status === "improving").length,
+      watch: cell.lifts.filter((l) => l.status === "watch").length,
+      recovering: cell.lifts.some((l) => l.recovering),
+    };
+  });
 
   const insights = {
     weight: weightTrend,
@@ -460,6 +509,8 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       improvingCount,
       needsAttentionCount: trainingAttention.length,
       attention: trainingAttention,
+      // Per-muscle rollup for every tracked group (state, best/worst lift, counts).
+      muscleSummary,
       // Muscle-level fatigue clusters (systemic only) — empty when nothing lines up.
       muscleFatigue,
     },
@@ -490,10 +541,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         sliced.sort((a, b) => (a.log.log_date ?? "").localeCompare(b.log.log_date ?? ""));
 
         const se = strengthBySlug.get(ex.slug);
-        // `metric` names the scoring axis (compound → e1RM, isolation → best-set
-        // tonnage/volume), so stats.best/current are generic — the reader keys off
-        // `metric` for the unit. Volume is a kg·reps product, never lb-converted.
-        // (schema 2.7)
+        // `performance.metric` names the scoring axis (compound → e1RM, isolation →
+        // best-set tonnage/volume); peak/current speak that unit. Volume is a
+        // kg·reps product, never lb-converted. (schema 3.1)
         const isVol = !ex.compound;
         const scoreVal = (s: (typeof stats)["best"]) =>
           s ? +(isVol ? s.tonnage : s.e1rm).toFixed(1) : null;
@@ -506,23 +556,26 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           // renamed. Use this (not `name`) to track an exercise across edits.
           slug: ex.slug,
           target: ex.target ?? null,
-          // Primary (scoring) metric — which axis retention/status/PR reference,
-          // NOT the only one computable (e1RM still exists for isolation lifts).
-          metric: isVol ? "volume" : "e1rm",
-          stats: {
-            sessions: sessionDates.length,
-            best: scoreVal(stats.best),
+          // One performance object so every reader keys off a single source:
+          // `metric` names the scoring axis (compound → e1RM, isolation → best-set
+          // tonnage), and peak/current/retentionPct all speak that unit. retention
+          // = current ÷ peak (PR-distance; see strengthBySlug above). e1RM still
+          // exists for isolation lifts — this is just the axis status/PR reference.
+          performance: {
+            metric: isVol ? "volume" : "e1rm",
+            peak: scoreVal(stats.best),
             current: scoreVal(stats.latest),
-            // PR-distance model (see strengthBySlug above): retention = latest ÷ PR.
-            // status is the settled verdict (improving/stable/watch). weeksSincePR is
-            // dropped — derivable from pr.date + lastSession.
             retentionPct: se ? +(se.trend * 100).toFixed(1) : null,
-            status: se ? se.status : null,
-            // Trend layer: which way / how fast / how trustworthy the recent
-            // window reads — separate from retention (distance-from-PR).
-            trajectory: se ? se.trajectory : null,
-            lastSession,
           },
+          // Interpretation, kept distinct from the numbers above: status = where
+          // the lift sits now (improving/stable/watch); reason = why, as a code so
+          // the reader needn't re-judge; trajectory = which way / how fast the
+          // recent window reads (separate from retention). (schema 3.1)
+          status: se ? se.status : null,
+          reason: strengthReason(se),
+          trajectory: se ? se.trajectory : null,
+          sessions: sessionDates.length,
+          lastSession,
           // The PR number equals stats.best, so pr carries only what's unique: the
           // date and the exact set. bestSet is canonical (parser rebuilds weight/reps).
           pr: stats.best
@@ -566,7 +619,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 3.0,
+    schema: 3.1,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
     dataSpan: overviewWindow, // total span of ALL data (see windowOf); distinct from per-section windowDays
     summary: {
@@ -914,11 +967,9 @@ export async function buildTrainingJson(): Promise<string> {
       const se = strengthBySlug.get(ex.slug);
       const sessionDates = [...new Set(ascLogs.map((l) => l.log_date).filter(Boolean))].sort();
 
-      // `metric` names the scoring axis (compound → e1RM, isolation → volume), so
-      // stats.best/current are generic and the reader keys off `metric` for the
-      // unit. status folds in from the old `strength` block (which just duplicated
-      // stats); weeksSincePR is dropped — derive from pr.date + lastSession.
-      // (schema 2.7 — mirrors buildAllDataJson.)
+      // Mirrors buildAllDataJson: one `performance` object (metric + peak +
+      // current + retentionPct, all in the scoring axis's unit), with status /
+      // reason / trajectory as the distinct interpretation layer. (schema 3.1)
       const isVol = !ex.compound;
       const scoreVal = (s: (typeof stats)["best"]) =>
         s ? +(isVol ? s.tonnage : s.e1rm).toFixed(1) : null;
@@ -929,18 +980,17 @@ export async function buildTrainingJson(): Promise<string> {
         // renamed. Use this (not `name`) to track an exercise across edits.
         slug: ex.slug,
         target: ex.target ?? null,
-        // Primary (scoring) metric — the axis retention/status/PR reference,
-        // NOT the only one computable (e1RM still exists for isolation lifts).
-        metric: isVol ? "volume" : "e1rm",
-        stats: {
-          sessions: sessionDates.length,
-          best: scoreVal(stats.best),
+        performance: {
+          metric: isVol ? "volume" : "e1rm",
+          peak: scoreVal(stats.best),
           current: scoreVal(stats.latest),
           retentionPct: se ? +(se.trend * 100).toFixed(1) : null,
-          status: se ? se.status : null,
-          trajectory: se ? se.trajectory : null,
-          lastSession: sessionDates.at(-1) ?? null,
         },
+        status: se ? se.status : null,
+        reason: strengthReason(se),
+        trajectory: se ? se.trajectory : null,
+        sessions: sessionDates.length,
+        lastSession: sessionDates.at(-1) ?? null,
         // PR number equals stats.best; pr carries only what's unique: date + set.
         pr: stats.best
           ? { date: stats.best.log.log_date ?? null, bestSet: stats.best.log.raw ?? null }
@@ -970,7 +1020,7 @@ export async function buildTrainingJson(): Promise<string> {
 
   const payload = {
     source: "LiftOS",
-    schema: 3.0,
+    schema: 3.1,
     tab: "training",
     units: unitsFor(TRAINING_UNIT_KEYS),
     dataSpan: windowOf(
