@@ -175,7 +175,7 @@
 /* Current intake goal's tenure — a quiet caption below the reason. The day
    count is lifted to darker/heavier ink (.ni-conf-day) so it carries the line. */
 .ni-rec-tenure {
-  margin: var(--space-2) 0 0;
+  margin: var(--vr-loose) 0 0;
   font-size: var(--role-caption-size);
   font-weight: var(--role-caption-weight);
   color: var(--role-caption-color);
@@ -876,7 +876,7 @@
 
 /* Footnote clarifying "double hit" — sits between the KPI row and the bar. */
 .nutri-month-note {
-  margin: var(--space-2) 0 0;
+  margin: var(--vr-loose) 0 0;
   font-size: var(--role-caption-size);
   font-weight: var(--role-caption-weight);
   color: var(--role-caption-color);

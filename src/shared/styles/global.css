@@ -68,7 +68,7 @@ button {
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--vr-loose);
   z-index: var(--z-toast);
   pointer-events: none;
   align-items: center;
@@ -199,7 +199,7 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--vr-tight);
   animation: celeb-card-in var(--dur-enter) var(--ease-enter) both;
 }
 
@@ -222,7 +222,7 @@ button {
   position: relative;
   width: 54px;
   height: 54px;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--vr-block);
 }
 
 .celeb-disc {
@@ -368,7 +368,7 @@ button {
 .save-celebration.v-milestone .celeb-badge {
   width: 72px;
   height: 72px;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--vr-block);
 }
 
 .save-celebration.v-milestone .celeb-card strong {
@@ -423,7 +423,7 @@ button {
 }
 
 .celeb-confirm {
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
   padding: 10px var(--space-5);
   border: none;
   border-radius: var(--radius-pill);

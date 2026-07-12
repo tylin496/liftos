@@ -107,7 +107,7 @@
 .ov-th-ret-hero {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--vr-snug);
   margin-top: var(--vr-section);
 }
 
@@ -170,10 +170,10 @@
 /* Full-variant header gauge — %, bar, and count read as ONE unit (value →
    picture → caption), so the bar pulls tight under the hero % and the count
    line sits right under the bar it captions instead of floating above it. */
-.ov-th-ret-hero + .ov-th-bar { margin-top: var(--space-3); }
+.ov-th-ret-hero + .ov-th-bar { margin-top: var(--vr-block); }
 .ov-th-bar + .ov-th-ret-count {
   display: block;
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
 }
 
 .ov-th-bar-seg {
@@ -257,7 +257,7 @@
 .ov-th-flagged-mid {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vr-hairline);
   flex: 1;
   min-width: 0;
 }
@@ -313,7 +313,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: var(--space-1);
+  gap: var(--vr-tight);
   padding: 10px var(--space-3);
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
@@ -534,7 +534,7 @@
 .ov-thg-drill-lift {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vr-hairline);
   min-width: 0;
 }
 .ov-thg-drill-name {

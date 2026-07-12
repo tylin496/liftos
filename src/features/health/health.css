@@ -279,7 +279,7 @@
 .health-trend-note {
   font-size: var(--text-2xs);
   color: var(--ink-3);
-  margin: var(--space-1) 0 0;
+  margin: var(--vr-tight) 0 0;
 }
 
 /* ── Skeleton loading state ───────────────────────────────────────────────── */
@@ -524,7 +524,7 @@
   font-size: var(--role-caption-size);
   font-weight: var(--role-caption-weight);
   color: var(--role-caption-color);
-  margin: var(--space-2) 0 0;
+  margin: var(--vr-loose) 0 0;
 }
 
 .health-recovery-footer {
@@ -775,5 +775,5 @@
   font-size: var(--text-base);
   color: var(--ink-3);
   line-height: 1.5;
-  margin: var(--space-4) 0;
+  margin: var(--vr-section) 0;
 }

@@ -240,7 +240,7 @@
 .card-menu-sep {
   height: 1px;
   background: var(--rule);
-  margin: var(--space-1) 0;
+  margin: var(--vr-tight) 0;
 }
 
 /* ── Exercise title block ────────────────────────────────────────────────────*/
@@ -1991,7 +1991,7 @@
   position: relative;
   width: 100%;
   height: 320px;
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
   background: var(--bg-soft);
 }
 
@@ -2317,7 +2317,7 @@
   font-size: var(--text-base);
   color: var(--ink-3);
   line-height: 1.5;
-  margin: var(--space-4) 0;
+  margin: var(--vr-section) 0;
 }
 
 /* Celebration-gold glow — PR badges/labels are the "special" gold, so they get

@@ -93,7 +93,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
 }
 
 .ov-active-target-ring-body {
@@ -102,7 +102,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: var(--space-1);
+  gap: var(--vr-tight);
 }
 
 .ov-active-target-ring-center {
@@ -180,7 +180,7 @@
 .ov-active-target-week {
   display: flex;
   gap: 4px;
-  margin-top: var(--space-3);
+  margin-top: var(--vr-block);
 }
 
 .ov-active-target-week-cell {
@@ -335,7 +335,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--vr-block);
+  gap: var(--space-3);
 }
 
 .ov-weight-stat {
@@ -747,7 +747,7 @@
 /* Offset leaves one caption line of air for the floating Today tag above. */
 .goal-path {
   position: relative;
-  margin-top: var(--space-4);
+  margin-top: var(--vr-section);
 }
 
 .goal-bar {
@@ -856,7 +856,7 @@
 .goal-sub {
   font-size: var(--text-2xs);
   color: var(--ink-3);
-  margin-top: 2px;
+  margin-top: var(--vr-hairline);
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -1020,7 +1020,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
 }
 
 /* Three-stage roadmap — vertical waypoints, like the journey's road ahead
@@ -1030,7 +1030,7 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--vr-loose);
   padding: var(--space-3) 0 0;
   margin: 0;
   font-size: var(--text-2xs);
@@ -1112,7 +1112,7 @@
 }
 
 .goal-init-lede {
-  margin: var(--space-3) 0 0;
+  margin: var(--vr-block) 0 0;
   font-size: var(--text-sm);
   color: var(--ink-3);
   line-height: var(--leading-body);
@@ -1144,7 +1144,7 @@
 }
 
 .goal-init-preview {
-  margin: var(--space-2) 0 0;
+  margin: var(--vr-loose) 0 0;
   font-size: var(--text-2xs);
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;

@@ -326,7 +326,7 @@ html.kb-open .tabbar {
   display: flex;
   flex-direction: column;
   /* Card spacing, unified across all four tabs (adopted from Health). */
-  gap: var(--space-3);
+  gap: var(--vr-block);
 }
 
 /* ── Tab entrance: one flat, uniform reveal ──────────────────────────────────
@@ -439,7 +439,7 @@ html.kb-open .tabbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--vr-block);
 }
 
 .section-head h2 {
@@ -673,7 +673,7 @@ html.kb-open .tabbar {
   padding: var(--space-4) var(--space-5) calc(env(safe-area-inset-bottom, 0px) + var(--space-4));
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--vr-block);
   /* Flex items default to min-height:auto, which forbids shrinking below content
      size. When the settings content is taller than the sheet's max-height, that
      stops this scroller from shrinking — so it keeps full content height and the
@@ -708,7 +708,7 @@ html.kb-open .tabbar {
   margin: 0;
 }
 
-.settings-section-label--spaced { margin-top: var(--space-4); }
+.settings-section-label--spaced { margin-top: var(--vr-section); }
 
 .settings-group {
   background: var(--bg-card);
@@ -896,7 +896,7 @@ html.kb-open .tabbar {
 }
 
 .settings-sign-out {
-  margin-top: var(--space-2);
+  margin-top: var(--vr-loose);
   padding: var(--space-3);
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
@@ -986,7 +986,7 @@ html.kb-open .tabbar {
   display: flex;
   justify-content: center;
   gap: var(--space-2);
-  margin-top: var(--space-3); /* a touch looser than mark→word→tag, still one group */
+  margin-top: var(--vr-block); /* a touch looser than mark→word→tag, still one group */
   z-index: 1;
   animation: dots-appear var(--dur-move) var(--ease-enter) 900ms both;
 }
@@ -1043,7 +1043,7 @@ html.kb-open .tabbar {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: var(--vr-snug);
 }
 .settings-about-mark {
   width: 26px;
