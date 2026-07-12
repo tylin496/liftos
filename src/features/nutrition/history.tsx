@@ -409,39 +409,47 @@ export function HistoryView({
       <section className={`page-card nutri-month-card${loading ? " loading-card" : ""}`}>
         <p className="page-eyebrow" style={{ margin: 0 }}>Last 30 Days</p>
 
-        <div className="nutri-month-kpis">
-          <MetricValue size="sm" unit="% adherence">{month.adherencePct}</MetricValue>
-          <MetricValue size="sm" unit="% double hit">{month.doubleHitPct}</MetricValue>
-        </div>
+        {!loading && month.logged === 0 ? (
+          // No logged days yet — a zeroed "0% adherence / 0% double hit" over an
+          // empty bar reads as failure, not emptiness. Say it's empty instead.
+          <p className="nutri-month-note">No days logged yet — log a day to start tracking your 30-day pattern.</p>
+        ) : (
+          <>
+            <div className="nutri-month-kpis">
+              <MetricValue size="sm" unit="% adherence">{month.adherencePct}</MetricValue>
+              <MetricValue size="sm" unit="% double hit">{month.doubleHitPct}</MetricValue>
+            </div>
 
-        {/* Spells out double hit so a low-intake day with protein met doesn't
-            read as an unexplained miss: it's the tight calorie band, not just
-            "a good day". */}
-        <p className="nutri-month-note">Double hit = calories on plan · protein met</p>
+            {/* Spells out double hit so a low-intake day with protein met doesn't
+                read as an unexplained miss: it's the tight calorie band, not just
+                "a good day". */}
+            <p className="nutri-month-note">Double hit = calories on plan · protein met</p>
 
-        {/* Distribution — one proportionally-coloured bar + text legend below */}
-        <div className="nutri-dist-track" aria-hidden="true">
-          {loading ? (
-            <span style={{ width: "35%", opacity: 0.3, background: "var(--ink-4)" }} />
-          ) : (
-            DIST_STATES.map(({ key, color }) => {
-              const pct = Math.round(((month.distribution[key] || 0) / (month.logged || 1)) * 100);
-              return pct > 0 ? <span key={key} style={{ width: `${pct}%`, background: color }} /> : null;
-            })
-          )}
-        </div>
-        <div className="nutri-dist-legend">
-          {DIST_LEGEND.map(({ keys, label, glyph, color }) => {
-            const count = keys.reduce((sum, k) => sum + (month.distribution[k] || 0), 0);
-            const pct = Math.round((count / (month.logged || 1)) * 100);
-            return pct > 0 ? (
-              <span className="nutri-dist-item" key={label}>
-                <span className="nutri-dist-glyph" style={{ color }} aria-hidden="true">{glyph}</span>
-                {label} {pct}%
-              </span>
-            ) : null;
-          })}
-        </div>
+            {/* Distribution — one proportionally-coloured bar + text legend below */}
+            <div className="nutri-dist-track" aria-hidden="true">
+              {loading ? (
+                <span style={{ width: "35%", opacity: 0.3, background: "var(--ink-4)" }} />
+              ) : (
+                DIST_STATES.map(({ key, color }) => {
+                  const pct = Math.round(((month.distribution[key] || 0) / (month.logged || 1)) * 100);
+                  return pct > 0 ? <span key={key} style={{ width: `${pct}%`, background: color }} /> : null;
+                })
+              )}
+            </div>
+            <div className="nutri-dist-legend">
+              {DIST_LEGEND.map(({ keys, label, glyph, color }) => {
+                const count = keys.reduce((sum, k) => sum + (month.distribution[k] || 0), 0);
+                const pct = Math.round((count / (month.logged || 1)) * 100);
+                return pct > 0 ? (
+                  <span className="nutri-dist-item" key={label}>
+                    <span className="nutri-dist-glyph" style={{ color }} aria-hidden="true">{glyph}</span>
+                    {label} {pct}%
+                  </span>
+                ) : null;
+              })}
+            </div>
+          </>
+        )}
       </section>
     </>
   );

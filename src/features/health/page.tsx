@@ -1053,6 +1053,20 @@ export function HealthPage() {
     );
   }
 
+  // Brand-new user: data has loaded but there's not a single reading yet. Show
+  // one clear sync notice up top instead of five cards full of bare "—" with the
+  // only guidance buried in the last card.
+  if (data && metrics.length === 0) {
+    return (
+      <div className="page health">
+        {header}
+        <p className="page-note">
+          No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="page health">
       {header}
