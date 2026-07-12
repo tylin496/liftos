@@ -657,9 +657,9 @@
   /* Hero number: bumped a step (34px) now it anchors its own row rather than
      sitting inline in the head. */
   font-size: var(--metric-xl);
-  /* Colour is set inline to follow the progress bar (see GoalPct). This is only
-     the fallback for the pre-count-up empty state — ramp start (Apple red). */
-  color: var(--progress-1);
+  /* Colour is set inline (see GoalPct) — neutral ink while counting, gold once
+     complete. This is only the fallback for the pre-count-up empty state. */
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1;

@@ -481,13 +481,13 @@ function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) =
 // in the app (no per-tab-enter re-roll).
 function GoalPctRoll({ target, delayMs }: { target: number; delayMs: number }) {
   const pct = useCountUp(target, COUNT_UP_MS, 0, delayMs);
-  // The % is a hero number that HAS a progress bar, so it takes the bar's
-  // colour rather than a semantic verdict: the ramp colour at this fill (gold
-  // once complete), matching the bar's leading edge.
+  // The % is a hero number carried in neutral ink — the bar itself shows the
+  // fill/ramp, so the number reads as a plain readout rather than competing with
+  // it. Gold once complete stays (celebration), matching the bar's finished state.
   const color =
     pct == null ? undefined
     : pct >= 100 ? "var(--progress-complete)"
-    : progressColor(pct / 100);
+    : "var(--ink)";
   return (
     <span className="goal-pct" style={color ? { color } : undefined}>
       {pct == null ? "" : `${pct}%`}
