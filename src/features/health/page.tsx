@@ -1130,7 +1130,7 @@ export function HealthPage() {
                 // purpose: the recent pace verdict already lives on Overview.
                 ? () => openTrend({
                     label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color,
-                    points: c.full, higherIsBetter: false, bucketDays: spec.bucket,
+                    points: c.full, higherIsBetter: false, bucketDays: spec.bucket, minSpan: spec.minSpan,
                     corridor: spec.key === "weight_kg" && data?.weightTargetRange
                       ? { minPerWeek: data.weightTargetRange.min, maxPerWeek: data.weightTargetRange.max }
                       : null,
@@ -1181,7 +1181,7 @@ export function HealthPage() {
         }
         onOpenTrend={
           lbmCard && lbmCard.full.length >= 2
-            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.full, higherIsBetter: true, judgeDelta: false, bucketDays: lbmCard.bucketDays })
+            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.full, higherIsBetter: true, judgeDelta: false, bucketDays: lbmCard.bucketDays, minSpan: 2 })
             : undefined
         }
       />

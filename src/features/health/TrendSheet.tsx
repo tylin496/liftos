@@ -25,6 +25,11 @@ export interface HealthTrendConfig {
       range the point covers instead of a single date, since the value is a
       multi-day average, not one reading. */
   bucketDays: number;
+  /** Sheet-chart y-domain floor, in this metric's own unit. Below this span the
+      domain widens to it (centred on the data) instead of shrinking further, so
+      a flat stretch can't fill the chart height and read as dramatic swings —
+      the same guard the card sparkline applies. Default 0 (no floor). */
+  minSpan?: number;
   /** Which way is "good" for this metric — drives the delta colour AND which
       extreme is the milestone. Weight / Body Fat are false (down-good, so the
       LOW is the win); Lean Mass / Active are true (up-good, so the peak is). */
@@ -59,15 +64,19 @@ const fmt = (v: number, d: number) =>
 /* Daily-reading progression line. Same shape as Training's exercise trend
    chart (measured getTotalLength() draw-in, press-drag scrub anywhere) —
    this is the "big graph" a Sparkline tap opens. */
-function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateExtreme, bucketDays, corridor }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean; celebrateExtreme: boolean; bucketDays: number; corridor?: { minPerWeek: number; maxPerWeek: number } | null }) {
+function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateExtreme, bucketDays, minSpan = 0, corridor }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean; celebrateExtreme: boolean; bucketDays: number; minSpan?: number; corridor?: { minPerWeek: number; maxPerWeek: number } | null }) {
   const W = 320;
   const H = 130;
   const padX = 10;
   const padY = 14;
 
   const vals = points.map((p) => p.value);
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
+  // Widen the domain to minSpan around the data's own centre (matching the card
+  // sparkline) so a flat stretch stays flat instead of filling the full height.
+  const center = (Math.min(...vals) + Math.max(...vals)) / 2;
+  const half = Math.max((Math.max(...vals) - Math.min(...vals)) / 2, minSpan / 2);
+  const min = center - half;
+  const max = center + half;
   const span = max - min || 1;
   const innerW = W - padX * 2;
   const innerH = H - padY * 2;
@@ -285,7 +294,7 @@ function SheetInner({
   onClose: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true, celebrateExtreme = true, bucketDays, corridor } = config;
+  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true, celebrateExtreme = true, bucketDays, minSpan = 0, corridor } = config;
 
   const first = points[0];
   const latest = points[points.length - 1];
@@ -374,7 +383,7 @@ function SheetInner({
                 )}
               </div>
 
-              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} celebrateExtreme={celebrateExtreme} bucketDays={bucketDays} corridor={corridor} />
+              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} celebrateExtreme={celebrateExtreme} bucketDays={bucketDays} minSpan={minSpan} corridor={corridor} />
 
               <div className="health-trend-sheet-stats">
                 <div className="health-trend-sheet-stat">
