@@ -610,6 +610,7 @@
 }
 
 .ncal-today-btn {
+  position: relative;
   margin-right: var(--space-2);
   padding: 4px 10px;
   border: none;
@@ -621,11 +622,20 @@
   cursor: pointer;
 }
 
+/* Reach 44px tall without overlapping the close button beside it — vertical
+   slop only (the pill is already wide enough via its padding). */
+.ncal-today-btn::before {
+  content: "";
+  position: absolute;
+  inset: -10px 0;
+}
+
 .ncal-today-btn:active {
   transform: scale(var(--tap-scale));
 }
 
 .ncal-close-btn {
+  position: relative;
   width: 36px;
   height: 36px;
   border: none;
@@ -638,6 +648,13 @@
   opacity: 0.6;
   display: grid;
   place-items: center;
+}
+
+/* 36→44px tap target; it's the header's corner control, no adjacent target. */
+.ncal-close-btn::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
 }
 
 .ncal-close-btn:active {
