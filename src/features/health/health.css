@@ -65,6 +65,7 @@
 /* Toggle variant — the header is the expand control. Reset the native button
    chrome so it looks identical to the div header; the chevron is the cue. */
 .health-tdee-head--toggle {
+  position: relative;
   width: 100%;
   margin: 0;
   padding: 0;
@@ -75,6 +76,15 @@
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* The header row is only ~20px tall but it's the sole control that reveals
+   Resting/TDEE — extend the hit area vertically to ≥44px without shifting the
+   layout (width is already full, so slop is vertical only). */
+.health-tdee-head--toggle::before {
+  content: "";
+  position: absolute;
+  inset: -12px 0;
 }
 
 /* Right cluster: freshness tag sits just left of the expand chevron. */
@@ -254,7 +264,7 @@
   justify-content: space-between;
   gap: var(--space-4);
   margin-top: var(--vr-section);
-  padding-top: var(--space-3);
+  padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
 }
 
@@ -522,7 +532,7 @@
   font-weight: var(--role-secondary-weight);
   line-height: var(--leading-body);
   color: var(--role-secondary-color);
-  margin: var(--space-4) 0 0;
+  margin: var(--vr-section) 0 0;
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
 }

@@ -12,7 +12,7 @@
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   color: var(--role-eyebrow-color);
-  margin: 0 0 var(--space-1);
+  margin: 0 0 var(--vr-tight);
 }
 
 .page-topbar-title-row {
@@ -228,6 +228,7 @@ button.copy-all-data-btn {
 }
 
 .page-topbar-avatar-btn {
+  position: relative;
   flex-shrink: 0;
   border: none;
   padding: 0;
@@ -237,6 +238,14 @@ button.copy-all-data-btn {
   place-items: center;
   transition: transform var(--dur-press) var(--ease-press);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Expand the ~30px avatar to a 44px tap target without resizing the visible
+   ring — it's the corner control, so there's no adjacent target to overlap. */
+.page-topbar-avatar-btn::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
 }
 
 .page-topbar-avatar-btn:active {
