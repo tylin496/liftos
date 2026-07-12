@@ -646,8 +646,22 @@ export function ExerciseCard({
       <div className="ex-title-block">
         <div className="ex-title-row">
           <h3 className="ex-name">
-            <span className="ex-name-text">{exercise.name}</span>
-            {editingMode !== "meta" && <ChartGlyph className="ex-name-trend" />}
+            {editingMode !== "meta" ? (
+              /* Tap target is the name + chart glyph only (the glyph is the
+                 cue), not the whole header — so tapping the PR number or the
+                 identity photo no longer springs the trend sheet unexpectedly. */
+              <button
+                type="button"
+                className="ex-name-trend-btn"
+                onClick={() => setTrendOpen(true)}
+                aria-label={`${exercise.name} — view strength trend`}
+              >
+                <span className="ex-name-text">{exercise.name}</span>
+                <ChartGlyph className="ex-name-trend" />
+              </button>
+            ) : (
+              <span className="ex-name-text">{exercise.name}</span>
+            )}
           </h3>
           {exercise.target && (
             <span className="target-display mono">{exercise.target}</span>
@@ -699,17 +713,6 @@ export function ExerciseCard({
         </div>
       )}
 
-      {/* Tap target: the whole header (title + PR/reps + image) opens the
-          strength trend sheet. A transparent overlay above the header content
-          so a tap anywhere in the top half reveals the sparkline. */}
-      {editingMode !== "meta" && (
-        <button
-          type="button"
-          className="ex-head-hit"
-          onClick={() => setTrendOpen(true)}
-          aria-label={`${exercise.name} — view strength trend`}
-        />
-      )}
       </div>
 
       {/* ── Edit Exercise Form ── */}
@@ -878,6 +881,16 @@ export function ExerciseCard({
                         </button>
                       )}
                     </div>
+                    {/* Disclosure cue — signals the row body expands (Est.1RM / of
+                        PR / Volume), distinct from the pen's edit action. Not a
+                        button: it's part of the row, which owns the toggle. */}
+                    {!isEditing && (
+                      <span className="hist-disclosure" aria-hidden="true">
+                        <svg width="11" height="7" viewBox="0 0 12 7" fill="none">
+                          <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                    )}
                   </div>
                   {justSaved && (
                     <svg

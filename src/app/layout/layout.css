@@ -452,6 +452,7 @@ html.kb-open .tabbar {
 }
 
 .section-head button {
+  position: relative;
   padding: 4px 10px;
   border: 1px solid var(--rule);
   border-radius: var(--radius-pill);
@@ -462,6 +463,13 @@ html.kb-open .tabbar {
   font-weight: 600;
   cursor: pointer;
   transition: background var(--dur-press), color var(--dur-press);
+}
+
+/* Overflow hit area to ≥44px tall without inflating the visible pill. */
+.section-head button::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
 }
 
 .section-head button:hover {

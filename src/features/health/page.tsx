@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { fetchHealthData, type HealthData } from "./api";
 import {
   series,
@@ -1150,47 +1150,52 @@ export function HealthPage() {
         ref={energyCardRef}
         id="health-energy-card"
         className={`page-card health-energy${!data ? " loading-card" : ""}`}
-        {...(data && tdee?.tdee != null
-          ? {
-              role: "button" as const,
-              tabIndex: 0,
-              "aria-expanded": energyExpanded,
-              // A user tap opts into the scroll-to-bottom settle (reveal the
-              // model below the fold); a deep-link expand does not (see the
-              // settle effect). Ref, not state — it only gates the effect, never
-              // renders. Set regardless of direction: on collapse the settle
-              // effect early-returns, so the flag is a no-op until the next open.
-              onClick: () => {
-                settleToBottomRef.current = true;
-                setEnergyExpanded((v) => !v);
-              },
-              onKeyDown: (e: KeyboardEvent) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  settleToBottomRef.current = true;
-                  setEnergyExpanded((v) => !v);
-                }
-              },
-            }
-          : {})}
       >
-        <div className="health-tdee-head">
-          <span className="health-card-eyebrow">Active</span>
-          <span className="health-tdee-head-right">
-            {data && (
+        {/* The header row is the toggle — a real <button> — so the ActivityBars
+            and Resting/TDEE buttons below are no longer nested inside a
+            button-role section (invalid a11y). A native button gives Enter/Space
+            for free, so the hand-rolled onKeyDown is gone. */}
+        {data && tdee?.tdee != null ? (
+          <button
+            type="button"
+            className="health-tdee-head health-tdee-head--toggle"
+            aria-expanded={energyExpanded}
+            // A user tap opts into the scroll-to-bottom settle (reveal the model
+            // below the fold); a deep-link expand does not (see the settle
+            // effect). Ref, not state — it only gates the effect, never renders.
+            onClick={() => {
+              settleToBottomRef.current = true;
+              setEnergyExpanded((v) => !v);
+            }}
+          >
+            <span className="health-card-eyebrow">Active</span>
+            <span className="health-tdee-head-right">
               <FreshnessTag
                 date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null}
                 kind="sync"
                 updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
               />
-            )}
-            <span className={`health-energy-chevron${energyExpanded ? " is-open" : ""}`} aria-hidden>
-              <svg width="13" height="8" viewBox="0 0 12 7" fill="none">
-                <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <span className={`health-energy-chevron${energyExpanded ? " is-open" : ""}`} aria-hidden>
+                <svg width="13" height="8" viewBox="0 0 12 7" fill="none">
+                  <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
             </span>
-          </span>
-        </div>
+          </button>
+        ) : (
+          <div className="health-tdee-head">
+            <span className="health-card-eyebrow">Active</span>
+            <span className="health-tdee-head-right">
+              {data && (
+                <FreshnessTag
+                  date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null}
+                  kind="sync"
+                  updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
+                />
+              )}
+            </span>
+          </div>
+        )}
         {!data ? (
           <>
             <div className="health-trend-head">

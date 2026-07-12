@@ -587,8 +587,33 @@ export function TodayView({
             exclusive (a double hit needs a logged entry). */}
         <div className="daily-card-top">
           <p className="page-eyebrow">Intake</p>
-          {!isEditing && !hasEntry && <Badge tone="neutral">No entry</Badge>}
-          {!isEditing && showDoubleHit && <Badge tone="gold" pill>Double Hit</Badge>}
+          <div className="daily-card-top-actions">
+            {!isEditing && showDoubleHit && <Badge tone="gold" pill>Double Hit</Badge>}
+            {/* Cold start: the tab's core action needs a real affordance, not a
+                passive "No entry" dead-end. Viewers keep the plain badge. */}
+            {!isEditing && !hasEntry && (
+              readOnly ? (
+                <Badge tone="neutral">No entry</Badge>
+              ) : (
+                <button type="button" className="nutri-log-cta" onClick={() => openEdit("calories")}>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Log intake
+                </button>
+              )
+            )}
+            {/* Has entry: a quiet pencil so tap-to-edit is discoverable (the
+                columns are otherwise plain text with no editable signal). */}
+            {!isEditing && hasEntry && !readOnly && (
+              <button type="button" className="nutri-edit-cta" aria-label="Edit intake" onClick={() => openEdit("calories")}>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         {isEditing ? (

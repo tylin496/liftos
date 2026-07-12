@@ -170,21 +170,22 @@ function ActiveTargetWeekStrip({
     const letter = WEEKDAY_ABBR[new Date(`${date}T12:00:00`).getDay()][0];
     if (date === todayISO) {
       const ratio = view.today.accrued / Math.max(1, view.today.target);
-      const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
+      const ringColor = ratio >= 1 ? "var(--good)" : progressColor(ratio);
       return { date, letter, kind: "today" as const, fill: Math.min(1, ratio), ringColor };
     }
     if (date > todayISO) return { date, letter, kind: "future" as const, fill: 0, ringColor: undefined };
     const active = metrics.find((m) => m.metric_date === date)?.active_energy_kcal ?? 0;
     const ratio = perDay > 0 ? active / perDay : 0;
-    // Every bar (past or today) follows the same ramp the ring itself would
-    // show for that day — the strip is a row of tiny rings, not a separate
-    // "logged" colour language.
+    // Each bar follows the same spectrum ramp as the ring, BUT a met day reads
+    // --good green here, not the ring's completion gold: the ring is the ONE
+    // gold spot on the card, so a whole row of gold bars doesn't dilute it
+    // (gold stays rare). Below-target days still ride the ramp.
     return {
       date,
       letter,
       kind: "past" as const,
       fill: Math.min(1, ratio),
-      ringColor: ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio),
+      ringColor: ratio >= 1 ? "var(--good)" : progressColor(ratio),
     };
   });
 

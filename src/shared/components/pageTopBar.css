@@ -109,6 +109,7 @@
   flex-shrink: 0;
   display: grid;
   place-items: center;
+  position: relative;
   width: 30px;
   height: 30px;
   border: none;
@@ -134,6 +135,15 @@
 
 .copy-phase-header-btn:active {
   transform: scale(var(--tap-scale));
+}
+
+/* Expand the tap target to ≥44px without growing the visible glyph or shifting
+   the avatar/title beside it — the pseudo-element overflows the box and takes no
+   part in layout (same idiom as .hist-actions button::before). */
+.copy-phase-header-btn::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
 }
 
 .copy-phase-header-btn .copy-icon,

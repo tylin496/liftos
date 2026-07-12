@@ -1017,6 +1017,74 @@
   margin: 0;
 }
 
+/* Right-side action slot — keeps the eyebrow left and any badge / CTA grouped
+   on the right under the card's space-between. */
+.daily-card-top-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Cold-start CTA — the one clear entry into the tab's core loop. Accent pill
+   (matches the app's "+" accent fills), not a passive grey badge. */
+.nutri-log-cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--accent-100);
+  color: var(--accent);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-press);
+}
+
+.nutri-log-cta:active {
+  transform: scale(var(--tap-scale));
+}
+
+/* Has-entry edit affordance — quiet pencil, findable but subordinate to the
+   numbers it edits. */
+.nutri-edit-cta {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--dur-press) var(--ease-press), transform var(--dur-press) var(--ease-press);
+}
+
+.nutri-edit-cta:active {
+  transform: scale(var(--tap-scale));
+}
+
+@media (hover: hover) {
+  .nutri-edit-cta:hover {
+    color: var(--ink-2);
+  }
+}
+
+/* Overflow hit area to ≥44px on both affordances without inflating the glyph. */
+.nutri-log-cta::before,
+.nutri-edit-cta::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+
 /* ── Stat grid ───────────────────────────────────────────────────────── */
 /* Layout is the shared .nutri-grid (shared/components/nutriGrid.css); values
    render via the shared metric-val/metric-caption classes.

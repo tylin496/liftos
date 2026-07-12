@@ -145,9 +145,11 @@
 .ov-active-target-status .is-behind { color: var(--warn); }
 .ov-active-target-status .is-ahead,
 .ov-active-target-status .is-on { color: var(--good); }
+/* "Closed" is a routine weekly target-hit, not a rare celebration — it reads as
+   a good verdict in --good, same as ahead/on-pace. Gold is reserved for the
+   cut-goal-reached moment so it stays scarce. */
 .ov-active-target-status .is-closed {
-  color: var(--gold);
-  text-shadow: var(--gold-glow);
+  color: var(--good);
 }
 
 /* Detail line — states the floating target explicitly (target/usual/logged),
@@ -184,11 +186,15 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 3px;
+  /* Real 44px hit height — bar+label sit centred. Adjacent cells rule out an
+     overflowing ::before (it would steal neighbours' taps), so the target is
+     the box itself. */
+  min-height: 44px;
   border: none;
   background: transparent;
-  padding: var(--space-1) 0;
-  margin: calc(var(--space-1) * -1) 0;
+  padding: 0;
   cursor: pointer;
 }
 

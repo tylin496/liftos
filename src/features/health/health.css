@@ -31,6 +31,7 @@
 .health-trend-open {
   display: flex;
   align-items: center;
+  position: relative;
   border: none;
   background: none;
   padding: 0;
@@ -40,6 +41,18 @@
   transition: opacity var(--dur-press) var(--ease-press);
 }
 
+/* The 7×12 chevron is the discoverable disclosure signal — overflow its hit
+   area to ~44px tall. Kept narrow on the left so it doesn't reach into the
+   sparkline sitting beside it. */
+.health-trend-open::before {
+  content: "";
+  position: absolute;
+  top: -16px;
+  bottom: -16px;
+  left: -10px;
+  right: -8px;
+}
+
 .health-trend-open:active { opacity: 0.7; }
 
 .health-tdee-head {
@@ -47,6 +60,21 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
+}
+
+/* Toggle variant — the header is the expand control. Reset the native button
+   chrome so it looks identical to the div header; the chevron is the cue. */
+.health-tdee-head--toggle {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Right cluster: freshness tag sits just left of the expand chevron. */
@@ -340,8 +368,6 @@
    "expand in place", distinct from Overview's "›" which means "go to a
    different screen" — don't reuse that glyph/direction here. */
 .health-energy {
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
   /* Deep-link target (Overview → Health): land with a breath, not jammed to
      the edge. Shell owns the scroll; this just sets where it settles.
      It's the last card in a short page, so a plain "start" alignment can't
