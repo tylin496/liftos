@@ -84,13 +84,15 @@
 
 /* ── Content ────────────────────────────────────────────────────────── */
 /* A fixed-height column holding the pull indicator and the tab viewport. It
-   does not scroll — the active panel does. */
+   does not scroll — the active panel does. Spans the full viewport width so the
+   scroll container inside it (.tab-panel) is a wheel/scroll target edge-to-edge
+   on desktop; the reading column is re-centred on .tab-panel itself (below)
+   rather than by narrowing this box, which used to leave the wide side margins
+   dead to the scroll wheel. */
 .shell-content {
   flex: 1;
   min-height: 0;
   width: 100%;
-  max-width: var(--content-max);
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
 }
@@ -111,7 +113,13 @@
   height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0 var(--space-4) var(--dock-bottom-clearance);
+  /* Full-width scroller, reading column re-centred here: the inline padding
+     grows past --space-4 once the panel is wider than --content-max so content
+     stays capped and centred, while the scroll container itself still fills the
+     viewport (the wheel works over the whole width, not just the middle). On a
+     phone-width panel the max() picks --space-4, so nothing changes there. */
+  padding: 0 max(var(--space-4), (100% - var(--content-max)) / 2)
+    var(--dock-bottom-clearance);
   /* Hide the scrollbar rather than reserve a stable gutter for it. A mouse-driven
      browser (unlike a touch device's auto-hiding overlay scrollbar) renders a
      classic, space-taking scrollbar the instant a tab's content grows past the
