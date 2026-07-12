@@ -1092,6 +1092,9 @@ function TrainingPageInner() {
               openTrendSignal={jumpTarget?.slug === ex.slug ? jumpTarget.nonce : null}
             />
           ))}
+          {exercises && activeExercises.length === 0 && (
+            <div className="empty-row">No exercises in this split yet — add one below.</div>
+          )}
         </div>
       </div>
 
