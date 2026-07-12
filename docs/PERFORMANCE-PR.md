@@ -10,9 +10,9 @@
 
 **「primary」是關鍵字：** `metric` 指的是**評分採用哪一個**,不是唯一存在的。e1RM 對孤立動作仍算得出來（只是不拿來評分）,未來也可能再加 relative strength / velocity 等——它們不會取代 primary。
 
-**匯出 schema 2.6（`copyAllData.ts`）：** 每個動作帶一個 `metric: "e1rm" | "volume"`,並用**具體欄位名**（`bestE1RM`/`bestVolume`、`pr.e1rm`/`pr.volume`、`logs[].e1rm`/`logs[].volume`）而非抽象 `best`+`metric` 查表,讓 JSON self-describing。`units.volume = "kg·reps"`（不是 `"kg"`）。一句話定義：
+**匯出 schema 3.1（`copyAllData.ts`）：** 每個動作把評分數字收進一個 `performance` 物件——`{ metric: "e1rm" | "volume", peak, current, retentionPct }`,`metric` 與它縮放的數字同住,所以 `peak`/`current`/`retentionPct` 全講同一個單位（不必抬頭查 `metric`）。**判讀**拆成平行的兄弟欄位、與數字分開：`status`（在哪:improving/stable/watch）、`reason`（為什麼,結構化 code:`below_peak` / `recent_drop` / `recovering` / `holding` / `at_peak` / `insufficient_data`,帶 `weeksSinceImprovement`）、`trajectory`（往哪走）。`logs[]` 仍逐筆帶具體 `e1rm` 或 `volume`;`units.volume = "kg·reps"`（不是 `"kg"`）。（schema 3.0 曾用抽象 `stats.best`+`metric` 查表;3.1 把 metric 併進 `performance` 讓來源單一。）一句話定義：
 
-> **Exactly one primary metric exists per exercise.** Compound lifts use e1RM; isolation lifts use Volume (kg·reps). `retentionPct`, `status`, and PR calculations always reference the exercise's primary metric. e1RM is still computable for isolation lifts but is not their scoring axis.
+> **Exactly one primary metric exists per exercise.** Compound lifts use e1RM; isolation lifts use Volume (kg·reps). `performance.retentionPct`, `status`, and PR calculations always reference the exercise's primary metric. e1RM is still computable for isolation lifts but is not their scoring axis.
 
 ## 問題
 
