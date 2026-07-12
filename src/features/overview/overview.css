@@ -76,6 +76,7 @@
 }
 
 .ov-active-target-setup {
+  position: relative;
   display: block;
   width: 100%;
   text-align: left;
@@ -87,6 +88,13 @@
   color: var(--accent);
   cursor: pointer;
   line-height: var(--leading-body);
+}
+
+/* Reach a 44px-tall tap target — full-width already, so slop is vertical only. */
+.ov-active-target-setup::before {
+  content: "";
+  position: absolute;
+  inset: -11px 0;
 }
 
 .ov-active-target-ring-row {
@@ -948,6 +956,7 @@
 }
 
 .goal-plan-head {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -962,6 +971,13 @@
   font: inherit;
   color: inherit;
   text-align: left;
+}
+
+/* ~29px row → 44px tap target; full-width, so the slop is vertical only. */
+.goal-plan-head::before {
+  content: "";
+  position: absolute;
+  inset: -8px 0;
 }
 
 /* Title + subtitle on one line — the subtitle names the plan's stages even
