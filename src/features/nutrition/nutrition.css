@@ -647,7 +647,7 @@
 .ncal-weekdays {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
+  gap: 2px; /* match .ncal-week column gap so weekday labels align over day cells */
   margin-bottom: var(--vr-block);
 }
 
