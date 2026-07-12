@@ -182,6 +182,14 @@
   --role-field-label-color: var(--ink-3);
   --role-field-label-spacing: 0.06em;
 
+  /* Uppercase tracking for small caps labels that aren't section titles.
+     microlabel = history date/status, weekday headers, chart legend (2xs UPPER);
+     nanocaption = the eyebrow−2px hero micro-caption (COMPLETE, avg-retention).
+     Value may coincide with other roles — the role names intent so they can
+     diverge later; never re-type the em value per element. */
+  --role-microlabel-spacing: 0.04em;
+  --role-nanocaption-spacing: 0.08em;
+
   --role-action-size: var(--text-sm);          /* 13 — neutral button/link */
   --role-action-weight: 600;
   --role-action-color: var(--ink-2);

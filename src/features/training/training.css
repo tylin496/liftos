@@ -125,7 +125,11 @@
   position: absolute;
   top: var(--space-3);
   right: var(--space-3);
-  z-index: var(--z-raised);
+  /* --z-dropdown, not --z-raised: this wrapper is the stacking-context root for
+     the ⋯ popup. At --z-raised it tied with raised card content (e.g. the gold
+     .hist-status-pr pill, also --z-raised) and DOM order let that content bleed
+     through the open menu. The card menu must float above all raised content. */
+  z-index: var(--z-dropdown);
 }
 
 .card-menu-btn {
@@ -655,7 +659,7 @@
   font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--ink-3);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--role-microlabel-spacing);
   text-transform: uppercase;
 }
 
@@ -711,7 +715,7 @@
   flex-shrink: 0;
   font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--role-microlabel-spacing);
   text-transform: uppercase;
   color: var(--gold);
   background: color-mix(in srgb, var(--gold) 18%, transparent);
@@ -972,7 +976,7 @@
 .hist-detail-k {
   font-size: var(--text-2xs);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--role-microlabel-spacing);
   text-transform: uppercase;
   color: var(--ink-4);
 }
@@ -1728,14 +1732,14 @@
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--ink);
-  line-height: 1.3;
+  line-height: var(--leading-snug);
 }
 
 .stretch-note {
   font-size: var(--text-2xs);
   color: var(--ink-3);
   margin-top: var(--vr-hairline);
-  line-height: 1.3;
+  line-height: var(--leading-body);
 }
 
 .stretch-menu {
@@ -1973,7 +1977,7 @@
 .image-well-hint {
   font-size: var(--role-caption-size);
   color: var(--role-caption-color);
-  line-height: 1.4;
+  line-height: var(--leading-body);
 }
 
 /* ── Image Crop Modal ────────────────────────────────────────────────────────*/

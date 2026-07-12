@@ -655,7 +655,7 @@
   text-align: center;
   font-size: var(--text-sm);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--role-microlabel-spacing);
   text-transform: uppercase;
   color: var(--ink-4);
 }
@@ -837,7 +837,7 @@
   gap: 6px;
   font-size: var(--text-2xs);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--role-microlabel-spacing);
   color: var(--ink-3);
 }
 

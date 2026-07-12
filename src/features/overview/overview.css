@@ -434,7 +434,7 @@
   border-radius: var(--radius-pill);
   font-size: var(--text-2xs);
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1;
 }
 .ov-weight-accel-chip.is-good { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
 .ov-weight-accel-chip.is-warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
@@ -705,7 +705,7 @@
 .goal-complete {
   font-size: calc(var(--role-eyebrow-size) - 2px);
   font-weight: var(--role-eyebrow-weight);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--role-nanocaption-spacing);
   text-transform: uppercase;
   color: var(--ink-3);
   margin-top: var(--vr-snug);
