@@ -534,18 +534,24 @@ export function ExerciseCard({
 
   async function handleImageUpload(file: File): Promise<string> {
     const blob = URL.createObjectURL(file);
-    setLocalImageUrl(blob);
+    setLocalImageUrl((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return blob;
+    });
     setUploading(true);
     setUploadError(undefined);
     try {
       const url = await uploadExerciseImage(exercise.split as SplitId, exercise.slug, file);
       onUpdate({ ...exercise, image_url: url });
-      URL.revokeObjectURL(blob);
-      setLocalImageUrl(undefined);
+      // Keep the local blob preview for the rest of this session. The committed
+      // PNG only becomes fetchable after the GitHub Pages deploy finishes (~40s),
+      // and in local dev it never lands in the local public/ at all — swapping to
+      // its URL now would flash a broken image. A fresh load picks up image_url.
       return url;
     } catch (err) {
       const errorMsg = String((err as Error)?.message ?? err);
       setUploadError(errorMsg);
+      URL.revokeObjectURL(blob);
       setLocalImageUrl(undefined);
       throw err;
     } finally {
