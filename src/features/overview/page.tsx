@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type Ref } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type Ref } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
@@ -25,6 +25,7 @@ import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
+import { scrollRevealClear } from "@app/layout/revealScroll";
 import { useSessionUser, useIsReadOnly } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
@@ -72,21 +73,33 @@ function daysSince(isoDate: string): number {
 // centre so its on-screen position can be measured for the stagger.
 function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { shown: number | null; target: number; synced?: boolean; innerRef?: Ref<HTMLDivElement> }) {
   const ratio = (shown ?? 0) / Math.max(1, target);
-  // Hero number IS "how much left to CLOSE the ring" — counts DOWN (target →
-  // 0) in lock-step with the ring filling, derived from the same tween as
-  // `shown`. Absence ≠ a measured zero: before today syncs, the centre reads
-  // "—", not "0"; "Closed" once the ring is full (sub-label carries that, the
-  // number itself stays 0).
+  // Hero number tracks the ring's own state in lock-step with the tween:
+  //   below 100% — how much is left to CLOSE the ring, counting DOWN (target→0);
+  //   at 100%    — "✓", the ring is closed;
+  //   over 100%  — the fill percentage ("140%"), the number the ring now carries.
+  // Absence ≠ a measured zero: before today syncs the centre reads "—", not "0".
   const remaining = Math.max(0, Math.round(target - (shown ?? 0)));
-  const numText = shown == null ? "" : !synced ? "—" : remaining.toLocaleString();
+  const over = ratio > 1;
+  const numText =
+    shown == null
+      ? ""
+      : !synced
+        ? "—"
+        : over
+          ? `${Math.round(ratio * 100)}%`
+          : remaining > 0
+            ? remaining.toLocaleString()
+            : "✓";
   const subText =
     shown == null
       ? ""
       : !synced
         ? `of ${target.toLocaleString()}`
-        : remaining > 0
-          ? "left"
-          : "Closed";
+        : over
+          ? "of goal"
+          : remaining > 0
+            ? "left"
+            : "Closed";
   // Follows the shared Apple-spectrum progress ramp by fill (progressColor) —
   // red→orange→green→cyan→blue, the same as the Cut Progress bar and top-bar
   // ring. At/over 100% it flips to the discrete completion gold
@@ -95,14 +108,14 @@ function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { show
   return ratio > 1 ? (
     <OverflowRing ratio={ratio} size={64} strokeWidth={7} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
-        <span className="ov-active-target-ring-num">{numText}</span>
+        <span className={`ov-active-target-ring-num${over ? " is-over" : ""}`}>{numText}</span>
         <span className="ov-active-target-ring-of">{subText}</span>
       </div>
     </OverflowRing>
   ) : (
     <ActivityRing pct={ratio} size={64} strokeWidth={7} color={ringColor} transition="none">
       <div className="ov-active-target-ring-center" ref={innerRef}>
-        <span className="ov-active-target-ring-num">{numText}</span>
+        <span className={`ov-active-target-ring-num${over ? " is-over" : ""}`}>{numText}</span>
         <span className="ov-active-target-ring-of">{subText}</span>
       </div>
     </ActivityRing>
@@ -603,6 +616,12 @@ function PhasePlanSection({
   cutMode: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  // The roadmap sits mid-card, so expanding it can push the reveal behind the
+  // floating tab bar. scrollRevealClear scrolls it just clear of the bar — in
+  // the same motion as the expand, and only when it would be occluded. Opening
+  // only; must be called while still collapsed so it can measure the grow.
+  const revealRef = useRef<HTMLDivElement>(null);
+
   // Phase stays derived from the live deficit (phaseFromDeficit): anything
   // still running a deficit is the Cut stage; intake at maintenance = stage 2.
   const atMaintenance = cutMode === "Maintenance";
@@ -634,7 +653,7 @@ function PhasePlanSection({
       <button
         type="button"
         className="goal-plan-head"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((o) => { if (!o) scrollRevealClear(revealRef.current); return !o; })}
         aria-expanded={open}
       >
         {/* Section heading + always-visible subtitle: even collapsed, the row
@@ -647,9 +666,13 @@ function PhasePlanSection({
         {!atMaintenance && n > 0 && (
           <span className="goal-plan-flag">{n} signal{n === 1 ? "" : "s"} on</span>
         )}
-        <span className={`goal-plan-chevron${open ? " open" : ""}`} aria-hidden>⌄</span>
+        <span className={`goal-plan-chevron${open ? " open" : ""}`} aria-hidden>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <polyline points="4 6 8 10 12 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
       </button>
-      <div className={`goal-plan-reveal${open ? " open" : ""}`}>
+      <div ref={revealRef} className={`goal-plan-reveal${open ? " open" : ""}`}>
         <div className="goal-plan-body">
           {/* Vertical waypoint list — reads as the journey's road, not a
               breadcrumb: filled dot = you are here, hollow = ahead. */}
@@ -777,7 +800,11 @@ function CutProgressCard({
               <span className="goal-plan-title">Roadmap</span>
               <span className="goal-plan-subtitle">Cut → Maintenance → Lean Bulk</span>
             </span>
-            <span className="goal-plan-chevron" aria-hidden>⌄</span>
+            <span className="goal-plan-chevron" aria-hidden>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <polyline points="4 6 8 10 12 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
           </div>
         </div>
       </div>
@@ -1249,12 +1276,16 @@ function WeightCard({
   metrics,
   state,
   onNav,
+  onNavEmpty,
   loading = false,
 }: {
   weightLatest: number | null;
   metrics: BodyMetric[];
   state: NutritionStateFull | null;
+  // Loaded card → Nutrition (the pace read); empty card → Health (its CTA is
+  // "sync from Apple Health"). Two targets, one per destination-that-fits.
   onNav: () => void;
+  onNavEmpty: () => void;
   loading?: boolean;
 }) {
   // observedRate is a real 0-fallback when no trend could be fit (<5 readings in
@@ -1356,11 +1387,11 @@ function WeightCard({
         ref={ref}
         data-inview={inView}
         className="page-card ov-weight ov-weight--empty"
-        onClick={onNav}
+        onClick={onNavEmpty}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onNav();
+            onNavEmpty();
           }
         }}
       >
@@ -1376,17 +1407,22 @@ function WeightCard({
   }
 
   // Rate leads: on a cut the KPI you act on is the loss RATE (kg/wk), not the
-  // day's scale weight (water/glycogen noise). So the hero is the rate, the
-  // pace verdict sits below it, and the current weight is demoted to a context
-  // number on that verdict line. Until the trend settles (rate == null →
-  // Forming/Calibrating) the hero falls back to the weight level so the card
-  // always leads with a real number. The card (label + hero) opens Health —
-  // "where am I / see the trend"; the verdict line is the pace read, which is
-  // Nutrition's territory (driven by the calorie target), so it jumps there
-  // instead. The outer element can't be a native <button> (nested buttons are
-  // invalid HTML); it's a div with the same role/keyboard behavior, and the
-  // verdict line is the one real nested <button> that stops its click from also
-  // firing onNav.
+  // day's scale weight (water/glycogen noise). So the hero is the rate and the
+  // current weight is demoted to the "Now" context number in the footer. Until
+  // the trend settles (rate == null → Forming/Calibrating) the hero falls back
+  // to the weight level so the card always leads with a real number.
+  //
+  // With data present the whole card opens Nutrition's recommendation: what it
+  // reports is the loss rate against the calorie-target corridor — a pace
+  // verdict, which is Nutrition's territory ("am I on track / what do I
+  // change"), not the raw metric. The full weight history still lives on
+  // Health's weight card, but this card is about pace, so it lands where you act
+  // on it. (The empty state is the exception — its CTA is "sync from Apple
+  // Health", so it routes to Health via onNavEmpty. And the earlier in-card
+  // split — body → Health, a nested pace pill → Nutrition — was dropped when the
+  // verdict pill was quieted away, so there is no nested <button> to preserve.)
+  // It's a div with role=button rather than a native <button> only for parity
+  // with the loading/empty branches above.
   return (
     <div
       role="button"
@@ -1608,7 +1644,8 @@ export function OverviewPage() {
         weightLatest={data?.weightLatest ?? null}
         metrics={data?.metrics ?? []}
         state={data?.nutritionState ?? null}
-        onNav={() => nav("health", { scrollTo: "health-weight-card" })}
+        onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
+        onNavEmpty={() => nav("health", { scrollTo: "health-weight-card" })}
       />
 
       <StrengthHealthCard

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorState } from "@shared/components/ErrorState";
 import { MetricValue } from "@shared/components/Metric";
 import { haptic } from "@shared/lib/haptics";
+import { CLEAR_AFTER_MOVE } from "@shared/lib/motion";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { getEntries, targetsFromConfig, type NutritionConfig, type NutritionEntry } from "./api";
 import {
@@ -116,8 +117,8 @@ export function HistoryView({
   const [weekNavDir, setWeekNavDir] = useState<"forward" | "backward" | null>(null);
   useEffect(() => {
     if (!weekNavDir) return;
-    // Clears just after the --dur-move (280ms) slide finishes — small buffer.
-    const t = window.setTimeout(() => setWeekNavDir(null), 300);
+    // Clears just after the --dur-move slide finishes (shared mirror constant).
+    const t = window.setTimeout(() => setWeekNavDir(null), CLEAR_AFTER_MOVE);
     return () => window.clearTimeout(t);
   }, [weekNavDir]);
 

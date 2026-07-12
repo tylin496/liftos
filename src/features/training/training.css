@@ -542,10 +542,6 @@
      gold PR wash below as the only coloured open-state. */
   background: var(--bg-soft);
   border-radius: var(--radius-sm);
-  /* Expanding the last card's rows drops the detail drawer below the fold —
-     land the open entry above the floating tabbar rather than clipped behind it
-     (the expand handler scrolls it into view, block:"nearest"). */
-  scroll-margin-bottom: var(--dock-bottom-clearance);
 }
 
 /* PR: the gold left bar + card-edge bleed move to the wrapper so the bar runs
@@ -1614,8 +1610,6 @@
   grid-template-rows: 1fr;
   animation: drawer-expand var(--dur-enter) var(--ease-enter);
   border-top: 1px solid var(--rule);
-  /* Auto-scroll target on expand: land above the floating tabbar. */
-  scroll-margin-bottom: var(--dock-bottom-clearance);
 }
 
 .archived-list-inner {

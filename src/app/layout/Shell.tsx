@@ -41,17 +41,39 @@ function wrapIndex(i: number): number {
   return (i + TAB_ORDER.length) % TAB_ORDER.length;
 }
 
-// One-shot "you arrived here" highlight on a deep-link target card (the neutral
-// lift + hairline ring in layout.css). Reflow-restarts if the class somehow
-// lingers from a prior fire, then removes itself on animationend so a later
-// deep-link to the same card re-fires. The animationend guard is essential:
-// the card's own descendants (bars, count-ups, spark wipes) animate during the
-// entrance cascade and their animationend BUBBLES up to the card — we clear
-// only on our own animation ending on the card itself, never a child's.
+// Dim hold: how long the rest of the page stays dimmed/grayscaled behind the
+// arrived card — ends before the 1800ms lift animation settles back to rest,
+// so the spotlight lifts just ahead of the card itself.
+const ARRIVE_DIM_MS = 1450;
+// Small settle beat before firing — long enough to not feel instantaneous/
+// jarring the moment the target is ready, short enough to not read as a
+// separate, delayed second step.
+const ARRIVE_DELAY_MS = 180;
+// Module-level (not per-render) so a second deep-link firing before the first
+// dim hold ends clears the earlier timer instead of racing it.
+let arriveDimTimer: number | null = null;
+
+// One-shot "you arrived here" highlight on a deep-link target card: the
+// target lifts (layout.css ov-arrive-lift) while every other top-level card
+// and the header dim/desaturate via .is-arriving on the .page container —
+// "spotlight" contrast rather than a stroke on the target itself. Reflow-
+// restarts if the class somehow lingers from a prior fire, then removes
+// itself on animationend so a later deep-link to the same card re-fires. The
+// animationend guard is essential: the card's own descendants (bars,
+// count-ups, spark wipes) animate during the entrance cascade and their
+// animationend BUBBLES up to the card — we clear only on our own animation
+// ending on the card itself, never a child's.
 function fireArrival(el: HTMLElement) {
+  const page = el.closest<HTMLElement>(".page");
   el.classList.remove("is-arrived");
   void el.offsetWidth; // force reflow so re-adding restarts the animation
   el.classList.add("is-arrived");
+  if (arriveDimTimer != null) window.clearTimeout(arriveDimTimer);
+  page?.classList.add("is-arriving");
+  arriveDimTimer = window.setTimeout(() => {
+    page?.classList.remove("is-arriving");
+    arriveDimTimer = null;
+  }, ARRIVE_DIM_MS);
   const clear = (e: AnimationEvent) => {
     if (e.target !== el || e.animationName !== "ov-arrive-lift") return;
     el.classList.remove("is-arrived");
@@ -271,18 +293,20 @@ export function Shell({ session }: { session: Session }) {
     // a warm target has no loading-card so it fires on the pre-position pass; a
     // cold target fires on the ResizeObserver re-align once data lands.
     let arrived = false;
+    let fireTimer: number | null = null;
     const align = () => {
       const el = document.getElementById(targetId);
       if (!el) return;
       el.scrollIntoView({ block: "center" });
       if (!arrived && !el.classList.contains("loading-card")) {
         arrived = true;
-        fireArrival(el);
+        fireTimer = window.setTimeout(() => fireArrival(el), ARRIVE_DELAY_MS);
       }
     };
     const cancel = () => {
       if (cancelled) return;
       cancelled = true;
+      if (fireTimer != null) window.clearTimeout(fireTimer);
       ro?.disconnect();
       window.removeEventListener("wheel", cancel);
       window.removeEventListener("touchstart", cancel);
@@ -817,6 +841,11 @@ export function Shell({ session }: { session: Session }) {
       <NavContext.Provider value={switchTab}>
       <NavExpandContext.Provider value={pendingLanding?.expand ? pendingLanding.id : null}>
         <div className="shell">
+          <div
+            className="top-tap-zone"
+            aria-hidden="true"
+            onClick={() => panelRefs.current[tab]?.scrollTo({ top: 0, behavior: "smooth" })}
+          />
           <main ref={contentRef} className={`shell-content${slide ? " is-sliding" : ""}`}>
             {pull && (
               <div

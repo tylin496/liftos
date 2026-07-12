@@ -1,4 +1,5 @@
 import { isStale, formatAgo, daysSince, type MetricKind } from "@shared/lib/freshness";
+import { localDateStr } from "@shared/lib/date";
 import "./freshnessTag.css";
 
 /**
@@ -39,7 +40,17 @@ export function FreshnessTag({
   // Clock only stands in for a today reading — the shared-row `updated_at` is
   // trustworthy as "when this field came in" only when the reading is actually
   // from today (see header). Older readings show their relative day off `date`.
-  const showClock = validSyncedAt && !stale && days <= 0;
+  //
+  // Recovery is the deliberate exception: sleep/HRV/RHR are ONLY ever written by
+  // the ~06:00 nightly full sync, onto the *prior* day's row — so a freshly-synced
+  // recovery reading's `date` is always yesterday, never today, and the today-gate
+  // would perpetually read it as "Yesterday" minutes after it landed. For this one
+  // kind the honest recency signal is the sync write, which is safe to trust here:
+  // that prior-day row is touched by nothing but the nightly full sync, so its
+  // `updated_at` can't be bumped by an unrelated partial write. Show the clock
+  // while that write itself landed today.
+  const syncedToday = validSyncedAt && localDateStr(syncedAt) === localDateStr();
+  const showClock = validSyncedAt && !stale && (days <= 0 || (kind === "recovery" && syncedToday));
 
   let text: string;
   let isClock = false; // a bare HH:MM reading — wear the app's mono number face

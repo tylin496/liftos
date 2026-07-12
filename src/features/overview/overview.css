@@ -122,6 +122,13 @@
   color: var(--ink);
 }
 
+/* Over 100% the centre carries the fill percentage — flip it to the completion
+   gold with the shared gold glow, the same celebration cue the ring wears. */
+.ov-active-target-ring-num.is-over {
+  color: var(--progress-complete);
+  text-shadow: var(--gold-glow);
+}
+
 .ov-active-target-ring-of {
   font-size: var(--text-2xs);
   /* ink-4 is only ~2.9:1 against the dark bg (fails 3:1 even for small text);
@@ -616,13 +623,13 @@
 
 .goal-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
 }
 
 .goal-head-right {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
 }
 
@@ -630,7 +637,9 @@
   font-size: var(--text-xl);
   color: var(--ink-4);
   line-height: 1;
-  align-self: center;
+  /* Optical: the ›-glyph sits ~1px low in its line box, so box-centering leaves
+     its ink below the "Day 151" numerals' visual centre. Nudge up to match. */
+  transform: translateY(-1px);
 }
 
 .goal-day {
@@ -947,13 +956,14 @@
   text-align: left;
 }
 
-/* Title + subtitle stack — the subtitle names the plan's stages even while
-   collapsed, so the row announces itself instead of reading as an anonymous
-   accordion. */
+/* Title + subtitle on one line — the subtitle names the plan's stages even
+   while collapsed, so the row announces itself instead of reading as an
+   anonymous accordion. Baseline-aligned so the smaller subtitle sits on the
+   title's baseline. */
 .goal-plan-heading {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -979,6 +989,7 @@
 
 .goal-plan-chevron {
   margin-left: auto;
+  display: inline-flex;
   color: var(--ink-4);
   transition: transform var(--dur-press) var(--ease-press);
 }

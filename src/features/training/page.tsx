@@ -36,6 +36,7 @@ import { PageTopBar } from "@shared/components/PageTopBar";
 import { useIsReadOnly } from "@app/layout/SessionContext";
 import { useNav } from "@app/layout/NavContext";
 import { getActiveScroller } from "@app/layout/activeScroller";
+import { scrollRevealClear } from "@app/layout/revealScroll";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
 import { daysSince } from "@shared/lib/freshness";
@@ -454,15 +455,12 @@ function ArchivedSection({
   if (!exercises.length) return null;
 
   // Archived sits at the bottom of the page, so expanding it grows the list
-  // under the floating tabbar. Nudge it into view once rendered.
+  // under the floating tabbar. Shared disclosure-scroll keeps it clear of the
+  // bar as it unfolds (rAF so the list is mounted first).
   const toggle = () =>
     setOpen((v) => {
       const next = !v;
-      if (next) {
-        requestAnimationFrame(() =>
-          listRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
-        );
-      }
+      if (next) requestAnimationFrame(() => scrollRevealClear(listRef.current));
       return next;
     });
 

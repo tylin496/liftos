@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState } from "react";
+import { CLEAR_AFTER_EXIT } from "@shared/lib/motion";
 
 interface ToastAction {
   label: string;
@@ -35,7 +36,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       setToasts((t) => [...t, { id, msg, type: type as ToastType, action: action ?? null, exiting: false }]);
       setTimeout(() => {
         setToasts((t) => t.map((x) => (x.id === id ? { ...x, exiting: true } : x)));
-        setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 300);
+        setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), CLEAR_AFTER_EXIT);
       }, duration);
       return id;
     },
@@ -44,7 +45,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const dismiss = useCallback((id: number) => {
     setToasts((t) => t.map((x) => (x.id === id ? { ...x, exiting: true } : x)));
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 300);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), CLEAR_AFTER_EXIT);
   }, []);
 
   return (

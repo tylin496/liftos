@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { scrollRevealClear } from "@app/layout/revealScroll";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import type { WeeklyVolumeSession, WeeklyVolumeStat } from "./logic";
@@ -38,6 +39,10 @@ export function WeeklyVolumeCard({
   loading?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // Expanding can push the session breakdown behind the floating tabbar;
+  // scrollRevealClear scrolls it clear in the same motion as the expand, only
+  // when occluded. Opening only; called while still collapsed to measure the grow.
+  const revealRef = useRef<HTMLDivElement>(null);
   const kg = stat?.thisWeekKg ?? 0;
 
   const head = (
@@ -77,12 +82,12 @@ export function WeeklyVolumeCard({
       <button
         type="button"
         className="wv-head"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((o) => { if (!o) scrollRevealClear(revealRef.current); return !o; })}
         aria-expanded={open}
       >
         {head}
       </button>
-      <div className={`wv-reveal${open ? " open" : ""}`}>
+      <div ref={revealRef} className={`wv-reveal${open ? " open" : ""}`}>
         <div className="wv-sessions">
           {stat.thisWeekSessions.length === 0 && (
             <span className="wv-empty">No sessions yet this week</span>

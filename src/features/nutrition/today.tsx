@@ -20,6 +20,7 @@ import { HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import { Badge } from "@shared/components/Badge";
 import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
 import { haptic } from "@shared/lib/haptics";
+import { CLEAR_AFTER_MOVE } from "@shared/lib/motion";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { useIsReadOnly } from "@app/layout/SessionContext";
 import "@shared/components/nutriGrid.css";
@@ -350,8 +351,8 @@ export function TodayView({
   // doesn't linger and replay when the tab is re-shown (display: none → block).
   useEffect(() => {
     if (!navDir) return;
-    // Clears just after the --dur-move (280ms) slide finishes — small buffer.
-    const t = setTimeout(() => setNavDir(null), 300);
+    // Clears just after the --dur-move slide finishes (shared mirror constant).
+    const t = setTimeout(() => setNavDir(null), CLEAR_AFTER_MOVE);
     return () => clearTimeout(t);
   }, [navDir, date]);
 

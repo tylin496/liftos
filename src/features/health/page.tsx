@@ -26,7 +26,7 @@ import { PageTopBar } from "@shared/components/PageTopBar";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNavExpand } from "@app/layout/NavContext";
-import { getActiveScroller } from "@app/layout/activeScroller";
+import { scrollRevealClear } from "@app/layout/revealScroll";
 import { HealthTrendSheet, type HealthTrendConfig } from "./TrendSheet";
 import "./health.css";
 
@@ -209,9 +209,10 @@ function Sparkline({
     band && bandCenter != null
       ? { yTop: valueToY(bandCenter + band.halfWidth), yBot: valueToY(bandCenter - band.halfWidth) }
       : null;
-  // Corridor speaks Overview's healthy-zone language (green wedge = where a
-  // well-run cut lands); the band stays neutral ink — maintenance context,
-  // not a verdict.
+  // Corridor and band both read as neutral ink — the corridor is target-pace
+  // geometry (where a well-run cut lands), the band is maintenance context;
+  // neither is a verdict, so both stay grey, matching Overview's weight
+  // corridor (also --ink-4).
   const zone =
     corridorGeom || bandGeom ? (
       <g clipPath={`url(#${clipId})`}>
@@ -219,19 +220,19 @@ function Sparkline({
           <>
             <polygon
               points={`${corridorGeom.x0.toFixed(1)},${corridorGeom.y0.toFixed(1)} ${corridorGeom.xEnd.toFixed(1)},${corridorGeom.yShallow.toFixed(1)} ${corridorGeom.xEnd.toFixed(1)},${corridorGeom.ySteep.toFixed(1)}`}
-              fill="var(--good)"
-              opacity="0.08"
+              fill="var(--ink-4)"
+              opacity="0.07"
               stroke="none"
             />
             <line
               x1={corridorGeom.x0.toFixed(1)} y1={corridorGeom.y0.toFixed(1)}
               x2={corridorGeom.xEnd.toFixed(1)} y2={corridorGeom.yShallow.toFixed(1)}
-              stroke="var(--good)" strokeWidth="1" opacity="0.28" strokeDasharray="3 3"
+              stroke="var(--ink-4)" strokeWidth="1" opacity="0.4" strokeDasharray="3 3"
             />
             <line
               x1={corridorGeom.x0.toFixed(1)} y1={corridorGeom.y0.toFixed(1)}
               x2={corridorGeom.xEnd.toFixed(1)} y2={corridorGeom.ySteep.toFixed(1)}
-              stroke="var(--good)" strokeWidth="1" opacity="0.28" strokeDasharray="3 3"
+              stroke="var(--ink-4)" strokeWidth="1" opacity="0.4" strokeDasharray="3 3"
             />
           </>
         )}
@@ -826,36 +827,16 @@ export function HealthPage() {
 
   // Manual expand only: Active is the last card, so when the user taps it open
   // the revealed Resting/TDEE rows land below the fold, behind the floating tab
-  // bar. Scroll the panel to its bottom (its padding-bottom already clears the
-  // tab bar) so the model reads without hunting for it. A deep-link expand skips
-  // this (settleToBottomRef false) — Shell owns that position, top-aligned. Wait
-  // for the grid-rows expand to finish so scrollHeight reflects the settled
-  // layout, not the collapsed one.
+  // bar. Shared disclosure-scroll keeps the model clear of the bar as it unfolds.
+  // A deep-link expand skips this (settleToBottomRef false) — Shell owns that
+  // position, top-aligned. The wrap can be absent on the nav path (energyExpanded
+  // flips before `data` loads, while the skeleton branch renders); scrollRevealClear
+  // no-ops on null and this re-runs once it mounts.
   useEffect(() => {
     if (!energyExpanded) return;
     if (!settleToBottomRef.current) return;
-    const wrap = energyCardRef.current?.querySelector(".health-energy-model-wrap");
-    // Not mounted yet — happens on the nav-triggered path, which can flip
-    // energyExpanded before `data` loads (see isNavTarget above), while this
-    // section is still rendering its `data && tdee?.tdee != null` skeleton
-    // branch. Re-running on `data` below retries once it mounts.
-    if (!wrap) return;
-    // We're already on the committed Health tab (this is a user tap), so the
-    // card's own ancestor panel is the live scroller.
-    const settle = () => {
-      const scroller = energyCardRef.current?.closest<HTMLElement>(".tab-panel") ?? getActiveScroller();
-      scroller?.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
-    };
-    // Settle once the grid-rows expand transition ends (scrollHeight is settled
-    // by then). A belt-and-suspenders immediate settle covers a browser that
-    // wouldn't fire transitionend — idempotent, so a double-fire is harmless.
-    settle();
-    const onEnd = (e: Event) => {
-      if ((e as TransitionEvent).propertyName !== "grid-template-rows") return;
-      settle();
-    };
-    wrap.addEventListener("transitionend", onEnd);
-    return () => wrap.removeEventListener("transitionend", onEnd);
+    const wrap = energyCardRef.current?.querySelector<HTMLElement>(".health-energy-model-wrap");
+    scrollRevealClear(wrap ?? null);
   }, [energyExpanded]);
 
   const load = useCallback(() => {

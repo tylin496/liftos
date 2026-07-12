@@ -1,5 +1,42 @@
 import { useId, useMemo, type ReactNode } from "react";
 
+/** clamp to 0…1 */
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+
+/** Tip-light tone for the leading head/cap — the gradient's lightest stop.
+ *  Lightens over the first 150° of fill (`k`), maxing out at `maxMix`% white.
+ *  `solid` short-circuits to the flat colour (used at/over 100%). */
+function lapHead(color: string, trim: number, solid: boolean, maxMix = 38) {
+  if (solid) return color;
+  const k = Math.min(1, (clamp01(trim) * 360) / 150);
+  return `color-mix(in srgb, ${color}, #fff ${Math.round(k * maxMix)}%)`;
+}
+
+/** The conic tip-fade the arc's white mask shows through. Angles are measured
+ *  from 12 o'clock, clockwise — NO `from` offset, so the gradient's origin
+ *  matches the mask arc's own (`rotate(-90)` start). The fill stays the
+ *  saturated base colour and only lightens over a window right at the leading
+ *  tip (FADE, 55% of the filled arc, clamped 120–200°); the lightest tone is
+ *  then held through `capDeg` so the brightest point sits ON the rounded cap
+ *  (which overhangs the dash end by stroke/2). Base repeats at 360° so there's
+ *  no seam under the start. `solid` ⇒ flat colour (full circle, no gradient —
+ *  a full-circle tip-fade would leave a visible seam at 100%). */
+function lapFill(
+  color: string,
+  trim: number,
+  solid: boolean,
+  maxMix: number | undefined,
+  capDeg: number,
+) {
+  if (solid) return color;
+  const tipDeg = clamp01(trim) * 360;
+  const FADE = Math.max(120, Math.min(200, tipDeg * 0.55));
+  const fadeStart = Math.max(0, tipDeg - FADE);
+  const tl = lapHead(color, trim, solid, maxMix);
+  const hold = Math.min(359.9, tipDeg + capDeg);
+  return `conic-gradient(${color} 0deg, ${color} ${fadeStart}deg, ${tl} ${tipDeg}deg, ${tl} ${hold}deg, ${color} 360deg)`;
+}
+
 /** A single progress ring — stroke-based, so it scales cleanly from the
  *  topbar avatar size up to a hero card. `pct` is 0–1+ (values over 1 just
  *  clamp the stroke, they don't wrap). */
@@ -24,28 +61,20 @@ export function ActivityRing({
   const r = (size - strokeWidth) / 2;
   const c = size / 2;
   const circumference = 2 * Math.PI * r;
-  const clamped = Math.max(0, Math.min(1, pct));
+  const clamped = clamp01(pct);
   const offset = circumference * (1 - clamped);
   const maskId = useId();
   // At 100% the ring IS the celebration gold — give it the shared gold halo,
   // same as every other celebration-gold element. Consumers pass exactly
   // var(--progress-complete) at completion, so match on that. The halo is a
   // CSS box-shadow on the wrapper (`.is-gold`), not an SVG filter — see
-  // activityRing.css for why.
+  // activityRing.css for why. It also flips the base lap to solid gold (no
+  // tip-fade), so the full circle has no seam.
   const isGold = color === "var(--progress-complete)";
-  // The fill stays the saturated base colour and only lightens over a fixed window
-  // (FADE_DEG) right at the leading tip — not the whole arc, so most of the ring
-  // reads solid. The tip's paleness also grows with fill (k), so a small fill stays
-  // saturated instead of washing out. A conic gradient drives it (angle-based, so
-  // the fade tracks arc length); base is repeated at 360° so there's no base↔light
-  // seam under the start cap. The arc shape (rounded caps + dashoffset fill/
-  // animation) is a white mask the gradient shows through.
-  const tipDeg = clamped * 360;
-  const FADE_DEG = 120;
-  const k = Math.min(1, tipDeg / FADE_DEG); // ramp the tint in over the first FADE_DEG
-  const fadeStart = Math.max(0, tipDeg - FADE_DEG);
-  const tipLight = `color-mix(in srgb, ${color}, white ${Math.round(k * 38)}%)`;
-  const fill = `conic-gradient(from -90deg, ${color} 0deg, ${color} ${fadeStart}deg, ${tipLight} ${tipDeg}deg, ${color} 360deg)`;
+  // The rounded cap overhangs the dash end by stroke/2 — hold the tip tone that
+  // extra `capDeg` so the brightest zone lands on the cap, not just before it.
+  const capDeg = ((strokeWidth / 2) / r) * (180 / Math.PI);
+  const fill = lapFill(color, clamped, isGold, undefined, capDeg);
 
   return (
     <div className={`activity-ring${isGold ? " is-gold" : ""}`} style={{ width: size, height: size }}>
@@ -105,13 +134,15 @@ export function OverflowRing({
   const circumference = 2 * Math.PI * r;
   const overflowFrac = Math.min(1, ratio - 1);
   const overflowLength = overflowFrac * circumference;
-  const tailClipId = useId();
+  const ribbonMaskId = useId();
   const bandClipId = useId();
+  const shadowGradId = useId();
   // Overflow only ever renders past 100%, where the ring is the completion gold —
   // give it the same gold halo as ActivityRing at 100% (CSS box-shadow on the
   // wrapper — see activityRing.css for why not an SVG filter).
   const isGold = color === "var(--progress-complete)";
-  // Tail = the leading end of the second lap; the shadow is revealed only here.
+  const capDeg = ((strokeWidth / 2) / r) * (180 / Math.PI);
+  // Tail = the leading end of the second lap; the contact shadow sits here.
   const tailAngle = overflowFrac * 2 * Math.PI - Math.PI / 2;
   const tailX = c + r * Math.cos(tailAngle);
   const tailY = c + r * Math.sin(tailAngle);
@@ -128,53 +159,62 @@ export function OverflowRing({
       `M ${c - rIn} ${c} a ${rIn} ${rIn} 0 1 0 ${rIn * 2} 0 a ${rIn} ${rIn} 0 1 0 ${-rIn * 2} 0 Z`,
     [c, rOut, rIn],
   );
-  // The second lap is ONE arc, drawn twice from the same props: the plain ribbon
-  // on top, and a shadowed copy behind it shown only where the tail window AND
-  // the ring band overlap — so the shadow lifts the ribbon's END, cast onto the
-  // ring beneath, while the head continues seamlessly onto the first lap.
-  const overflowArc = {
-    cx: c, cy: c, r,
-    fill: "none",
-    stroke: color,
-    strokeWidth,
-    strokeLinecap: "round" as const,
-    strokeDasharray: `${overflowLength} ${circumference}`,
-    transform: `rotate(-90 ${c} ${c})`,
-  };
-  // Flat offset stroke instead of `filter: drop-shadow()` — iOS Safari silently
-  // drops/clips SVG filters even inside a mask (the same bug that produced the
-  // hard-edged halo), so a blurred shadow never rendered there. A solid,
-  // downward-nudged dark copy reads as a cast shadow without any filter.
-  const shadowArc = {
-    ...overflowArc,
-    stroke: "rgba(0,0,0,.45)",
-    transform: `translate(0 1.5) rotate(-90 ${c} ${c})`,
-  };
+  // Contact-shadow radius. Clamped to the chord back to the lap's 12-o'clock
+  // start so a tiny overflow can't let the blob also darken the START cap
+  // ("two shadows" bug). Floor at 0.6×stroke — the ribbon's own rounded cap
+  // (radius stroke/2, same centre) would otherwise hide the shadow entirely.
+  const startX = c;
+  const startY = c - r;
+  const chord = Math.hypot(tailX - startX, tailY - startY);
+  const shR = Math.max(strokeWidth * 0.6, Math.min(strokeWidth * 0.75, chord * 0.55));
+  // The second lap ribbon: same track/radius/gold, filled with a gentler
+  // tip-fade (26% max lighten vs 38% below 100%) so its pale tip doesn't read
+  // as a break against the solid-gold base ring it laps onto.
+  const ribbonFill = lapFill(color, overflowFrac, false, 26, capDeg);
+
   return (
     <div className={`activity-ring${isGold ? " is-gold" : ""}`} style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
-          {/* `mask`, not `clipPath` — iOS Safari clips an SVG `filter` to the
-             bounding box of an ancestor `clipPath`, which silently killed the
-             tail's drop-shadow (the "overlap" cue) on iOS. Masks composite
-             after filtering, so they don't have that bug. */}
-          <mask id={tailClipId}>
-            <circle cx={tailX} cy={tailY} r={strokeWidth * 1.6} fill="#fff" />
+          {/* The ribbon shape = one rounded arc, as a white mask the gradient
+             shows through — same technique as the base lap. */}
+          <mask id={ribbonMaskId}>
+            <circle
+              cx={c}
+              cy={c}
+              r={r}
+              fill="none"
+              stroke="#fff"
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              strokeDasharray={`${overflowLength} ${circumference}`}
+              transform={`rotate(-90 ${c} ${c})`}
+            />
           </mask>
           <mask id={bandClipId}>
             <path d={bandPath} clipRule="evenodd" fillRule="evenodd" fill="#fff" />
           </mask>
+          {/* Centred radial contact shadow (dark core → transparent). No SVG
+             blur filter — iOS Safari drops those; the gradient IS the softness. */}
+          <radialGradient id={shadowGradId} gradientUnits="userSpaceOnUse" cx={tailX} cy={tailY} r={shR}>
+            <stop offset="0%" stopColor="#000" stopOpacity={1} />
+            <stop offset="55%" stopColor="#000" stopOpacity={0.52} />
+            <stop offset="100%" stopColor="#000" stopOpacity={0} />
+          </radialGradient>
         </defs>
+        {/* Draw order: track → solid base lap → band-clipped shadow → ribbon. */}
         <circle cx={c} cy={c} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={strokeWidth} />
         <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} />
-        {overflowFrac > 0 && (
-          <g mask={`url(#${tailClipId})`}>
+        {overflowFrac > 0.0006 && (
+          <>
             <g mask={`url(#${bandClipId})`}>
-              <circle {...shadowArc} />
+              <circle cx={tailX} cy={tailY} r={shR} fill={`url(#${shadowGradId})`} />
             </g>
-          </g>
+            <foreignObject x={0} y={0} width={size} height={size} mask={`url(#${ribbonMaskId})`}>
+              <div style={{ width: "100%", height: "100%", background: ribbonFill }} />
+            </foreignObject>
+          </>
         )}
-        <circle {...overflowArc} />
       </svg>
       {children && <div className="activity-ring-center">{children}</div>}
     </div>

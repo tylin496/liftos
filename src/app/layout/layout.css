@@ -69,6 +69,19 @@
   padding: calc(var(--safe-top) + var(--space-5)) 0 var(--space-3);
 }
 
+/* Tap the very top of the screen to jump the active tab's panel back to top —
+   mirrors the iOS "tap the status bar" gesture, which stopped working once the
+   window itself stopped scrolling (§1 tab-navigation-scroll skill). Sits above
+   .shell-content so it's reachable even while a tab is mid-slide. */
+.top-tap-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--safe-top) + var(--space-5));
+  z-index: 1;
+}
+
 /* ── Content ────────────────────────────────────────────────────────── */
 /* A fixed-height column holding the pull indicator and the tab viewport. It
    does not scroll — the active panel does. */
@@ -146,7 +159,7 @@
   border: 2px solid var(--rule);
   border-top-color: var(--ink-4);
   opacity: 0.6;
-  transition: opacity 150ms, border-top-color 150ms;
+  transition: opacity var(--dur-press), border-top-color var(--dur-press);
 }
 
 .pull-refresh.is-armed .pull-refresh-spinner {
@@ -319,6 +332,11 @@ html.kb-open .tabbar {
 .page > * {
   animation: rise-in var(--dur-enter) var(--ease-enter) both;
   animation-delay: var(--enter-wait);
+  /* Spotlight dim (deep-link arrival, below) rides this same transition. */
+  transition:
+    opacity var(--dur-move) var(--ease-move),
+    transform var(--dur-move) var(--ease-move),
+    filter var(--dur-move) var(--ease-move);
 }
 /* Per-card bottom-up tier (counted from the bottom). The flat rule above does
    NOT use it — cards all rise together. It exists only for the ONE exception
@@ -345,16 +363,19 @@ html.kb-open .tabbar {
 
 /* ── Deep-link arrival highlight ─────────────────────────────────────────────
    Fired by Shell (startAlign) as .is-arrived when a deep-link from Overview
-   lands on its target card. A neutral, hue-less "lift": the card rises briefly
-   on a soft shadow bloom + a hairline ink ring, holds, then settles exactly
-   back to rest. No colour — an arrival cue says only *where you are*, never a
-   status, so it borrows no semantic hue or the brand ember. References only
-   tokens (--shadow-sm, --ink-4), so it works unmodified in light and dark.
-   1800ms is a bespoke expressive one-off (hold-based orientation cue, outside
-   the UI-rhythm role scale, like save-pulse / day-drag-hint); the curve is the
-   standard reveal ease. Reduced-motion is handled globally in global.css — the
-   blanket guard collapses this to its at-rest end-state, and the deep-link's
-   own scroll-into-view carries the orientation. */
+   lands on its target card. "Spotlight": the target card rises on a soft
+   shadow bloom alone (no border/ring layer — a stroke on the target reads as
+   the card's own emphasis; the cue should come from CONTRAST with everything
+   else, not the card's own weight). While arriving, Shell also adds
+   .is-arriving on the .page container, which dims/desaturates every sibling
+   top-level child so the target reads as the one thing left in focus.
+   References only tokens (--shadow-sm, --dur-move, --ease-move), so it works
+   unmodified in light and dark. 1800ms is a bespoke expressive one-off
+   (hold-based orientation cue, outside the UI-rhythm role scale, like
+   save-pulse / day-drag-hint); the curve is the standard reveal ease.
+   Reduced-motion is handled globally in global.css — the blanket guard
+   collapses this to its at-rest end-state, and the deep-link's own
+   scroll-into-view carries the orientation. */
 @keyframes ov-arrive-lift {
   0% {
     transform: translateY(0) scale(1);
@@ -362,11 +383,11 @@ html.kb-open .tabbar {
   }
   22% {
     transform: translateY(-6px) scale(1.024);
-    box-shadow: var(--shadow-sm), 0 18px 44px rgba(15, 17, 22, 0.26), 0 0 0 2px var(--ink-4);
+    box-shadow: var(--shadow-sm), 0 18px 44px rgba(15, 17, 22, 0.26);
   }
   62% {
     transform: translateY(-6px) scale(1.024);
-    box-shadow: var(--shadow-sm), 0 18px 44px rgba(15, 17, 22, 0.26), 0 0 0 2px var(--ink-4);
+    box-shadow: var(--shadow-sm), 0 18px 44px rgba(15, 17, 22, 0.26);
   }
   100% {
     transform: translateY(0) scale(1);
@@ -376,9 +397,24 @@ html.kb-open .tabbar {
 
 .page-card.is-arrived {
   position: relative;
-  z-index: 1; /* lift above neighbours for the duration of the cue */
-  animation: ov-arrive-lift 1800ms var(--ease-enter) both;
+  z-index: var(--z-raised);
+  /* Keep rise-in in slot 0 — IDENTICAL to the .page > * baseline (same name,
+     duration, curve, fill, delay) — and only add/remove ov-arrive-lift in
+     slot 1. Dropping .is-arrived on animationend then leaves slot 0 unchanged,
+     so the browser doesn't treat rise-in as newly applied and REPLAY the
+     entrance (the "re-render after it settles" you'd otherwise see). */
+  animation:
+    rise-in var(--dur-enter) var(--ease-enter) both,
+    ov-arrive-lift 1800ms var(--ease-enter) both;
+  animation-delay: var(--enter-wait), 0ms;
   will-change: transform;
+}
+
+/* Spotlight dim — siblings + header step back while the target holds the light. */
+.page.is-arriving > *:not(.is-arrived) {
+  opacity: 0.3;
+  transform: scale(0.985);
+  filter: grayscale(1) blur(2px);
 }
 
 .page-eyebrow {

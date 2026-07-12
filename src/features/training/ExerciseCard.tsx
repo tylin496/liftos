@@ -28,6 +28,8 @@ import { milestoneReached } from "./milestone";
 import { sessionMilestoneReached } from "./sessionMilestone";
 import { useToast } from "@shared/components/Toast";
 import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
+import { scrollRevealClear } from "@app/layout/revealScroll";
+import { CLEAR_AFTER_SHEEN } from "@shared/lib/motion";
 import { defaultSetCount } from "./logFormHelpers";
 import { AddEntryForm, AddAssistedForm, InlineEditEntry, InlineEditAssistedEntry } from "./LogForms";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
@@ -178,18 +180,15 @@ export function ExerciseCard({
 
   const [submitting, setSubmitting] = useState(false);
 
-  // Toggle a history row's detail drawer. On open, nudge the entry into view so
-  // the drawer — which on the last card drops below the fold — lands above the
-  // floating tabbar instead of clipped behind it. block:"nearest" leaves rows
-  // that are already fully visible untouched (no jump on mid-card taps).
+  // Toggle a history row's detail drawer. On open, the entry row grows as the
+  // drawer unfolds inside it; shared disclosure-scroll keeps the row's bottom
+  // clear of the floating tabbar (rAF so the drawer is mounted and growing
+  // first). Rows already fully visible are left untouched — no jump on mid-card
+  // taps — since it only scrolls while the bottom is actually occluded.
   const toggleExpanded = (logId: string, entryEl: HTMLElement | null) =>
     setExpandedLogId((cur) => {
       const next = cur === logId ? null : logId;
-      if (next && entryEl) {
-        requestAnimationFrame(() =>
-          entryEl.scrollIntoView({ behavior: "smooth", block: "nearest" }),
-        );
-      }
+      if (next && entryEl) requestAnimationFrame(() => scrollRevealClear(entryEl));
       return next;
     });
 
@@ -316,7 +315,7 @@ export function ExerciseCard({
       // A logged set IS a completed set — confirm it with the shared "set
       // complete" flash (accent check + row wash), same as an edit save.
       setSavedRowId(newLog.id);
-      setTimeout(() => setSavedRowId(null), 1200);
+      setTimeout(() => setSavedRowId(null), CLEAR_AFTER_SHEEN);
       requestAnimationFrame(() => {
         if (cardRef.current) scrollIntoViewInterruptible(cardRef.current);
       });
@@ -343,19 +342,19 @@ export function ExerciseCard({
       const setStr = newParsed ? `${fmtWeightNum(newScore)} kg × ${maxReps(newReps)}` : "";
       if (milestone != null) {
         setPrFlash(true);
-        setTimeout(() => setPrFlash(false), 1100);
+        setTimeout(() => setPrFlash(false), CLEAR_AFTER_SHEEN);
         haptic("success");
         celebration.celebrate({ variant: "milestone", title: `${milestone} kg`, sub: exercise.name });
       } else if (prKind === "strength") {
         setPrFlash(true);
-        setTimeout(() => setPrFlash(false), 1100);
+        setTimeout(() => setPrFlash(false), CLEAR_AFTER_SHEEN);
         haptic("success");
         celebration.celebrate({ variant: "pr", title: "Strength PR", sub: wStr || "New estimated 1RM" });
       } else if (prKind === "hypertrophy") {
         // Isolation's gold moment — a new best-set tonnage ceiling. Same confetti
         // tier as a compound Strength PR; the sub shows the set that set it.
         setPrFlash(true);
-        setTimeout(() => setPrFlash(false), 1100);
+        setTimeout(() => setPrFlash(false), CLEAR_AFTER_SHEEN);
         haptic("success");
         celebration.celebrate({ variant: "pr", title: "Hypertrophy PR", sub: setStr || "New best volume" });
       } else if (prKind === "performance") {
@@ -423,21 +422,21 @@ export function ExerciseCard({
       });
       setEditingLogId(null);
       setSavedRowId(log.id);
-      setTimeout(() => setSavedRowId(null), 1200);
+      setTimeout(() => setSavedRowId(null), CLEAR_AFTER_SHEEN);
       haptic("tap");
       if (milestone != null) {
         setPrFlash(true);
-        setTimeout(() => setPrFlash(false), 1100);
+        setTimeout(() => setPrFlash(false), CLEAR_AFTER_SHEEN);
         haptic("success");
         celebration.celebrate({ variant: "milestone", title: `${milestone} kg`, sub: exercise.name });
       } else if (prKind === "strength") {
         setPrFlash(true);
-        setTimeout(() => setPrFlash(false), 1100);
+        setTimeout(() => setPrFlash(false), CLEAR_AFTER_SHEEN);
         haptic("success");
         celebration.celebrate({ variant: "pr", title: "Strength PR", sub: `${fmtWeightNum(editScore)} kg` });
       } else if (prKind === "hypertrophy") {
         setPrFlash(true);
-        setTimeout(() => setPrFlash(false), 1100);
+        setTimeout(() => setPrFlash(false), CLEAR_AFTER_SHEEN);
         haptic("success");
         celebration.celebrate({ variant: "pr", title: "Hypertrophy PR", sub: `${fmtWeightNum(editScore)} kg × ${maxReps(parsed.reps)}` });
       } else if (prKind === "performance") {
