@@ -62,6 +62,10 @@
   margin: var(--space-3) 0 0;
   font-size: var(--text-sm);
   color: var(--bad);
+  /* Selectable — overrides the global `* { user-select: none }` so the user can
+     copy the error text. */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* Retry / reload button shared by the auth-error screen and the ErrorBoundary

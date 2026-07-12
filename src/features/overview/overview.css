@@ -216,7 +216,8 @@
   /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   height: 5px;
   border-radius: var(--radius-pill);
-  background: var(--bg-soft);
+  /* Bar under-track = --rule-strong (the gray-surface rule), matching .goal-bar. */
+  background: var(--rule-strong);
   position: relative;
   overflow: hidden;
 }

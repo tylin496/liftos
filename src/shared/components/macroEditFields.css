@@ -100,4 +100,7 @@
   margin: 0;
   font-size: var(--text-sm);
   color: var(--bad);
+  /* Selectable — overrides the global `* { user-select: none }`. */
+  user-select: text;
+  -webkit-user-select: text;
 }

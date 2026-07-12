@@ -626,7 +626,7 @@ export function TodayView({
             onActiveFieldChange={setEditField}
             onSave={doSave}
             onCancel={() => { haptic("tap"); setEditField(null); setSaveError(null); }}
-            onDelete={hasEntry ? () => { haptic("warning"); handleDelete(); } : undefined}
+            onDelete={hasEntry ? handleDelete : undefined}
             saving={saving}
             hasEntry={hasEntry}
             error={saveError}

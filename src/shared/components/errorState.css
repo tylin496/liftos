@@ -6,6 +6,10 @@
   margin: 0 0 var(--space-4);
   font-size: var(--text-sm);
   color: var(--bad);
+  /* Overrides the global `* { user-select: none }` — an error message is exactly
+     the text a user needs to copy (to search or report it). */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .error-state-retry {

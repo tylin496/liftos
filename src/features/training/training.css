@@ -1112,7 +1112,16 @@
   border: none;
   padding: 0;
   line-height: 1;
+  /* Branded caret so the chromeless hero input shows it's active once focused. */
+  caret-color: var(--accent);
   transition: font-size var(--dur-press);
+}
+
+/* Keyboard/tap focus signal without adding resting chrome — an accent underline
+   drawn with box-shadow (no layout shift on this borderless input). */
+.log-hero-input.mono:focus-visible {
+  outline: none;
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 .log-hero-input.mono::placeholder {
@@ -1328,6 +1337,14 @@
   background: transparent;
   border: none;
   color: var(--ink);
+  caret-color: var(--accent);
+}
+
+/* Focus signal for the editable bodyweight input only — the read-only --static
+   variant (auto-filled from Health) gets no underline. */
+.log-bw-input.mono:not(.log-bw-input--static):focus-visible {
+  outline: none;
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 /* Read-only bodyweight in the assisted add form: auto-filled from the latest
