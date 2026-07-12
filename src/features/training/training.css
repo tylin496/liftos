@@ -374,7 +374,10 @@
 .ex-ident {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* contain, not cover: show the whole figure without clipping its top/bottom.
+     The 3:2 wrap letterboxes the sides for portrait/full-body photos. */
+  object-fit: contain;
+  object-position: right center;
   display: block;
 }
 
