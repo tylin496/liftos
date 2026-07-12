@@ -653,6 +653,12 @@ html.kb-open .tabbar {
 .settings-sheet-body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Keep a scroll gesture inside the sheet: without this, a drag on a body that
+     doesn't overflow (e.g. the short trend sheet) chains through to the
+     .tab-panel behind the scrim and scrolls the page. Contain stops the chain
+     even when there's nothing here to scroll. (The header/grabber already block
+     it via touch-action:none.) */
+  overscroll-behavior: contain;
   padding: var(--space-4) var(--space-5) calc(env(safe-area-inset-bottom, 0px) + var(--space-4));
   display: flex;
   flex-direction: column;
