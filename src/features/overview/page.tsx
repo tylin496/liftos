@@ -350,7 +350,7 @@ function ActiveTargetCard({
   // root — every load remounted the card and replayed its entrance.
   if (loading) {
     return (
-      <div>
+      <div ref={weekRef}>
       <div className="page-card ov-active-target loading-card">
         <button type="button" className="ov-active-target-navblock" onClick={onNav}>
           <div className="ov-active-target-head">
