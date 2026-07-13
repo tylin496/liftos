@@ -608,7 +608,7 @@ function SystemCard({
   // ✕ snoozes it. Nested buttons are invalid, so the container is a plain div.
   const canDismiss = rec.dismissible && onDismiss != null;
   return (
-    <div ref={ref} data-inview={inView} className="ov-system-banner">
+    <div ref={ref} data-inview={inView} className="page-card ov-system-banner">
       <button type="button" className="ov-system-main" onClick={() => onNav(REC_TAB[rec.source])}>
         <span className="ov-system-dot" />
         <span className="ov-system-body">

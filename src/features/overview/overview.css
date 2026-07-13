@@ -530,16 +530,27 @@
 
 /* ─── System Card (top-priority recommendation) ──────────────────────────── */
 
+/* Panel chrome (bg-card + blur + rule border + radius + shadow) comes from
+   .page-card, so this banner reads as the same surface as every other Overview
+   card. Here we only add the two-zone flex layout: a full-bleed body + a ✕ that
+   flanks it, so padding is zeroed (page-card's --space-5 would inset the row and
+   break the edge-to-edge dismiss zone) and each child owns its own edge padding. */
 .ov-system-banner {
   display: flex;
   align-items: stretch;
   width: 100%;
-  background: var(--bg-card);
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-sm);
+  padding: 0;
   margin-top: var(--vr-loose);
   -webkit-tap-highlight-color: transparent;
+  /* This banner is conditionally mounted (only when a directive exists), so its
+     rise-in transform promotes it to its own compositing layer AFTER the rest of
+     the page has painted. On that layer the translucent background gets
+     rasterized WITHOUT the border-radius mask, so a sharp-cornered rectangle of
+     card-fill shows through behind the rounded card. Establishing an overflow
+     clip forces the compositor to apply the rounded mask to the whole layer,
+     killing the ghost. (will-change / translateZ(0) keep it promoted but don't
+     add the clip, so they don't fix it.) */
+  overflow: hidden;
 }
 
 /* The navigating body — fills the banner; the whole-card padding + tap live
@@ -554,7 +565,7 @@
   /* A <button>: kill the UA-default light-grey fill, which doesn't flip for dark
      mode and would paint over the banner's accent tint (it fills the strip). */
   background: none;
-  padding: var(--space-4);
+  padding: var(--space-5); /* match .page-card content inset so the banner lines up with every other card */
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-press) var(--ease-press);
@@ -578,7 +589,7 @@
 }
 
 /* Subordinate snooze affordance — a quiet ✕, no surface of its own (it rides the
-   banner's tinted panel), so it reads as secondary to the directive it dismisses. */
+   banner's card panel), so it reads as secondary to the directive it dismisses. */
 .ov-system-dismiss {
   flex: none;
   align-self: stretch;
