@@ -393,9 +393,18 @@ export interface WeeklyVolumeSession {
 export interface WeeklyVolumeStat {
   /** Total kg lifted this calendar week (Mon–Sun), with carry-forward. */
   thisWeekKg: number;
+  /** Last week's full total (Mon–Sun) — the disclosure's "beat this" reference. */
   lastWeekKg: number;
-  /** % change vs last week. null when there's no prior-week baseline (can't
-   *  judge a change against zero) — MetricDelta then renders nothing. */
+  /** Last week's total *through the same weekday as today* — the pace-matched
+   *  baseline the delta actually judges, so a Monday-only week isn't compared
+   *  against last week's full four-session total. */
+  lastWeekKgToDate: number;
+  /** Last date in last week included in `lastWeekKgToDate` (weekday-aligned to
+   *  today). Sessions after it are "ahead of where you are now". */
+  lastWeekCutoff: string;
+  /** % change: this week-to-date vs last week-to-date (pace-matched). null when
+   *  there's no comparable prior-week baseline yet (can't judge against zero) —
+   *  MetricDelta then renders nothing. Converges to full-vs-full by Sunday. */
   deltaPct: number | null;
   /** Per-session breakdown, newest-first — the disclosure detail rows. */
   thisWeekSessions: WeeklyVolumeSession[];
@@ -504,8 +513,28 @@ export function computeWeeklyVolume(
   const lastWeekSessions = weekSessions(lastWeekStart);
   const thisWeekKg = sumKg(thisWeekSessions);
   const lastWeekKg = sumKg(lastWeekSessions);
-  const deltaPct =
-    lastWeekKg > 0 ? ((thisWeekKg - lastWeekKg) / lastWeekKg) * 100 : null;
 
-  return { thisWeekKg, lastWeekKg, deltaPct, thisWeekSessions, lastWeekSessions };
+  // Pace-matched baseline: only count last week up to the same weekday as today,
+  // so week-to-date is judged against week-to-date (not against last week's full
+  // total, which early in the week always reads as a huge, alarming drop). By
+  // Sunday the cutoff covers all of last week, so it converges to full-vs-full.
+  const elapsed = Math.round(daysBetween(thisWeekStart, today)); // 0=Mon … 6=Sun
+  const lastWeekCutoff = addDays(lastWeekStart, elapsed);
+  const lastWeekKgToDate = sumKg(
+    lastWeekSessions.filter((s) => s.date <= lastWeekCutoff),
+  );
+  const deltaPct =
+    lastWeekKgToDate > 0
+      ? ((thisWeekKg - lastWeekKgToDate) / lastWeekKgToDate) * 100
+      : null;
+
+  return {
+    thisWeekKg,
+    lastWeekKg,
+    lastWeekKgToDate,
+    lastWeekCutoff,
+    deltaPct,
+    thisWeekSessions,
+    lastWeekSessions,
+  };
 }

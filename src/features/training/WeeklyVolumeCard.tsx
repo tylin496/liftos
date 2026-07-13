@@ -16,12 +16,19 @@ function fmtSessionDate(dateStr: string): string {
   return `${wd} ${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-function SessionRow({ s }: { s: WeeklyVolumeSession }) {
+function weekdayShort(dateStr: string): string {
+  return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+}
+
+// `ahead` marks a last-week session that's later in the week than today — it's
+// listed for context but not yet part of the pace-matched comparison, so it's
+// dimmed to keep the delta's denominator legible.
+function SessionRow({ s, ahead }: { s: WeeklyVolumeSession; ahead?: boolean }) {
   return (
-    <div className="wv-srow">
+    <div className={`wv-srow${ahead ? " wv-srow--ahead" : ""}`}>
       <span className="wv-srow-date">{fmtSessionDate(s.date)}</span>
       <span className="wv-srow-split">{SPLIT_NAME[s.split] ?? s.split}</span>
-      <span className="wv-srow-vol">{Math.round(s.volumeKg).toLocaleString()} kg</span>
+      <span className="wv-srow-vol">{Math.round(s.volumeKg).toLocaleString()}</span>
     </div>
   );
 }
@@ -95,19 +102,29 @@ export function WeeklyVolumeCard({
           {stat.thisWeekSessions.map((s) => (
             <SessionRow key={`${s.split}-${s.date}`} s={s} />
           ))}
-          {stat.lastWeekSessions.length > 0 && (
-            <>
-              <div className="wv-sect">
-                <span className="wv-sect-label">Last week</span>
-                <span className="wv-sect-total">
-                  {Math.round(stat.lastWeekKg).toLocaleString()} kg
-                </span>
-              </div>
-              {stat.lastWeekSessions.map((s) => (
-                <SessionRow key={`${s.split}-${s.date}`} s={s} />
-              ))}
-            </>
-          )}
+          {stat.lastWeekSessions.length > 0 && (() => {
+            // Part-way through the week the delta compares against last week
+            // *through the same weekday*, so the section total mirrors that
+            // pace-matched baseline (later sessions dimmed below). Once the week
+            // is complete the cutoff covers everything — plain full total.
+            const hasAhead = stat.lastWeekSessions.some((s) => s.date > stat.lastWeekCutoff);
+            const sectTotal = hasAhead ? stat.lastWeekKgToDate : stat.lastWeekKg;
+            return (
+              <>
+                <div className="wv-sect">
+                  <span className="wv-sect-label">
+                    Last week{hasAhead ? ` · through ${weekdayShort(stat.lastWeekCutoff)}` : ""}
+                  </span>
+                  <span className="wv-sect-total">
+                    {Math.round(sectTotal).toLocaleString()}
+                  </span>
+                </div>
+                {stat.lastWeekSessions.map((s) => (
+                  <SessionRow key={`${s.split}-${s.date}`} s={s} ahead={s.date > stat.lastWeekCutoff} />
+                ))}
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>

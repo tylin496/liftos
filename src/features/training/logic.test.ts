@@ -142,6 +142,22 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     expect(stat.thisWeekKg).toBe(3000);
   });
 
+  it("pace-matches the delta: week-to-date vs last week through the same weekday", () => {
+    // today = Mon 2026-07-13 (week just started). Last week trained Mon 7/6 AND
+    // Wed 7/8; the delta must judge this Monday against last Monday only, not
+    // against last week's two-session total (which would read as a big drop).
+    const logs = {
+      row: [vlog("2026-07-13", "100*10"), vlog("2026-07-08", "90*10"), vlog("2026-07-06", "80*10")],
+      curl: [vlog("2026-07-13", "50*10"), vlog("2026-07-06", "40*10")],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, "2026-07-13");
+    expect(stat.thisWeekKg).toBe(1500); // 1000 + 500
+    expect(stat.lastWeekKg).toBe(2500); // full week: 1200 (Mon) + 1300 (Wed)
+    expect(stat.lastWeekKgToDate).toBe(1200); // through Mon only
+    expect(stat.lastWeekCutoff).toBe("2026-07-06");
+    expect(stat.deltaPct).toBeCloseTo(((1500 - 1200) / 1200) * 100, 5); // +25%, not −40%
+  });
+
   it("reports no delta without a prior-week baseline", () => {
     const logs = { row: [vlog("2026-07-08", "100*10")], curl: [] };
     const stat = computeWeeklyVolume(logs, pullRoster, TODAY);

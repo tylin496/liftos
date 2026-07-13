@@ -87,6 +87,12 @@
   margin-top: var(--space-3);
 }
 
+/* Last week's sessions later in the week than today — shown for context but
+   not yet in the pace-matched comparison, so faded back. */
+.wv-srow--ahead {
+  opacity: 0.42;
+}
+
 .wv-srow-date {
   color: var(--ink-4);
   font-variant-numeric: tabular-nums;
