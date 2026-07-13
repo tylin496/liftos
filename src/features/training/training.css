@@ -1390,6 +1390,7 @@
   color: var(--bad);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
 
 .log-cancel-link {
@@ -1401,7 +1402,13 @@
   color: var(--ink-3);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
+
+/* Text-link press feedback (opacity, not scale — scaling inline text reads
+   as jitter). Destructive/subordinate links inside the log form footer. */
+.log-delete-link:active,
+.log-cancel-link:active { opacity: 0.5; }
 
 /* ── Footer: "Log set" link + "View all" ──────────────────────────────────── */
 .ex-footer {
@@ -1562,7 +1569,9 @@
   font-size: var(--text-lg);
   cursor: pointer;
   padding: 0 4px;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
+.add-ex-close:active { opacity: 0.5; }
 
 /* ~20px ✕ → 44px tap target; it's the form-header corner control, so the
    horizontal slop only reaches the (non-interactive) title beside it. */
@@ -1645,7 +1654,11 @@
   background: transparent;
   cursor: pointer;
   text-align: left;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
+/* Press feedback on the row itself — the chevron rotation alone didn't
+   acknowledge the tap. */
+.archived-toggle:active { opacity: 0.6; }
 
 .archived-label {
   font-size: var(--text-sm);
@@ -1830,7 +1843,10 @@
   justify-content: center;
   cursor: pointer;
   line-height: 1;
+  transition: transform var(--dur-press) var(--ease-press);
 }
+/* Round icon button → scale press, matching .card-menu-btn. */
+.stretch-menu-btn:active { transform: scale(var(--tap-scale)); }
 
 /* 24→44px tap target; overlay control at the card corner, no adjacent target. */
 .stretch-menu-btn::before {
@@ -1881,7 +1897,10 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-press);
 }
+/* Save/cancel press feedback, matching .btn-log-primary / .btn-log-secondary. */
+.stretch-edit-actions button:active { transform: scale(var(--tap-scale)); }
 
 .stretch-edit-actions button:first-child {
   background: var(--accent-strong);

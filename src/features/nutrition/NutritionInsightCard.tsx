@@ -24,13 +24,6 @@ import { ErrorState } from "@shared/components/ErrorState";
 import { useNav } from "@app/layout/NavContext";
 import "./nutrition.css";
 
-/* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
-   cards animate their number). This card has neither, so the target just shows.
-   `delayMs` kept on props for callers. */
-function AnimatedInt({ value }: { value: number; delayMs?: number }) {
-  return <>{value.toLocaleString()}</>;
-}
-
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
 
 // Reading-order weight, not layout: the four cells are analysis (Observed →
@@ -287,7 +280,9 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
         ) : decision && decision.proposedTarget == null ? (
           <div className="ni-hero">
             <span className="ni-hero-val">
-              <AnimatedInt value={decision.currentTarget} />
+              {/* Static — the Hold target has no companion bar/ring, so per the
+                  app rule it shows rather than counts up (only metered numbers roll). */}
+              {decision.currentTarget.toLocaleString()}
               <span className="metric-unit">kcal</span>
             </span>
             <span className="ni-verdict">✓ Hold</span>

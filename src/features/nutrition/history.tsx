@@ -38,9 +38,8 @@ const DIST_LEGEND: { keys: CalorieState[]; label: string; glyph: string; color: 
   DIST_STATES.map((s) => ({ keys: [s.key], label: s.label, glyph: s.glyph, color: s.color }));
 
 /* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
-   cards animate their number). The week KPIs have neither, so they just show.
-   `delayMs` kept on props for callers. */
-function AnimatedInt({ value }: { value: number; delayMs?: number }) {
+   cards animate their number). The week KPIs have neither, so they just show. */
+function AnimatedInt({ value }: { value: number }) {
   return <>{value.toLocaleString()}</>;
 }
 
@@ -281,12 +280,12 @@ export function HistoryView({
         <div className="nutri-kpi-row">
           <div className="nutri-kpi">
             <MetricValue size="md" unit={week.avgCalories > 0 ? "kcal avg" : undefined}>
-              {week.avgCalories > 0 ? <AnimatedInt value={week.avgCalories} delayMs={introBars ? 700 : 0} /> : "—"}
+              {week.avgCalories > 0 ? <AnimatedInt value={week.avgCalories} /> : "—"}
             </MetricValue>
           </div>
           <div className="nutri-kpi">
             <MetricValue size="md" unit={week.avgProtein > 0 ? "g avg" : undefined}>
-              {week.avgProtein > 0 ? <AnimatedInt value={week.avgProtein} delayMs={introBars ? 700 : 0} /> : "—"}
+              {week.avgProtein > 0 ? <AnimatedInt value={week.avgProtein} /> : "—"}
             </MetricValue>
           </div>
         </div>

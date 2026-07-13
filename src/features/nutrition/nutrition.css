@@ -112,7 +112,7 @@
    animationend; reduced-motion never triggers it. */
 @keyframes ni-target-attention {
   0% { transform: scale(1); }
-  35% { transform: scale(1.06); }
+  35% { transform: scale(var(--pop-peak)); }
   100% { transform: scale(1); }
 }
 

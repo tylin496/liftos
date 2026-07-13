@@ -214,8 +214,26 @@ function ActiveTargetWeekStrip({
     };
   });
 
+  // Fills draw in from empty ON the flat --enter-wait beat — the SAME clock the
+  // ring count-up uses — so the whole week appears alongside the day's number
+  // rolling, not on its own wave. Deliberately NOT a left-to-right stagger (that
+  // would be a 5th sanctioned cascade); all seven grow together, sharing the
+  // count-up bezier (ease-out quad mirror) like the Nutrition intake rail.
+  // One state flip → the CSS transitions carry every frame; re-renders on week
+  // change just re-transition the fills to their new widths.
+  const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (delayMs == null) return;
+    const timer = setTimeout(() => {
+      requestAnimationFrame(() => setShown(true));
+    }, delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs]);
+  const fillRamp = `width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`;
+
   return (
-    <div className="ov-active-target-week">
+    <div className="ov-active-target-week" ref={ref}>
       {cells.map((c) => {
         const isSel = c.kind !== "future" && selected === c.date;
         return (
@@ -238,8 +256,9 @@ function ActiveTargetWeekStrip({
                 <div
                   className="ov-active-target-week-fill"
                   style={{
-                    width: `${Math.round(c.fill * 100)}%`,
+                    width: shown ? `${Math.round(c.fill * 100)}%` : 0,
                     backgroundColor: c.ringColor,
+                    transition: fillRamp,
                   }}
                 />
               )}

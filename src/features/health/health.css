@@ -76,7 +76,10 @@
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
+/* Press feedback, matching the sibling reveal controls (.health-trend-open). */
+.health-tdee-head--toggle:active { opacity: 0.7; }
 
 /* The header row is only ~20px tall but it's the sole control that reveals
    Resting/TDEE — extend the hit area vertically to ≥44px without shifting the

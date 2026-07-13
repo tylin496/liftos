@@ -16,6 +16,8 @@ import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useCelebration } from "@shared/components/Celebration";
 import { HeadlineCountUp } from "@shared/components/AnimatedNumber";
+import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
+import { COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { Badge } from "@shared/components/Badge";
 import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
 import { haptic } from "@shared/lib/haptics";
@@ -230,6 +232,35 @@ function shiftDate(date: string, days: number): string {
   const d = new Date(date + "T12:00:00");
   d.setDate(d.getDate() + days);
   return toDateStr(d);
+}
+
+/* Intake rail — fills from empty alongside the number's count-up instead of
+   snapping to full. Same pattern as Overview's GoalBarFill: sit at 0 until the
+   flat --enter-wait beat (shared by the HeadlineCountUp above it), then grow to
+   width over COUNT_UP_MS on the ease-out-quad mirror so the fill rides the
+   digits. Consumed (fill) and protein-shortfall (gap) share the ramp, so the
+   whole rail draws in as one. Leaf component: the per-frame width change stays
+   scoped here, not the whole card. Editing intake later re-transitions to the
+   new width for free. */
+function IntakeRailFill({ pct, short }: { pct: number; short?: boolean }) {
+  const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (delayMs == null) return;
+    const timer = setTimeout(() => {
+      requestAnimationFrame(() => setShown(true));
+    }, delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs]);
+  const ramp = `width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`;
+  return (
+    <div ref={ref} className="nt-track" aria-hidden="true">
+      <div className="nt-track-fill" style={{ width: shown ? `${pct}%` : 0, transition: ramp }} />
+      {short && (
+        <div className="nt-track-gap" style={{ width: shown ? `${100 - pct}%` : 0, transition: ramp }} />
+      )}
+    </div>
+  );
 }
 
 export function labelFor(date: string): string {
@@ -664,9 +695,7 @@ export function TodayView({
                 )}
               </span>
               {hasEntry && !loading && targets.calorieTarget > 0 && (
-                <div className="nt-track" aria-hidden="true">
-                  <div className="nt-track-fill" style={{ width: `${caloriePct}%` }} />
-                </div>
+                <IntakeRailFill pct={caloriePct} />
               )}
               <span className={`nutri-delta ${calToneVal ?? "neutral"}`}>{calNote || "\u00A0"}</span>
             </button>
@@ -692,12 +721,7 @@ export function TodayView({
                 )}
               </span>
               {hasEntry && !loading && targets.proteinTarget > 0 && (
-                <div className="nt-track" aria-hidden="true">
-                  <div className="nt-track-fill" style={{ width: `${proteinMetPct}%` }} />
-                  {proteinShort && (
-                    <div className="nt-track-gap" style={{ width: `${100 - proteinMetPct}%` }} />
-                  )}
-                </div>
+                <IntakeRailFill pct={proteinMetPct} short={proteinShort} />
               )}
               <span className={`nutri-delta ${protToneVal ?? "neutral"}`}>{protNote || "\u00A0"}</span>
             </button>

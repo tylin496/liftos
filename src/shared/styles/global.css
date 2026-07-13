@@ -158,8 +158,12 @@ button {
   font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
-  transition: background var(--dur-press) var(--ease-press);
+  transition: opacity var(--dur-press) var(--ease-press);
 }
+/* The safety net for an optimistic delete — give the press real feedback
+   (the declared transition above had no state changing it). Opacity, not a
+   background tint, so it reads on the toast's own dark surface. */
+.toast-action:active { opacity: 0.55; }
 
 /* Expand Undo's tap target to ~44px without growing the pill itself — this
    is the entire safety net for an optimistic delete, so it shouldn't be a
@@ -437,7 +441,7 @@ button {
   transition: transform var(--dur-press) var(--ease-press);
 }
 
-.celeb-confirm:active { transform: scale(0.96); }
+.celeb-confirm:active { transform: scale(var(--tap-scale)); }
 
 /* Hide number-input spinner arrows globally (use inputMode for keyboard hints instead) */
 input[type="number"]::-webkit-outer-spin-button,

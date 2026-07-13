@@ -61,7 +61,11 @@
   cursor: pointer;
   font: inherit;
   color: inherit;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
+/* Sub-region press dims (see .goal-navblock) — scaling would shear it off the
+   flanking week strip. */
+.ov-active-target-navblock:active { opacity: 0.6; }
 
 .ov-active-target-head {
   display: flex;
@@ -242,6 +246,11 @@
   background: var(--rule-strong);
   position: relative;
   overflow: hidden;
+  /* Selection (height + lift + glow) glides between days instead of snapping. */
+  transition:
+    height var(--dur-move) var(--ease-move),
+    margin-top var(--dur-move) var(--ease-move),
+    box-shadow var(--dur-move) var(--ease-move);
 }
 
 /* Marks "here" the way Weight/Journey/Training do — an emphasized point, not
@@ -984,7 +993,12 @@
   cursor: pointer;
   font: inherit;
   color: inherit;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
+/* Sub-region of the card (not the whole card like .ov-weight), so the press
+   dims rather than scales — scaling only this block would shear it off the
+   sibling week strip / plan footer it sits beside. */
+.goal-navblock:active { opacity: 0.6; }
 
 /* Subordinate to the journey above it — a quiet footer strip behind a rule,
    never competing with the Start→Goal track. */
@@ -1010,7 +1024,10 @@
   font: inherit;
   color: inherit;
   text-align: left;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
+/* Press feedback, matching the Health disclosure toggles (.health-trend-open). */
+.goal-plan-head:active { opacity: 0.7; }
 
 /* ~29px row → 44px tap target; full-width, so the slop is vertical only. */
 .goal-plan-head::before {
