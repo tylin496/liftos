@@ -551,6 +551,9 @@
   align-items: center;
   gap: var(--space-3);
   text-align: left;
+  /* A <button>: kill the UA-default light-grey fill, which doesn't flip for dark
+     mode and would paint over the banner's accent tint (it fills the strip). */
+  background: none;
   padding: var(--space-4);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -570,6 +573,7 @@
   padding: 0 var(--space-4);
   font-size: var(--text-sm);
   color: var(--ink-4);
+  background: none; /* same UA-default fill as .ov-system-main — keep it transparent */
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-press) var(--ease-press), color var(--dur-press);

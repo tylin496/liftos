@@ -2,9 +2,16 @@
 //
 // A Recommendation is the *action* to surface; it is derived exclusively from a
 // feature's Evaluation (never from raw data). Overview's System card shows the
-// single highest-priority Recommendation across all providers, so adding a new
-// provider (Training / Weight / Recovery) never requires an Overview change —
-// only a new file here plus one entry in PROVIDERS.
+// single Recommendation the Decision Engine's ladder returns (see engine.ts).
+//
+// Two ways a directive reaches that ladder:
+//   • A standalone provider (nutrition, recovery) — its own file + one PROVIDERS
+//     entry; the engine calls it for the single-domain rungs and the default.
+//   • A cross-domain rung written directly in the ladder (weight / phase /
+//     training sources) — a *joint* verdict ("stalled AND adherent", "at goal")
+//     that no single provider can express, so it lives in engine.ts, not here.
+// RecSource lists every source the card may show; only the first kind appears in
+// PROVIDERS.
 
 import type { NutritionEvaluation, NutritionDiagnostics } from "@features/nutrition/evaluation";
 import type { RecoveryEvaluation } from "@features/health/math";

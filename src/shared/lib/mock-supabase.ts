@@ -143,8 +143,12 @@ const NUTRITION_EVALUATION = {
   weight_data_points: 21,
   rec_source: "nutrition",
   rec_priority: 72,
-  rec_title: "Reduce target to 2,045 kcal",
-  rec_subtitle: "Loss has been slower than planned — a small cut should restart it.",
+  // Mirror what the live engine actually persists for this state (too-slow loss,
+  // high confidence): nutritionProvider surfaces the decision's eventType as the
+  // title and actionLine as the subtitle — NOT the `reason` sentence. Keep these
+  // in lock-step with nutritionDecision so the mock shows the real card shape.
+  rec_title: "Review calorie target",
+  rec_subtitle: "Weight loss has slowed",
   created_at: daysAgo(0) + "T06:00:00Z",
   updated_at: daysAgo(0) + "T06:00:00Z",
 };
