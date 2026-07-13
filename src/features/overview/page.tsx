@@ -1016,7 +1016,6 @@ function diffDays(a: string, b: string): number {
 function WeightSparkline({
   points,
   tone,
-  paceTone = null,
   targetRange,
 }: {
   points: { date: string; value: number }[];
@@ -1025,12 +1024,6 @@ function WeightSparkline({
   // is the Journey pill's job, so the trend line NEVER goes gold (coordination
   // rule: gold stays rare). See WeightCard.
   tone: "good" | "bad" | "flat";
-  // The pace read (same paceTone the Journey pill uses). Drives ONLY the latest
-  // dot when it's not a celebration: an off-band pace (warn/bad) tints the dot
-  // so it echoes the pill's caution — the one place pace shows on this card
-  // besides the acceleration arrow. null (Forming/Calibrating) → dot falls back
-  // to the line tone.
-  paceTone?: "good" | "gold" | "warn" | "bad" | null;
   targetRange?: { min: number; max: number } | null;
 }) {
   const stroke =
@@ -1159,11 +1152,10 @@ function WeightSparkline({
   // permanent state, not a rare celebration — the line's own tone already says
   // "healthy loss"). Its dot core echoes pace instead:
   const latest = coords[coords.length - 1];
-  // An off-band pace (warn/bad) tints the dot to echo the Journey pill's
-  // caution — the one spot pace surfaces on the line's own surface. On/optimal/
-  // inconclusive pace → the dot keeps the line tone (green), staying quiet.
-  const dotCore =
-    paceTone === "warn" ? "var(--warn)" : paceTone === "bad" ? "var(--bad)" : stroke;
+  // The latest dot is a plain "you are here" marker in the line's own tone. Pace
+  // lives in the acceleration chip + the Journey pace pill; the dot no longer
+  // carries a third, near-imperceptible, redundant pace tint.
+  const dotCore = stroke;
 
   const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
   const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
@@ -1318,7 +1310,6 @@ function WeightCard({
     state != null && state.diagnostics.weightDataPoints >= MIN_TREND_POINTS
       ? state.evaluation.observedRate
       : null;
-  const tone = state ? paceTone(state.evaluation) : null;
   // Rate-TREND arrow beside the hero — the glyph is the second-order read: is
   // the loss speeding up (▲) or slowing toward a plateau (▼)?, NOT the weight's
   // own direction. In-band acceleration reads good (green); a slowdown warns
@@ -1335,7 +1326,7 @@ function WeightCard({
         : accelDirection === "slowing"
           ? "warn"
           : "good";
-  // Only a conclusive verdict (tone set) carries the cut baseline day count; an
+  // Only a conclusive pace verdict carries the cut baseline day count; an
   // inconclusive read ("Forming"/"Calibrating") is just the word, no suffix.
   const { ref, inView } = useInView<HTMLDivElement>();
 
@@ -1524,11 +1515,10 @@ function WeightCard({
       <WeightSparkline
         points={sparkPoints}
         // Line colour follows the week-over-week direction (down = good on a
-        // cut), and STAYS there regardless of pace — the trend line never floods
-        // the card with gold. The pace read is the Journey pill's job; here it
-        // only tints the latest dot (paceTone).
+        // cut) and STAYS there regardless of pace — the trend line never floods
+        // the card with gold. Pace is carried by the acceleration chip and the
+        // Journey pace pill, so the sparkline no longer echoes it on the dot.
         tone={sparkTone}
-        paceTone={tone}
         targetRange={state?.evaluation.targetRange ?? null}
       />
       {/* Footer — current reading (left) + the target corridor legend
