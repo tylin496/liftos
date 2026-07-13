@@ -1130,10 +1130,17 @@ export function HealthPage() {
             minSpan={spec.minSpan}
             rangeDays={spec.bucket * SPARK_POINTS}
             color={spec.color}
-            // Body Fat carries the composition wedge (observed weight loss
-            // translated to BF points — see bfCorridor). Weight stays bare:
-            // its pace verdict already lives on Overview's corridor card.
-            corridor={spec.key === "body_fat_pct" ? bfCorridor : null}
+            // Both trend cards carry a target-pace wedge: Weight's is the
+            // nutrition evaluation's loss band (weightTargetRange), Body Fat's is
+            // that same loss translated to BF points (bfCorridor). Same neutral
+            // "where's target" reference the Overview card and both sheets draw.
+            corridor={
+              spec.key === "body_fat_pct"
+                ? bfCorridor
+                : spec.key === "weight_kg" && data?.weightTargetRange
+                  ? { minPerWeek: data.weightTargetRange.min, maxPerWeek: data.weightTargetRange.max }
+                  : null
+            }
             freshnessKind={spec.key === "weight_kg" ? "weight" : "bodyComp"}
             syncDate={series(metrics, spec.key).at(-1)?.date ?? null}
             updatedAt={c?.updatedAt ?? null}
@@ -1158,8 +1165,7 @@ export function HealthPage() {
               // the target-pace corridor (the nutrition evaluation's band) — the
               // full-history counterpart to Overview's recent-window corridor,
               // and shared with the deep-link auto-open via weightTrendConfig.
-              // The small sparkline stays bare on purpose: the recent pace
-              // verdict already lives on Overview.
+              // The small sparkline draws the same band (see corridor above).
               spec.key === "weight_kg"
                 ? weightTrendConfig
                   ? () => openTrend(weightTrendConfig)
