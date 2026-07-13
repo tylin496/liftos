@@ -57,6 +57,15 @@
   .dev-phone-frame .tabbar {
     width: calc(402px - var(--space-5) * 2);
   }
+  /* Constrain the status-bar glass to the phone column too (same as the
+     settings sheet). Moot in a plain browser where --safe-top is 0, but keeps
+     it correct under a simulated safe-area. */
+  .dev-phone-frame .status-glass {
+    left: 50%;
+    right: auto;
+    width: 402px;
+    margin-left: calc(402px / -2);
+  }
 }
 
 /* ── Header ─────────────────────────────────────────────────────────── */
@@ -80,6 +89,25 @@
   right: 0;
   height: calc(var(--safe-top) + var(--space-5));
   z-index: 1;
+}
+
+/* Frosted strip over the top safe area (status-bar band). The header scrolls
+   with the page (not pinned), so nothing otherwise blurs content sliding up
+   behind the status bar — this supplies that, mirroring the floating tab-bar's
+   glass at the bottom. Decorative only: pointer-events:none so the tap-to-top
+   zone underneath still gets the tap. Collapses to 0 height where there's no
+   safe area (browser preview, non-notch), so it simply doesn't paint there. */
+.status-glass {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-top);
+  z-index: var(--z-nav);
+  pointer-events: none;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 /* ── Content ────────────────────────────────────────────────────────── */
