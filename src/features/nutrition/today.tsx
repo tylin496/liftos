@@ -541,6 +541,15 @@ export function TodayView({
   const calToneVal = calorieTone(hasEntry, calResult);
   const protToneVal = proteinTone(hasEntry, protResult);
 
+  // Progress rails under each column (see .nt-track). Neutral fill = consumed
+  // ÷ target; protein's shortfall to the floor is the only coloured segment,
+  // so it stays in step with protResult.celebrated / the "Xg to floor" note.
+  const caloriePct = targets.calorieTarget > 0
+    ? Math.max(0, Math.min(100, Math.round((calNum / targets.calorieTarget) * 100)))
+    : 0;
+  const proteinMetPct = protResult.progress; // already clamped 0–100
+  const proteinShort = hasEntry && !protResult.celebrated;
+
   // Day status badge (Today card, top-right). A pill only earns its place when
   // it says something the per-row notes don't. "On plan"/"Surplus"/"Low"/
   // "Tracking" just restate calNote — so the only pill left is the reward the
@@ -652,6 +661,11 @@ export function TodayView({
               )}
               {targets.calorieTarget > 0 && <MetricCaption>of {targets.calorieTarget.toLocaleString()} kcal</MetricCaption>}
               <span className={`nutri-delta ${calToneVal ?? "neutral"}`}>{calNote || "\u00A0"}</span>
+              {hasEntry && !loading && targets.calorieTarget > 0 && (
+                <div className="nt-track" aria-hidden="true">
+                  <div className="nt-track-fill" style={{ width: `${caloriePct}%` }} />
+                </div>
+              )}
             </button>
             <button
               type="button"
@@ -671,6 +685,14 @@ export function TodayView({
               )}
               {targets.proteinTarget > 0 && <MetricCaption>of {targets.proteinTarget}g</MetricCaption>}
               <span className={`nutri-delta ${protToneVal ?? "neutral"}`}>{protNote || "\u00A0"}</span>
+              {hasEntry && !loading && targets.proteinTarget > 0 && (
+                <div className="nt-track" aria-hidden="true">
+                  <div className="nt-track-fill" style={{ width: `${proteinMetPct}%` }} />
+                  {proteinShort && (
+                    <div className="nt-track-gap" style={{ width: `${100 - proteinMetPct}%` }} />
+                  )}
+                </div>
+              )}
             </button>
           </div>
         )}

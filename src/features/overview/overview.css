@@ -534,10 +534,10 @@
   display: flex;
   align-items: stretch;
   width: 100%;
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
   border-radius: var(--radius-card);
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
   margin-top: var(--vr-loose);
   -webkit-tap-highlight-color: transparent;
 }
@@ -565,6 +565,18 @@
   transition-duration: var(--dur-press);
 }
 
+/* Mouse/touch tap leaves no lingering outline (it'd sit outside the banner as a
+   double frame); keyboard nav still gets an accessible ring. */
+.ov-system-main:focus,
+.ov-system-main:focus-visible {
+  outline: none;
+}
+
+.ov-system-banner:focus-within {
+  box-shadow: var(--shadow-sm),
+              inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
 /* Subordinate snooze affordance — a quiet ✕, no surface of its own (it rides the
    banner's tinted panel), so it reads as secondary to the directive it dismisses. */
 .ov-system-dismiss {
@@ -587,13 +599,24 @@
 
 .ov-system-dot {
   flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  align-self: flex-start;
+  margin-top: 1px; /* optical: align halo with the title's cap height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ov-system-dot::after {
+  content: "";
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
-  align-self: flex-start;
-  margin-top: 6px; /* optical: align dot with the title's cap height */
 }
 
 .ov-system-body {

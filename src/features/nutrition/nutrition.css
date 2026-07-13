@@ -954,7 +954,11 @@
 
 /* ── Daily card ──────────────────────────────────────────────────────── */
 .daily-card {
-  padding: var(--space-5);
+  /* Vertical 16 / horizontal 20 — trims the card's top+bottom breathing to
+     match the tighter rhythm of the Recommendation card beside it. The
+     progress rail added a hard bottom edge, so the old symmetric 20 read as
+     top-heavy; 16 pulls both ends in without touching the shared eyebrow. */
+  padding: var(--space-4) var(--space-5);
 }
 
 /* Overview context: trim height so the Today card sits closer to the KPI row */
@@ -1072,6 +1076,32 @@
   background-size: 300% 100% !important;
   border-radius: 0.3em !important;
   animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
+}
+
+/* ── Intake progress rail ────────────────────────────────────────────────
+   A slim rail under each column earns the card's lower half back (it was
+   whitespace next to the dense Recommendation card). Fill is neutral —
+   consumed ÷ target isn't a verdict; the ONLY colour is protein's shortfall
+   segment to the floor (--warn), same source as the "Xg to floor" note.
+   Calories stay all-neutral: under budget is headroom, not a miss, so there
+   is nothing to flag — the over-budget verdict rides the amber note instead.
+   align-self: stretch because .nutri-col is align-items: flex-start. */
+.nt-track {
+  display: flex;
+  align-self: stretch;
+  height: 6px;
+  margin-top: var(--vr-loose);
+  border-radius: var(--radius-pill);
+  background: var(--rule-strong);
+  overflow: hidden;
+}
+.nt-track-fill {
+  height: 100%;
+  background: var(--ink-3); /* neutral — the consumed portion isn't a signal */
+}
+.nt-track-gap {
+  height: 100%;
+  background: var(--warn); /* 🟠 protein short of floor */
 }
 
 /* ── Inline settlement form ──────────────────────────────────────────── */
