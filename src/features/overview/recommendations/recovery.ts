@@ -35,6 +35,11 @@ export function recoveryRecommendation(r: RecoveryEvaluation): Recommendation {
     priority: 75,
     title: "Prioritize recovery",
     subtitle,
+    // Only a *systemic* dip (low readiness with little recent training) is the
+    // user's to explain away — that's the sickness/travel case they can dismiss.
+    // A post-training dip ("trained") self-releases fast and stays non-dismissible;
+    // "keep today easy" advice for an actively-training body shouldn't be hidden.
+    dismissible: r.trainingLoad === "rested",
   };
 }
 

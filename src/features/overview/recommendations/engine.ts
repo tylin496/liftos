@@ -154,9 +154,13 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
   //    hasn't climbed back to "Good" yet, so a one-night dip to "Fair" doesn't
   //    drop it. Recovery is time-sensitive on its own; no training decline
   //    required. Wording is framed by recent training load.
+  // A user dismiss suppresses the recovery rung entirely (they know the cause —
+  // sick/travel — see recomputeAndPersist for the snooze + auto-clear). The
+  // ladder falls through to the next tier as if recovery had nothing to say.
   const recFires =
-    r?.status === "Needs Recovery" ||
-    (priorTitle === RECOVERY_TITLE && r?.status != null && r.score < recoveryReleaseScore(r.trainingLoad));
+    !ctx.recoveryDismissed &&
+    (r?.status === "Needs Recovery" ||
+      (priorTitle === RECOVERY_TITLE && r?.status != null && r.score < recoveryReleaseScore(r.trainingLoad)));
   if (recFires && r) return recoveryRecommendation(r);
 
   // 1a′ Start maintenance. The cut's endpoint is reached (14-day body fat at or

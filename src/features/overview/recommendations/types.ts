@@ -20,6 +20,12 @@ export interface Recommendation {
   priority: number;
   title: string;
   subtitle: string;
+  /** When true, the user may dismiss this directive because they already know
+   *  its cause and the app can't (currently only a *systemic* recovery dip —
+   *  low readiness with little recent training, i.e. sickness/travel). A dismiss
+   *  snoozes it until training resumes (see recomputeAndPersist). Absent/false
+   *  everywhere else — the app knows those causes better than any excuse. */
+  dismissible?: boolean;
 }
 
 /** Everything a provider may read to derive its Recommendation. Each feature's
@@ -35,6 +41,10 @@ export interface RecContext {
   phase?: PhaseTriggerResult | null;
   /** "Is the cut's body-fat endpoint reached?" — from goal.ts, not a trigger. */
   goal?: GoalStatusEvaluation | null;
+  /** The user dismissed the recovery directive (they know the cause — sick/
+   *  travel — and the app can't). Suppresses the recovery rung until it auto-
+   *  clears on returning to training. Resolved in the recompute, not here. */
+  recoveryDismissed?: boolean;
 }
 
 export type RecProvider = (ctx: RecContext) => Recommendation | null;

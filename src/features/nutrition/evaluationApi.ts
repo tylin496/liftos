@@ -56,6 +56,10 @@ export interface NutritionStateFull {
   evaluation: NutritionEvaluation;
   diagnostics: NutritionDiagnostics;
   recommendation: Recommendation | null;
+  /** Date (YYYY-MM-DD) the user dismissed a systemic recovery directive, or null.
+   *  While set (and un-expired) the engine suppresses the recovery rung; the
+   *  recompute auto-clears it once training resumes or after a 10-day cap. */
+  recoveryDismissedAt: string | null;
 }
 
 async function currentUserId(): Promise<string> {
@@ -109,17 +113,22 @@ function rowToState(row: Row): NutritionStateFull {
         priority: row.rec_priority ?? 0,
         title: row.rec_title,
         subtitle: row.rec_subtitle ?? "",
+        // Tolerant of the pre-migration column (older rows read back undefined → false).
+        dismissible: (row.rec_dismissible as boolean | null) ?? false,
       }
     : null;
-  return { evaluation, diagnostics, recommendation };
+  // Same tolerance: an absent column (before the migration) reads as null.
+  const recoveryDismissedAt = (row.recovery_dismissed_at as string | null) ?? null;
+  return { evaluation, diagnostics, recommendation, recoveryDismissedAt };
 }
 
 function stateToRow(
   userId: string,
-  { evaluation, diagnostics, recommendation }: NutritionStateFull,
+  { evaluation, diagnostics, recommendation, recoveryDismissedAt }: NutritionStateFull,
 ): Insert {
   return {
     user_id: userId,
+    recovery_dismissed_at: recoveryDismissedAt,
     status: evaluation.status,
     observed_rate: evaluation.observedRate,
     target_min: evaluation.targetRange.min,
@@ -139,6 +148,7 @@ function stateToRow(
     rec_priority: recommendation?.priority ?? null,
     rec_title: recommendation?.title ?? null,
     rec_subtitle: recommendation?.subtitle ?? null,
+    rec_dismissible: recommendation?.dismissible ?? null,
   };
 }
 
@@ -158,6 +168,28 @@ export async function getNutritionState(): Promise<NutritionStateFull | null> {
   } catch {
     return null;
   }
+}
+
+// A recovery dismiss can't hide a low reading forever — after this many days it
+// auto-clears and the directive is free to resurface if readiness is still down.
+// Sized to outlast a typical illness/trip while still catching a genuine, lasting
+// dip the user should actually act on.
+const RECOVERY_DISMISS_MAX_DAYS = 10;
+
+/** Dismiss the current systemic recovery directive (owner only). The user is
+ *  telling us they know why readiness is down — sickness/travel — which the app
+ *  can't infer. Records today as the dismiss date, then recomputes so the
+ *  suppressed recommendation persists immediately. Auto-clears on the next
+ *  recompute once training resumes (or after RECOVERY_DISMISS_MAX_DAYS). */
+export async function dismissRecoveryDirective(): Promise<NutritionStateFull | null> {
+  if (await isViewer()) return null;
+  const userId = await currentUserId();
+  const { error } = await supabase
+    .from("nutrition_evaluations")
+    .update({ recovery_dismissed_at: localDateStrDaysAgo(0) })
+    .eq("user_id", userId);
+  if (error) throw error;
+  return recomputeAndPersist();
 }
 
 /** Recompute the evaluation from current data and persist it. Call this when new
@@ -269,11 +301,34 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
   });
   const goal = buildGoalStatus(metrics, config?.target_body_fat_pct ?? null);
 
+  // Carry forward a recovery dismiss, auto-clearing it once its premise is gone:
+  // the user's back to training (the sick/travel window ended — trainingLoad flips
+  // to "trained") or a 10-day safety cap has passed (so a lingering low can never
+  // be hidden indefinitely). Un-cleared, it suppresses the recovery rung below.
+  const today = localDateStrDaysAgo(0);
+  let recoveryDismissedAt = priorState?.recoveryDismissedAt ?? null;
+  if (recoveryDismissedAt != null) {
+    const daysSince = Math.floor(
+      (Date.parse(today + "T00:00:00") - Date.parse(recoveryDismissedAt + "T00:00:00")) / 86400000,
+    );
+    if (recovery.trainingLoad === "trained" || daysSince > RECOVERY_DISMISS_MAX_DAYS) {
+      recoveryDismissedAt = null;
+    }
+  }
+
   const recommendation = topRecommendation(
-    { nutrition: { evaluation, diagnostics }, recovery, training, leanMass, phase, goal },
+    {
+      nutrition: { evaluation, diagnostics },
+      recovery,
+      training,
+      leanMass,
+      phase,
+      goal,
+      recoveryDismissed: recoveryDismissedAt != null,
+    },
     priorState?.recommendation ?? null,
   );
-  const state: NutritionStateFull = { evaluation, diagnostics, recommendation };
+  const state: NutritionStateFull = { evaluation, diagnostics, recommendation, recoveryDismissedAt };
 
   // A shared viewer computes from the owner's data (RLS) but must not persist —
   // the row belongs to the owner and the write would be rejected anyway.

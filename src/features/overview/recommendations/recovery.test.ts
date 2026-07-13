@@ -65,6 +65,12 @@ describe("recoveryProvider — fires only on a settled dip", () => {
     expect(rec.priority).toBe(75);
     expect(rec.priority).toBeGreaterThan(72);
   });
+
+  it("only a systemic dip (rested) is dismissible — the sick/travel case", () => {
+    expect(recoveryProvider({ recovery: recovery({ trainingLoad: "rested" }) })!.dismissible).toBe(true);
+    expect(recoveryProvider({ recovery: recovery({ trainingLoad: "trained" }) })!.dismissible).toBe(false);
+    expect(recoveryProvider({ recovery: recovery({ trainingLoad: null }) })!.dismissible).toBe(false);
+  });
 });
 
 describe("registry arbitration", () => {

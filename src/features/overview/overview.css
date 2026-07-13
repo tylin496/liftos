@@ -560,23 +560,52 @@
 
 .ov-system-banner {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  align-items: stretch;
   width: 100%;
-  text-align: left;
   background: color-mix(in srgb, var(--accent) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   border-radius: var(--radius-card);
   box-shadow: none;
-  padding: var(--space-4);
   margin-top: var(--vr-loose);
-  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform var(--dur-press) var(--ease-press), box-shadow var(--dur-press);
 }
 
-.ov-system-banner:active {
+/* The navigating body — fills the banner; the whole-card padding + tap live
+   here so the ✕ can be a separate, non-nested control alongside it. */
+.ov-system-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: left;
+  padding: var(--space-4);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-press);
+}
+
+.ov-system-main:active {
   transform: scale(var(--tap-scale));
+  transition-duration: var(--dur-press);
+}
+
+/* Subordinate snooze affordance — a quiet ✕, no surface of its own (it rides the
+   banner's tinted panel), so it reads as secondary to the directive it dismisses. */
+.ov-system-dismiss {
+  flex: none;
+  align-self: stretch;
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-press), color var(--dur-press);
+}
+
+.ov-system-dismiss:active {
+  transform: scale(var(--tap-scale));
+  color: var(--ink-3);
   transition-duration: var(--dur-press);
 }
 

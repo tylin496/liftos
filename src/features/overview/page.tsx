@@ -28,6 +28,7 @@ import { useNav } from "@app/layout/NavContext";
 import { scrollRevealClear } from "@app/layout/revealScroll";
 import { useSessionUser, useIsReadOnly } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
+import { dismissRecoveryDirective } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
 import { paceLabel, paceTone, rateTone, cutEtaLabel } from "@features/nutrition/recommendation";
 import { CONSIDER_ENTER_COUNT, type Recommendation } from "@features/overview/recommendations";
@@ -464,21 +465,45 @@ const REC_TAB: Record<Recommendation["source"], TabId> = {
   phase: "nutrition",
 };
 
-function SystemCard({ rec, onNav }: { rec: Recommendation; onNav: (tab: TabId) => void }) {
-  const { ref, inView } = useInView<HTMLButtonElement>();
+function SystemCard({
+  rec,
+  onNav,
+  onDismiss,
+}: {
+  rec: Recommendation;
+  onNav: (tab: TabId) => void;
+  onDismiss?: () => void;
+}) {
+  const { ref, inView } = useInView<HTMLDivElement>();
   // Command center: only surface the card when there's something to act on.
   // "No action needed" means nothing to do, so the whole banner (and its
   // divider) disappears rather than sitting there confirming nothing's wrong.
   if (rec.title === "No action needed") return null;
+  // A dismissible directive (only a systemic recovery dip — sick/travel the app
+  // can't infer) splits the banner: the body still navigates, and a subordinate
+  // ✕ snoozes it. Nested buttons are invalid, so the container is a plain div.
+  const canDismiss = rec.dismissible && onDismiss != null;
   return (
-    <button type="button" ref={ref} data-inview={inView} className="ov-system-banner" onClick={() => onNav(REC_TAB[rec.source])}>
-      <span className="ov-system-dot" />
-      <span className="ov-system-body">
-        <span className="ov-system-title">{rec.title}</span>
-        <span className="ov-system-sub">{rec.subtitle}</span>
-      </span>
-      <span className="ov-system-chevron" aria-hidden>›</span>
-    </button>
+    <div ref={ref} data-inview={inView} className="ov-system-banner">
+      <button type="button" className="ov-system-main" onClick={() => onNav(REC_TAB[rec.source])}>
+        <span className="ov-system-dot" />
+        <span className="ov-system-body">
+          <span className="ov-system-title">{rec.title}</span>
+          <span className="ov-system-sub">{rec.subtitle}</span>
+        </span>
+        {!canDismiss && <span className="ov-system-chevron" aria-hidden>›</span>}
+      </button>
+      {canDismiss && (
+        <button
+          type="button"
+          className="ov-system-dismiss"
+          onClick={onDismiss}
+          aria-label="I know why — snooze this until I'm training again"
+        >
+          ✕
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -1616,7 +1641,21 @@ export function OverviewPage() {
       {/* System — a conditional actionable banner (usually absent), so it's not
           skeletonized; it appears only when there's something to act on. */}
       {data?.nutritionState?.recommendation && (
-        <SystemCard key="system" rec={data.nutritionState.recommendation} onNav={(tab) => nav(tab)} />
+        <SystemCard
+          key="system"
+          rec={data.nutritionState.recommendation}
+          onNav={(tab) => nav(tab)}
+          onDismiss={
+            readOnly
+              ? undefined
+              : () => {
+                  // Optimistic: drop the banner now, persist + auto-clear in the
+                  // background, then reload so the next directive (if any) lands.
+                  setData((d) => (d ? { ...d, nutritionState: { ...d.nutritionState!, recommendation: null } } : d));
+                  void dismissRecoveryDirective().then(load).catch(() => load());
+                }
+          }
+        />
       )}
 
       {/* Active Target — leads: the actionable "what do I do today" number. */}

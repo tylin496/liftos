@@ -216,10 +216,12 @@ export type Database = {
           evaluated_at: string
           intake_difference: number | null
           observed_rate: number
+          rec_dismissible: boolean | null
           rec_priority: number | null
           rec_source: string | null
           rec_subtitle: string | null
           rec_title: string | null
+          recovery_dismissed_at: string | null
           status: string
           target_max: number
           target_min: number
@@ -240,10 +242,12 @@ export type Database = {
           evaluated_at: string
           intake_difference?: number | null
           observed_rate: number
+          rec_dismissible?: boolean | null
           rec_priority?: number | null
           rec_source?: string | null
           rec_subtitle?: string | null
           rec_title?: string | null
+          recovery_dismissed_at?: string | null
           status: string
           target_max: number
           target_min: number
@@ -264,10 +268,12 @@ export type Database = {
           evaluated_at?: string
           intake_difference?: number | null
           observed_rate?: number
+          rec_dismissible?: boolean | null
           rec_priority?: number | null
           rec_source?: string | null
           rec_subtitle?: string | null
           rec_title?: string | null
+          recovery_dismissed_at?: string | null
           status?: string
           target_max?: number
           target_min?: number
