@@ -101,10 +101,11 @@ function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { show
             ? "left"
             : "Closed";
   // Follows the shared Apple-spectrum progress ramp by fill (progressColor) —
-  // red→orange→green→cyan→blue, the same as the Cut Progress bar and top-bar
-  // ring. At/over 100% it flips to the discrete completion gold
-  // (--progress-complete), never a ramp stop.
-  const ringColor = ratio >= 1 ? "var(--progress-complete)" : progressColor(ratio);
+  // red→orange→green→cyan→blue. At/over 100% it settles on --good, matching the
+  // "Closed" status word and the week-strip bars: closing the daily active
+  // target is a routine win, so it is NOT gold — gold stays reserved for the
+  // rare Cut-goal celebration.
+  const ringColor = ratio >= 1 ? "var(--good)" : progressColor(ratio);
   return ratio > 1 ? (
     <OverflowRing ratio={ratio} size={72} strokeWidth={7} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
@@ -956,7 +957,7 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
   return (
     <div className="page-card goal goal-init">
       <div className="goal-head">
-        <span className="goal-label">Cut Progress</span>
+        <span className="goal-label">Cut Journey</span>
       </div>
       <p className="goal-init-lede">
         Set when this cut began. Progress is measured from that fixed point, so the

@@ -132,11 +132,10 @@
   color: var(--ink);
 }
 
-/* Over 100% the centre carries the fill percentage — flip it to the completion
-   gold with the shared gold glow, the same celebration cue the ring wears. */
+/* Over 100% the centre carries the fill percentage — --good, matching the ring
+   and the "Closed" status word. A routine daily close, not a gold celebration. */
 .ov-active-target-ring-num.is-over {
-  color: var(--progress-complete);
-  text-shadow: var(--gold-glow);
+  color: var(--good);
 }
 
 .ov-active-target-ring-of {
@@ -246,7 +245,7 @@
 
 .ov-active-target-week-day {
   text-align: center;
-  font-size: calc(var(--role-eyebrow-size) - 3px);
+  font-size: var(--text-3xs);
   font-weight: 600;
   color: var(--ink-4);
 }
@@ -712,7 +711,7 @@
 /* "COMPLETE" micro-caption under the hero % — the smallest caption size (one
    step below the eyebrow), naming what the % measures. */
 .goal-complete {
-  font-size: calc(var(--role-eyebrow-size) - 2px);
+  font-size: var(--text-3xs);
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-nanocaption-spacing);
   text-transform: uppercase;
@@ -743,7 +742,7 @@
      widened to 30px since the weight makes the tag wider. */
   left: 30px;
   transform: translateX(-50%);
-  font-size: calc(var(--role-eyebrow-size) - 2px);
+  font-size: var(--text-3xs);
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
@@ -836,7 +835,7 @@
 }
 
 .goal-signpost {
-  font-size: calc(var(--role-eyebrow-size) - 2px);
+  font-size: var(--text-3xs);
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;

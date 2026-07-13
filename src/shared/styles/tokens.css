@@ -102,8 +102,12 @@
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* ── Type scale ───────────────────────────────────────────────────── */
-  /* 11 → micro-labels/badges · 13 → secondary text · 15 → body/controls.
-     No 12px step: 11/13 already cover the two small roles. */
+  /* 9 → dense single-char / tag micro-labels · 11 → micro-labels/badges ·
+     13 → secondary text · 15 → body/controls. No 12px step: 11/13 already
+     cover the two small roles. 9 is the sanctioned floor for the few
+     sub-badge labels (week-day letters, COMPLETE/Today tags) — use the token,
+     not a calc() off --text-2xs. */
+  --text-3xs: 9px;
   --text-2xs: 11px;
   --text-sm: 13px;
   --text-base: 15px;
