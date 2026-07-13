@@ -260,6 +260,42 @@ describe("computeRecovery", () => {
     expect(snap.status).toBe("Needs Recovery");
     expect(snap.insight).toBe("Several 7-day averages are running below baseline — recovery's running low");
   });
+
+  // exercise_minutes attributes a low reading to its likely cause (loadContext).
+  function withExercise(metrics: BodyMetric[], count: number, minutes: number): BodyMetric[] {
+    return metrics.map((m, i) =>
+      i >= metrics.length - count ? ({ ...m, exercise_minutes: minutes } as BodyMetric) : m,
+    );
+  }
+
+  it("low readiness after real training -> loadContext training-stress, names it", () => {
+    const base = setLastDays(recoveryMetrics({}), 7, { sleep_seconds: 21600, hrv_sdnn_ms: 55 }); // Fair
+    const snap = computeRecovery(withExercise(base, 7, 60));
+    expect(snap.status).toBe("Fair");
+    expect(snap.loadContext).toBe("training-stress");
+    expect(snap.insight).toBe(
+      "Several 7-day averages are running below baseline — recovery's a little down; likely training fatigue after recent hard sessions",
+    );
+  });
+
+  it("low readiness with little training -> loadContext systemic", () => {
+    const base = setLastDays(recoveryMetrics({}), 7, { sleep_seconds: 21600, hrv_sdnn_ms: 55 });
+    const snap = computeRecovery(withExercise(base, 7, 5));
+    expect(snap.loadContext).toBe("systemic");
+    expect(snap.insight).toContain("more likely sleep or life stress");
+  });
+
+  it("high readiness -> loadContext null even with training data present", () => {
+    const snap = computeRecovery(withExercise(recoveryMetrics({}), 7, 60)); // Ready
+    expect(snap.status).toBe("Ready");
+    expect(snap.loadContext).toBeNull();
+  });
+
+  it("low readiness but no exercise data -> loadContext null (can't attribute)", () => {
+    const snap = computeRecovery(setLastDays(recoveryMetrics({}), 7, { sleep_seconds: 21600, hrv_sdnn_ms: 55 }));
+    expect(snap.status).toBe("Fair");
+    expect(snap.loadContext).toBeNull();
+  });
 });
 
 describe("regressionSlope", () => {

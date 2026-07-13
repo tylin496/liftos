@@ -298,6 +298,32 @@ describe("Decision Engine — exit hysteresis (no flip-flop)", () => {
     expect(rec?.title).not.toBe("Prioritize recovery");
   });
 
+  // Recent training load tunes exit stickiness (see recoveryReleaseScore).
+  it("post-training dip releases a step earlier — drops at Fair", () => {
+    const rec = decide(
+      { nutrition: nutrition({ status: "on_target" }), recovery: recovery("Fair", "trained") },
+      priorRec("Prioritize recovery"),
+    );
+    // Would hold with the default release (null), but training-stress releases at Fair.
+    expect(rec?.title).not.toBe("Prioritize recovery");
+  });
+
+  it("systemic dip (little training) holds even through Good", () => {
+    const rec = decide(
+      { nutrition: nutrition({ status: "on_target" }), recovery: recovery("Good", "rested") },
+      priorRec("Prioritize recovery"),
+    );
+    expect(rec?.title).toBe("Prioritize recovery");
+  });
+
+  it("systemic dip finally releases once readiness is fully back (Ready)", () => {
+    const rec = decide(
+      { nutrition: nutrition({ status: "on_target" }), recovery: recovery("Ready", "rested") },
+      priorRec("Prioritize recovery"),
+    );
+    expect(rec?.title).not.toBe("Prioritize recovery");
+  });
+
   it("holds 'Increase activity' near the band edge once it's showing", () => {
     // loss 0.30, band [0.40,0.70]: on_pace at the enter-margin (min−0.15=0.25),
     // but slow at the exit-margin (min−0.05=0.35) — so it only holds with a prior.

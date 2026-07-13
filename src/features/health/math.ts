@@ -224,6 +224,10 @@ export interface RecoverySnapshot {
    *  old to assess readiness from. Consumers show a neutral "can't assess" state
    *  (never vanish, never alarm) and the engine treats recovery as unknown. */
   stale: boolean;
+  /** For a *low* readiness reading only, its likely cause attributed from recent
+   *  training load (null otherwise, or when there's no exercise data). Context,
+   *  never a verdict — it never moves the 0–3 score. See recoveryLoadContext. */
+  loadContext: RecoveryLoadContext | null;
 }
 
 export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
@@ -311,6 +315,15 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   // its own building-baseline note instead, so drop the insight entirely.
   if (baselineBuilding) insight = null;
 
+  // Attribute a low reading to its likely cause via recent training load — the
+  // one thing HRV/sleep/RHR can't distinguish. This shapes the read only; the
+  // score above is untouched.
+  const loadContext = recoveryLoadContext(status, recentTrainingLoad(metrics));
+  if (insight != null && loadContext === "training-stress")
+    insight += "; likely training fatigue after recent hard sessions";
+  else if (insight != null && loadContext === "systemic")
+    insight += "; with little recent training, more likely sleep or life stress";
+
   const dates = [sleepPts.at(-1)?.date, hrvPts.at(-1)?.date, rhrPts.at(-1)?.date]
     .filter((d): d is string => d != null);
   const date = dates.length ? dates.sort().at(-1)! : null;
@@ -319,7 +332,7 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
     ? metrics.find((m) => m.metric_date === date)?.updated_at ?? null
     : null;
 
-  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, sleepBand, hrvBand, rhrBand, score, status, baselineBuilding, insight, date, updatedAt, stale };
+  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, sleepBand, hrvBand, rhrBand, score, status, baselineBuilding, insight, date, updatedAt, stale, loadContext };
 }
 
 // A day counts as "trained" at ≥20 exercise minutes; ≥2 such days in the trailing
@@ -341,6 +354,24 @@ function recentTrainingLoad(metrics: BodyMetric[]): "trained" | "rested" | null 
   const week = pts.filter((p) => new Date(p.date + "T12:00:00").getTime() >= cutoff);
   const trainedDays = week.filter((p) => p.value >= TRAINED_MINUTES).length;
   return trainedDays >= TRAINED_DAYS ? "trained" : "rested";
+}
+
+/** Likely cause of a *low* readiness reading, attributed from recent training
+ *  load — the discriminator HRV/sleep/RHR can't provide on their own. Low
+ *  readiness right after real training is expected, transient training fatigue
+ *  (a deload day resolves it); low readiness with little training points at
+ *  sleep/life stress, which pushing or resting training won't fix. Null when
+ *  readiness isn't down, or when there's no exercise data to attribute with.
+ *  Context only — it never changes the 0–3 score. */
+export type RecoveryLoadContext = "training-stress" | "systemic";
+function recoveryLoadContext(
+  status: RecoveryStatus | null,
+  load: "trained" | "rested" | null,
+): RecoveryLoadContext | null {
+  if (status !== "Fair" && status !== "Needs Recovery") return null;
+  if (load === "trained") return "training-stress";
+  if (load === "rested") return "systemic";
+  return null;
 }
 
 /** The recovery slice the recommendation registry consumes. A derived judgment

@@ -63,6 +63,20 @@ const CONSIDER_HOLD_COUNT = 1;
 // rather than dropping the instant it leaves "Needs Recovery" (score 0) for
 // "Fair" (score 1).
 const RECOVERY_RELEASE_SCORE = 2;
+// …but the *cause* of the dip changes how sticky the exit should be, and recent
+// training load is the only thing that distinguishes them. A dip that follows
+// real training is expected, transient fatigue — a deload day fixes it, so let
+// it release a step earlier (once it reaches "Fair"). A dip with little recent
+// training is systemic (sleep/life stress) and won't self-resolve, so hold the
+// directive until readiness is fully back ("Ready", score 3). Entry is
+// unchanged — this only tunes how long the directive lingers on the way out.
+const RECOVERY_RELEASE_TRAINING_STRESS = 1;
+const RECOVERY_RELEASE_SYSTEMIC = 3;
+function recoveryReleaseScore(load: RecoveryEvaluation["trainingLoad"]): number {
+  if (load === "trained") return RECOVERY_RELEASE_TRAINING_STRESS;
+  if (load === "rested") return RECOVERY_RELEASE_SYSTEMIC;
+  return RECOVERY_RELEASE_SCORE; // no exercise data → can't attribute, use the default
+}
 
 // ── Discretizers: raw evaluations → the enums the ladder reads ────────────────
 
@@ -142,7 +156,7 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
   //    required. Wording is framed by recent training load.
   const recFires =
     r?.status === "Needs Recovery" ||
-    (priorTitle === RECOVERY_TITLE && r?.status != null && r.score < RECOVERY_RELEASE_SCORE);
+    (priorTitle === RECOVERY_TITLE && r?.status != null && r.score < recoveryReleaseScore(r.trainingLoad));
   if (recFires && r) return recoveryRecommendation(r);
 
   // 1a′ Start maintenance. The cut's endpoint is reached (14-day body fat at or
