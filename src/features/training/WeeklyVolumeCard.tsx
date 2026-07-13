@@ -97,7 +97,12 @@ export function WeeklyVolumeCard({
           ))}
           {stat.lastWeekSessions.length > 0 && (
             <>
-              <span className="wv-sect-label">Last week</span>
+              <div className="wv-sect">
+                <span className="wv-sect-label">Last week</span>
+                <span className="wv-sect-total">
+                  {Math.round(stat.lastWeekKg).toLocaleString()} kg
+                </span>
+              </div>
               {stat.lastWeekSessions.map((s) => (
                 <SessionRow key={`${s.split}-${s.date}`} s={s} />
               ))}

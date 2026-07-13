@@ -106,13 +106,29 @@
   color: var(--ink);
 }
 
+/* Last-week header carries the section's total so it stands beside the label
+   the delta is comparing against. */
+.wv-sect {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0 var(--space-1);
+}
+
 .wv-sect-label {
   font-size: var(--role-eyebrow-size);
   font-weight: var(--role-eyebrow-weight);
   letter-spacing: var(--role-eyebrow-spacing);
   text-transform: uppercase;
   color: var(--role-eyebrow-color);
-  padding: var(--space-3) 0 var(--space-1);
+}
+
+.wv-sect-total {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
 }
 
 .wv-empty {
