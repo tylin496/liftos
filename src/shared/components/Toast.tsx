@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { CLEAR_AFTER_EXIT } from "@shared/lib/motion";
 
 interface ToastAction {
@@ -46,6 +46,19 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const dismiss = useCallback((id: number) => {
     setToasts((t) => t.map((x) => (x.id === id ? { ...x, exiting: true } : x)));
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), CLEAR_AFTER_EXIT);
+  }, []);
+
+  // Escape dismisses all visible toasts — the tray is aria-live and click-to-
+  // dismiss is mouse-only, so this is the keyboard path. No focus is taken; a
+  // toast added after Escape (not marked exiting) survives the sweep.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setToasts((prev) => prev.map((x) => ({ ...x, exiting: true })));
+      setTimeout(() => setToasts((prev) => prev.filter((x) => !x.exiting)), CLEAR_AFTER_EXIT);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   return (

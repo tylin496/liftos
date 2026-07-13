@@ -9,8 +9,10 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
     />
-    <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#f4f4f6" media="(prefers-color-scheme: light)" />
+    <!-- Single theme-color meta (no media query) so theme.tsx can keep it in
+         sync with the actual applied theme — a manual light/dark override, not
+         just the OS scheme. Updated on mount and on every theme change. -->
+    <meta name="theme-color" content="#f4f4f6" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>LiftOS</title>
     <script>

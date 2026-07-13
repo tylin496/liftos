@@ -13,7 +13,13 @@ function resolveTheme(pref: ThemePreference): "light" | "dark" {
 }
 
 function applyTheme(pref: ThemePreference) {
-  document.documentElement.dataset.theme = resolveTheme(pref);
+  const resolved = resolveTheme(pref);
+  document.documentElement.dataset.theme = resolved;
+  // Keep the browser chrome (status/URL bar) in sync with the ACTUAL applied
+  // theme, including a manual override — a media-query-only meta would follow
+  // the OS scheme and disagree with a manual light/dark choice.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", resolved === "dark" ? "#1a1a1a" : "#f4f4f6");
 }
 
 function readStoredPreference(): ThemePreference {

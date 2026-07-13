@@ -464,15 +464,6 @@
   letter-spacing: 0;
   white-space: nowrap;
 }
-.hist-status-stable {
-  color: var(--good);
-}
-.hist-status-moderate {
-  color: var(--warn);
-}
-.hist-status-variable {
-  color: var(--bad);
-}
 .hist-status--empty {
   visibility: hidden;
 }
