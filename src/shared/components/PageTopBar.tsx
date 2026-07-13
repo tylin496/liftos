@@ -43,10 +43,14 @@ export function PageTopBar({
   const ring = useActiveTargetRing();
   const ringPct = ring ? ring.today.accrued / Math.max(1, ring.today.target) : null;
   // Follows the shared Apple-spectrum progress ramp by fill (progressColor),
-  // matching the Active Target card; grey when there's no data, gold at/over 100%.
+  // matching the Active Target card exactly: grey when there's no data, and
+  // --good (NOT gold) at/over 100% — closing the daily active target is a
+  // routine win, so the ring never flips to gold (gold stays reserved for the
+  // rare Cut-goal celebration). The ring keeps its tip-fade gradient at every
+  // fill and glows in --good once closed.
   const ringColor =
     ringPct == null ? "var(--rule-strong)"
-    : ringPct >= 1 ? "var(--progress-complete)"
+    : ringPct >= 1 ? "var(--good)"
     : progressColor(ringPct);
 
   return (

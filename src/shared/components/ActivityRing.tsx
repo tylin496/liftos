@@ -1,13 +1,11 @@
-import { useId, useMemo, type ReactNode } from "react";
+import { useId, useMemo, type CSSProperties, type ReactNode } from "react";
 
 /** clamp to 0…1 */
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
 /** Tip-light tone for the leading head/cap — the gradient's lightest stop.
- *  Lightens over the first 150° of fill (`k`), maxing out at `maxMix`% white.
- *  `solid` short-circuits to the flat colour (used at/over 100%). */
-function lapHead(color: string, trim: number, solid: boolean, maxMix = 38) {
-  if (solid) return color;
+ *  Lightens over the first 150° of fill (`k`), maxing out at `maxMix`% white. */
+function lapHead(color: string, trim: number, maxMix = 38) {
   const k = Math.min(1, (clamp01(trim) * 360) / 150);
   return `color-mix(in srgb, ${color}, #fff ${Math.round(k * maxMix)}%)`;
 }
@@ -19,20 +17,19 @@ function lapHead(color: string, trim: number, solid: boolean, maxMix = 38) {
  *  tip (FADE, 55% of the filled arc, clamped 120–200°); the lightest tone is
  *  then held through `capDeg` so the brightest point sits ON the rounded cap
  *  (which overhangs the dash end by stroke/2). Base repeats at 360° so there's
- *  no seam under the start. `solid` ⇒ flat colour (full circle, no gradient —
- *  a full-circle tip-fade would leave a visible seam at 100%). */
+ *  no seam under the start. EVERY lap — including at/over 100% and gold — is a
+ *  gradient; the only full-circle seam (lightest tip meeting base at 12 o'clock)
+ *  is covered by the overflow lap, which always starts at 12. */
 function lapFill(
   color: string,
   trim: number,
-  solid: boolean,
   maxMix: number | undefined,
   capDeg: number,
 ) {
-  if (solid) return color;
   const tipDeg = clamp01(trim) * 360;
   const FADE = Math.max(120, Math.min(200, tipDeg * 0.55));
   const fadeStart = Math.max(0, tipDeg - FADE);
-  const tl = lapHead(color, trim, solid, maxMix);
+  const tl = lapHead(color, trim, maxMix);
   const hold = Math.min(359.9, tipDeg + capDeg);
   return `conic-gradient(${color} 0deg, ${color} ${fadeStart}deg, ${tl} ${tipDeg}deg, ${tl} ${hold}deg, ${color} 360deg)`;
 }
@@ -64,20 +61,24 @@ export function ActivityRing({
   const clamped = clamp01(pct);
   const offset = circumference * (1 - clamped);
   const maskId = useId();
-  // At 100% the ring IS the celebration gold — give it the shared gold halo,
-  // same as every other celebration-gold element. Consumers pass exactly
-  // var(--progress-complete) at completion, so match on that. The halo is a
-  // CSS box-shadow on the wrapper (`.is-gold`), not an SVG filter — see
-  // activityRing.css for why. It also flips the base lap to solid gold (no
-  // tip-fade), so the full circle has no seam.
-  const isGold = color === "var(--progress-complete)";
+  // Completion glow — DECOUPLED from the fill. At/over 100% the ring keeps its
+  // tip-fade gradient (no colour ever goes solid, gold included) and gains a
+  // soft halo tinted to its own colour (`--ring-glow`), so "closed" reads as lit.
+  // Box-shadow on the wrapper (`.is-complete`), not an SVG filter — see
+  // activityRing.css for why.
+  const isComplete = clamped >= 1;
   // The rounded cap overhangs the dash end by stroke/2 — hold the tip tone that
   // extra `capDeg` so the brightest zone lands on the cap, not just before it.
   const capDeg = ((strokeWidth / 2) / r) * (180 / Math.PI);
-  const fill = lapFill(color, clamped, isGold, undefined, capDeg);
+  const fill = lapFill(color, clamped, undefined, capDeg);
+  const wrapStyle: CSSProperties = { width: size, height: size };
+  if (isComplete) (wrapStyle as Record<string, string>)["--ring-glow"] = color;
 
   return (
-    <div className={`activity-ring${isGold ? " is-gold" : ""}`} style={{ width: size, height: size }}>
+    <div
+      className={`activity-ring${isComplete ? " is-complete" : ""}`}
+      style={wrapStyle}
+    >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
           <mask id={maskId}>
@@ -137,10 +138,10 @@ export function OverflowRing({
   const ribbonMaskId = useId();
   const bandClipId = useId();
   const shadowGradId = useId();
-  // Overflow only ever renders past 100%, where the ring is the completion gold —
-  // give it the same gold halo as ActivityRing at 100% (CSS box-shadow on the
-  // wrapper — see activityRing.css for why not an SVG filter).
-  const isGold = color === "var(--progress-complete)";
+  // Overflow only ever renders past 100%, so it is always "complete": it keeps
+  // its own colour and gains the decoupled completion glow (`--ring-glow`) —
+  // same box-shadow mechanism as ActivityRing (see activityRing.css for why not
+  // an SVG filter).
   const capDeg = ((strokeWidth / 2) / r) * (180 / Math.PI);
   // Tail = the leading end of the second lap; the contact shadow sits here.
   const tailAngle = overflowFrac * 2 * Math.PI - Math.PI / 2;
@@ -167,13 +168,21 @@ export function OverflowRing({
   const startY = c - r;
   const chord = Math.hypot(tailX - startX, tailY - startY);
   const shR = Math.max(strokeWidth * 0.6, Math.min(strokeWidth * 0.75, chord * 0.55));
-  // The second lap ribbon: same track/radius/gold, filled with a gentler
+  // The second lap ribbon: same track/radius/colour, filled with a gentler
   // tip-fade (26% max lighten vs 38% below 100%) so its pale tip doesn't read
-  // as a break against the solid-gold base ring it laps onto.
-  const ribbonFill = lapFill(color, overflowFrac, false, 26, capDeg);
+  // as a break against the base ring it laps onto.
+  const ribbonFill = lapFill(color, overflowFrac, 26, capDeg);
+  // Base lap = a FULL-circle tip-fade (not a flat stroke), identical to
+  // ActivityRing at 100% so the two never disagree. Its one seam — lightest tip
+  // meeting base at 12 o'clock — is covered by the second lap, which always
+  // starts at 12 (à la Apple hiding the Move-ring seam under the lap's cap).
+  const baseMaskId = useId();
+  const baseFill = lapFill(color, 1, undefined, capDeg);
+  const wrapStyle: CSSProperties = { width: size, height: size };
+  (wrapStyle as Record<string, string>)["--ring-glow"] = color;
 
   return (
-    <div className={`activity-ring${isGold ? " is-gold" : ""}`} style={{ width: size, height: size }}>
+    <div className="activity-ring is-complete" style={wrapStyle}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
           {/* The ribbon shape = one rounded arc, as a white mask the gradient
@@ -191,6 +200,18 @@ export function OverflowRing({
               transform={`rotate(-90 ${c} ${c})`}
             />
           </mask>
+          {/* Full-circle mask for the base lap's tip-fade fill. */}
+          <mask id={baseMaskId}>
+            <circle
+              cx={c}
+              cy={c}
+              r={r}
+              fill="none"
+              stroke="#fff"
+              strokeWidth={strokeWidth}
+              transform={`rotate(-90 ${c} ${c})`}
+            />
+          </mask>
           <mask id={bandClipId}>
             <path d={bandPath} clipRule="evenodd" fillRule="evenodd" fill="#fff" />
           </mask>
@@ -202,9 +223,11 @@ export function OverflowRing({
             <stop offset="100%" stopColor="#000" stopOpacity={0} />
           </radialGradient>
         </defs>
-        {/* Draw order: track → solid base lap → band-clipped shadow → ribbon. */}
+        {/* Draw order: track → base lap (tip-fade) → band-clipped shadow → ribbon. */}
         <circle cx={c} cy={c} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={strokeWidth} />
-        <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} />
+        <foreignObject x={0} y={0} width={size} height={size} mask={`url(#${baseMaskId})`}>
+          <div style={{ width: "100%", height: "100%", background: baseFill }} />
+        </foreignObject>
         {overflowFrac > 0.0006 && (
           <>
             <g mask={`url(#${bandClipId})`}>

@@ -6,12 +6,18 @@
   flex-shrink: 0;
 }
 
-/* Gold halo lives here as a box-shadow, not an SVG `filter: drop-shadow()` on
-   the <svg> — iOS Safari hard-clips SVG filter regions to a rectangle instead
-   of fading them out, which reads as a square halo around a round ring. */
-.activity-ring.is-gold {
+/* Completion glow, decoupled from the fill: at/over 100% the ring keeps its
+   tip-fade gradient and lights up with a halo tinted to its OWN colour
+   (`--ring-glow`, set inline to the ring's fill colour) — bloom 10px / 55%,
+   matching the app's other coloured glows. Whatever colour the ring is (incl.
+   gold) glows in that colour; no colour ever goes solid.
+
+   The halo is a box-shadow, not an SVG `filter: drop-shadow()` on the <svg> —
+   iOS Safari hard-clips SVG filter regions to a rectangle instead of fading
+   them out, which reads as a square halo around a round ring. */
+.activity-ring.is-complete {
   border-radius: 50%;
-  box-shadow: var(--gold-glow);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ring-glow, var(--good)) 55%, transparent);
 }
 
 .activity-ring-center {
