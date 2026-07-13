@@ -253,8 +253,10 @@ button.copy-all-data-btn {
 }
 
 .page-topbar-avatar {
-  width: 30px;
-  height: 30px;
+  /* Ring inner Ø = 38 − 2×3.9 = 30.2px; a 26px avatar leaves a ~2px gap all
+     round so it never butts against the ring stroke. */
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: grid;
   place-items: center;

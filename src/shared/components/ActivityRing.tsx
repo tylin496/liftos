@@ -4,9 +4,11 @@ import { useId, useMemo, type CSSProperties, type ReactNode } from "react";
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
 /** Tip-light tone for the leading head/cap — the gradient's lightest stop.
- *  Lightens over the first 150° of fill (`k`), maxing out at `maxMix`% white. */
-function lapHead(color: string, trim: number, maxMix = 38) {
-  const k = Math.min(1, (clamp01(trim) * 360) / 150);
+ *  Normally lightens over the first 150° of fill (`k`), maxing out at `maxMix`%
+ *  white; `fullLight` pins it to the full `maxMix` regardless of arc length, so
+ *  a short lap (e.g. a small overflow ribbon) still reaches its palest at the tip. */
+function lapHead(color: string, trim: number, maxMix = 38, fullLight = false) {
+  const k = fullLight ? 1 : Math.min(1, (clamp01(trim) * 360) / 150);
   return `color-mix(in srgb, ${color}, #fff ${Math.round(k * maxMix)}%)`;
 }
 
@@ -16,22 +18,34 @@ function lapHead(color: string, trim: number, maxMix = 38) {
  *  saturated base colour and only lightens over a window right at the leading
  *  tip (FADE, 55% of the filled arc, clamped 120–200°); the lightest tone is
  *  then held through `capDeg` so the brightest point sits ON the rounded cap
- *  (which overhangs the dash end by stroke/2). Base repeats at 360° so there's
- *  no seam under the start. EVERY lap — including at/over 100% and gold — is a
- *  gradient; the only full-circle seam (lightest tip meeting base at 12 o'clock)
- *  is covered by the overflow lap, which always starts at 12. */
+ *  (which overhangs the dash end by stroke/2). Used only BELOW 100%, where the
+ *  arc doesn't close, so the bright tip never meets the base start — no seam.
+ *  At/over 100% use `lapFull` instead (a closed tip-fade would hard-step at 12). */
 function lapFill(
   color: string,
   trim: number,
   maxMix: number | undefined,
   capDeg: number,
+  fullLight = false,
 ) {
   const tipDeg = clamp01(trim) * 360;
   const FADE = Math.max(120, Math.min(200, tipDeg * 0.55));
   const fadeStart = Math.max(0, tipDeg - FADE);
-  const tl = lapHead(color, trim, maxMix);
+  const tl = lapHead(color, trim, maxMix, fullLight);
   const hold = Math.min(359.9, tipDeg + capDeg);
   return `conic-gradient(${color} 0deg, ${color} ${fadeStart}deg, ${tl} ${tipDeg}deg, ${tl} ${hold}deg, ${color} 360deg)`;
+}
+
+/** Seam-free sheen for a CLOSED (≥100%) lap. A tip-fade can't close without a
+ *  hard step where its bright tip meets its base start at 12 o'clock, so instead
+ *  the full circle is base colour at 12 (0°=360°, identically — no seam, and it
+ *  blends with the overflow lap's base-colour start) and brightens symmetrically
+ *  to a soft peak at the bottom (180°). Kept subtle so it never out-brightens
+ *  the leading tip — that stays the ring's lightest point. Still a gradient,
+ *  never solid. */
+function lapFull(color: string, maxMix = 16) {
+  const peak = `color-mix(in srgb, ${color}, #fff ${maxMix}%)`;
+  return `conic-gradient(${color} 0deg, ${peak} 180deg, ${color} 360deg)`;
 }
 
 /** A single progress ring — stroke-based, so it scales cleanly from the
@@ -70,7 +84,9 @@ export function ActivityRing({
   // The rounded cap overhangs the dash end by stroke/2 — hold the tip tone that
   // extra `capDeg` so the brightest zone lands on the cap, not just before it.
   const capDeg = ((strokeWidth / 2) / r) * (180 / Math.PI);
-  const fill = lapFill(color, clamped, undefined, capDeg);
+  // Below 100% the arc is open → tip-fade; at exactly 100% it closes → seam-free
+  // full sheen (matching OverflowRing's base lap so the crossover doesn't pop).
+  const fill = isComplete ? lapFull(color) : lapFill(color, clamped, undefined, capDeg);
   const wrapStyle: CSSProperties = { width: size, height: size };
   if (isComplete) (wrapStyle as Record<string, string>)["--ring-glow"] = color;
 
@@ -162,22 +178,49 @@ export function OverflowRing({
   );
   // Contact-shadow radius. Clamped to the chord back to the lap's 12-o'clock
   // start so a tiny overflow can't let the blob also darken the START cap
-  // ("two shadows" bug). Floor at 0.6×stroke — the ribbon's own rounded cap
+  // ("two shadows" bug). Floor at 0.85×stroke — the ribbon's own rounded cap
   // (radius stroke/2, same centre) would otherwise hide the shadow entirely.
   const startX = c;
   const startY = c - r;
   const chord = Math.hypot(tailX - startX, tailY - startY);
-  const shR = Math.max(strokeWidth * 0.6, Math.min(strokeWidth * 0.75, chord * 0.55));
-  // The second lap ribbon: same track/radius/colour, filled with a gentler
-  // tip-fade (26% max lighten vs 38% below 100%) so its pale tip doesn't read
-  // as a break against the base ring it laps onto.
-  const ribbonFill = lapFill(color, overflowFrac, 26, capDeg);
-  // Base lap = a FULL-circle tip-fade (not a flat stroke), identical to
-  // ActivityRing at 100% so the two never disagree. Its one seam — lightest tip
-  // meeting base at 12 o'clock — is covered by the second lap, which always
-  // starts at 12 (à la Apple hiding the Move-ring seam under the lap's cap).
+  const shR = Math.max(strokeWidth * 0.85, Math.min(strokeWidth * 1.05, chord * 0.6));
+  // Base lap + ribbon are ONE continuous comet that brightens ALONG the stroke
+  // toward the leading tip (not a symmetric top/bottom sheen, which reads as a
+  // vertical gradient). Think of a single spiral of length `spiralDeg`, dark at
+  // the 12-o'clock start, lightening to its palest at the tip. The last `FADE`
+  // degrees before the tip carry the brightening; everything earlier stays base
+  // colour. The base lap shows spiral 0–360°, the ribbon shows 360°→tip — so the
+  // base's bright end (just left of 12) and the ribbon's start (just right of 12)
+  // meet at the SAME brightness `handoff`, flowing through 12 with no seam.
+  const TIP_MIX = 40; // palest tone at the very tip
+  const spiralDeg = (1 + overflowFrac) * 360;
+  const FADE = Math.min(200, spiralDeg); // length of the bright leading window
+  const fadeStartSpiral = spiralDeg - FADE;
+  // fraction (0→1) toward the tip tone at a given spiral angle
+  const litFrac = (s: number) => Math.max(0, Math.min(1, (s - fadeStartSpiral) / FADE));
+  const mixAt = (s: number) =>
+    `color-mix(in srgb, ${color}, #fff ${Math.round(litFrac(s) * TIP_MIX)}%)`;
+  const peak = `color-mix(in srgb, ${color}, #fff ${TIP_MIX}%)`;
+  const overflowAngle = overflowFrac * 360;
+  const hold = Math.min(359.9, overflowAngle + capDeg);
+  // Brightness the base hands to the ribbon at 12 (spiral 360°).
+  const handoff = mixAt(360);
   const baseMaskId = useId();
-  const baseFill = lapFill(color, 1, undefined, capDeg);
+  // Base lap: base colour until the fade window opens, then ramp up to `handoff`
+  // at 360°. If the window hasn't reached the base lap yet (large overflow), the
+  // whole base lap is just base colour and the ribbon carries the entire comet.
+  const baseFill =
+    fadeStartSpiral >= 360
+      ? color
+      : `conic-gradient(${color} 0deg, ${color} ${fadeStartSpiral}deg, ${handoff} 360deg)`;
+  // Ribbon: continues from `handoff` (or base colour, if the fade opens mid-ribbon)
+  // up to the palest tip, held through the rounded cap.
+  const ribbonFadeStart = fadeStartSpiral - 360;
+  const ribbonStops =
+    ribbonFadeStart > 0
+      ? `${color} 0deg, ${color} ${ribbonFadeStart}deg, ${peak} ${overflowAngle}deg`
+      : `${handoff} 0deg, ${peak} ${overflowAngle}deg`;
+  const ribbonFill = `conic-gradient(${ribbonStops}, ${peak} ${hold}deg, ${color} 360deg)`;
   const wrapStyle: CSSProperties = { width: size, height: size };
   (wrapStyle as Record<string, string>)["--ring-glow"] = color;
 
@@ -218,8 +261,8 @@ export function OverflowRing({
           {/* Centred radial contact shadow (dark core → transparent). No SVG
              blur filter — iOS Safari drops those; the gradient IS the softness. */}
           <radialGradient id={shadowGradId} gradientUnits="userSpaceOnUse" cx={tailX} cy={tailY} r={shR}>
-            <stop offset="0%" stopColor="#000" stopOpacity={1} />
-            <stop offset="55%" stopColor="#000" stopOpacity={0.52} />
+            <stop offset="0%" stopColor="#000" stopOpacity={0.82} />
+            <stop offset="60%" stopColor="#000" stopOpacity={0.52} />
             <stop offset="100%" stopColor="#000" stopOpacity={0} />
           </radialGradient>
         </defs>
