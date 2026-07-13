@@ -411,8 +411,10 @@ export interface WeightAcceleration {
 /** Window (days) for each half of the acceleration comparison. Symmetric so the
  *  two slopes have the same variance — a fair recent-vs-prior read. */
 const ACCEL_WINDOW_DAYS = 14;
-/** kg/week deadband: below this the rate is holding, so we report nothing
- *  ("Steady") rather than flap a chip on daily scale noise. */
+/** kg/week floor for the deadband: even with pristine data the delta must clear
+ *  this before we call it a change. The *effective* deadband is the LARGER of
+ *  this and the combined standard error of the two slopes (see weightAcceleration),
+ *  so a noisy fortnight has to move further before the chip speaks. */
 const ACCEL_MIN_DELTA = 0.1;
 /** kg/week above which the change is a strong acceleration/deceleration. */
 const ACCEL_STRONG_DELTA = 0.2;
@@ -432,24 +434,33 @@ const ACCEL_STRONG_DELTA = 0.2;
 export function weightAcceleration(
   pts: { date: string; value: number }[],
 ): WeightAcceleration | null {
-  const recent = regressionSlope(pts, ACCEL_WINDOW_DAYS);
-  if (recent == null) return null;
+  const recentFit = regressionFit(pts, ACCEL_WINDOW_DAYS);
+  if (recentFit == null) return null;
   const last = pts.at(-1)?.date;
   if (!last) return null;
   // Prior half = the 14 days ending the day before the recent window opens.
   const priorEnd = new Date(last + "T12:00:00");
   priorEnd.setDate(priorEnd.getDate() - ACCEL_WINDOW_DAYS);
   const priorEndStr = priorEnd.toISOString().slice(0, 10);
-  const prior = regressionSlope(
+  const priorFit = regressionFit(
     pts.filter((p) => p.date <= priorEndStr),
     ACCEL_WINDOW_DAYS,
   );
-  if (prior == null) return null;
+  if (priorFit == null) return null;
+  const recent = recentFit.slopePerWeek;
+  const prior = priorFit.slopePerWeek;
   // Only a loss regime gives "slowing/faster" a stable meaning. If the prior
   // window wasn't losing, the sign convention below breaks down — stay silent.
   if (prior >= 0) return null;
   const deltaPerWeek = +(recent - prior).toFixed(3);
-  if (Math.abs(deltaPerWeek) < ACCEL_MIN_DELTA) return null;
+  // Noise-aware deadband. Each slope carries a standard error set by how much
+  // the daily readings scatter around its line; the delta of two independent
+  // slopes has SE = hypot(seRecent, sePrior). Requiring |delta| to clear that
+  // (as well as the fixed floor) means we won't call it "slowing" when the
+  // change is smaller than the error bar on the change itself — the exact case
+  // where a fixed deadband flaps an amber chip on a fortnight of scale noise.
+  const combinedSE = Math.hypot(recentFit.sePerWeek, priorFit.sePerWeek);
+  if (Math.abs(deltaPerWeek) < Math.max(ACCEL_MIN_DELTA, combinedSE)) return null;
   return {
     recentRatePerWeek: +recent.toFixed(3),
     priorRatePerWeek: +prior.toFixed(3),
@@ -496,7 +507,15 @@ export function theilSenSlope(pts: { date: string; value: number }[], days = 28)
   return median(slopes) * 7; // kg/week
 }
 
-export function regressionSlope(pts: { date: string; value: number }[], days = 28): number | null {
+/** OLS fit over the trailing `days` window. Returns the slope (kg/week) AND the
+ *  standard error of that slope (kg/week). The SE is what lets a caller ask
+ *  whether a *difference* of two slopes clears the data's own scatter rather
+ *  than a fixed deadband (see weightAcceleration). null when the window can't
+ *  support a trend (<5 readings) or is degenerate (all readings on one day). */
+function regressionFit(
+  pts: { date: string; value: number }[],
+  days: number,
+): { slopePerWeek: number; sePerWeek: number } | null {
   const last = pts.at(-1)?.date;
   if (!last) return null;
   const cutoff = new Date(last + "T12:00:00");
@@ -515,5 +534,20 @@ export function regressionSlope(pts: { date: string; value: number }[], days = 2
   const sumX2 = xs.reduce((s, x) => s + x * x, 0);
   const denom = n * sumX2 - sumX * sumX;
   if (!denom) return null;
-  return ((n * sumXY - sumX * sumY) / denom) * 7; // kg/week
+  const slopePerDay = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slopePerDay * sumX) / n;
+  // SE of the slope = residual SD / sqrt(Σ(x−x̄)²). n>2 is assured by the ≥5
+  // guard; Σ(x−x̄)² = denom/n > 0 by the degeneracy guard above.
+  let sse = 0;
+  for (let i = 0; i < n; i++) {
+    const r = ys[i] - (intercept + slopePerDay * xs[i]);
+    sse += r * r;
+  }
+  const sxx = denom / n;
+  const slopeSEPerDay = Math.sqrt(sse / (n - 2) / sxx);
+  return { slopePerWeek: slopePerDay * 7, sePerWeek: slopeSEPerDay * 7 };
+}
+
+export function regressionSlope(pts: { date: string; value: number }[], days = 28): number | null {
+  return regressionFit(pts, days)?.slopePerWeek ?? null;
 }

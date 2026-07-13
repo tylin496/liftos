@@ -424,6 +424,24 @@ describe("weightAcceleration", () => {
     expect(weightAcceleration(twoRate(-0.1, -0.11))).toBeNull(); // Δ ≈ −0.07
   });
 
+  it("stays silent when the delta is smaller than the windows' own scatter", () => {
+    // Same underlying slopes as a mild-slowing read (Δ ≈ +0.15 kg/wk, above the
+    // 0.1 floor), but each reading carries ±0.3 kg of daily scatter. The combined
+    // standard error of the two slopes now exceeds the delta, so a fixed deadband
+    // would flag "slowing" on noise while the SE gate correctly stays mute.
+    const noisy = (priorPerDay: number, recentPerDay: number) => {
+      const vals: number[] = [];
+      let v = 90;
+      for (let i = 0; i < 14; i++) { vals.push(v + (i % 2 ? 0.3 : -0.3)); v += priorPerDay; }
+      for (let i = 0; i < 14; i++) { vals.push(v + (i % 2 ? 0.3 : -0.3)); v += recentPerDay; }
+      return daily("2026-06-01", vals);
+    };
+    // Noise-free, the same slopes DO fire (delta clears the 0.1 floor)…
+    expect(weightAcceleration(twoRate(-0.1, -0.079))?.direction).toBe("slowing");
+    // …but with the scatter added, the delta is inside the error bar → null.
+    expect(weightAcceleration(noisy(-0.1, -0.079))).toBeNull();
+  });
+
   it("returns null when the prior window wasn't a loss regime", () => {
     expect(weightAcceleration(twoRate(0.05, -0.02))).toBeNull(); // prior gaining
   });
