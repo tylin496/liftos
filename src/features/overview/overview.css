@@ -455,6 +455,8 @@
    the line. */
 .ov-weight-spark-wrap {
   position: relative;
+  /* Tapping the chart opens the full trend sheet (see WeightSparkline). */
+  cursor: pointer;
 }
 
 .ov-weight-spark {
@@ -463,58 +465,6 @@
   /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   height: 96px;
   margin-top: var(--vr-block);
-  cursor: grab;
-  touch-action: none;
-}
-
-.ov-weight-spark:active {
-  cursor: grabbing;
-}
-
-.ov-weight-spark-guide {
-  stroke: var(--ink-4);
-  stroke-width: 1;
-  stroke-dasharray: 2 2;
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.ov-weight-spark-scrub-dot {
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: var(--ink);
-  border: 2px solid var(--bg-card);
-  pointer-events: none;
-}
-
-.ov-weight-spark-tooltip {
-  position: absolute;
-  top: calc(var(--space-4) + 2px);
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: 4px 10px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  color: var(--ink-3);
-  white-space: nowrap;
-  pointer-events: none;
-}
-/* Anchor by edge near either end of the chart so a wide pill can't overhang
-   the card — centered anchor only in the safe middle range. */
-.ov-weight-spark-tooltip--center { transform: translateX(-50%); }
-.ov-weight-spark-tooltip--start { transform: translateX(0); }
-.ov-weight-spark-tooltip--end { transform: translateX(-100%); }
-
-.ov-weight-spark-tooltip-date {
-  color: var(--ink);
 }
 
 /* Reveal the whole spark (line + area together) in one left→right wipe, on the
@@ -530,9 +480,8 @@
 
 /* Latest trend point — always enlarged; the drawn line's own tone is used
    normally, but a new low over the visible window is a celebration read
-   (gold + glow), same language as PR badges. Positioned as an HTML dot for
-   the same reason as the scrub dot: the stretched viewBox turns SVG circles
-   into ellipses. */
+   (gold + glow), same language as PR badges. Positioned as an HTML dot
+   because the stretched viewBox turns SVG circles into ellipses. */
 /* Latest reading = the same marker the Weight-loss pace meter uses: the line's
    tone as a solid core, a card-bg gap ring, a thin same-tone ring, and a soft
    glow (see .ni-meter-marker). Core colour tracks the line (--dot-core = the
