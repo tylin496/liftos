@@ -13,6 +13,9 @@ import { HealthTrendSheet, type HealthTrendConfig } from "@features/health/Trend
 import { progressColor } from "@shared/lib/progressColor";
 import { displayNameFor } from "@shared/lib/owner";
 import { localDateStr } from "@shared/lib/date";
+import { haptic } from "@shared/lib/haptics";
+import { CLEAR_AFTER_MOVE } from "@shared/lib/motion";
+import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { Badge } from "@shared/components/Badge";
 import { ErrorState } from "@shared/components/ErrorState";
@@ -48,6 +51,22 @@ const WEEKDAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function fmtTopbarDate(): string {
   const d = new Date();
   return `${WEEKDAY_ABBR[d.getDay()]}, ${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`.toUpperCase();
+}
+
+/** Shift an ISO date by whole days (noon-anchored so DST never rolls the day). */
+function shiftISODays(iso: string, days: number): string {
+  return localDateStr(new Date(new Date(`${iso}T12:00:00`).getTime() + days * 86400000));
+}
+
+/** "Jul 1 – 7" / "Jun 30 – Jul 6" for the Mon→Sun week starting at mondayISO. */
+function fmtWeekRange(mondayISO: string): string {
+  const mon = new Date(`${mondayISO}T12:00:00`);
+  const sun = new Date(mon.getTime() + 6 * 86400000);
+  const m1 = MONTH_ABBR[mon.getMonth()];
+  const m2 = MONTH_ABBR[sun.getMonth()];
+  return m1 === m2
+    ? `${m1} ${mon.getDate()} – ${sun.getDate()}`
+    : `${m1} ${mon.getDate()} – ${m2} ${sun.getDate()}`;
 }
 
 function greeting(user: ReturnType<typeof useSessionUser>): string {
@@ -155,17 +174,21 @@ function ActiveTargetRing({ accrued, target, synced }: { accrued: number; target
 function ActiveTargetWeekStrip({
   view,
   metrics,
-  selectedDate,
+  mondayISO,
+  selected,
   onSelectDate,
 }: {
   view: ActiveTargetView;
   metrics: BodyMetric[];
-  selectedDate: string | null;
+  /** Monday of the week the card is currently browsing (may be a past week). */
+  mondayISO: string;
+  /** Resolved (never-null) day the ring is pinned to — highlighted in the strip. */
+  selected: string;
   onSelectDate: (date: string) => void;
 }) {
   const todayISO = localDateStr();
   const perDay = view.activeTargetPerDay;
-  const monday = new Date(`${view.mondayISO}T12:00:00`);
+  const monday = new Date(`${mondayISO}T12:00:00`);
 
   const cells = Array.from({ length: 7 }, (_, i) => {
     const date = localDateStr(new Date(monday.getTime() + i * 86400000));
@@ -194,22 +217,22 @@ function ActiveTargetWeekStrip({
   return (
     <div className="ov-active-target-week">
       {cells.map((c) => {
-        const selected = c.kind !== "future" && (selectedDate ?? todayISO) === c.date;
+        const isSel = c.kind !== "future" && selected === c.date;
         return (
           <button
             key={c.date}
             type="button"
             className="ov-active-target-week-cell"
             disabled={c.kind === "future"}
-            aria-pressed={selected}
+            aria-pressed={isSel}
             onClick={(e) => {
               e.stopPropagation();
               onSelectDate(c.date);
             }}
           >
             <div
-              className={`ov-active-target-week-bar is-${c.kind}${selected ? " is-selected" : ""}`}
-              style={selected && c.ringColor ? ({ "--week-glow": c.ringColor } as CSSProperties) : undefined}
+              className={`ov-active-target-week-bar is-${c.kind}${isSel ? " is-selected" : ""}`}
+              style={isSel && c.ringColor ? ({ "--week-glow": c.ringColor } as CSSProperties) : undefined}
             >
               {c.kind !== "future" && (
                 <div
@@ -221,7 +244,7 @@ function ActiveTargetWeekStrip({
                 />
               )}
             </div>
-            <span className={`ov-active-target-week-day is-${c.kind}${selected ? " is-selected" : ""}`}>
+            <span className={`ov-active-target-week-day is-${c.kind}${isSel ? " is-selected" : ""}`}>
               {c.letter}
             </span>
           </button>
@@ -251,9 +274,74 @@ function ActiveTargetCard({
   loading?: boolean;
 }) {
   const { openSettings } = useSettingsSheet();
-  // null = viewing today (the live floating target); a past ISO date pins the
-  // ring/status to that day instead, sourced from the week strip tap.
+  // null = viewing the browsed week's anchor day (today for the current week,
+  // the same weekday for a past week); a concrete ISO date pins the ring/status
+  // to a day the user tapped in the strip instead.
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // 0 = current week; −n = n weeks back. Swipe (or the tab remount) moves this.
+  const [weekOffset, setWeekOffset] = useState(0);
+  // Slide-direction class for the card remount; clears after the slide so the
+  // next nav replays it (mirrors nutrition's week-strip carousel).
+  const [weekNavDir, setWeekNavDir] = useState<"forward" | "backward" | null>(null);
+  // Outer wrapper owns the swipe (stable across week changes); the inner card
+  // remounts (key) and slides the new week through on commit.
+  const weekRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const weekCommitted = useRef(false);
+
+  const todayISO = localDateStr();
+  const isCurrentWeek = weekOffset === 0;
+  // Monday of the browsed week, derived from the live current-week Monday.
+  const viewedMonday = view ? shiftISODays(view.mondayISO, weekOffset * 7) : null;
+  // Browse back only while there's older active-energy data to land on.
+  const canGoBack =
+    viewedMonday != null &&
+    metrics.some((m) => m.metric_date < viewedMonday && m.active_energy_kcal != null);
+
+  function navigateWeek(dir: "forward" | "backward") {
+    if (dir === "forward" && isCurrentWeek) return; // nothing past the current week
+    if (dir === "backward" && !canGoBack) return; // no older data to show
+    haptic("select");
+    weekCommitted.current = true;
+    setWeekNavDir(dir);
+    setSelectedDate(null); // new week opens on its own anchor day
+    setWeekOffset((o) => o + (dir === "forward" ? 1 : -1));
+  }
+
+  // Whole card follows the finger/cursor 1:1; rubber-band at the edges, and the
+  // hook stops the gesture bubbling to Shell's tab-swipe (see tab-navigation
+  // skill). dir 1 = swiped left = forward (toward this week); −1 = back a week.
+  useHorizontalSwipe(weekRef, (d) => navigateWeek(d === 1 ? "forward" : "backward"), {
+    pointer: true,
+    onDrag: (dx) => {
+      const el = cardRef.current;
+      if (!el) return;
+      const atEdge = (dx < 0 && isCurrentWeek) || (dx > 0 && !canGoBack);
+      const offset = atEdge ? Math.sign(dx) * Math.min(72, Math.abs(dx) * 0.2) : dx;
+      el.style.transition = "none";
+      el.style.transform = `translateX(${offset}px)`;
+    },
+    onDragEnd: () => {
+      const el = cardRef.current;
+      if (!el) return;
+      if (weekCommitted.current) {
+        // Committed: the card remounts (key) and plays slide-in — clear the drag
+        // transform instantly so it doesn't fight the animation.
+        weekCommitted.current = false;
+        el.style.transition = "none";
+        el.style.transform = "";
+      } else {
+        el.style.transition = "transform var(--dur-exit) var(--ease-snap)";
+        el.style.transform = "";
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (!weekNavDir) return;
+    const t = window.setTimeout(() => setWeekNavDir(null), CLEAR_AFTER_MOVE);
+    return () => window.clearTimeout(t);
+  }, [weekNavDir]);
 
   // Cold load — mirrors the loaded DOM (a <div> root, head + ring inside a
   // .ov-active-target-navblock button, the week strip, then a second navblock
@@ -262,6 +350,7 @@ function ActiveTargetCard({
   // root — every load remounted the card and replayed its entrance.
   if (loading) {
     return (
+      <div>
       <div className="page-card ov-active-target loading-card">
         <button type="button" className="ov-active-target-navblock" onClick={onNav}>
           <div className="ov-active-target-head">
@@ -293,6 +382,7 @@ function ActiveTargetCard({
           </div>
         </button>
       </div>
+      </div>
     );
   }
 
@@ -318,37 +408,69 @@ function ActiveTargetCard({
   const position = Math.abs(diff) <= 30 ? "on" : diff > 0 ? "behind" : "ahead";
   const ratio = view ? view.today.accrued / Math.max(1, view.today.target) : 0;
 
-  // Footer banked readout — same "through yesterday vs flat pace" figure the
-  // floating target is built from, restated as a running weekly balance. A
-  // ±30 kcal deadband (same anti-flicker bar as `position`) collapses to a
-  // neutral "on pace" read instead of a near-zero ± banked count.
-  const banked = view ? view.accruedThroughYesterday - view.activeTargetPerDay * (view.weekday - 1) : 0;
+  // Footer balance. Current week: the live "through yesterday vs flat pace"
+  // running figure the floating target is built from. A past (completed) week:
+  // its final full-week total vs the 7-day goal — a retrospective settle. A
+  // ±30 kcal deadband (same anti-flicker bar as `position`) reads as "on pace".
+  const perDay = view?.activeTargetPerDay ?? 0;
+  const pastWeekTotal =
+    view && !isCurrentWeek && viewedMonday
+      ? metrics
+          .filter(
+            (m) =>
+              m.metric_date >= viewedMonday &&
+              m.metric_date < shiftISODays(viewedMonday, 7) &&
+              m.active_energy_kcal != null,
+          )
+          .reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0)
+      : 0;
+  const banked = view
+    ? isCurrentWeek
+      ? view.accruedThroughYesterday - perDay * (view.weekday - 1)
+      : Math.round(pastWeekTotal - perDay * 7)
+    : 0;
   const bankedTone = banked > 30 ? "good" : banked < -30 ? "warn" : "neutral";
 
-  const todayISO = localDateStr();
-  const viewingPastDay = view != null && selectedDate != null && selectedDate !== todayISO;
-  // Past days have no floating target (that's a today-only concept, folding
-  // the week's pace into what's left) — approximate with the flat per-day
-  // goal, the same denominator the week-strip bars already fill against.
+  // The week's anchor day — today for the current week, the same weekday N weeks
+  // back otherwise ("last week's today"). The ring lands here after a swipe;
+  // tapping the strip overrides it (selectedDate).
+  const anchorDay = isCurrentWeek ? todayISO : shiftISODays(todayISO, weekOffset * 7);
+  const effSelected = selectedDate ?? anchorDay;
+  // The floating "today" ring is a live-day-only concept; every other day (a
+  // tapped past day, or any day of a past week) shows the fixed per-day ring.
+  const isViewingToday = isCurrentWeek && effSelected === todayISO;
+  const viewingPastDay = view != null && !isViewingToday;
+  // Past days have no floating target (that folds the week's pace into what's
+  // left) — measure against the flat per-day goal, the week-strip's denominator.
   const pastDayAccrued = viewingPastDay
-    ? Math.round(metrics.find((m) => m.metric_date === selectedDate)?.active_energy_kcal ?? 0)
+    ? Math.round(metrics.find((m) => m.metric_date === effSelected)?.active_energy_kcal ?? 0)
     : 0;
   const pastDaySynced = viewingPastDay
-    ? metrics.some((m) => m.metric_date === selectedDate && m.active_energy_kcal != null)
+    ? metrics.some((m) => m.metric_date === effSelected && m.active_energy_kcal != null)
     : false;
   const pastDayRatio = view ? pastDayAccrued / Math.max(1, view.activeTargetPerDay) : 0;
-  const pastDayLabel =
-    viewingPastDay && selectedDate
-      ? `${WEEKDAY_ABBR[new Date(`${selectedDate}T12:00:00`).getDay()]}, ${MONTH_ABBR[new Date(`${selectedDate}T12:00:00`).getMonth()]} ${new Date(`${selectedDate}T12:00:00`).getDate()}`
-      : "";
+  const pastDayLabel = viewingPastDay
+    ? `${WEEKDAY_ABBR[new Date(`${effSelected}T12:00:00`).getDay()]}, ${MONTH_ABBR[new Date(`${effSelected}T12:00:00`).getMonth()]} ${new Date(`${effSelected}T12:00:00`).getDate()}`
+    : "";
 
   return (
-    <div className="page-card ov-active-target">
+    <div ref={weekRef}>
+    <div
+      ref={cardRef}
+      key={viewedMonday ?? "cur"}
+      className={`page-card ov-active-target${weekNavDir === "forward" ? " week-nav-forward" : weekNavDir === "backward" ? " week-nav-backward" : ""}`}
+    >
       <button type="button" className="ov-active-target-navblock" onClick={onNav}>
         <div className="ov-active-target-head">
           <span className="page-eyebrow" style={{ margin: 0 }}>Active target</span>
           <div className="ov-active-target-head-right">
-            <FreshnessTag date={view?.today.lastSyncDate ?? null} kind="sync" updatedAt={syncAt} />
+            {isCurrentWeek ? (
+              <FreshnessTag date={view?.today.lastSyncDate ?? null} kind="sync" updatedAt={syncAt} />
+            ) : viewedMonday ? (
+              // A past week: the sync clock is meaningless — orient with the
+              // week's date range instead.
+              <span className="ov-active-target-weeklabel">{fmtWeekRange(viewedMonday)}</span>
+            ) : null}
             <span className="ov-active-target-chevron" aria-hidden>›</span>
           </div>
         </div>
@@ -420,8 +542,9 @@ function ActiveTargetCard({
           <ActiveTargetWeekStrip
             view={view}
             metrics={metrics}
-            selectedDate={selectedDate}
-            onSelectDate={(date) => setSelectedDate((prev) => (prev === date ? null : date === todayISO ? null : date))}
+            mondayISO={viewedMonday ?? view.mondayISO}
+            selected={effSelected}
+            onSelectDate={(date) => setSelectedDate(date === anchorDay ? null : date)}
           />
 
           <button type="button" className="ov-active-target-navblock" onClick={onNav}>
@@ -429,10 +552,10 @@ function ActiveTargetCard({
               <span className={`ov-active-target-banked is-${bankedTone}`}>
                 {bankedTone !== "neutral" && <span className="ov-active-target-banked-dot" aria-hidden />}
                 {bankedTone === "good"
-                  ? `+${banked.toLocaleString()} banked this week`
+                  ? `+${banked.toLocaleString()} banked ${isCurrentWeek ? "this" : "that"} week`
                   : bankedTone === "warn"
-                    ? `${banked.toLocaleString()} short this week`
-                    : "on pace this week"}
+                    ? `${banked.toLocaleString()} short ${isCurrentWeek ? "this" : "that"} week`
+                    : `on pace ${isCurrentWeek ? "this" : "that"} week`}
               </span>
               <span className="ov-active-target-goal">
                 {currentTdee != null ? `${currentTdee.toLocaleString()} / ` : ""}
@@ -442,6 +565,7 @@ function ActiveTargetCard({
           </button>
         </>
       )}
+    </div>
     </div>
   );
 }

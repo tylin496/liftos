@@ -22,6 +22,29 @@
   display: block;
   width: 100%;
   text-align: left;
+  /* Drag-navigable between weeks: reserve the horizontal axis for the swipe
+     while vertical scroll passes through, and don't let a drag select text. */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Week change slides the whole card through — same carousel as the Nutrition
+   day/week cards. Feature-local keyframes (like training's tr-slide-*) so the
+   card doesn't depend on another feature's CSS being loaded. */
+@keyframes ov-slide-from-right { from { transform: translateX(100%); }  to { transform: translateX(0); } }
+@keyframes ov-slide-from-left  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+.ov-active-target.week-nav-forward  { animation: ov-slide-from-right var(--dur-move) var(--ease-move) both; }
+.ov-active-target.week-nav-backward { animation: ov-slide-from-left  var(--dur-move) var(--ease-move) both; }
+
+/* Past-week orientation label in the head (replaces the sync tag, which is
+   meaningless for a completed week). */
+.ov-active-target-weeklabel {
+  font-size: var(--role-caption-size);
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* The card is a plain div now (the week strip needs its own per-day buttons,
