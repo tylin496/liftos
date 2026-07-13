@@ -1175,6 +1175,7 @@ export function HealthPage() {
           Number(Math.abs(lbmCard.change).toFixed(1)) !== 0 ? (
             <span className="health-lbm-change">
               {lbmCard.change > 0 ? "▲" : "▼"}
+              {" "}
               {Math.abs(lbmCard.change).toFixed(1)} kg
             </span>
           ) : null
