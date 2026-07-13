@@ -101,11 +101,12 @@ function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { show
           : remaining > 0
             ? "left"
             : "Closed";
-  // Fixed Apple-Fitness "Move" red at every fill — the ring is its own always-red
-  // object, not a progress-spectrum readout (and no gold/--good flip at 100%; it
-  // just laps over via OverflowRing, à la Apple). The Cut Progress bar keeps the
-  // --progress ramp.
-  const ringColor = "var(--ring-move)";
+  // Follows the shared Apple-spectrum progress ramp by fill (progressColor) —
+  // red→orange→green→cyan→blue. At/over 100% it settles on --good, matching the
+  // "Closed" status word and the week-strip bars: closing the daily active
+  // target is a routine win, so it is NOT gold — gold stays reserved for the
+  // rare Cut-goal celebration.
+  const ringColor = ratio >= 1 ? "var(--good)" : progressColor(ratio);
   return ratio > 1 ? (
     <OverflowRing ratio={ratio} size={72} strokeWidth={7} color={ringColor}>
       <div className="ov-active-target-ring-center" ref={innerRef}>
@@ -148,9 +149,7 @@ function ActiveTargetRing({ accrued, target, synced }: { accrued: number; target
    to Settings rather than editing inline. */
 // 7-cell Mon→Sun proportion strip under the ring row — past days show how much
 // of that day's active target was actually logged, today rides the same fill
-// ratio as the ring. Unlike the ring (fixed Move-red), the whole strip stays on
-// the --progress ramp so the 7 bars read as one achievement gradient; future
-// days sit empty. Reads the raw metrics
+// ratio (and colour) as the ring, future days sit empty. Reads the raw metrics
 // rows directly (same Mon-start week `computeActiveTarget` filters) rather
 // than adding per-day state — this is the only consumer.
 function ActiveTargetWeekStrip({
