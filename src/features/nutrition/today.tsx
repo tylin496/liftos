@@ -15,7 +15,6 @@ import { useToast } from "@shared/components/Toast";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useCelebration } from "@shared/components/Celebration";
-import { MetricCaption } from "@shared/components/Metric";
 import { HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import { Badge } from "@shared/components/Badge";
 import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
@@ -652,20 +651,24 @@ export function TodayView({
               style={readOnly ? { cursor: "default" } : undefined}
             >
               <span className="nutri-label">Calories</span>
-              {hasEntry ? (
-                <span className="metric-val metric-val--lg">
-                  <HeadlineCountUp value={calNum} format={(n) => n.toLocaleString()} />
-                </span>
-              ) : (
-                <span className="metric-val metric-val--lg stat-number--empty">—</span>
-              )}
-              {targets.calorieTarget > 0 && <MetricCaption>of {targets.calorieTarget.toLocaleString()} kcal</MetricCaption>}
-              <span className={`nutri-delta ${calToneVal ?? "neutral"}`}>{calNote || "\u00A0"}</span>
+              <span className="nutri-metric">
+                {hasEntry ? (
+                  <span className="metric-val metric-val--lg">
+                    <HeadlineCountUp value={calNum} format={(n) => n.toLocaleString()} />
+                  </span>
+                ) : (
+                  <span className="metric-val metric-val--lg stat-number--empty">—</span>
+                )}
+                {targets.calorieTarget > 0 && (
+                  <span className="nutri-target">/ {targets.calorieTarget.toLocaleString()}</span>
+                )}
+              </span>
               {hasEntry && !loading && targets.calorieTarget > 0 && (
                 <div className="nt-track" aria-hidden="true">
                   <div className="nt-track-fill" style={{ width: `${caloriePct}%` }} />
                 </div>
               )}
+              <span className={`nutri-delta ${calToneVal ?? "neutral"}`}>{calNote || "\u00A0"}</span>
             </button>
             <button
               type="button"
@@ -676,15 +679,18 @@ export function TodayView({
               style={readOnly ? { cursor: "default" } : undefined}
             >
               <span className="nutri-label">Protein</span>
-              {hasEntry ? (
-                <span className="metric-val metric-val--lg">
-                  <HeadlineCountUp value={protNum} format={(n) => String(n)} />
-                </span>
-              ) : (
-                <span className="metric-val metric-val--lg stat-number--empty">—</span>
-              )}
-              {targets.proteinTarget > 0 && <MetricCaption>of {targets.proteinTarget}g</MetricCaption>}
-              <span className={`nutri-delta ${protToneVal ?? "neutral"}`}>{protNote || "\u00A0"}</span>
+              <span className="nutri-metric">
+                {hasEntry ? (
+                  <span className="metric-val metric-val--lg">
+                    <HeadlineCountUp value={protNum} format={(n) => String(n)} />
+                  </span>
+                ) : (
+                  <span className="metric-val metric-val--lg stat-number--empty">—</span>
+                )}
+                {targets.proteinTarget > 0 && (
+                  <span className="nutri-target">/ {targets.proteinTarget}g</span>
+                )}
+              </span>
               {hasEntry && !loading && targets.proteinTarget > 0 && (
                 <div className="nt-track" aria-hidden="true">
                   <div className="nt-track-fill" style={{ width: `${proteinMetPct}%` }} />
@@ -693,6 +699,7 @@ export function TodayView({
                   )}
                 </div>
               )}
+              <span className={`nutri-delta ${protToneVal ?? "neutral"}`}>{protNote || "\u00A0"}</span>
             </button>
           </div>
         )}

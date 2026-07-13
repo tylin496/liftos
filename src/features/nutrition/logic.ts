@@ -158,12 +158,14 @@ export function proteinTone(
 
 export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficitTarget: number): string {
   if (!hasEntry) return "";
-  if (calResult.isSurplus) return `+${calResult.surplus.toLocaleString()} kcal surplus`;
+  // The target/unit now rides inline beside the number ("1,886 / 2,078"), so the
+  // note drops "kcal" — the deltas read as budget headroom/overage, not a restated unit.
+  if (calResult.isSurplus) return `+${calResult.surplus.toLocaleString()} surplus`;
   if (calResult.state === "over") {
     // Ate over the calorie budget (deficit fell short). Budget-framed to match
-    // the "of X kcal" line above and the "below budget" note.
+    // the inline target and the "below budget" note.
     const over = deficitTarget - calResult.deficit;
-    return `${over.toLocaleString()} kcal over budget`;
+    return `${over.toLocaleString()} over budget`;
   }
   if (calResult.state === "on-plan") return "✓ On plan";
   if (calResult.state === "low-intake") {
@@ -173,7 +175,7 @@ export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficit
       return "Well under budget";
     }
     const below = calResult.deficit - deficitTarget;
-    return `${below.toLocaleString()} kcal below budget`;
+    return `${below.toLocaleString()} below budget`;
   }
   return "";
 }

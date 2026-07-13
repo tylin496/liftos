@@ -1078,6 +1078,21 @@
   animation: skel-fade var(--dur-shimmer) ease-in-out infinite !important;
 }
 
+/* ── Number + inline target ──────────────────────────────────────────────
+   The target rides beside the number ("1,886 / 2,078") instead of a caption
+   line below, so the rail can sit directly under the number it measures. */
+.nutri-metric {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+.nutri-target {
+  font-size: var(--metric-unit); /* one fixed step down, matching unit suffixes */
+  font-weight: 600;
+  color: var(--ink-3); /* muted reference, not a verdict */
+  white-space: nowrap;
+}
+
 /* ── Intake progress rail ────────────────────────────────────────────────
    A slim rail under each column earns the card's lower half back (it was
    whitespace next to the dense Recommendation card). Fill is neutral —
@@ -1085,12 +1100,14 @@
    segment to the floor (--warn), same source as the "Xg to floor" note.
    Calories stay all-neutral: under budget is headroom, not a miss, so there
    is nothing to flag — the over-budget verdict rides the amber note instead.
+   Sits between the number and the note; symmetric margin (on top of the
+   column's 4px gap) gives it equal breathing room from both.
    align-self: stretch because .nutri-col is align-items: flex-start. */
 .nt-track {
   display: flex;
   align-self: stretch;
   height: 6px;
-  margin-top: var(--vr-loose);
+  margin: var(--space-1) 0;
   border-radius: var(--radius-pill);
   background: var(--rule-strong);
   overflow: hidden;
