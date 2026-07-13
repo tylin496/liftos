@@ -53,6 +53,11 @@
   --progress-4: #00c0e8;  /* Apple cyan */
   --progress-5: #0088ff;  /* Apple blue — almost full */
   --progress-complete: var(--gold); /* same celebration gold as --gold — one gold app-wide */
+  /* Activity ring — a FIXED Apple-Fitness "Move" red, held at every fill (does
+     NOT ride the progress spectrum above, nor flip to gold/--good at 100%). The
+     ring reads as its own always-red object, à la Apple's Move ring; the Cut
+     Progress bar keeps the --progress ramp. */
+  --ring-move: #fa114f;  /* Apple Fitness Move red */
 
   /* ── Semantic ─────────────────────────────────────────────────────────
      ONLY these three carry a good/bad verdict. Never use on charts,
@@ -369,6 +374,7 @@
   --progress-4: #3cd3fe;  /* Apple cyan */
   --progress-5: #0091ff;  /* Apple blue */
   --progress-complete: var(--gold); /* same celebration gold as --gold — one gold app-wide */
+  --ring-move: #fa114f;  /* Apple Fitness Move red — fixed at every fill (see :root) */
   --good: #4ad968;
   --good-100: #13331d;   /* dark green tint — soft fills (e.g. copy-success pill) */
   --bad: #ff4245;    /* Error — Apple systemRed (Default dark) */
