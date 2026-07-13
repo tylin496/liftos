@@ -1038,6 +1038,38 @@ export function HealthPage() {
     setTrendOpen(true);
   };
 
+  // The Weight trend sheet's config, lifted out of the card map so both the
+  // card tap AND the deep-link auto-open (below) draw the same sheet — corridor
+  // and all — from one definition. Null until there are ≥2 real points.
+  const weightTrendConfig = useMemo<HealthTrendConfig | null>(() => {
+    const spec = METRICS.find((s) => s.key === "weight_kg");
+    const c = cards.find((x) => x.spec.key === "weight_kg");
+    if (!spec || !c || c.full.length < 2) return null;
+    return {
+      label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color,
+      points: c.full, higherIsBetter: false, bucketDays: spec.bucket, minSpan: spec.minSpan,
+      corridor: data?.weightTargetRange
+        ? { minPerWeek: data.weightTargetRange.min, maxPerWeek: data.weightTargetRange.max }
+        : null,
+    };
+  }, [cards, data]);
+
+  // Nutrition's Weight-loss pace chevron deep-links here with `expand: true` to
+  // open the full corridor sheet on arrival. The signal can land before `data`
+  // (and thus the config) is ready, so we ARM on the signal and fire once the
+  // config resolves — then disarm, so closing the sheet doesn't reopen it when
+  // `cards`/`data` next change. Same expand-on-arrival shape as the energy card.
+  const weightNavTarget = useNavExpand() === "health-weight-card";
+  const weightSheetArmedRef = useRef(false);
+  useEffect(() => {
+    if (weightNavTarget) weightSheetArmedRef.current = true;
+    if (weightSheetArmedRef.current && weightTrendConfig) {
+      weightSheetArmedRef.current = false;
+      setTrendConfig(weightTrendConfig);
+      setTrendOpen(true);
+    }
+  }, [weightNavTarget, weightTrendConfig]);
+
   const header = (
     <div className="shell-header">
       <PageTopBar eyebrow="HEALTH" title="Trends" onCopy={copyHealthData} />
@@ -1121,21 +1153,24 @@ export function HealthPage() {
                 : undefined
             }
             onOpenTrend={
-              c && c.full.length >= 2
-                // Weight and Body Fat are both down-good (matches the hardcoded
-                // down-good MetricDelta on the card above).
-                // Weight's sheet carries the target-pace corridor (the nutrition
-                // evaluation's band) — the full-history counterpart to Overview's
-                // recent-window corridor. The small sparkline stays bare on
-                // purpose: the recent pace verdict already lives on Overview.
-                ? () => openTrend({
-                    label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color,
-                    points: c.full, higherIsBetter: false, bucketDays: spec.bucket, minSpan: spec.minSpan,
-                    corridor: spec.key === "weight_kg" && data?.weightTargetRange
-                      ? { minPerWeek: data.weightTargetRange.min, maxPerWeek: data.weightTargetRange.max }
-                      : null,
-                  })
-                : undefined
+              // Weight and Body Fat are both down-good (matches the hardcoded
+              // down-good MetricDelta on the card above). Weight's sheet carries
+              // the target-pace corridor (the nutrition evaluation's band) — the
+              // full-history counterpart to Overview's recent-window corridor,
+              // and shared with the deep-link auto-open via weightTrendConfig.
+              // The small sparkline stays bare on purpose: the recent pace
+              // verdict already lives on Overview.
+              spec.key === "weight_kg"
+                ? weightTrendConfig
+                  ? () => openTrend(weightTrendConfig)
+                  : undefined
+                : c && c.full.length >= 2
+                  ? () => openTrend({
+                      label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color,
+                      points: c.full, higherIsBetter: false, bucketDays: spec.bucket, minSpan: spec.minSpan,
+                      corridor: null,
+                    })
+                  : undefined
             }
           />
         );

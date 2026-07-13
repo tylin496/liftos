@@ -200,6 +200,40 @@
   gap: var(--vr-loose);
 }
 
+/* Eyebrow row: label left, the deep-link chevron pinned right. */
+.ni-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Deep-link affordance to Health's Weight card — a bare chevron (no border:
+   it's a navigation affordance, not an input), mirroring health-trend-open. */
+.ni-pace-open {
+  display: flex;
+  align-items: center;
+  position: relative;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--ink-3);
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--dur-press) var(--ease-press);
+}
+
+/* Overflow the 7×12 chevron's hit area toward ~44px for a comfortable tap. */
+.ni-pace-open::before {
+  content: "";
+  position: absolute;
+  top: -16px;
+  bottom: -16px;
+  left: -12px;
+  right: -8px;
+}
+
+.ni-pace-open:active { opacity: 0.7; }
+
 /* Each evidence cell is a --bg-soft rounded cell, not a floating label/value —
    groups them visually the way the label already groups them semantically. */
 .ni-cell {

@@ -21,6 +21,7 @@ import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS } from "./evaluation";
 import { nutritionDecision, rateTone, paceTone } from "./recommendation";
 import { ErrorState } from "@shared/components/ErrorState";
+import { useNav } from "@app/layout/NavContext";
 import "./nutrition.css";
 
 /* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
@@ -184,6 +185,7 @@ function PaceMeter({
 }
 
 export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }) {
+  const nav = useNav();
   const [state, setState] = useState<NutritionStateFull | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
@@ -336,7 +338,26 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
       <div className="ni-evidence">
         {/* The comparison that drives the decision: Observed vs Target, paired. */}
         <div className="ni-group">
-          <span className="page-eyebrow" style={{ margin: 0 }}>Weight-loss pace</span>
+          {/* The pace verdict is derived from weight; its full trend (with the
+              target-pace corridor) lives on Health's Weight card. The chevron
+              deep-links there and asks it to open the corridor sheet on arrival
+              (expand) rather than duplicating a sparkline here — only shown when
+              there's an actual reading worth jumping to. */}
+          <div className="ni-group-head">
+            <span className="page-eyebrow" style={{ margin: 0 }}>Weight-loss pace</span>
+            {!noData && !loading && hasTrend && hasRange && e && (
+              <button
+                type="button"
+                className="ni-pace-open"
+                aria-label="View weight trend in Health"
+                onClick={() => nav("health", { scrollTo: "health-weight-card", expand: true })}
+              >
+                <svg width="7" height="12" viewBox="0 0 7 12" fill="none" aria-hidden>
+                  <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+          </div>
           {!noData && !loading && hasTrend && hasRange && e ? (
             <PaceMeter
               observedRate={e.observedRate}
