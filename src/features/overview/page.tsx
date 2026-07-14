@@ -3,7 +3,7 @@ import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { series, rollingAvg, trailingAvg, median, latestUpdatedAt, bucketSeries } from "@features/health/math";
+import { series, rollingAvg, trailingAvg, latestUpdatedAt, bucketSeries } from "@features/health/math";
 import { isStale, formatAgo } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
@@ -38,53 +38,17 @@ import { CONSIDER_ENTER_COUNT, type Recommendation } from "@features/overview/re
 import type { Goal, GoalStatusEvaluation } from "./goal";
 import type { PhaseTriggerResult } from "./phaseTriggers";
 import type { TabId } from "@app/layout/TabBar";
+import {
+  fmtTopbarDate, shiftISODays, fmtWeekRange, fmtDayLabel, daysSince, fmt1kg, greeting,
+} from "./format";
+import {
+  activeTargetPosition, weekActiveTotal, weekBanked, bankedTone, weekStripCells,
+  phasePlanNote, cutStageLabel, weightLineTone, accelArrowTone, buildSparkGeometry,
+  SPARK_W, SPARK_H, SPARK_PAD,
+} from "./derive";
 import "./overview.css";
 
 const copyAllData = () => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS);
-
-const MONTH_ABBR = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-const WEEKDAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function fmtTopbarDate(): string {
-  const d = new Date();
-  return `${WEEKDAY_ABBR[d.getDay()]}, ${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`.toUpperCase();
-}
-
-/** Shift an ISO date by whole days (noon-anchored so DST never rolls the day). */
-function shiftISODays(iso: string, days: number): string {
-  return localDateStr(new Date(new Date(`${iso}T12:00:00`).getTime() + days * 86400000));
-}
-
-/** "Jul 1 – 7" / "Jun 30 – Jul 6" for the Mon→Sun week starting at mondayISO. */
-function fmtWeekRange(mondayISO: string): string {
-  const mon = new Date(`${mondayISO}T12:00:00`);
-  const sun = new Date(mon.getTime() + 6 * 86400000);
-  const m1 = MONTH_ABBR[mon.getMonth()];
-  const m2 = MONTH_ABBR[sun.getMonth()];
-  return m1 === m2
-    ? `${m1} ${mon.getDate()} – ${sun.getDate()}`
-    : `${m1} ${mon.getDate()} – ${m2} ${sun.getDate()}`;
-}
-
-function greeting(user: ReturnType<typeof useSessionUser>): string {
-  const hour = new Date().getHours();
-  const time =
-    hour < 5 ? "night" : hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
-  const name =
-    displayNameFor(user?.email) ??
-    (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??
-    user?.email?.split("@")[0] ??
-    "there";
-  return time === "night" ? `Still up, ${name}` : `Good ${time}, ${name}`;
-}
-
-function daysSince(isoDate: string): number {
-  const start = new Date(isoDate + "T12:00:00");
-  return Math.round((Date.now() - start.getTime()) / 86400000);
-}
 
 /* ── Active Target Card ────────────────────────────────────────────────── */
 
@@ -186,33 +150,11 @@ function ActiveTargetWeekStrip({
   selected: string;
   onSelectDate: (date: string) => void;
 }) {
-  const todayISO = localDateStr();
-  const perDay = view.activeTargetPerDay;
-  const monday = new Date(`${mondayISO}T12:00:00`);
-
-  const cells = Array.from({ length: 7 }, (_, i) => {
-    const date = localDateStr(new Date(monday.getTime() + i * 86400000));
-    const letter = WEEKDAY_ABBR[new Date(`${date}T12:00:00`).getDay()][0];
-    if (date === todayISO) {
-      const ratio = view.today.accrued / Math.max(1, view.today.target);
-      const ringColor = ratio >= 1 ? "var(--good)" : progressColor(ratio);
-      return { date, letter, kind: "today" as const, fill: Math.min(1, ratio), ringColor };
-    }
-    if (date > todayISO) return { date, letter, kind: "future" as const, fill: 0, ringColor: undefined };
-    const active = metrics.find((m) => m.metric_date === date)?.active_energy_kcal ?? 0;
-    const ratio = perDay > 0 ? active / perDay : 0;
-    // Each bar follows the same spectrum ramp as the ring, BUT a met day reads
-    // --good green here, not the ring's completion gold: the ring is the ONE
-    // gold spot on the card, so a whole row of gold bars doesn't dilute it
-    // (gold stays rare). Below-target days still ride the ramp.
-    return {
-      date,
-      letter,
-      kind: "past" as const,
-      fill: Math.min(1, ratio),
-      ringColor: ratio >= 1 ? "var(--good)" : progressColor(ratio),
-    };
-  });
+  // Each bar follows the same spectrum ramp as the ring, BUT a met day reads
+  // --good green here, not the ring's completion gold: the ring is the ONE gold
+  // spot on the card, so a whole row of gold bars doesn't dilute it (gold stays
+  // rare). Below-target days still ride the ramp. (See weekStripCells.)
+  const cells = weekStripCells(view, metrics, mondayISO, localDateStr());
 
   // Fills draw in from empty ON the flat --enter-wait beat — the SAME clock the
   // ring count-up uses — so the whole week appears alongside the day's number
@@ -421,34 +363,18 @@ function ActiveTargetCard({
   // On-pace → today.target == the flat daily average exactly; behind → higher,
   // ahead → lower. A small deadband keeps it from flickering near equality.
   const dailyAvg = view?.activeTargetPerDay ?? 0;
-  const diff = view ? view.today.target - dailyAvg : 0;
-  // 30 kcal ≈ a couple of minutes of movement — negligible; the deadband is
-  // purely anti-flicker (see above), not a meaningful "close enough" bar.
-  const position = Math.abs(diff) <= 30 ? "on" : diff > 0 ? "behind" : "ahead";
+  // On-pace → today.target == the flat daily average; behind → higher, ahead →
+  // lower. A ±30 kcal deadband keeps it from flickering near equality.
+  const position = view ? activeTargetPosition(view.today.target, dailyAvg) : "on";
   const ratio = view ? view.today.accrued / Math.max(1, view.today.target) : 0;
 
   // Footer balance. Current week: the live "through yesterday vs flat pace"
   // running figure the floating target is built from. A past (completed) week:
-  // its final full-week total vs the 7-day goal — a retrospective settle. A
-  // ±30 kcal deadband (same anti-flicker bar as `position`) reads as "on pace".
-  const perDay = view?.activeTargetPerDay ?? 0;
+  // its final full-week total vs the 7-day goal — a retrospective settle.
   const pastWeekTotal =
-    view && !isCurrentWeek && viewedMonday
-      ? metrics
-          .filter(
-            (m) =>
-              m.metric_date >= viewedMonday &&
-              m.metric_date < shiftISODays(viewedMonday, 7) &&
-              m.active_energy_kcal != null,
-          )
-          .reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0)
-      : 0;
-  const banked = view
-    ? isCurrentWeek
-      ? view.accruedThroughYesterday - perDay * (view.weekday - 1)
-      : Math.round(pastWeekTotal - perDay * 7)
-    : 0;
-  const bankedTone = banked > 30 ? "good" : banked < -30 ? "warn" : "neutral";
+    view && !isCurrentWeek && viewedMonday ? weekActiveTotal(metrics, viewedMonday) : 0;
+  const banked = view ? weekBanked(view, isCurrentWeek, pastWeekTotal) : 0;
+  const banktone = bankedTone(banked);
 
   // The week's anchor day — today for the current week, the same weekday N weeks
   // back otherwise ("last week's today"). The ring lands here after a swipe;
@@ -468,9 +394,7 @@ function ActiveTargetCard({
     ? metrics.some((m) => m.metric_date === effSelected && m.active_energy_kcal != null)
     : false;
   const pastDayRatio = view ? pastDayAccrued / Math.max(1, view.activeTargetPerDay) : 0;
-  const pastDayLabel = viewingPastDay
-    ? `${WEEKDAY_ABBR[new Date(`${effSelected}T12:00:00`).getDay()]}, ${MONTH_ABBR[new Date(`${effSelected}T12:00:00`).getMonth()]} ${new Date(`${effSelected}T12:00:00`).getDate()}`
-    : "";
+  const pastDayLabel = viewingPastDay ? fmtDayLabel(effSelected) : "";
 
   return (
     <div ref={weekRef}>
@@ -568,11 +492,11 @@ function ActiveTargetCard({
 
           <button type="button" className="ov-active-target-navblock" onClick={onNav}>
             <div className="ov-active-target-footer">
-              <span className={`ov-active-target-banked is-${bankedTone}`}>
-                {bankedTone !== "neutral" && <span className="ov-active-target-banked-dot" aria-hidden />}
-                {bankedTone === "good"
+              <span className={`ov-active-target-banked is-${banktone}`}>
+                {banktone !== "neutral" && <span className="ov-active-target-banked-dot" aria-hidden />}
+                {banktone === "good"
                   ? `+${banked.toLocaleString()} banked ${isCurrentWeek ? "this" : "that"} week`
-                  : bankedTone === "warn"
+                  : banktone === "warn"
                     ? `${banked.toLocaleString()} short ${isCurrentWeek ? "this" : "that"} week`
                     : `on pace ${isCurrentWeek ? "this" : "that"} week`}
               </span>
@@ -812,26 +736,12 @@ function PhasePlanSection({
   const atMaintenance = cutMode === "Maintenance";
   const n = phase.firingCount;
 
-  // One-line read, in priority order mirroring the engine's ladder: goal
-  // reached → start (never "consider"); signals stacked (same gate the engine
-  // decided with) → consider; otherwise explain what the lights watch for.
-  // Deliberately nothing more — the Journey card already answers "where am I"
-  // and "is it going well"; this section only answers "what's the road ahead
-  // and when should the plan change". No week counters, no numbers.
-  const note = atMaintenance
-    ? { text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" }
-    : goalStatus.reached
-      ? { text: `Body fat has reached your ${goalStatus.targetBodyFatPct}% goal — start maintenance.`, tone: " is-go" }
-      : n >= CONSIDER_ENTER_COUNT
-        ? { text: `${n} of ${phase.triggers.length} signals are on — consider switching to maintenance.`, tone: " is-consider" }
-        : { text: "Switch early if these stack up:", tone: "" };
-
-  // The Cut stage names its ENDPOINT, not just "Cut" — the app's whole premise
-  // is cutting TO a target, not indefinitely, so the goal % belongs on the
-  // stage. Falls back to a bare "Cut" only when no target is configured.
-  const cutLabel = goalStatus.targetBodyFatPct != null
-    ? `Cut → ${goalStatus.targetBodyFatPct}% BF`
-    : "Cut";
+  // One-line read, in priority order mirroring the engine's ladder (see
+  // phasePlanNote). Deliberately nothing more — the Journey card already answers
+  // "where am I" and "is it going well"; this section only answers "what's the
+  // road ahead and when should the plan change". No week counters, no numbers.
+  const note = phasePlanNote(atMaintenance, goalStatus, n, phase.triggers.length, CONSIDER_ENTER_COUNT);
+  const cutLabel = cutStageLabel(goalStatus.targetBodyFatPct);
 
   return (
     <div className="goal-plan">
@@ -1171,21 +1081,15 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 // source the Health weight card uses; no new interpolation (bucketSeries stays
 // pure). preserveAspectRatio="none" stretches the 100×64 viewBox to fill the
 // card width while non-scaling-stroke keeps the line a constant 2px.
-const WEIGHT_SPARK_MIN_SPAN = 1; // kg — floor so a flat week doesn't fill height
 // Full-history window for the trend sheet, mirroring Health's FIXED_DAYS so the
 // overlay this card opens matches Health's weight card exactly.
 const WEIGHT_SHEET_DAYS = 180;
-const fmt1kg = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 // Trend line is a 3.5-day (84h) trailing average of the raw daily readings —
 // the KPI is the loss RATE, so the line should read as "where's the trend
 // headed", not jitter on every water-weight blip. Per-day detail lives in the
 // trend sheet the chart opens on tap, not inline.
 const TREND_WINDOW_HOURS = 84;
-
-function diffDays(a: string, b: string): number {
-  return (new Date(b + "T12:00:00").getTime() - new Date(a + "T12:00:00").getTime()) / 86400000;
-}
 
 function WeightSparkline({
   points,
@@ -1218,7 +1122,7 @@ function WeightSparkline({
   // legend's dashed swatch (kept in sync in overview.css).
   const corridorColor = "var(--ink-4)";
   const gradId = `ov-spark-grad-${tone}`;
-  const W = 100, H = 96, pad = 4;
+  const W = SPARK_W, H = SPARK_H, pad = SPARK_PAD;
 
   // Tapping the chart opens the full trend sheet. The card body navigates to
   // Nutrition on tap, so the chart click must stopPropagation or the overlay
@@ -1243,78 +1147,13 @@ function WeightSparkline({
     );
   }
 
-  // points arrives pre-smoothed (trailingAvg over the caller's full history,
-  // already sliced to this window) — smoothing again here would double-average
-  // and drift the corridor anchor further from the true trend.
-  const trend = points;
-  const trendValues = trend.map((p) => p.value);
-  const windowDays = diffDays(trend[0].date, trend.at(-1)!.date);
+  // Geometry — the trend polyline, gradient area, and the target-pace corridor
+  // wedge, all projected into the SVG's coordinate space. points arrives
+  // pre-smoothed (trailingAvg over the caller's full history, already sliced to
+  // this window); the corridor rays anchor at a Theil-Sen fit of the drawn
+  // trend, not one edge point. See buildSparkGeometry.
+  const { pts, area, corridor, latest } = buildSparkGeometry(points, targetRange);
 
-  // Target-pace corridor: two rays sloped at the target band's min/max loss
-  // rate (positive kg/wk) converted to kg dropped over this window. A
-  // horizontal band is geometrically wrong on a weight-level chart — the band
-  // only reads flat on a rate axis.
-  const hasCorridor = !!targetRange && targetRange.min !== targetRange.max && windowDays > 0;
-  // The rays anchor at the Theil-Sen fit of the drawn trend evaluated at the
-  // window start — NOT at the first drawn point. The pace badge grades the
-  // window's MEDIAN pairwise slope, so the wedge must fan out from the same
-  // fit's starting level: anchoring on one edge point let a single low/high
-  // day tilt the whole wedge (observed: anchor ~0.8 kg low rendered a
-  // badge-verified on-pace window as visually outside the zone).
-  let corridorAnchor: number | null = null;
-  if (hasCorridor) {
-    const t0 = new Date(trend[0].date + "T12:00:00").getTime();
-    const xs = trend.map((p) => (new Date(p.date + "T12:00:00").getTime() - t0) / 86400000);
-    const pairSlopes: number[] = [];
-    for (let i = 0; i < trend.length; i++)
-      for (let j = i + 1; j < trend.length; j++)
-        if (xs[j] !== xs[i]) pairSlopes.push((trendValues[j] - trendValues[i]) / (xs[j] - xs[i]));
-    const fitSlope = median(pairSlopes);
-    corridorAnchor = median(trendValues.map((v, i) => v - fitSlope * xs[i]));
-  }
-  const corridorMinVal = corridorAnchor != null ? corridorAnchor - targetRange!.min * (windowDays / 7) : null;
-  const corridorMaxVal = corridorAnchor != null ? corridorAnchor - targetRange!.max * (windowDays / 7) : null;
-
-  // Vertical scale spans the trend line AND the corridor's in-view vertices,
-  // so the wedge never clips against a scale sized to the line alone.
-  const scaleValues = [...trendValues];
-  if (corridorAnchor != null) scaleValues.push(corridorAnchor);
-  if (corridorMinVal != null) scaleValues.push(corridorMinVal);
-  if (corridorMaxVal != null) scaleValues.push(corridorMaxVal);
-  const min = Math.min(...scaleValues), max = Math.max(...scaleValues);
-  const center = (min + max) / 2;
-  const half = Math.max(max - min, WEIGHT_SPARK_MIN_SPAN) / 2;
-  const lo = center - half;
-  const span = half * 2 || 1;
-  const valueToY = (v: number) => H - pad - ((v - lo) / span) * (H - pad * 2);
-
-  const coords = trendValues.map((v, i) => {
-    const x = pad + (i / (trendValues.length - 1)) * (W - pad * 2);
-    return { x, y: valueToY(v) };
-  });
-  const pts = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
-  // Area under the line, fading down to transparent — the line's tone tints the
-  // fill. Closed along the bottom edge so the gradient reads as depth, not a band.
-  const first = coords[0], last = coords[coords.length - 1];
-  const area = `${pts} ${last.x.toFixed(1)},${H} ${first.x.toFixed(1)},${H}`;
-
-  const corridor = corridorAnchor != null
-    ? {
-        // Apex sits at the FIT's start level, which can legitimately float off
-        // the drawn line's first point — the line starting below the apex
-        // correctly reads "this stretch was faster than target".
-        x0: first.x, y0: valueToY(corridorAnchor),
-        xEnd: last.x,
-        yMin: valueToY(corridorMinVal!),
-        yMax: valueToY(corridorMaxVal!),
-      }
-    : null;
-
-  // Latest point is always enlarged (no gold "New low" badge: on a steady cut
-  // the smoothed trend is at a window low almost every render, so it read as a
-  // permanent state, not a rare celebration — the line's own tone already says
-  // "healthy loss"). Its dot core echoes pace instead:
-  const latest = coords[coords.length - 1];
   // The latest dot is a plain "you are here" marker in the line's own tone. Pace
   // lives in the acceleration chip + the Journey pace pill; the dot no longer
   // carries a third, near-imperceptible, redundant pace tint.
@@ -1432,14 +1271,7 @@ function WeightCard({
   // below, not on this arrow. Mirrors Nutrition's pace arrow.
   const accelDirection = state?.evaluation.accelDirection ?? null;
   const rateBandTone = state ? rateTone(state.evaluation) : null;
-  const accelArrowTone =
-    rateBandTone === "bad"
-      ? "bad"
-      : rateBandTone === "warn"
-        ? "warn"
-        : accelDirection === "slowing"
-          ? "warn"
-          : "good";
+  const accelTone = accelArrowTone(rateBandTone, accelDirection);
   // Only a conclusive pace verdict carries the cut baseline day count; an
   // inconclusive read ("Forming"/"Calibrating") is just the word, no suffix.
   // Tapping the sparkline opens the full trend sheet — the SAME overlay Health's
@@ -1503,8 +1335,7 @@ function WeightCard({
     ? localDateStr(new Date(new Date(weightDate + "T12:00:00").getTime() - 20 * 86400000))
     : "";
   const sparkPoints = trailingAvg(weightPts, TREND_WINDOW_HOURS).filter((p) => p.date >= sparkCutoff);
-  const sparkTone: "good" | "bad" | "flat" =
-    weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
+  const sparkTone = weightLineTone(weightDelta);
 
   // Corridor legend (hero-right): the target loss-rate band, shown beside the
   // rate so the dashed swatch keys the chart's dashed corridor. Only when a real
@@ -1625,7 +1456,7 @@ function WeightCard({
                 glyph, same accelArrowTone (band-aware: in-band = good, a
                 slowdown or drift toward an edge = warn, far out = bad). */}
             {accelDirection && (
-              <span className={`ov-weight-accel-chip is-${accelArrowTone}`}>
+              <span className={`ov-weight-accel-chip is-${accelTone}`}>
                 {accelDirection === "faster" ? "▲ speeding up" : "▼ slowing"}
               </span>
             )}
@@ -1737,7 +1568,7 @@ export function OverviewPage() {
 
   const header = (
     <div className="shell-header">
-      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} />
+      <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user, displayNameFor(user?.email))} onCopy={copyAllData} />
     </div>
   );
 
