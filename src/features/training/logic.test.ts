@@ -165,3 +165,41 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     expect(stat.lastWeekSessions).toEqual([]);
   });
 });
+
+// ─── scoreWeight — assisted lifts score on % of bodyweight ───────────────────
+
+import { scoreWeight, toLogEntry, computeHistDelta } from "./logic";
+import { parse } from "./parser";
+
+describe("scoreWeight — assisted %BW axis", () => {
+  it("normal logs score on absolute kg (identical to score)", () => {
+    expect(scoreWeight(parse("100*10")!)).toBe(100);
+  });
+
+  it("assisted logs score on % of bodyweight lifted", () => {
+    // bw 100, assist 20 → lifting 80% of bodyweight.
+    expect(scoreWeight(parse("100-(20) *10")!)).toBeCloseTo(80, 5);
+  });
+
+  it("a lighter body at the same relative pull scores flat — no phantom decline", () => {
+    // The real Assisted Pull-up artifact: on a cut the effective kg falls with
+    // the body, so absolute e1RM read 10/10/10 → 10/10/10 as a drop. Same
+    // fraction of a lighter body must score the same.
+    const heavy = toLogEntry({ log_date: "2026-06-01", raw: "100-(20) *10/10/10" } as TrainingLog, 3)!;
+    const light = toLogEntry({ log_date: "2026-07-01", raw: "90-(18) *10/10/10" } as TrainingLog, 3)!;
+    expect(light.e1rm).toBeCloseTo(heavy.e1rm, 5);
+    expect(light.tonnage).toBeCloseTo(heavy.tonnage, 5);
+    // Display/milestone kg still tracks the real effective load.
+    expect(heavy.weightKg).toBe(80);
+    expect(light.weightKg).toBe(72);
+  });
+
+  it("histDelta direction follows relative strength even when effective kg fell", () => {
+    // prev: 75% of bw (100−25); curr: 80% of a lighter bw (90−18). Effective kg
+    // fell 75 → 72, but the pull got relatively STRONGER → gain, labelled in kg.
+    const curr = { log_date: "2026-07-01", raw: "90-(18) *10" } as TrainingLog;
+    const prev = { log_date: "2026-06-01", raw: "100-(25) *10" } as TrainingLog;
+    const d = computeHistDelta(curr, prev, 3, "compound")!;
+    expect(d.direction).toBe("gain");
+  });
+});

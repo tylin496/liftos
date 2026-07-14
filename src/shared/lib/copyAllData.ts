@@ -6,7 +6,7 @@ import { weeklyWeightRate, tdeeCalibration, confidenceBreakdownFromSeries, MIN_T
 import { nutritionDecision } from "@features/nutrition/recommendation";
 import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
-import { computeStats, epley1RM, maxReps } from "@features/training/logic";
+import { computeStats, epley1RM, maxReps, scoreWeight } from "@features/training/logic";
 import { computeStrengthSummary, type StrengthExercise } from "@features/overview/api";
 import { inferMuscleGroup } from "@features/training/muscleGroup";
 import { computeMuscleClusters, suggestClusterFatigue } from "@features/training/muscleCluster";
@@ -378,6 +378,12 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   const tdeeKcal = tdeeEst.tdee != null ? Math.round(tdeeEst.tdee) : null;
   const deficitDaily =
     tdeeKcal != null && avgCalories30d != null ? tdeeKcal - avgCalories30d : null;
+  // Trend-derived counterpart: the same deficit re-solved from the observed
+  // weight slope (the engine's own basis). Food logs typically under-record a
+  // little, so the logged-intake figure overstates — emit both, labelled, so an
+  // external reader doesn't take the bookkeeping number as measured fact.
+  const trendRate = nutritionStateFull?.evaluation.observedRate ?? null; // kg/week, negative = losing
+  const trendDeficitDaily = trendRate != null ? Math.round((-trendRate * 7700) / 7) : null;
   const deficitSummary =
     deficitDaily != null
       ? {
@@ -385,6 +391,13 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           windowDays: SHORT_WINDOW_DAYS, // deficit is derived from the 30d avg
           // 7700 kcal ≈ 1 kg fat; project over 30 days to get kg/month
           estimatedFatLoss: +((deficitDaily * 30) / 7700).toFixed(2),
+          basis: "logged-intake",
+          ...(trendDeficitDaily != null
+            ? {
+                trendDaily: trendDeficitDaily,
+                trendFatLoss: +((trendDeficitDaily * 30) / 7700).toFixed(2),
+              }
+            : {}),
         }
       : null;
 
@@ -563,6 +576,10 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           // exists for isolation lifts — this is just the axis status/PR reference.
           performance: {
             metric: isVol ? "volume" : "e1rm",
+            // Assisted lifts score on % of bodyweight lifted (logic.ts
+            // scoreWeight) so a cut/bulk can't move the trend; peak/current/
+            // per-log e1rm speak that unit, while `weight` stays real kg.
+            ...(ex.assisted_mode ? { unit: "%bodyweight" } : {}),
             peak: scoreVal(stats.best),
             current: scoreVal(stats.latest),
             retentionPct: se ? +(se.trend * 100).toFixed(1) : null,
@@ -581,15 +598,20 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           pr: stats.best
             ? { date: stats.best.log.log_date ?? null, bestSet: stats.best.log.raw ?? null }
             : null,
-          logs: sliced.map(({ log: l, parsed: p, w }) => ({
-            date: l.log_date,
-            raw: l.raw,
-            weight: w,
-            reps: p?.reps ?? null,
-            ...(isVol
-              ? { volume: p && w != null ? +(w * maxReps(p.reps)).toFixed(1) : null }
-              : { e1rm: p && w != null ? +epley1RM(w, p.reps).toFixed(1) : null }),
-          })),
+          logs: sliced.map(({ log: l, parsed: p, w }) => {
+            // Score axes on scoreWeight (%BW for assisted logs) — matches
+            // computeStats above, so per-log e1rm and peak/current agree.
+            const sw = p ? scoreWeight(p) : null;
+            return {
+              date: l.log_date,
+              raw: l.raw,
+              weight: w,
+              reps: p?.reps ?? null,
+              ...(isVol
+                ? { volume: p && sw != null ? +(sw * maxReps(p.reps)).toFixed(1) : null }
+                : { e1rm: p && sw != null ? +epley1RM(sw, p.reps).toFixed(1) : null }),
+            };
+          }),
         };
       });
       return {
@@ -982,6 +1004,9 @@ export async function buildTrainingJson(): Promise<string> {
         target: ex.target ?? null,
         performance: {
           metric: isVol ? "volume" : "e1rm",
+          // Assisted lifts score on % of bodyweight lifted (logic.ts scoreWeight);
+          // see buildAllDataJson's mirror of this block.
+          ...(ex.assisted_mode ? { unit: "%bodyweight" } : {}),
           peak: scoreVal(stats.best),
           current: scoreVal(stats.latest),
           retentionPct: se ? +(se.trend * 100).toFixed(1) : null,
@@ -998,14 +1023,16 @@ export async function buildTrainingJson(): Promise<string> {
         logs: ascLogs.map((l) => {
           const p = l.raw ? parse(l.raw) : null;
           const w = p ? +score(p).toFixed(2) : null;
+          // Score axes on scoreWeight (%BW for assisted logs) — matches computeStats.
+          const sw = p ? scoreWeight(p) : null;
           return {
             date: l.log_date,
             raw: l.raw,
             weight: w,
             reps: p?.reps ?? null,
             ...(isVol
-              ? { volume: p && w != null ? +(w * maxReps(p.reps)).toFixed(1) : null }
-              : { e1rm: p && w != null ? +epley1RM(w, p.reps).toFixed(1) : null }),
+              ? { volume: p && sw != null ? +(sw * maxReps(p.reps)).toFixed(1) : null }
+              : { e1rm: p && sw != null ? +epley1RM(sw, p.reps).toFixed(1) : null }),
           };
         }),
       };

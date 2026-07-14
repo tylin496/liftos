@@ -16,6 +16,7 @@ import {
   filterByTime,
   toLogEntry,
   epley1RM,
+  scoreWeight,
   computePRBests,
   classifyPR,
   totalReps,
@@ -330,11 +331,14 @@ export function ExerciseCard({
       });
       const newParsed = parse(raw);
       const newScore = newParsed ? score(newParsed) : 0;
+      // Score axes on scoreWeight (%BW for assisted logs) — must match
+      // toLogEntry, or the toast could disagree with the card's own history.
+      const newSw = newParsed ? scoreWeight(newParsed) : 0;
       const newReps = newParsed?.reps ?? "1";
-      const newE1RM = epley1RM(newScore, newReps);
+      const newE1RM = epley1RM(newSw, newReps);
       const prevBests = computePRBests(effectiveLogsAsc, sc);
       const prKind = classifyPR(
-        { e1rm: newE1RM, weightKg: newScore, totalReps: totalReps(newReps, sc), tonnage: newScore * maxReps(newReps) },
+        { e1rm: newE1RM, weightKg: newScore, totalReps: totalReps(newReps, sc), tonnage: newSw * maxReps(newReps) },
         prevBests,
         oldBest,
         mode,
@@ -404,7 +408,9 @@ export function ExerciseCard({
         throw new Error("Another entry already exists on that day");
       }
       const editScore = score(parsed);
-      const newE1RM = epley1RM(editScore, parsed.reps);
+      // Score axes on scoreWeight (%BW for assisted logs) — matches toLogEntry.
+      const editSw = scoreWeight(parsed);
+      const newE1RM = epley1RM(editSw, parsed.reps);
       // Measure against every OTHER log (self excluded), so re-saving the record
       // row doesn't read as beating itself. Editing the reigning best is never a
       // fresh PR — same guard the old `log.id !== oldBest` check gave.
@@ -414,7 +420,7 @@ export function ExerciseCard({
       const prKind = isReigningBest
         ? null
         : classifyPR(
-            { e1rm: newE1RM, weightKg: editScore, totalReps: totalReps(parsed.reps, sc), tonnage: editScore * maxReps(parsed.reps) },
+            { e1rm: newE1RM, weightKg: editScore, totalReps: totalReps(parsed.reps, sc), tonnage: editSw * maxReps(parsed.reps) },
             editPrevBests,
             computeStats(priorAsc, sc, mode).best,
             mode,
@@ -943,13 +949,15 @@ export function ExerciseCard({
                       {/* Compound shows Est. 1RM (kg); isolation shows best-set
                           Volume (weight × reps) — the axis it's actually judged on.
                           Tonnage is a kg·reps product, not a weight, so it is NOT
-                          run through fmtWeightNum's lb conversion. */}
+                          run through fmtWeightNum's lb conversion. Assisted logs
+                          score on % of bodyweight lifted (scoreWeight), so their
+                          e1RM unit is %BW, not kg. */}
                       <span className="hist-detail-k">{mode === "isolation" ? "Volume" : "Est. 1RM"}</span>
                       <span className="hist-detail-v mono">
                         {entryScore > 0
                           ? mode === "isolation"
                             ? `${Math.round(entryScore)} vol`
-                            : `${fmtWeightNum(Math.round(entryScore * 10) / 10)} kg`
+                            : `${fmtWeightNum(Math.round(entryScore * 10) / 10)} ${histBw != null && histAssist != null ? "%BW" : "kg"}`
                           : "—"}
                       </span>
                     </div>

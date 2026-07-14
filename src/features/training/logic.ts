@@ -1,7 +1,7 @@
 // Pure stat functions operating on TrainingLog[] from Supabase.
 
 import type { TrainingLog } from "./api";
-import { parse, score } from "./parser";
+import { parse, score, type Parsed } from "./parser";
 
 export type TimeFilter = "3mo" | "year" | "all";
 
@@ -87,6 +87,21 @@ export function epley1RM(weightKg: number, repsStr: string): number {
   return weightKg * (1 + maxR / 30);
 }
 
+/** The weight fed into the score axes (e1RM / tonnage) — NOT the display kg.
+ *  Normal logs: the absolute load, same as `score`. Assisted logs (the
+ *  `bw-(assist)` form): the % of bodyweight actually lifted. On a cut the
+ *  effective kg of an assisted pull-up falls purely because the body shrank
+ *  (and a bulk would gift PRs), so judging those logs on absolute kg minted
+ *  phantom declines — same pull at 10/10/10 read as "recent_drop" and dragged
+ *  the whole muscle group to "declining". Display, milestones, and the
+ *  heaviest-weight PR axis all keep the real kg (`score`). */
+export function scoreWeight(p: Parsed): number {
+  if (p.assisted && p.assisted.bw > 0) {
+    return ((p.assisted.bw - p.assisted.assist) / p.assisted.bw) * 100;
+  }
+  return score(p);
+}
+
 // ─── toLogEntry ──────────────────────────────────────────────────────────────
 
 export function toLogEntry(log: TrainingLog, setCount: number): LogEntry | null {
@@ -95,17 +110,20 @@ export function toLogEntry(log: TrainingLog, setCount: number): LogEntry | null 
   if (!parsed) return null;
   const weightKg = score(parsed);
   if (!Number.isFinite(weightKg)) return null;
+  // Score axes run on scoreWeight (%BW for assisted logs); weightKg stays the
+  // real kg for display, milestones, and the heaviest-weight PR axis.
+  const sw = scoreWeight(parsed);
   return {
     log,
     weightKg,
     reps: parsed.reps,
-    e1rm: epley1RM(weightKg, parsed.reps),
+    e1rm: epley1RM(sw, parsed.reps),
     totalReps: totalReps(parsed.reps, setCount),
     // Best-set tonnage = top-set weight × its reps, UNCAPPED (unlike e1rm, which
     // caps reps at 12 because Epley degrades past that). For hypertrophy the high
     // reps ARE the stimulus — capping here would score 10×16 as 10×12 and re-open
     // the very false-positive tonnage exists to close (10×16=160 must stay 160).
-    tonnage: weightKg > 0 ? weightKg * maxReps(parsed.reps) : 0,
+    tonnage: sw > 0 ? sw * maxReps(parsed.reps) : 0,
   };
 }
 
@@ -344,11 +362,15 @@ export function computeHistDelta(
   const totalRepsDelta = totalReps(cp.reps, setCount) - totalReps(pp.reps, setCount);
   const repsDelta = maxRepsDelta !== 0 ? maxRepsDelta : totalRepsDelta;
 
-  const cE1 = epley1RM(cKg, cp.reps);
-  const pE1 = epley1RM(pKg, pp.reps);
+  // Direction judges on the score axes (scoreWeight → %BW for assisted logs, so
+  // a lighter body doesn't read as a loss); the label below still reports raw kg.
+  const cSw = scoreWeight(cp);
+  const pSw = scoreWeight(pp);
+  const cE1 = epley1RM(cSw, cp.reps);
+  const pE1 = epley1RM(pSw, pp.reps);
   const cmp = cmpStrength(
-    { e1rm: cE1, totalReps: totalReps(cp.reps, setCount), tonnage: cKg * maxReps(cp.reps), weightKg: cKg },
-    { e1rm: pE1, totalReps: totalReps(pp.reps, setCount), tonnage: pKg * maxReps(pp.reps), weightKg: pKg },
+    { e1rm: cE1, totalReps: totalReps(cp.reps, setCount), tonnage: cSw * maxReps(cp.reps), weightKg: cKg },
+    { e1rm: pE1, totalReps: totalReps(pp.reps, setCount), tonnage: pSw * maxReps(pp.reps), weightKg: pKg },
     mode,
   );
   let direction: "gain" | "loss";

@@ -7,7 +7,7 @@
 // the training parser/e1RM, nothing else.
 
 import { parse, score } from "@features/training/parser";
-import { epley1RM, maxReps, totalReps, type ScoreMode } from "@features/training/logic";
+import { epley1RM, maxReps, totalReps, scoreWeight, type ScoreMode } from "@features/training/logic";
 import { milestoneReached } from "@features/training/milestone";
 
 /** Reps for the local reps-tiebreak — NOT training/logic.ts's totalReps, which
@@ -284,8 +284,12 @@ export function computeStrengthSummary(
       if (!p) continue;
       const w = score(p);
       if (!Number.isFinite(w)) continue;
-      const e = epley1RM(w, p.reps);
-      const tng = w > 0 ? w * maxReps(p.reps) : 0; // uncapped reps — matches logic.ts toLogEntry
+      // Score axes on scoreWeight (%BW for assisted logs — a lighter body must
+      // not read as a strength loss); weightKg stays real kg for the PR detail
+      // and milestone rungs. Matches logic.ts toLogEntry.
+      const sw = scoreWeight(p);
+      const e = epley1RM(sw, p.reps);
+      const tng = sw > 0 ? sw * maxReps(p.reps) : 0; // uncapped reps — matches logic.ts toLogEntry
       const tr = sessionReps(p.reps);
       const cur = byDate[l.log_date] ?? { e1rm: 0, tonnage: 0, weightKg: 0, topReps: 0, ceilingReps: 0 };
       const heavier = w > cur.weightKg; // track reps of the HEAVIEST set (the PR detail)
