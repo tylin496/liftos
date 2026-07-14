@@ -77,7 +77,7 @@ In `ActivityRing.tsx`'s `OverflowRing`, the annulus clip `bandPath` depends only
 
 ## 8. Bespoke raw-literal exceptions — don't "fix" them
 
-A short list of expressive one-offs intentionally keep raw values because they're outside the UI-rhythm scale (celebration / ambient / affordance): `save-pulse` 700ms, `day-drag-hint` 1.15s, the Health spark micro-timings (180/320/450ms), `splash-glow` 2400ms / `splash-float` 3200ms, the confetti 22ms per-particle stagger. These are deliberate — leave them. New *UI* motion still uses the role tokens.
+A short list of expressive one-offs intentionally keep raw values because they're outside the UI-rhythm scale (celebration / ambient / affordance): `day-drag-hint` 1.15s, the Health spark micro-timings (180/320/450ms), `splash-glow` 2400ms / `splash-float` 3200ms, the confetti 22ms per-particle stagger. These are deliberate — leave them. New *UI* motion still uses the role tokens.
 
 ## Verifying motion changes
 
