@@ -206,13 +206,18 @@ export function OverflowRing({
   // Brightness the base hands to the ribbon at 12 (spiral 360°).
   const handoff = mixAt(360);
   const baseMaskId = useId();
-  // Base lap: base colour until the fade window opens, then ramp up to `handoff`
-  // at 360°. If the window hasn't reached the base lap yet (large overflow), the
-  // whole base lap is just base colour and the ribbon carries the entire comet.
+  // The comet's dark TAIL is tucked a few degrees INTO the ribbon-covered arc
+  // (`tailDip`), so the base lap is `handoff` at BOTH 0° and 360° — i.e. no step
+  // at the 0/360 junction (12 o'clock), which otherwise sat exactly at the
+  // ribbon's start edge and peeked past its rounded cap. From `handoff` at 12 it
+  // dips to base colour under the ribbon, holds, then ramps back to `handoff` at
+  // 360° to hand off to the ribbon's start. Large overflow (fade never reaches
+  // the base lap) → the whole base is just base colour and the ribbon is the comet.
+  const tailDip = Math.min(overflowAngle * 0.5, 30);
   const baseFill =
     fadeStartSpiral >= 360
       ? color
-      : `conic-gradient(${color} 0deg, ${color} ${fadeStartSpiral}deg, ${handoff} 360deg)`;
+      : `conic-gradient(${handoff} 0deg, ${color} ${tailDip}deg, ${color} ${fadeStartSpiral}deg, ${handoff} 360deg)`;
   // Ribbon: continues from `handoff` (or base colour, if the fade opens mid-ribbon)
   // up to the palest tip, held through the rounded cap.
   const ribbonFadeStart = fadeStartSpiral - 360;
@@ -220,7 +225,11 @@ export function OverflowRing({
     ribbonFadeStart > 0
       ? `${color} 0deg, ${color} ${ribbonFadeStart}deg, ${peak} ${overflowAngle}deg`
       : `${handoff} 0deg, ${peak} ${overflowAngle}deg`;
-  const ribbonFill = `conic-gradient(${ribbonStops}, ${peak} ${hold}deg, ${color} 360deg)`;
+  // Close on `handoff`, NOT base colour: the rounded START cap extends a few
+  // degrees counter-clockwise (samples ~355–360°), so this tail is what paints
+  // it. Matching it to `handoff` makes the cap blend into the base lap at 12
+  // o'clock instead of showing as a dark notch.
+  const ribbonFill = `conic-gradient(${ribbonStops}, ${peak} ${hold}deg, ${handoff} 360deg)`;
   const wrapStyle: CSSProperties = { width: size, height: size };
   (wrapStyle as Record<string, string>)["--ring-glow"] = color;
 
