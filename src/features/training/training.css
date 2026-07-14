@@ -586,12 +586,10 @@
    A logged set (add OR edit save) confirms with the same one-shot: the row
    washes accent → transparent while an accent check draws in at the trailing
    edge, then everything settles. Accent, never --good: logging a set is an
-   everyday completion, not a verdict — green would read as "good result". */
-@keyframes row-saved {
-  0%   { background: color-mix(in srgb, var(--accent-100) 90%, transparent); }
-  100% { background: transparent; }
-}
-
+   everyday completion, not a verdict — green would read as "good result".
+   The row-saved / set-check-* keyframes are the app-wide canonical "saved"
+   vocabulary and now live in global.css (shared with Nutrition intake-logging);
+   only the gold pr-sheen below stays feature-local (reserved for genuine PRs). */
 .hist-row.hist-row-saved {
   border-radius: var(--radius-sm);
   animation: row-saved var(--dur-sheen) ease forwards;
@@ -628,24 +626,8 @@
   animation: set-check-draw var(--dur-move) var(--dur-press) var(--ease-press)
     forwards;
 }
-
-@keyframes set-check-pop {
-  from { opacity: 0; transform: scale(0.4); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-@keyframes set-check-draw {
-  to { stroke-dashoffset: 0; }
-}
-
-/* The badge appears with the flash and fades out before the row settles, so it
-   confirms the log without leaving a permanent checkbox on a history row. */
-@keyframes set-check-life {
-  0%   { opacity: 0; }
-  12%  { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { opacity: 0; }
-}
+/* row-saved / set-check-pop / set-check-draw / set-check-life keyframes: see
+   global.css (shared canonical "saved" vocabulary). */
 
 .hist-date {
   position: relative;

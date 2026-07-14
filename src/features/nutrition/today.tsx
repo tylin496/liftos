@@ -21,7 +21,7 @@ import { COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { Badge } from "@shared/components/Badge";
 import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
 import { haptic } from "@shared/lib/haptics";
-import { CLEAR_AFTER_MOVE } from "@shared/lib/motion";
+import { CLEAR_AFTER_MOVE, CLEAR_AFTER_SHEEN } from "@shared/lib/motion";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { useIsReadOnly } from "@app/layout/SessionContext";
 import "@shared/components/nutriGrid.css";
@@ -313,7 +313,7 @@ export function TodayView({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [savedPulse, setSavedPulse] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const celebration = useCelebration();
   const [navDir, setNavDir] = useState<"forward" | "backward" | null>(null);
   // Bumped by navigate() (arrow / swipe) and by daySelectNav below (trend-bar
@@ -498,8 +498,8 @@ export function TodayView({
     setSaveError(null);
     try {
       await saveEntry(date, { calories: calN, protein: protN }, config);
-      setSavedPulse(true);
-      setTimeout(() => setSavedPulse(false), 750);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), CLEAR_AFTER_SHEEN);
       haptic("success");
       setEditField(null);
       setEntryExists(true);
@@ -615,11 +615,20 @@ export function TodayView({
           isEditing ? "is-editing" : "",
           !hasEntry ? "is-empty" : "",
           doubleHit ? "double-hit" : "",
-          savedPulse ? "saved-pulse" : "",
+          justSaved ? "is-saved" : "",
           dragHint ? "is-drag-hint" : "",
           navDir === "forward" ? "day-nav-forward" : navDir === "backward" ? "day-nav-backward" : "",
         ].filter(Boolean).join(" ")}
       >
+        {/* Canonical "saved" check — pops, ticks, then fades over the ~1.1s save
+            window (same vocabulary as Training's set-log). pointer-events:none so
+            the edit pencil underneath stays tappable. */}
+        {justSaved && (
+          <svg className="daily-card-check" viewBox="0 0 20 20" aria-hidden="true">
+            <circle className="daily-card-check-circle" cx="10" cy="10" r="10" fill="var(--accent)" />
+            <polyline className="daily-card-check-tick" points="5.5,10.5 8.5,13.5 14.5,7" pathLength="1" />
+          </svg>
+        )}
         {/* "INTAKE" names the card's content (the viewed day's calories +
             protein); the page header carries which day it is. A badge sits to
             the right when there's one — "No entry" and "Double Hit" are mutually

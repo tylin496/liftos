@@ -119,10 +119,32 @@ button {
 @keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
 
-@keyframes save-pulse {
-  0%   { box-shadow: var(--shadow-sm); }
-  35%  { box-shadow: 0 0 0 5px color-mix(in srgb, var(--good) 22%, transparent), var(--shadow-sm); }
-  100% { box-shadow: var(--shadow-sm); }
+/* ── Canonical "saved" vocabulary ────────────────────────────────────────────
+   ONE motion means "saved" across the whole app: an accent wash that decays to
+   nothing, plus a drawn check that pops, ticks, then fades. Shared here (not in
+   any one feature's stylesheet) so Training set-logging and Nutrition intake-
+   logging reference the same keyframes — CSS is imported per-feature, so a
+   nutrition-only usage must not depend on training.css being loaded. Gold
+   pr-sheen stays feature-local and is reserved strictly for a genuine PR — a
+   record, not a routine save. */
+@keyframes row-saved {
+  0%   { background: color-mix(in srgb, var(--accent-100) 90%, transparent); }
+  100% { background: transparent; }
+}
+@keyframes set-check-pop {
+  from { opacity: 0; transform: scale(0.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes set-check-draw {
+  to { stroke-dashoffset: 0; }
+}
+/* Appears with the flash, then fades before the wash settles — confirms the
+   save without leaving a permanent checkbox behind. */
+@keyframes set-check-life {
+  0%   { opacity: 0; }
+  12%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 @keyframes skel-fade {

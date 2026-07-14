@@ -408,7 +408,7 @@ html.kb-open .tabbar {
    References only tokens (--shadow-sm, --dur-move, --ease-move), so it works
    unmodified in light and dark. 1800ms is a bespoke expressive one-off
    (hold-based orientation cue, outside the UI-rhythm role scale, like
-   save-pulse / day-drag-hint); the curve is the standard reveal ease.
+   day-drag-hint); the curve is the standard reveal ease.
    Reduced-motion is handled globally in global.css — the blanket guard
    collapses this to its at-rest end-state, and the deep-link's own
    scroll-into-view carries the orientation. */
