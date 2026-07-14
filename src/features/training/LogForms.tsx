@@ -286,7 +286,7 @@ function LogFormFooter({
   return (
     <>
       <div className="log-edit-actions">
-        <button type="submit" className="btn-log-primary" disabled={disabled}>
+        <button type="submit" className="btn-log-primary press-settle" disabled={disabled}>
           {submitting ? "Saving…" : primaryLabel}
         </button>
       </div>

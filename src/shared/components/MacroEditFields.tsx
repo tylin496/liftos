@@ -142,7 +142,7 @@ export function MacroEditFields({
       </label>
       <div className="sf-actions">
         <button
-          className="nutri-save"
+          className="nutri-save press-settle"
           type="button"
           onClick={() => onSave(resolvedCalories(), resolvedProtein())}
           disabled={saving}

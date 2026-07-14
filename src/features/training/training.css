@@ -809,6 +809,11 @@
   color: var(--ink-3);
   font-size: var(--text-sm);
   text-align: center;
+  /* First-run polish: the empty branch is a bare static row (not a page-card, so
+     it misses the entrance cascade). Gently rise it in on mount — opacity +
+     transform only, and the row already reserves its final height, so this is
+     layout-stable (docs/LAYOUT-STABILITY.md). Reduced-motion handled globally. */
+  animation: rise-in var(--dur-enter) var(--enter-wait) var(--ease-enter) both;
 }
 
 /* ── Expr display ────────────────────────────────────────────────────────────*/
@@ -1240,17 +1245,17 @@
   font-size: var(--text-base);
   font-weight: 700;
   cursor: pointer;
-  transition: transform var(--dur-press) var(--ease-press), opacity var(--dur-press),
-    background var(--dur-press);
+  /* transform transition is owned by the shared .press-settle utility (down =
+     --ease-press, release = --ease-pop settle); keep opacity/background here. */
+  transition: opacity var(--dur-press), background var(--dur-press);
 }
 
 .btn-log-primary:hover:not(:disabled) {
   opacity: 0.9;
 }
 
-.btn-log-primary:active {
-  transform: scale(var(--tap-scale));
-}
+/* Press depth (down + spring settle) comes from the shared .press-settle utility
+   (global.css), applied on the button element — not a flat :active scale here. */
 
 .btn-log-primary:disabled {
   opacity: 0.45;

@@ -152,6 +152,21 @@ button {
   50%       { opacity: 0.4; }
 }
 
+/* ── Primary-confirm press depth ──────────────────────────────────────────────
+   A quick press-DOWN, then a spring settle on RELEASE — the flat scale(--tap-
+   scale) alone snapped back with no follow-through. The trick: the transition
+   that plays is the one on the state being ENTERED, so :active carries the fast
+   press-in (--ease-press) and the base carries the pop settle-out (--ease-pop).
+   Opt-in via .press-settle, on KEY confirmations only (log-a-set, save) — not
+   every tappable. Reduced-motion is handled globally (blanket guard drops it). */
+.press-settle {
+  transition: transform var(--dur-pop) var(--ease-pop);
+}
+.press-settle:not(:disabled):active {
+  transform: scale(var(--tap-scale));
+  transition: transform var(--dur-press) var(--ease-press);
+}
+
 .toast-icon {
   width: 18px;
   height: 18px;
