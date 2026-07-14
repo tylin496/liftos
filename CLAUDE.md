@@ -22,7 +22,7 @@ React / Vite / TypeScript + Supabase (Postgres + RLS + Auth)。4 tabs = 4 個獨
 | 找 CSS class | 大 CSS 檔（training / nutrition / layout / overview）頂部有 TOC（附行號），先看 TOC 跳行 |
 
 ## Token 節約守則（讀檔紀律）
-- **>600 行的檔案不要整檔讀**：`training/page.tsx`(1172)、`overview/page.tsx`(1186)、`ExerciseCard.tsx`(1055)、`health/page.tsx`(948)、`training.css`(2356)、`nutrition.css`(1362)、`layout.css`(1007)、`copyAllData.ts`(973)、`Shell.tsx`(863)、`LogForms.tsx`、`today.tsx`。先 `grep -n` 定位符號，再用 Read 的 offset/limit 讀該區段。
+- **>600 行的檔案不要整檔讀**：`overview/page.tsx`(1835)、`health/page.tsx`(1376)、`training/page.tsx`(1186)、`ExerciseCard.tsx`(1099)、`copyAllData.ts`(1063)、`Shell.tsx`(924)、`today.tsx`(742)、`LogForms.tsx`(688)、`training.css`(2427)、`nutrition.css`(1457)、`overview.css`(1326)、`layout.css`(1092)、`health.css`(782)。先 `grep -n` 定位符號，再用 Read 的 offset/limit 讀該區段。
 - 大 CSS 檔先讀前 ~30 行的 TOC，直接跳行號。
 - `database.types.ts` 是生成檔：grep table 名即可，永遠不要整檔讀。
 - `docs/*.md` 只在任務直接相關時讀（如動 Decision Engine 才讀 DECISION-ENGINE.md）。
