@@ -8,7 +8,7 @@ import { isStale, formatAgo } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
-import { useInView } from "@shared/hooks/useInView";
+import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { HealthTrendSheet, type HealthTrendConfig } from "@features/health/TrendSheet";
 import { progressColor } from "@shared/lib/progressColor";
 import { displayNameFor } from "@shared/lib/owner";
@@ -610,14 +610,16 @@ const REC_TAB: Record<Recommendation["source"], TabId> = {
 
 function SystemCard({
   rec,
+  closing,
   onNav,
   onDismiss,
 }: {
   rec: Recommendation;
+  /** True while the banner plays its collapse-out exit (see .ov-system-collapse). */
+  closing?: boolean;
   onNav: (tab: TabId) => void;
   onDismiss?: () => void;
 }) {
-  const { ref, inView } = useInView<HTMLDivElement>();
   // Command center: only surface the card when there's something to act on.
   // "No action needed" means nothing to do, so the whole banner (and its
   // divider) disappears rather than sitting there confirming nothing's wrong.
@@ -626,26 +628,32 @@ function SystemCard({
   // can't infer) splits the banner: the body still navigates, and a subordinate
   // ✕ snoozes it. Nested buttons are invalid, so the container is a plain div.
   const canDismiss = rec.dismissible && onDismiss != null;
+  // Wrapper is the .page > * flex item so it carries the entrance rise-in AND
+  // owns the collapse-out: on dismiss/clear the parent keeps it mounted through
+  // --dur-exit (useExitTransition) while .is-closing grid-collapses + fades it,
+  // so the cards below glide up instead of the banner hard-cutting away.
   return (
-    <div ref={ref} data-inview={inView} className="page-card ov-system-banner">
-      <button type="button" className="ov-system-main" onClick={() => onNav(REC_TAB[rec.source])}>
-        <span className="ov-system-dot" />
-        <span className="ov-system-body">
-          <span className="ov-system-title">{rec.title}</span>
-          <span className="ov-system-sub">{rec.subtitle}</span>
-        </span>
-        {!canDismiss && <span className="ov-system-chevron" aria-hidden>›</span>}
-      </button>
-      {canDismiss && (
-        <button
-          type="button"
-          className="ov-system-dismiss"
-          onClick={onDismiss}
-          aria-label="I know why — snooze this until I'm training again"
-        >
-          ✕
+    <div className={`ov-system-collapse${closing ? " is-closing" : ""}`}>
+      <div className="page-card ov-system-banner">
+        <button type="button" className="ov-system-main" onClick={() => onNav(REC_TAB[rec.source])}>
+          <span className="ov-system-dot" />
+          <span className="ov-system-body">
+            <span className="ov-system-title">{rec.title}</span>
+            <span className="ov-system-sub">{rec.subtitle}</span>
+          </span>
+          {!canDismiss && <span className="ov-system-chevron" aria-hidden>›</span>}
         </button>
-      )}
+        {canDismiss && (
+          <button
+            type="button"
+            className="ov-system-dismiss"
+            onClick={onDismiss}
+            aria-label="I know why — snooze this until I'm training again"
+          >
+            ✕
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -907,12 +915,10 @@ function CutProgressCard({
   onNav: () => void;
   loading?: boolean;
 }) {
-  // Hooks run unconditionally so the count stays stable across the loading →
-  // loaded transition (same mounted instance). inView drives the % / bar reveal.
   // Root is a div — the Plan toggle can't nest inside a button — with the
   // original content kept tappable via a reset-to-block .goal-navblock button
-  // (same restructure as .ov-active-target-navblock).
-  const { ref, inView } = useInView<HTMLDivElement>();
+  // (same restructure as .ov-active-target-navblock). The % / bar reveal is
+  // driven by useBottomUpDelay in the leaf rolls, not scroll-into-view.
   const e = goal?.evaluation;
 
   // Celebrate reaching 100% exactly once per cut (keyed by goal weight — a new
@@ -932,7 +938,7 @@ function CutProgressCard({
 
   if (loading) {
     return (
-      <div ref={ref} className="page-card goal loading-card">
+      <div className="page-card goal loading-card">
         <button type="button" className="goal-navblock" onClick={onNav}>
         <div className="goal-head">
           <span className="goal-label">Cut Journey</span>
@@ -1025,8 +1031,6 @@ function CutProgressCard({
   const tone = state ? paceTone(state.evaluation) : null;
   return (
     <div
-      ref={ref}
-      data-inview={inView}
       className={`page-card goal${isComplete ? " is-complete" : ""}${justCelebrated ? " is-celebrating" : ""}`}
     >
       <button type="button" className="goal-navblock" onClick={onNav}>
@@ -1438,7 +1442,6 @@ function WeightCard({
           : "good";
   // Only a conclusive pace verdict carries the cut baseline day count; an
   // inconclusive read ("Forming"/"Calibrating") is just the word, no suffix.
-  const { ref, inView } = useInView<HTMLDivElement>();
   // Tapping the sparkline opens the full trend sheet — the SAME overlay Health's
   // weight card uses (HealthTrendSheet), so the two read identically. The card
   // body still navigates to Nutrition (the pace verdict); only the chart opens
@@ -1450,7 +1453,7 @@ function WeightCard({
   // place when data lands.
   if (loading) {
     return (
-      <div ref={ref} className="page-card ov-weight loading-card">
+      <div className="page-card ov-weight loading-card">
         <div className="ov-weight-head">
           <span className="ov-weight-label">Weight</span>
           <span className="ov-weight-chevron" aria-hidden>›</span>
@@ -1514,8 +1517,6 @@ function WeightCard({
       <div
         role="button"
         tabIndex={0}
-        ref={ref}
-        data-inview={inView}
         className="page-card ov-weight ov-weight--empty"
         onClick={onNavEmpty}
         onKeyDown={(e) => {
@@ -1575,8 +1576,6 @@ function WeightCard({
     <div
       role="button"
       tabIndex={0}
-      ref={ref}
-      data-inview={inView}
       className="page-card ov-weight"
       onClick={onNav}
       onKeyDown={(e) => {
@@ -1727,6 +1726,15 @@ export function OverviewPage() {
   // (no separate skeleton subtree to unmount, so the entrance never replays).
   const loading = !data;
 
+  // Keep the System banner mounted through its collapse-out when a directive is
+  // dismissed or clears (rec → null). Hold the last rec so it still has content
+  // to render while .is-closing plays; 200 mirrors --dur-exit (the collapse).
+  const rec = data?.nutritionState?.recommendation ?? null;
+  const systemExit = useExitTransition(rec != null, 200);
+  const lastRec = useRef<Recommendation | null>(null);
+  if (rec) lastRec.current = rec;
+  const shownRec = rec ?? lastRec.current;
+
   const header = (
     <div className="shell-header">
       <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user)} onCopy={copyAllData} />
@@ -1751,11 +1759,13 @@ export function OverviewPage() {
     <div className="page">
       {header}
       {/* System — a conditional actionable banner (usually absent), so it's not
-          skeletonized; it appears only when there's something to act on. */}
-      {data?.nutritionState?.recommendation && (
+          skeletonized; it appears only when there's something to act on. Stays
+          mounted through its exit (systemExit) so it collapses out, not cuts. */}
+      {systemExit.mounted && shownRec && (
         <SystemCard
           key="system"
-          rec={data.nutritionState.recommendation}
+          rec={shownRec}
+          closing={systemExit.closing}
           onNav={(tab) => nav(tab)}
           onDismiss={
             readOnly

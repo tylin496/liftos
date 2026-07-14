@@ -539,6 +539,30 @@
 
 /* ─── System Card (top-priority recommendation) ──────────────────────────── */
 
+/* Collapse wrapper — the .page > * flex item. It carries the entrance rise-in
+   and owns the exit: on dismiss/clear the banner stays mounted (useExitTransition)
+   with .is-closing, which grid-collapses the row (1fr → 0fr) + fades it over
+   --dur-exit, and pulls margin-top to -(--vr-block) so the collapsing slot also
+   absorbs the .page gap it would otherwise leave — the cards below glide up
+   cleanly instead of the banner hard-cutting away. --vr-loose (the banner's old
+   margin-top) lives here now so it collapses with the row. Reduced-motion is
+   handled globally (useExitTransition unmounts instantly under it). */
+.ov-system-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  margin-top: var(--vr-loose);
+  transition:
+    grid-template-rows var(--dur-exit) var(--ease-move),
+    opacity var(--dur-exit) var(--ease-move),
+    margin-top var(--dur-exit) var(--ease-move);
+}
+.ov-system-collapse > .ov-system-banner { min-height: 0; }
+.ov-system-collapse.is-closing {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin-top: calc(-1 * var(--vr-block));
+}
+
 /* Panel chrome (bg-card + blur + rule border + radius + shadow) comes from
    .page-card, so this banner reads as the same surface as every other Overview
    card. Here we only add the two-zone flex layout: a full-bleed body + a ✕ that
@@ -549,7 +573,6 @@
   align-items: stretch;
   width: 100%;
   padding: 0;
-  margin-top: var(--vr-loose);
   -webkit-tap-highlight-color: transparent;
   /* This banner is conditionally mounted (only when a directive exists), so its
      rise-in transform promotes it to its own compositing layer AFTER the rest of
