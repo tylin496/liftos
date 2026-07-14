@@ -50,4 +50,14 @@ describe("suggestDeload", () => {
     expect(s.targetKg).toBeNull();
     expect(s.action).toBe("Deload ~10% and build back up");
   });
+
+  it("stays weight-free for assisted lifts — a %BW PR detail has no kg to deload to", () => {
+    // Assisted lastPRDetail reads in %BW ("79.8% BW × 7"), so parseFromKg finds no
+    // kg and the advice must NOT invent a bogus kg target (a %BW lift's raw kg is
+    // exactly what the %BW axis strips out).
+    const s = suggestDeload(ex({ lastPRDetail: "79.8% BW × 7" }))!;
+    expect(s.fromKg).toBeNull();
+    expect(s.targetKg).toBeNull();
+    expect(s.action).toBe("Deload ~10% and build back up");
+  });
 });

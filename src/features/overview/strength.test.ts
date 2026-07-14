@@ -339,6 +339,24 @@ describe("computeStrengthSummary — milestoneKg (reward-row 🎯 chip)", () => 
     expect(s.exercises.find((e) => e.slug === "squat")!.milestoneKg).toBeUndefined();
   });
 
+  it("stays undefined for an assisted lift even when flagged compound (kg rungs are barbell-only)", () => {
+    // Net kg climbs 90→105 and crosses the 100 rung, but the load is assisted
+    // (%BW axis) — a round-kg milestone would read the bodyweight-contaminated kg
+    // the %BW axis exists to replace, so it's suppressed like machine isolations.
+    const assisted = {
+      "assist-pull": [
+        log("2026-01-01", "110-(20) *5"), // net 90
+        log("2026-01-08", "112-(20) *5"), // net 92
+        log("2026-01-15", "115-(20) *5"), // net 95
+        log("2026-02-01", "125-(20) *5"), // net 105 → would cross 100 if it were barbell
+      ],
+    };
+    const s = computeStrengthSummary(assisted, new Set(["assist-pull"]));
+    const ex = s.exercises.find((e) => e.slug === "assist-pull")!;
+    expect(ex.lastPRKind).toBe("strength"); // still a PR — only the kg milestone is gone
+    expect(ex.milestoneKg).toBeUndefined();
+  });
+
   it("stays undefined when no compound set is supplied (engine / export callers)", () => {
     const s = computeStrengthSummary(crossing);
     expect(s.exercises.find((e) => e.slug === "squat")!.milestoneKg).toBeUndefined();

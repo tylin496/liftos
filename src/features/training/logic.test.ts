@@ -202,7 +202,8 @@ describe("scoreWeight — assisted %BW axis", () => {
     const prev = { log_date: "2026-06-01", raw: "100-(25) *10" } as TrainingLog;
     const d = computeHistDelta(curr, prev, 3, "compound")!;
     expect(d.direction).toBe("gain");
-    expect(d.text).toContain("%BW"); // 80.0 − 75.0 = ▲ 5%BW, never "kg"
+    expect(d.text).toContain("%"); // 80.0 − 75.0 = ▲ 5%, never "kg"
+    expect(d.text).not.toContain("BW"); // row already carries the "%BW" label
     expect(d.text).not.toContain("kg");
   });
 

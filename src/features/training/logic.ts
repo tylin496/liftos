@@ -380,7 +380,10 @@ export function computeHistDelta(
   // always comes from cmpStrength above; this is only what the number/unit reads.
   const isAssistedPair = !!(cp.assisted && pp.assisted);
   const loadDelta = isAssistedPair ? cSw - pSw : kgDelta;
-  const loadUnit = isAssistedPair ? "%BW" : "kg";
+  // Assisted deltas read in "%" — the "BW" is redundant next to the row's own
+  // "= NN% BW" read-out, so the delta drops it and keeps just the percent (glued
+  // to the number). kg keeps its leading space, like every other kg in the app.
+  const loadUnit = isAssistedPair ? "%" : " kg";
 
   let direction: "gain" | "loss";
   if (cmp !== 0) {

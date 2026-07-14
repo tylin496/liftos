@@ -24,7 +24,7 @@ const fmtVal = (v: number, isVol: boolean) => (isVol ? String(Math.round(v)) : f
    sheet width; the peak (all-time within the window) is ringed in gold, the
    latest session in accent. Press-drag from the last dot to scrub any point's
    date/value — the stat row below still carries the resting numbers. */
-function TrendChart({ points, isVol, unit }: { points: TrendPoint[]; isVol: boolean; unit: string }) {
+function TrendChart({ points, isVol, scrubUnit }: { points: TrendPoint[]; isVol: boolean; scrubUnit: string }) {
   const W = 320;
   const H = 130;
   const padX = 10;
@@ -148,7 +148,7 @@ function TrendChart({ points, isVol, unit }: { points: TrendPoint[]; isVol: bool
           >
             <span className="trend-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
             <span className="trend-tooltip-val mono">
-              {fmtVal(trendVal(scrubPoint, isVol), isVol)}{isVol ? " vol" : unit} · {fmtWeightNum(scrubPoint.weightKg)}×{formatRepsDisplay(scrubPoint.reps)}
+              {fmtVal(trendVal(scrubPoint, isVol), isVol)}{scrubUnit} · {fmtWeightNum(scrubPoint.weightKg)}×{formatRepsDisplay(scrubPoint.reps)}
             </span>
           </div>
         );
@@ -189,8 +189,13 @@ function SheetInner({
   const deltaDir = delta > 0.05 ? "gain" : delta < -0.05 ? "loss" : "flat";
   const windowLabel = win.clipped ? "Last 365 days" : "All time";
   // Assisted lifts score on % of bodyweight lifted (see scoreWeight), so their
-  // Est-1RM axis is %BW — kg would misread as an absolute barbell number.
-  const unit = isVol ? "vol" : exercise.assisted_mode ? "%BW" : "kg";
+  // Est-1RM axis is %BW — kg would misread as an absolute barbell number. The
+  // read-out matches the card: "%" glues to the number (it modifies the value),
+  // "BW" is the small unit label; the delta drops "BW" since the stats beside it
+  // already carry it. scrubUnit is the inline tooltip form.
+  const isPct = !isVol && exercise.assisted_mode;
+  const unitLabel = isVol ? "vol" : exercise.assisted_mode ? "BW" : "kg";
+  const scrubUnit = isVol ? " vol" : isPct ? "% BW" : " kg";
 
   // Focus trap + Escape-to-close — the page behind the scrim is inert.
   useFocusTrap(sheetRef, onClose);
@@ -246,13 +251,13 @@ function SheetInner({
                 <span className="trend-count">{points.length} sessions</span>
               </div>
 
-              <TrendChart points={points} isVol={isVol} unit={unit} />
+              <TrendChart points={points} isVol={isVol} scrubUnit={scrubUnit} />
 
               <div className="trend-stats">
                 <div className="trend-stat">
                   <span className="trend-stat-k">{isVol ? "Volume" : "Est. 1RM"}</span>
                   <span className="trend-stat-v">
-                    {fmtVal(latestVal, isVol)}<span className="trend-stat-u">{unit}</span>
+                    {fmtVal(latestVal, isVol)}{isPct ? "%" : ""}{" "}<span className="trend-stat-u">{unitLabel}</span>
                   </span>
                   <span className="trend-stat-sub mono">
                     {fmtWeightNum(latest.weightKg)}×{formatRepsDisplay(latest.reps)}
@@ -261,14 +266,14 @@ function SheetInner({
                 <div className="trend-stat">
                   <span className="trend-stat-k">Peak</span>
                   <span className="trend-stat-v trend-stat-v--peak">
-                    {fmtVal(peakVal, isVol)}<span className="trend-stat-u">{unit}</span>
+                    {fmtVal(peakVal, isVol)}{isPct ? "%" : ""}{" "}<span className="trend-stat-u">{unitLabel}</span>
                   </span>
                 </div>
                 <div className="trend-stat">
                   <span className="trend-stat-k">Since start</span>
                   <span className={`trend-stat-v trend-delta trend-delta--${deltaDir}`}>
-                    {deltaDir === "flat" ? "—" : `${delta > 0 ? "▲" : "▼"}${fmtVal(Math.abs(delta), isVol)}`}
-                    {deltaDir !== "flat" && <span className="trend-stat-u">{unit}</span>}
+                    {deltaDir === "flat" ? "—" : `${delta > 0 ? "▲" : "▼"}${fmtVal(Math.abs(delta), isVol)}${isPct ? "%" : ""}`}
+                    {deltaDir !== "flat" && !isPct && <>{" "}<span className="trend-stat-u">{unitLabel}</span></>}
                   </span>
                 </div>
               </div>

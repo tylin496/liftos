@@ -277,7 +277,10 @@ export function computeStrengthSummary(
     // Group by date (a day = one session); keep the best on every axis — max e1RM,
     // max best-set tonnage (the two candidate score axes), and max completed weight
     // (the compound Performance-PR axis, used only to reset the stall clock below).
-    const byDate: Record<string, { e1rm: number; tonnage: number; weightKg: number; topReps: number; ceilingReps: number }> = {};
+    const byDate: Record<string, { e1rm: number; tonnage: number; weightKg: number; scoreW: number; topReps: number; ceilingReps: number }> = {};
+    // Assisted lifts read the PR detail in %BW (scoreWeight), not raw kg — the raw
+    // net kg is contaminated by bodyweight, the exact thing the %BW axis strips out.
+    let isAssisted = false;
     for (const l of slugLogs) {
       if (!l.log_date || !l.raw) continue;
       const p = parse(l.raw);
@@ -288,10 +291,11 @@ export function computeStrengthSummary(
       // not read as a strength loss); weightKg stays real kg for the PR detail
       // and milestone rungs. Matches logic.ts toLogEntry.
       const sw = scoreWeight(p);
+      if (p.assisted) isAssisted = true;
       const e = epley1RM(sw, p.reps);
       const tng = sw > 0 ? sw * maxReps(p.reps) : 0; // uncapped reps — matches logic.ts toLogEntry
       const tr = sessionReps(p.reps);
-      const cur = byDate[l.log_date] ?? { e1rm: 0, tonnage: 0, weightKg: 0, topReps: 0, ceilingReps: 0 };
+      const cur = byDate[l.log_date] ?? { e1rm: 0, tonnage: 0, weightKg: 0, scoreW: 0, topReps: 0, ceilingReps: 0 };
       const heavier = w > cur.weightKg; // track reps of the HEAVIEST set (the PR detail)
       // Round to the same 1-decimal precision the PR loop below compares at
       // (roundedE1) — a raw-float tie check here could split what that loop
@@ -302,6 +306,7 @@ export function computeStrengthSummary(
         e1rm: Math.max(cur.e1rm, e),
         tonnage: Math.max(cur.tonnage, tng),
         weightKg: heavier ? w : cur.weightKg,
+        scoreW: heavier ? sw : cur.scoreW, // %BW of the heaviest set — the assisted PR detail
         topReps: heavier ? maxReps(p.reps) : cur.topReps,
         // Total reps of the set that hit the day's e1RM ceiling — the reps-tiebreak
         // axis. A higher-e1RM set takes over; a tie keeps the larger rep total.
@@ -393,7 +398,10 @@ export function computeStrengthSummary(
         if (newCeiling || newWeight || newReps) {
           prDate = date;
           lastPRKind = newCeiling ? "strength" : "performance";
-          lastPRMilestone = isCompound ? milestoneReached(v.weightKg, runMaxWeight) : null;
+          // Round-weight rungs are barbell kg math; an assisted lift's net kg is
+          // bodyweight-contaminated (and it has no %BW rung scheme), so — like
+          // machine isolations — it never fires a kg milestone.
+          lastPRMilestone = isCompound && !isAssisted ? milestoneReached(v.weightKg, runMaxWeight) : null;
         }
         // Track the running ceiling reps: a new ceiling adopts this session's reps;
         // a tie keeps the max. (runMaxScore stays the raw max, as before.)
@@ -410,7 +418,11 @@ export function computeStrengthSummary(
       (Date.parse(lastDate) - Date.parse(peakDate)) / (7 * 24 * 60 * 60 * 1000),
     );
     const prBest = byDate[prDate];
-    const lastPRDetail = prBest ? `${Math.round(prBest.weightKg * 10) / 10} kg × ${prBest.topReps}` : "";
+    const lastPRDetail = prBest
+      ? isAssisted
+        ? `${Math.round(prBest.scoreW * 10) / 10}% BW × ${prBest.topReps}`
+        : `${Math.round(prBest.weightKg * 10) / 10} kg × ${prBest.topReps}`
+      : "";
 
     // "Needs attention" gates the retention flag on the stall clock: a lift only
     // needs intervention if it's below PR AND has been stuck for weeks. A recent

@@ -346,13 +346,21 @@ export function ExerciseCard({
       // Milestone (compound lifts only) outranks a Strength/Performance PR — a
       // round-weight rung is the bigger moment. It implies a weight-axis PR, so
       // it only ever pre-empts, never hides, a real PR.
-      const milestone = exercise.compound ? milestoneReached(newScore, prevBests.weightKg) : null;
+      const milestone = exercise.compound && !newParsed?.assisted ? milestoneReached(newScore, prevBests.weightKg) : null;
       // Account-wide, exercise-agnostic — checked regardless of milestone/PR so
       // it only ever surfaces via the final else-if below (a PR or round-weight
       // milestone on the same save always outranks it).
       const sessionMilestone = sessionMilestoneReached(priorSessionDates, date);
-      const wStr = newParsed ? `${fmtWeightNum(newScore)} kg` : "";
-      const setStr = newParsed ? `${fmtWeightNum(newScore)} kg × ${maxReps(newReps)}` : "";
+      // Assisted PRs celebrate in %BW (scoreWeight), like the card and every other
+      // assisted read-out; raw net kg is the bodyweight-contaminated number the
+      // %BW axis exists to replace. Milestones stay suppressed for assisted above.
+      const loadStr = !newParsed
+        ? ""
+        : newParsed.assisted
+          ? `${fmtWeightNum(Math.round(newSw * 10) / 10)}% BW`
+          : `${fmtWeightNum(newScore)} kg`;
+      const wStr = loadStr;
+      const setStr = loadStr ? `${loadStr} × ${maxReps(newReps)}` : "";
       if (milestone != null) {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), CLEAR_AFTER_SHEEN);
@@ -426,7 +434,7 @@ export function ExerciseCard({
             mode,
           );
       const milestone =
-        !isReigningBest && exercise.compound ? milestoneReached(editScore, editPrevBests.weightKg) : null;
+        !isReigningBest && exercise.compound && !parsed.assisted ? milestoneReached(editScore, editPrevBests.weightKg) : null;
       await updateLog(log.id, {
         raw,
         reps: parsed.reps,
@@ -441,6 +449,10 @@ export function ExerciseCard({
       setSavedRowId(log.id);
       setTimeout(() => setSavedRowId(null), CLEAR_AFTER_SHEEN);
       haptic("tap");
+      // Assisted PRs celebrate in %BW — matches the add path and the card.
+      const editLoadStr = parsed.assisted
+        ? `${fmtWeightNum(Math.round(editSw * 10) / 10)}% BW`
+        : `${fmtWeightNum(editScore)} kg`;
       if (milestone != null) {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), CLEAR_AFTER_SHEEN);
@@ -450,15 +462,15 @@ export function ExerciseCard({
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), CLEAR_AFTER_SHEEN);
         haptic("success");
-        celebration.celebrate({ variant: "pr", title: "Strength PR", sub: `${fmtWeightNum(editScore)} kg` });
+        celebration.celebrate({ variant: "pr", title: "Strength PR", sub: editLoadStr });
       } else if (prKind === "hypertrophy") {
         setPrFlash(true);
         setTimeout(() => setPrFlash(false), CLEAR_AFTER_SHEEN);
         haptic("success");
-        celebration.celebrate({ variant: "pr", title: "Hypertrophy PR", sub: `${fmtWeightNum(editScore)} kg × ${maxReps(parsed.reps)}` });
+        celebration.celebrate({ variant: "pr", title: "Hypertrophy PR", sub: `${editLoadStr} × ${maxReps(parsed.reps)}` });
       } else if (prKind === "performance") {
         haptic("success");
-        toast(`Performance PR heaviest yet at ${fmtWeightNum(editScore)} kg`, "success");
+        toast(`Performance PR heaviest yet at ${editLoadStr}`, "success");
       } else {
         toast("Entry updated", "success");
       }
@@ -716,11 +728,13 @@ export function ExerciseCard({
                       {bestParsed.assisted ? "kg" : isLbUnit(bestParsed.unit) ? "lb" : "kg"}
                     </span>
                     {/* assisted: hero is the assist "19 kg"; the "= lifted × reps"
-                        read-out reuses .pr-meta (unit stays on the hero). expr-star
-                        gives the × the same 4px spacing as every other × on screen. */}
+                        read-out reuses .pr-meta. Lifted reads in %BW (net / bodyweight)
+                        to match the history rows and delta — the raw kg is contaminated
+                        by bodyweight. expr-star gives the × the same 4px spacing as
+                        every other × on screen. */}
                     <span className="pr-meta mono">
                       {bestParsed.assisted && (
-                        <span className="expr-sep">= {fmtWeightNum(score(bestParsed))}</span>
+                        <span className="expr-sep">= {fmtWeightNum(Math.round(scoreWeight(bestParsed) * 10) / 10)}% BW</span>
                       )}
                       <span className="expr-star">×</span>
                       <span>{formatRepsDisplay(bestParsed.reps)}</span>
@@ -860,8 +874,11 @@ export function ExerciseCard({
                       <span className="hist-assisted-wrap">
                         <strong className="expr-weight-primary">{fmtWeightNum(histAssist)}</strong>
                         <span className="expr-sep">=</span>
-                        <span className="expr-unit-tag">{fmtWeightNum(histBw - histAssist)}</span>
-                        <span className="expr-unit-tag">kg</span>
+                        {/* Lifted load reads in %BW (net / bodyweight), the same axis
+                            the score, delta, and detail drawer use — an assisted lift's
+                            raw kg is contaminated by bodyweight, which %BW strips out. */}
+                        <span className="expr-unit-tag">{fmtWeightNum(Math.round(((histBw - histAssist) / histBw) * 1000) / 10)}%</span>
+                        <span className="expr-unit-tag">BW</span>
                         <span className="expr-star">×</span>
                         <span className="expr-reps">{formatRepsDisplay(log.reps ?? assistedParse?.reps ?? "")}</span>
                       </span>
@@ -957,7 +974,7 @@ export function ExerciseCard({
                         {entryScore > 0
                           ? mode === "isolation"
                             ? `${Math.round(entryScore)} vol`
-                            : `${fmtWeightNum(Math.round(entryScore * 10) / 10)} ${histBw != null && histAssist != null ? "%BW" : "kg"}`
+                            : `${fmtWeightNum(Math.round(entryScore * 10) / 10)}${histBw != null && histAssist != null ? "% BW" : " kg"}`
                           : "—"}
                       </span>
                     </div>
