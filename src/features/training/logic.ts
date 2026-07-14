@@ -362,8 +362,8 @@ export function computeHistDelta(
   const totalRepsDelta = totalReps(cp.reps, setCount) - totalReps(pp.reps, setCount);
   const repsDelta = maxRepsDelta !== 0 ? maxRepsDelta : totalRepsDelta;
 
-  // Direction judges on the score axes (scoreWeight → %BW for assisted logs, so
-  // a lighter body doesn't read as a loss); the label below still reports raw kg.
+  // Direction AND magnitude judge on the score axes (scoreWeight → %BW for
+  // assisted logs, so a lighter body doesn't read as a loss).
   const cSw = scoreWeight(cp);
   const pSw = scoreWeight(pp);
   const cE1 = epley1RM(cSw, cp.reps);
@@ -373,20 +373,29 @@ export function computeHistDelta(
     { e1rm: pE1, totalReps: totalReps(pp.reps, setCount), tonnage: pSw * maxReps(pp.reps), weightKg: pKg },
     mode,
   );
+
+  // The magnitude shown next to the arrow, in the lift's native load unit: kg for
+  // normal lifts, %BW for assisted (an assisted lift's kg is contaminated by
+  // bodyweight change, exactly what the %BW axis exists to strip out). Direction
+  // always comes from cmpStrength above; this is only what the number/unit reads.
+  const isAssistedPair = !!(cp.assisted && pp.assisted);
+  const loadDelta = isAssistedPair ? cSw - pSw : kgDelta;
+  const loadUnit = isAssistedPair ? "%BW" : "kg";
+
   let direction: "gain" | "loss";
   if (cmp !== 0) {
     direction = cmp > 0 ? "gain" : "loss";
-  } else if (kgDelta !== 0) {
-    direction = kgDelta > 0 ? "gain" : "loss";
+  } else if (loadDelta !== 0) {
+    direction = loadDelta > 0 ? "gain" : "loss";
   } else {
     return null; // genuinely identical — stay silent
   }
 
-  // Weight is the headline metric — show kg alone when it moved. Only fall back
-  // to the reps delta when the weight held and reps carried the change.
+  // Load is the headline metric — show it alone when it moved. Only fall back to
+  // the reps delta when the load held and reps carried the change.
   const detail =
-    kgDelta !== 0
-      ? `${Math.abs(parseFloat(kgDelta.toFixed(2)))}kg`
+    Math.abs(loadDelta) >= (isAssistedPair ? 0.05 : 0.005)
+      ? `${Math.abs(parseFloat(loadDelta.toFixed(isAssistedPair ? 1 : 2)))}${loadUnit}`
       : `${Math.abs(repsDelta)} reps`;
 
   return { text: `${direction === "gain" ? "▲" : "▼"} ${detail}`, direction };

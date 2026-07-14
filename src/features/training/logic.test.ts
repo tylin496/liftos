@@ -196,10 +196,21 @@ describe("scoreWeight — assisted %BW axis", () => {
 
   it("histDelta direction follows relative strength even when effective kg fell", () => {
     // prev: 75% of bw (100−25); curr: 80% of a lighter bw (90−18). Effective kg
-    // fell 75 → 72, but the pull got relatively STRONGER → gain, labelled in kg.
+    // fell 75 → 72, but the pull got relatively STRONGER → gain, and the delta
+    // reads in %BW (not kg), so a bodyweight-driven kg drop can't show as a loss.
     const curr = { log_date: "2026-07-01", raw: "90-(18) *10" } as TrainingLog;
     const prev = { log_date: "2026-06-01", raw: "100-(25) *10" } as TrainingLog;
     const d = computeHistDelta(curr, prev, 3, "compound")!;
     expect(d.direction).toBe("gain");
+    expect(d.text).toContain("%BW"); // 80.0 − 75.0 = ▲ 5%BW, never "kg"
+    expect(d.text).not.toContain("kg");
+  });
+
+  it("histDelta uses kg for a normal (non-assisted) pair", () => {
+    const curr = { log_date: "2026-07-01", raw: "102*10" } as TrainingLog;
+    const prev = { log_date: "2026-06-01", raw: "100*10" } as TrainingLog;
+    const d = computeHistDelta(curr, prev, 3, "compound")!;
+    expect(d.text).toContain("kg");
+    expect(d.text).not.toContain("%BW");
   });
 });
