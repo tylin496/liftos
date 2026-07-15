@@ -100,9 +100,11 @@ export interface ProteinResult {
 // — punishing it (amber, "3g short") implies a decision to eat more that
 // doesn't exist. We swallow gaps within 2% of the target and treat the day as
 // met. 2% (≈3g on a 160g floor) stays tighter than the measurement noise, so a
-// real shortfall (156/160) still reads as short. Redefining "met" here — not
-// just the copy — keeps it the single source of truth for tone, the double-hit
-// count, confetti, and monthly adherence (they all key off `celebrated`).
+// real shortfall (156/160) still reads as short. `celebrated` is the system's
+// success event — it gates confetti, the double-hit count, monthly adherence,
+// and the green tone — so the bar for "met" stays deliberately strict: a 160g
+// target must mean 160g adherence, not a drifting 155g. What we soften is the
+// *shortfall copy* (see proteinNote), not this threshold.
 function proteinFloorTolerance(proteinTarget: number): number {
   return Math.round(roundInt(proteinTarget) * 0.02);
 }
@@ -185,11 +187,19 @@ export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficit
 // "over" up as a delta — just how much more, or done.
 export function proteinNote(hasEntry: boolean, protNum: number, proteinTarget: number): string {
   if (!hasEntry) return "";
-  const gap = Math.max(roundInt(proteinTarget - protNum), 0);
+  const target = roundInt(proteinTarget);
+  const gap = Math.max(roundInt(target - protNum), 0);
   // Same tolerance band as getProteinResult.celebrated (green + double-hit),
   // so colour and wording never differ: a within-tolerance day just reads as
   // met, with no false-precision "3g to floor" nag.
-  return gap > proteinFloorTolerance(proteinTarget) ? `${gap}g to floor` : "✓ Floor met";
+  if (gap <= proteinFloorTolerance(target)) return "✓ Floor met";
+  // Past the floor stays amber (proteinTone → warn), but "met" is the only
+  // success event, so the copy softens the miss without dressing it up as done.
+  // "close ≠ complete": a near-miss reads as almost there; a genuine shortfall
+  // just states the gap. Neither celebrates. Dropping "to floor" ("fell short")
+  // keeps a 4g gap from reading as failure.
+  const nearMiss = target > 0 && gap <= Math.round(target * 0.05); // within ~5% of the floor
+  return nearMiss ? `Almost there · ${gap}g to go` : `${gap}g to go`;
 }
 
 // ── Aggregations (weekly trend, monthly adherence) ─────────────────────────

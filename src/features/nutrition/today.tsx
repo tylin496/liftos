@@ -573,7 +573,7 @@ export function TodayView({
 
   // Progress rails under each column (see .nt-track). Neutral fill = consumed
   // ÷ target; protein's shortfall to the floor is the only coloured segment,
-  // so it stays in step with protResult.celebrated / the "Xg to floor" note.
+  // so it stays in step with protResult.celebrated / the "Xg to go" note.
   const caloriePct = targets.calorieTarget > 0
     ? Math.max(0, Math.min(100, Math.round((calNum / targets.calorieTarget) * 100)))
     : 0;
