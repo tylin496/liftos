@@ -377,7 +377,7 @@ function AddExerciseForm({
     <div className="add-ex-form" ref={formRef}>
       <div className="add-ex-head">
         <span className="add-ex-title">New exercise</span>
-        <button type="button" className="add-ex-close" onClick={onCancel}>✕</button>
+        <button type="button" className="add-ex-close" onClick={onCancel} aria-label="Close">✕</button>
       </div>
       <form onSubmit={submit}>
         <div className="add-ex-fields">

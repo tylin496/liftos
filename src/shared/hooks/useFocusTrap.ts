@@ -26,6 +26,12 @@ export function useFocusTrap(
     const focusables = () =>
       Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE));
 
+    // Remember what had focus so we can hand it back on close — otherwise a
+    // keyboard/switch/screen-reader user is dumped onto <body> (top of the page)
+    // every time a sheet closes, losing their place.
+    const restoreTo =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
     focusables()[0]?.focus();
 
     function onKeyDown(e: KeyboardEvent) {
@@ -47,7 +53,14 @@ export function useFocusTrap(
       }
     }
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      // Restore focus to the trigger, but only if focus is still inside the
+      // overlay (don't yank it away if something else already claimed it).
+      if (restoreTo?.isConnected && root.contains(document.activeElement)) {
+        restoreTo.focus();
+      }
+    };
     // ref is stable; deliberately run once on open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

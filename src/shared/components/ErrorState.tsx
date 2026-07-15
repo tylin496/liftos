@@ -15,7 +15,7 @@ export function ErrorState({
   id?: string;
 }) {
   return (
-    <section id={id} className="page-card error-state">
+    <section id={id} className="page-card error-state" role="alert">
       <p className="error-state-msg">{message}</p>
       <button
         type="button"

@@ -220,6 +220,15 @@ export function ExerciseCard({
 
   useEffect(() => {
     if (!menuOpen) return;
+    const container = menuRef.current;
+    const trigger = container?.querySelector<HTMLElement>(".card-menu-btn");
+    // Move focus into the menu on open (after the mount transition paints) so a
+    // keyboard user lands on the first item instead of nowhere.
+    const raf = requestAnimationFrame(() => {
+      container
+        ?.querySelector<HTMLElement>('[role="menu"] .menu-item:not(:disabled)')
+        ?.focus();
+    });
     // click, not mousedown: closing on mousedown unmounts the menu before the
     // trailing synthetic click fires on iOS Safari, so that click falls through
     // to whatever is now underneath the tap.
@@ -228,8 +237,21 @@ export function ExerciseCard({
         setMenuOpen(false);
       }
     }
+    // Escape closes and returns focus to the trigger (outside-click alone left
+    // no keyboard path to dismiss the menu).
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        trigger?.focus();
+      }
+    }
     document.addEventListener("click", onDown);
-    return () => document.removeEventListener("click", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("click", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [menuOpen]);
 
   // On unmount (e.g. switching splits inside the undo window), flush pending log

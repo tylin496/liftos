@@ -69,6 +69,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={t.id}
             className={`toast toast-${t.type}${t.exiting ? " toast-exit" : ""}`}
+            // role="alert" makes an error interrupt (assertive) even though the
+            // tray itself is polite — a failed action shouldn't queue silently
+            // behind whatever the screen reader is currently saying.
+            role={t.type === "error" ? "alert" : undefined}
             onClick={() => dismiss(t.id)}
           >
             <span className="toast-icon" aria-hidden>{ICON[t.type]}</span>
