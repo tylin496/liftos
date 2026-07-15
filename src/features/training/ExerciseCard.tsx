@@ -300,9 +300,12 @@ function ExerciseCardImpl({
   // Score mode: compound lifts judge on e1RM, isolation on best-set tonnage — the
   // one switch every strength read (PR badge, confetti, history delta) flows from.
   const mode: ScoreMode = exercise.compound ? "compound" : "isolation";
+  // Assisted_mode fixes the score-axis unit (%BW vs kg) for the whole exercise —
+  // see scoreWeight. Threaded into every scoring call so the axis never mixes.
+  const am = !!exercise.assisted_mode;
   // Stats use ALL logs (unfiltered, undeleted) so the PR badge/confetti reflect
   // the all-time record, not just what's inside the current time-filter window.
-  const stats = useMemo(() => computeStats(effectiveLogsAsc, sc, mode), [effectiveLogsAsc, sc, mode]);
+  const stats = useMemo(() => computeStats(effectiveLogsAsc, sc, mode, am), [effectiveLogsAsc, sc, mode, am]);
   // Index of the all-time-best log within the currently displayed (filtered) window,
   // so the history list can still highlight it when it's visible.
   const prIndexInFiltered = useMemo(
@@ -355,10 +358,11 @@ function ExerciseCardImpl({
       const newScore = newParsed ? score(newParsed) : 0;
       // Score axes on scoreWeight (%BW for assisted logs) — must match
       // toLogEntry, or the toast could disagree with the card's own history.
-      const newSw = newParsed ? scoreWeight(newParsed) : 0;
+      const newSwRaw = newParsed ? scoreWeight(newParsed, am) : 0;
+      const newSw = Number.isFinite(newSwRaw) ? newSwRaw : 0;
       const newReps = newParsed?.reps ?? "1";
       const newE1RM = epley1RM(newSw, newReps);
-      const prevBests = computePRBests(effectiveLogsAsc, sc);
+      const prevBests = computePRBests(effectiveLogsAsc, sc, am);
       const prKind = classifyPR(
         { e1rm: newE1RM, weightKg: newScore, totalReps: totalReps(newReps, sc), tonnage: newSw * maxReps(newReps) },
         prevBests,
@@ -438,21 +442,22 @@ function ExerciseCardImpl({
         throw new Error("Another entry already exists on that day");
       }
       const editScore = score(parsed);
-      // Score axes on scoreWeight (%BW for assisted logs) — matches toLogEntry.
-      const editSw = scoreWeight(parsed);
+      // Score axes on scoreWeight (%BW for an assisted-mode exercise) — matches toLogEntry.
+      const editSwRaw = scoreWeight(parsed, am);
+      const editSw = Number.isFinite(editSwRaw) ? editSwRaw : 0;
       const newE1RM = epley1RM(editSw, parsed.reps);
       // Measure against every OTHER log (self excluded), so re-saving the record
       // row doesn't read as beating itself. Editing the reigning best is never a
       // fresh PR — same guard the old `log.id !== oldBest` check gave.
       const priorAsc = effectiveLogsAsc.filter((l) => l.id !== log.id);
       const isReigningBest = log.id === stats.best?.log.id;
-      const editPrevBests = computePRBests(priorAsc, sc);
+      const editPrevBests = computePRBests(priorAsc, sc, am);
       const prKind = isReigningBest
         ? null
         : classifyPR(
             { e1rm: newE1RM, weightKg: editScore, totalReps: totalReps(parsed.reps, sc), tonnage: editSw * maxReps(parsed.reps) },
             editPrevBests,
-            computeStats(priorAsc, sc, mode).best,
+            computeStats(priorAsc, sc, mode, am).best,
             mode,
           );
       const milestone =
@@ -755,8 +760,8 @@ function ExerciseCardImpl({
                         by bodyweight. expr-star gives the × the same 4px spacing as
                         every other × on screen. */}
                     <span className="pr-meta mono">
-                      {bestParsed.assisted && (
-                        <span className="expr-sep">= {fmtWeightNum(Math.round(scoreWeight(bestParsed) * 10) / 10)}% BW</span>
+                      {am && bestParsed.assisted && (
+                        <span className="expr-sep">= {fmtWeightNum(Math.round(scoreWeight(bestParsed, am) * 10) / 10)}% BW</span>
                       )}
                       <span className="expr-star">×</span>
                       <span>{formatRepsDisplay(bestParsed.reps)}</span>
@@ -822,7 +827,7 @@ function ExerciseCardImpl({
             const prevLog = visible[vi + 1] ?? null;
             // Only the newest entry gets a vs-last badge — older rows stay quiet.
             const delta =
-              isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog, sc, mode);
+              isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog, sc, mode, am);
             const isAssisted = log.kind === "assisted";
             // Assisted history renders off the denormalized kind/assistance/bodyweight
             // columns when present, else falls back to parsing the raw expression:
@@ -839,7 +844,7 @@ function ExerciseCardImpl({
             // tonnage). Numerator and denominator read the same axis as the gold
             // PR badge (stats.best is mode-picked too), so "of PR" and the gold row
             // never disagree — including for isolation lifts.
-            const entry = toLogEntry(log, sc);
+            const entry = toLogEntry(log, sc, am);
             const entryScore = entry ? (mode === "isolation" ? entry.tonnage : entry.e1rm) : 0;
             const bestScore = stats.best ? (mode === "isolation" ? stats.best.tonnage : stats.best.e1rm) : 0;
             const retention =

@@ -34,12 +34,15 @@ import {
 const MIN_LOGGED_DAYS = 10;
 
 /** Mean of the logged daily calories inside the trailing WINDOW_DAYS, or null
- *  when fewer than MIN_LOGGED_DAYS are logged. Matches the weight-trend window so
- *  the two intakes describe the same period. */
+ *  when fewer than MIN_LOGGED_DAYS are logged. Spans the same 21-day length as the
+ *  weight-trend window (WINDOW_DAYS − 1 days back → today inclusive = 21 days), so
+ *  the two intakes describe the same period when the weight feed is current. (A
+ *  stale weight feed anchors its window on the last reading instead of today; the
+ *  resulting drift only tempers confidence, never triggers a change.) */
 export function windowedLoggedIntake(
   entries: { entry_date: string; calories: number | null }[],
 ): number | null {
-  const cutoff = localDateStrDaysAgo(WINDOW_DAYS);
+  const cutoff = localDateStrDaysAgo(WINDOW_DAYS - 1);
   const cals = entries
     .filter((e) => e.entry_date >= cutoff && e.calories != null)
     .map((e) => e.calories as number);
@@ -223,7 +226,7 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
     // slug + archived + compound: archived filters the training slice, compound
     // picks the score axis (e1RM vs tonnage) so the engine's decline verdict
     // matches the Training Health card instead of judging isolation lifts on e1RM.
-    supabase.from("exercises").select("slug, archived, compound"),
+    supabase.from("exercises").select("slug, archived, compound, assisted_mode"),
     // Prior surfaced recommendation — feeds the engine's exit-hysteresis so a
     // marginal signal wobble can't flip the weekly directive. A plain read; null
     // before the first evaluation ever ran.
@@ -287,12 +290,17 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
     compoundSlugs = new Set(
       (archivedRes.data ?? []).filter((e) => e.compound).map((e) => e.slug),
     );
+    // Assisted-mode exercises score their axis in %BW (see scoreWeight) — pass the
+    // set so the engine's strength verdict matches the Training card's axis.
+    const assistedSlugs = new Set(
+      (archivedRes.data ?? []).filter((e) => e.assisted_mode).map((e) => e.slug),
+    );
     const bySlug: Record<string, { log_date: string | null; raw: string | null }[]> = {};
     for (const l of logsRes.data ?? []) {
       if (!l.exercise_slug || archivedSlugs.has(l.exercise_slug)) continue;
       (bySlug[l.exercise_slug] ??= []).push(l);
     }
-    strengthSummary = computeStrengthSummary(bySlug, compoundSlugs);
+    strengthSummary = computeStrengthSummary(bySlug, compoundSlugs, undefined, true, assistedSlugs);
     training = buildTrainingEvaluation(strengthSummary);
   }
 

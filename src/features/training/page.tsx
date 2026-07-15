@@ -494,7 +494,7 @@ function ArchivedSection({
           {exercises.map((ex) => {
             const exLogs = logs[ex.slug] ?? [];
             const logsAsc = [...exLogs].reverse();
-            const stats = computeStats(logsAsc, defaultSetCount(ex), ex.compound ? "compound" : "isolation");
+            const stats = computeStats(logsAsc, defaultSetCount(ex), ex.compound ? "compound" : "isolation", !!ex.assisted_mode);
             const best = stats.best;
             const bestParsed = best?.log.raw ? parse(best.log.raw) : null;
             const prStr = bestParsed
@@ -988,7 +988,7 @@ function TrainingPageInner() {
   const weeklyVolume = useMemo(() => {
     const roster = (exercises ?? [])
       .filter((e) => !e.archived)
-      .map((e) => ({ slug: e.slug, split: e.split, setCount: defaultSetCount(e) }));
+      .map((e) => ({ slug: e.slug, split: e.split, setCount: defaultSetCount(e), assistedMode: !!e.assisted_mode }));
     return computeWeeklyVolume(logs, roster, localDateStr());
   }, [logs, exercises]);
 

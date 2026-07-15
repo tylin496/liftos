@@ -91,8 +91,8 @@ const vlog = (date: string, raw: string): TrainingLog =>
 
 // setCount 1 keeps the arithmetic readable: "100*10" → 100kg × 10 reps = 1000.
 const pullRoster = [
-  { slug: "row", split: "pull", setCount: 1 },
-  { slug: "curl", split: "pull", setCount: 1 },
+  { slug: "row", split: "pull", setCount: 1, assistedMode: false },
+  { slug: "curl", split: "pull", setCount: 1, assistedMode: false },
 ];
 
 // today = Fri 2026-07-10 → this week starts Mon 2026-07-06, last week 06-29.
@@ -173,20 +173,33 @@ import { parse } from "./parser";
 
 describe("scoreWeight — assisted %BW axis", () => {
   it("normal logs score on absolute kg (identical to score)", () => {
-    expect(scoreWeight(parse("100*10")!)).toBe(100);
+    expect(scoreWeight(parse("100*10")!, false)).toBe(100);
   });
 
   it("assisted logs score on % of bodyweight lifted", () => {
     // bw 100, assist 20 → lifting 80% of bodyweight.
-    expect(scoreWeight(parse("100-(20) *10")!)).toBeCloseTo(80, 5);
+    expect(scoreWeight(parse("100-(20) *10")!, true)).toBeCloseTo(80, 5);
+  });
+
+  it("a non-assisted exercise ignores stray assist syntax (scores kg, never %BW)", () => {
+    // assisted_mode off → the axis is kg even if a raw somehow parses as assisted,
+    // so a %BW score can never mix into a kg trend. score("100-(20)") = 80 kg.
+    expect(scoreWeight(parse("100-(20) *10")!, false)).toBe(80);
+  });
+
+  it("an assisted exercise drops a log with no assisted form (NaN → excluded)", () => {
+    // No bodyweight to convert to %BW → NaN, so toLogEntry drops it rather than
+    // placing raw kg on the %BW axis.
+    expect(Number.isNaN(scoreWeight(parse("100*10")!, true))).toBe(true);
+    expect(toLogEntry({ log_date: "2026-07-01", raw: "100*10" } as TrainingLog, 3, true)).toBeNull();
   });
 
   it("a lighter body at the same relative pull scores flat — no phantom decline", () => {
     // The real Assisted Pull-up artifact: on a cut the effective kg falls with
     // the body, so absolute e1RM read 10/10/10 → 10/10/10 as a drop. Same
     // fraction of a lighter body must score the same.
-    const heavy = toLogEntry({ log_date: "2026-06-01", raw: "100-(20) *10/10/10" } as TrainingLog, 3)!;
-    const light = toLogEntry({ log_date: "2026-07-01", raw: "90-(18) *10/10/10" } as TrainingLog, 3)!;
+    const heavy = toLogEntry({ log_date: "2026-06-01", raw: "100-(20) *10/10/10" } as TrainingLog, 3, true)!;
+    const light = toLogEntry({ log_date: "2026-07-01", raw: "90-(18) *10/10/10" } as TrainingLog, 3, true)!;
     expect(light.e1rm).toBeCloseTo(heavy.e1rm, 5);
     expect(light.tonnage).toBeCloseTo(heavy.tonnage, 5);
     // Display/milestone kg still tracks the real effective load.
@@ -200,7 +213,7 @@ describe("scoreWeight — assisted %BW axis", () => {
     // reads in %BW (not kg), so a bodyweight-driven kg drop can't show as a loss.
     const curr = { log_date: "2026-07-01", raw: "90-(18) *10" } as TrainingLog;
     const prev = { log_date: "2026-06-01", raw: "100-(25) *10" } as TrainingLog;
-    const d = computeHistDelta(curr, prev, 3, "compound")!;
+    const d = computeHistDelta(curr, prev, 3, "compound", true)!;
     expect(d.direction).toBe("gain");
     expect(d.text).toContain("%"); // 80.0 − 75.0 = ▲ 5%, never "kg"
     expect(d.text).not.toContain("BW"); // row already carries the "%BW" label
@@ -210,7 +223,7 @@ describe("scoreWeight — assisted %BW axis", () => {
   it("histDelta uses kg for a normal (non-assisted) pair", () => {
     const curr = { log_date: "2026-07-01", raw: "102*10" } as TrainingLog;
     const prev = { log_date: "2026-06-01", raw: "100*10" } as TrainingLog;
-    const d = computeHistDelta(curr, prev, 3, "compound")!;
+    const d = computeHistDelta(curr, prev, 3, "compound", false)!;
     expect(d.text).toContain("kg");
     expect(d.text).not.toContain("%BW");
   });

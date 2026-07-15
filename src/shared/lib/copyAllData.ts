@@ -448,6 +448,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           .map((e) => [e.slug, (allLogsBySlug[e.slug] ?? []).map((x) => x.log)]),
       ),
       new Set(exercises.filter((e) => e.compound).map((e) => e.slug)),
+      undefined,
+      true,
+      new Set(exercises.filter((e) => e.assisted_mode).map((e) => e.slug)),
     ).exercises.map((x) => [x.slug, x]),
   );
   const nameBySlug = new Map(exercises.map((e) => [e.slug, e.name]));
@@ -539,7 +542,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
         // PR uses all logs; export slice uses the limit
         const allRaw = allParsed.map((e) => e.log);
         const setCount = defaultSetCount(ex);
-        const stats = computeStats(allRaw, setCount, ex.compound ? "compound" : "isolation");
+        const stats = computeStats(allRaw, setCount, ex.compound ? "compound" : "isolation", !!ex.assisted_mode);
 
         // allParsed is ascending (oldest→newest); take the tail for the most
         // recent sessions, plus the PR session if it fell outside that window —
@@ -599,9 +602,11 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
             ? { date: stats.best.log.log_date ?? null, bestSet: stats.best.log.raw ?? null }
             : null,
           logs: sliced.map(({ log: l, parsed: p, w }) => {
-            // Score axes on scoreWeight (%BW for assisted logs) — matches
-            // computeStats above, so per-log e1rm and peak/current agree.
-            const sw = p ? scoreWeight(p) : null;
+            // Score axes on scoreWeight (%BW for an assisted-mode exercise) — matches
+            // computeStats above, so per-log e1rm and peak/current agree. NaN (a
+            // non-assisted log on a %BW axis) collapses to null, like toLogEntry drops it.
+            const swRaw = p ? scoreWeight(p, !!ex.assisted_mode) : null;
+            const sw = swRaw != null && Number.isFinite(swRaw) ? swRaw : null;
             return {
               date: l.log_date,
               raw: l.raw,
@@ -971,6 +976,9 @@ export async function buildTrainingJson(): Promise<string> {
         exercises.filter((e) => !e.archived).map((e) => [e.slug, logsBySlug[e.slug] ?? []]),
       ),
       new Set(exercises.filter((e) => e.compound).map((e) => e.slug)),
+      undefined,
+      true,
+      new Set(exercises.filter((e) => e.assisted_mode).map((e) => e.slug)),
     ).exercises.map((x) => [x.slug, x]),
   );
 
@@ -985,7 +993,7 @@ export async function buildTrainingJson(): Promise<string> {
       // fetchLogsBySlug is newest-first; reverse to ascending for stats/logs.
       const ascLogs = [...(logsBySlug[ex.slug] ?? [])].reverse();
       const setCount = defaultSetCount(ex);
-      const stats = computeStats(ascLogs, setCount, ex.compound ? "compound" : "isolation");
+      const stats = computeStats(ascLogs, setCount, ex.compound ? "compound" : "isolation", !!ex.assisted_mode);
       const se = strengthBySlug.get(ex.slug);
       const sessionDates = [...new Set(ascLogs.map((l) => l.log_date).filter(Boolean))].sort();
 
@@ -1023,8 +1031,10 @@ export async function buildTrainingJson(): Promise<string> {
         logs: ascLogs.map((l) => {
           const p = l.raw ? parse(l.raw) : null;
           const w = p ? +score(p).toFixed(2) : null;
-          // Score axes on scoreWeight (%BW for assisted logs) — matches computeStats.
-          const sw = p ? scoreWeight(p) : null;
+          // Score axes on scoreWeight (%BW for an assisted-mode exercise) — matches
+          // computeStats. NaN (non-assisted log on a %BW axis) collapses to null.
+          const swRaw = p ? scoreWeight(p, !!ex.assisted_mode) : null;
+          const sw = swRaw != null && Number.isFinite(swRaw) ? swRaw : null;
           return {
             date: l.log_date,
             raw: l.raw,

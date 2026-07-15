@@ -215,10 +215,12 @@ export function rateTone(
   const { min, max } = targetRange;
   if (min === max) return null; // Not tracked
   const loss = -observedRate;
-  // Match evaluate()'s STATUS_EPS deadband on the upper edge so a reading in the
-  // (max, max+EPS] sliver — which evaluate() still calls on_target and paceTone
-  // reads as gold — doesn't disagree here by falling through to "warn".
-  if (loss >= min && loss <= max + STATUS_EPS) {
+  // Match evaluate()'s STATUS_EPS deadband on BOTH edges: a reading in the
+  // [min−EPS, min) or (max, max+EPS] slivers is still on_target to evaluate() (so
+  // paceTone reads "On pace"/good). Widening the in-band check the same way keeps
+  // the rate number/dot from disagreeing with the pace word by falling through to
+  // "warn" at either edge.
+  if (loss >= min - STATUS_EPS && loss <= max + STATUS_EPS) {
     // Same top-slice-of-band rule as isOptimalPace (paceLabel/paceTone) — kept
     // inline rather than sharing the helper since it doesn't need `status`
     // here (already known in-band from the check above).

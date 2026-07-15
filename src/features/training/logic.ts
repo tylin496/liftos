@@ -94,25 +94,39 @@ export function epley1RM(weightKg: number, repsStr: string): number {
  *  (and a bulk would gift PRs), so judging those logs on absolute kg minted
  *  phantom declines — same pull at 10/10/10 read as "recent_drop" and dragged
  *  the whole muscle group to "declining". Display, milestones, and the
- *  heaviest-weight PR axis all keep the real kg (`score`). */
-export function scoreWeight(p: Parsed): number {
+ *  heaviest-weight PR axis all keep the real kg (`score`).
+ *
+ *  The axis UNIT is fixed per exercise by its `assisted_mode`, NOT by whether an
+ *  individual log happens to parse as assisted — otherwise a %BW axis and a raw-kg
+ *  axis could mix inside one exercise's history (e.g. an assisted pull-up that
+ *  graduates to a weighted one) and cmpStrength would compare a ~70 %BW score
+ *  against a ~25 kg score. A non-assisted exercise always scores in kg (any stray
+ *  `bw-(assist)` syntax in imported/legacy raw is ignored); an assisted exercise
+ *  scores in %BW, and a log with no assisted form has no bodyweight to convert, so
+ *  it returns NaN — callers (toLogEntry) drop it from the axis rather than mixing. */
+export function scoreWeight(p: Parsed, assistedMode: boolean): number {
+  if (!assistedMode) return score(p);
   if (p.assisted && p.assisted.bw > 0) {
     return ((p.assisted.bw - p.assisted.assist) / p.assisted.bw) * 100;
   }
-  return score(p);
+  return NaN;
 }
 
 // ─── toLogEntry ──────────────────────────────────────────────────────────────
 
-export function toLogEntry(log: TrainingLog, setCount: number): LogEntry | null {
+export function toLogEntry(log: TrainingLog, setCount: number, assistedMode: boolean): LogEntry | null {
   if (!log.raw) return null;
   const parsed = parse(log.raw);
   if (!parsed) return null;
   const weightKg = score(parsed);
   if (!Number.isFinite(weightKg)) return null;
-  // Score axes run on scoreWeight (%BW for assisted logs); weightKg stays the
-  // real kg for display, milestones, and the heaviest-weight PR axis.
-  const sw = scoreWeight(parsed);
+  // Score axes run on scoreWeight (%BW for an assisted-mode exercise, kg otherwise);
+  // weightKg stays the real kg for display, milestones, and the heaviest-weight PR
+  // axis. On an assisted-mode exercise a log with no assisted form can't sit on the
+  // %BW axis (no bodyweight to convert) → scoreWeight is NaN → drop it from the
+  // axes rather than mixing raw kg into a %BW trend.
+  const sw = scoreWeight(parsed, assistedMode);
+  if (!Number.isFinite(sw)) return null;
   return {
     log,
     weightKg,
@@ -194,12 +208,12 @@ export interface PRBests {
 
 /** The PR axes' all-time bests from a set of logs. Pass the history the new
  *  set is measured against — i.e. excluding the set being classified. */
-export function computePRBests(logs: TrainingLog[], setCount: number): PRBests {
+export function computePRBests(logs: TrainingLog[], setCount: number, assistedMode: boolean): PRBests {
   let e1rm = 0;
   let weightKg = 0;
   let tonnage = 0;
   for (const l of logs) {
-    const e = toLogEntry(l, setCount);
+    const e = toLogEntry(l, setCount, assistedMode);
     if (!e) continue;
     if (e.e1rm > e1rm) e1rm = e.e1rm;
     if (e.weightKg > weightKg) weightKg = e.weightKg;
@@ -246,8 +260,8 @@ export interface Stats {
 }
 
 /** logs should be sorted chronological ascending (oldest first). */
-export function computeStats(logs: TrainingLog[], setCount: number, mode: ScoreMode): Stats {
-  const entries = logs.map((l) => toLogEntry(l, setCount)).filter((e): e is LogEntry => e !== null);
+export function computeStats(logs: TrainingLog[], setCount: number, mode: ScoreMode, assistedMode: boolean): Stats {
+  const entries = logs.map((l) => toLogEntry(l, setCount, assistedMode)).filter((e): e is LogEntry => e !== null);
   if (!entries.length) return { best: null, prIndex: -1, latest: null };
 
   // PR = strongest set by cmpStrength (per mode: e1RM or tonnage, then tie-breaks).
@@ -279,11 +293,11 @@ export interface TrendPoint {
  * day). Entries with no finite positive e1RM (bodyweight-only or unparseable
  * sets) are dropped: they carry no strength value to plot.
  */
-export function buildTrendSeries(logsAsc: TrainingLog[], setCount: number): TrendPoint[] {
+export function buildTrendSeries(logsAsc: TrainingLog[], setCount: number, assistedMode: boolean): TrendPoint[] {
   const pts: TrendPoint[] = [];
   for (const log of logsAsc) {
     if (!log.log_date) continue;
-    const e = toLogEntry(log, setCount);
+    const e = toLogEntry(log, setCount, assistedMode);
     if (!e || !(e.e1rm > 0)) continue;
     pts.push({ date: log.log_date, e1rm: e.e1rm, tonnage: e.tonnage, weightKg: e.weightKg, reps: e.reps });
   }
@@ -342,6 +356,7 @@ export function computeHistDelta(
   prev: TrainingLog,
   setCount: number,
   mode: ScoreMode,
+  assistedMode: boolean,
 ): HistDelta | null {
   if (!curr.raw || !prev.raw) return null;
   const cp = parse(curr.raw);
@@ -351,6 +366,13 @@ export function computeHistDelta(
   const cKg = score(cp);
   const pKg = score(pp);
   if (!Number.isFinite(cKg) || !Number.isFinite(pKg)) return null;
+
+  // Both sets must sit on the same score axis — on an assisted-mode exercise a
+  // non-assisted log has no %BW score, so a vs-last delta across the two axes
+  // would be meaningless. Stay silent rather than compare incomparable units.
+  const cSwAxis = scoreWeight(cp, assistedMode);
+  const pSwAxis = scoreWeight(pp, assistedMode);
+  if (!Number.isFinite(cSwAxis) || !Number.isFinite(pSwAxis)) return null;
 
   const kgDelta = cKg - pKg;
   // Prefer the top-set delta — it's the per-set number the user reads. But when
@@ -362,10 +384,10 @@ export function computeHistDelta(
   const totalRepsDelta = totalReps(cp.reps, setCount) - totalReps(pp.reps, setCount);
   const repsDelta = maxRepsDelta !== 0 ? maxRepsDelta : totalRepsDelta;
 
-  // Direction AND magnitude judge on the score axes (scoreWeight → %BW for
-  // assisted logs, so a lighter body doesn't read as a loss).
-  const cSw = scoreWeight(cp);
-  const pSw = scoreWeight(pp);
+  // Direction AND magnitude judge on the score axes (scoreWeight → %BW for an
+  // assisted-mode exercise, so a lighter body doesn't read as a loss).
+  const cSw = cSwAxis;
+  const pSw = pSwAxis;
   const cE1 = epley1RM(cSw, cp.reps);
   const pE1 = epley1RM(pSw, pp.reps);
   const cmp = cmpStrength(
@@ -415,6 +437,8 @@ export interface WeeklyVolumeExercise {
   /** Configured set count, so a single-number reps string ("7") expands to the
    *  full session's reps (see totalReps). */
   setCount: number;
+  /** The exercise's assisted_mode — fixes the score axis unit (see scoreWeight). */
+  assistedMode: boolean;
 }
 
 /** One trained session (a split × date pair) and its carry-forward volume. */
@@ -469,8 +493,8 @@ function addDays(dateStr: string, n: number): string {
 
 /** Full working volume of one logged set: effective load × total reps performed
  *  (both sets folded in). Returns 0 for an unparseable / bodyweight-only log. */
-function logVolume(log: TrainingLog, setCount: number): number {
-  const e = toLogEntry(log, setCount);
+function logVolume(log: TrainingLog, setCount: number, assistedMode: boolean): number {
+  const e = toLogEntry(log, setCount, assistedMode);
   if (!e || e.weightKg <= 0) return 0;
   return e.weightKg * e.totalReps;
 }
@@ -530,7 +554,7 @@ export function computeWeeklyVolume(
         let volumeKg = 0;
         for (const ex of rosterForSplit) {
           const src = latestUpTo(ex.slug, date);
-          if (src) volumeKg += logVolume(src, ex.setCount);
+          if (src) volumeKg += logVolume(src, ex.setCount, ex.assistedMode);
         }
         sessions.push({ date, split, volumeKg });
       }

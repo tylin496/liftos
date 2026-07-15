@@ -252,6 +252,11 @@ export function computeStrengthSummary(
   /** Internal recursion guard: the month-ago re-run passes false so it doesn't
    *  compute a trend-of-a-trend (and can't recurse forever). Callers omit it. */
   computeTrend = true,
+  /** Slugs flagged `exercises.assisted` — their score axis is %BW (see
+   *  scoreWeight). Authoritative when provided: a member scores %BW, everything
+   *  else kg, regardless of a stray per-log assist syntax. OMITTED = legacy
+   *  behaviour (decide per-log by whether the raw parsed as assisted). */
+  assistedSlugs?: Set<string>,
 ): StrengthSummary {
   const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, attention: 0, total: 0, exercises: [], healthPct: null, healthTrend: null };
 
@@ -273,6 +278,9 @@ export function computeStrengthSummary(
     const inCompoundSet = compoundSlugs?.has(slug) ?? false;
     const mode: ScoreMode = compoundSlugs ? (inCompoundSet ? "compound" : "isolation") : "compound";
     const isCompound = inCompoundSet;
+    // Score-axis unit, authoritative from the exercise's assisted_mode when the
+    // set is provided; else fall back to per-log detection (legacy callers).
+    const slugAssisted = assistedSlugs?.has(slug);
 
     // Group by date (a day = one session); keep the best on every axis — max e1RM,
     // max best-set tonnage (the two candidate score axes), and max completed weight
@@ -280,18 +288,21 @@ export function computeStrengthSummary(
     const byDate: Record<string, { e1rm: number; tonnage: number; weightKg: number; scoreW: number; topReps: number; ceilingReps: number }> = {};
     // Assisted lifts read the PR detail in %BW (scoreWeight), not raw kg — the raw
     // net kg is contaminated by bodyweight, the exact thing the %BW axis strips out.
-    let isAssisted = false;
+    let isAssisted = slugAssisted ?? false;
     for (const l of slugLogs) {
       if (!l.log_date || !l.raw) continue;
       const p = parse(l.raw);
       if (!p) continue;
       const w = score(p);
       if (!Number.isFinite(w)) continue;
-      // Score axes on scoreWeight (%BW for assisted logs — a lighter body must
-      // not read as a strength loss); weightKg stays real kg for the PR detail
-      // and milestone rungs. Matches logic.ts toLogEntry.
-      const sw = scoreWeight(p);
-      if (p.assisted) isAssisted = true;
+      // Score axes on scoreWeight (%BW for an assisted-mode exercise — a lighter
+      // body must not read as a strength loss); weightKg stays real kg for the PR
+      // detail and milestone rungs. Matches logic.ts toLogEntry — including
+      // dropping a non-assisted log from an assisted exercise's %BW axis (sw NaN).
+      const assistedMode = slugAssisted ?? !!p.assisted;
+      const sw = scoreWeight(p, assistedMode);
+      if (!Number.isFinite(sw)) continue;
+      if (slugAssisted === undefined && p.assisted) isAssisted = true;
       const e = epley1RM(sw, p.reps);
       const tng = sw > 0 ? sw * maxReps(p.reps) : 0; // uncapped reps — matches logic.ts toLogEntry
       const tr = sessionReps(p.reps);
@@ -476,7 +487,7 @@ export function computeStrengthSummary(
   // gate) so the past is measured exactly like the present, and compares only
   // lifts present in BOTH snapshots — see monthAgoTrend.
   if (computeTrend && strength.exercises.length > 0) {
-    strength.healthTrend = monthAgoTrend(logsBySlug, strength.exercises, compoundSlugs, namesBySlug);
+    strength.healthTrend = monthAgoTrend(logsBySlug, strength.exercises, compoundSlugs, namesBySlug, assistedSlugs);
   }
 
   return strength;
@@ -513,6 +524,7 @@ function monthAgoTrend(
   current: StrengthExercise[],
   compoundSlugs: Set<string> | undefined,
   namesBySlug: Record<string, string> | undefined,
+  assistedSlugs: Set<string> | undefined,
 ): StrengthSummary["healthTrend"] {
   const latest = latestLogMs(logsBySlug);
   if (latest == null) return null;
@@ -524,7 +536,7 @@ function monthAgoTrend(
     if (kept.length > 0) past[slug] = kept;
   }
   const pastBySlug = new Map(
-    computeStrengthSummary(past, compoundSlugs, namesBySlug, false).exercises.map((e) => [
+    computeStrengthSummary(past, compoundSlugs, namesBySlug, false, assistedSlugs).exercises.map((e) => [
       e.slug,
       retentionOf(e),
     ]),

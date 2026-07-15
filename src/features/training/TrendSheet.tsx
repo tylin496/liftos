@@ -138,9 +138,9 @@ function SheetInner({
   const setCount = defaultSetCount(exercise);
   const { full, win } = useMemo(() => {
     const asc = [...logs].reverse(); // logs arrive newest-first
-    const series = buildTrendSeries(asc, setCount);
+    const series = buildTrendSeries(asc, setCount, !!exercise.assisted_mode);
     return { full: series, win: windowTrend(series) };
-  }, [logs, setCount]);
+  }, [logs, setCount, exercise.assisted_mode]);
 
   // Isolation lifts trend on volume (tonnage), compound on Est-1RM — same axis
   // as the Training Health card, so the chart can't contradict the verdict.
