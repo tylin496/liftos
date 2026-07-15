@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type Ref } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type Ref } from "react";
 import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { series, rollingAvg, trailingAvg, latestUpdatedAt, bucketSeries } from "@features/health/math";
+import { series, rollingAvg, trailingAvg, latestUpdatedAt } from "@features/health/math";
 import { isStale, formatAgo } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
-import { HealthTrendSheet, type HealthTrendConfig } from "@features/health/TrendSheet";
 import { progressColor } from "@shared/lib/progressColor";
 import { displayNameFor } from "@shared/lib/owner";
 import { localDateStr } from "@shared/lib/date";
@@ -1079,12 +1078,9 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 // Full-width 14-day weight trend line. Line-only (no beads/labels) to keep the
 // Health-tab minimalism, but stretched edge-to-edge as the card's dominant
 // element. Smoothing stays honest — raw daily readings from `series`, same
-// source the Health weight card uses; no new interpolation (bucketSeries stays
-// pure). preserveAspectRatio="none" stretches the 100×64 viewBox to fill the
-// card width while non-scaling-stroke keeps the line a constant 2px.
-// Full-history window for the trend sheet, mirroring Health's FIXED_DAYS so the
-// overlay this card opens matches Health's weight card exactly.
-const WEIGHT_SHEET_DAYS = 180;
+// source the Health weight card uses; no new interpolation.
+// preserveAspectRatio="none" stretches the 100×64 viewBox to fill the card
+// width while non-scaling-stroke keeps the line a constant 2px.
 
 // Trend line is a 3.5-day (84h) trailing average of the raw daily readings —
 // the KPI is the loss RATE, so the line should read as "where's the trend
@@ -1105,7 +1101,6 @@ function WeightSparkline({
   points,
   tone,
   targetRange,
-  onOpen,
 }: {
   points: { date: string; value: number }[];
   // The LINE's own tone: "losing = good" green (down week-over-week), red when
@@ -1114,9 +1109,6 @@ function WeightSparkline({
   // rule: gold stays rare). See WeightCard.
   tone: "good" | "bad" | "flat";
   targetRange?: { min: number; max: number } | null;
-  // Tapping the chart opens the full trend sheet (same overlay Health's weight
-  // card uses). Optional — the loading/placeholder branch passes none.
-  onOpen?: () => void;
 }) {
   const stroke =
     tone === "good"
@@ -1133,14 +1125,6 @@ function WeightSparkline({
   const corridorColor = "var(--ink-4)";
   const gradId = `ov-spark-grad-${tone}`;
   const W = SPARK_W, H = SPARK_H, pad = SPARK_PAD;
-
-  // Tapping the chart opens the full trend sheet. The card body navigates to
-  // Nutrition on tap, so the chart click must stopPropagation or the overlay
-  // open would also fire the card's navigation.
-  const onChartClick = (e: ReactMouseEvent) => {
-    e.stopPropagation();
-    onOpen?.();
-  };
 
   // Not enough data: hold the 80px height with a flat dashed placeholder so the
   // card never changes height between loading / empty / loaded (layout stability).
@@ -1170,20 +1154,7 @@ function WeightSparkline({
   const dotCore = stroke;
 
   return (
-    <div
-      className="ov-weight-spark-wrap"
-      role="button"
-      tabIndex={0}
-      aria-label="Open weight trend"
-      onClick={onChartClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          e.stopPropagation();
-          onOpen?.();
-        }
-      }}
-    >
+    <div className="ov-weight-spark-wrap">
       <svg
         className="ov-weight-spark ov-weight-spark--draw"
         viewBox={`0 0 ${W} ${H}`}
@@ -1284,11 +1255,9 @@ function WeightCard({
   const accelTone = accelArrowTone(rateBandTone, accelDirection);
   // Only a conclusive pace verdict carries the cut baseline day count; an
   // inconclusive read ("Forming"/"Calibrating") is just the word, no suffix.
-  // Tapping the sparkline opens the full trend sheet — the SAME overlay Health's
-  // weight card uses (HealthTrendSheet), so the two read identically. The card
-  // body still navigates to Nutrition (the pace verdict); only the chart opens
-  // the sheet. Left populated after close so the exit transition still has data.
-  const [trendOpen, setTrendOpen] = useState(false);
+  // The whole card navigates to Nutrition (the pace verdict is Nutrition's
+  // territory); the sparkline is an inline read only, not a second tap target —
+  // full weight history lives on Health's weight card. One card, one action.
 
   // Cold load — same div shell (tag matches the loaded card so the node isn't
   // replaced), placeholder stat + flat sparkline + Rate/Status row. Resolves in
@@ -1396,23 +1365,6 @@ function WeightCard({
   // It's a div with role=button rather than a native <button> only for parity
   // with the loading/empty branches above.
 
-  // Full-history trend sheet — same overlay (7-day buckets) as Health's weight
-  // card, so tapping the chart here and there read identically. Overview fetches
-  // the same 180 days, so the two never diverge. No target-pace corridor on the
-  // sheet: a start-anchored full-speed wedge over 6 months reads as chronic
-  // failure even when recent pace is on-target. The pace verdict lives on this
-  // card's own sparkline corridor (recent window, graded) — a single signal.
-  const trendConfig: HealthTrendConfig = {
-    label: "Weight",
-    unit: "kg",
-    decimals: 1,
-    color: "var(--health-measurement)",
-    points: bucketSeries(weightPts, { spanDays: WEIGHT_SHEET_DAYS, bucketDays: 7 }),
-    bucketDays: 7,
-    minSpan: 3,
-    higherIsBetter: false,
-  };
-
   return (
     <div
       role="button"
@@ -1501,7 +1453,6 @@ function WeightCard({
         // Journey pace pill, so the sparkline no longer echoes it on the dot.
         tone={sparkTone}
         targetRange={state?.evaluation.targetRange ?? null}
-        onOpen={() => setTrendOpen(true)}
       />
       {/* Footer — current reading (left) + the target corridor legend
           (right), moved down from the hero row so the hero's right side is
@@ -1519,9 +1470,6 @@ function WeightCard({
           </span>
         )}
       </div>
-      {/* Portal'd out of this card (createPortal → body), so sheet interactions
-          never bubble to the card's onNav. */}
-      <HealthTrendSheet config={trendConfig} open={trendOpen} onClose={() => setTrendOpen(false)} />
     </div>
   );
 }

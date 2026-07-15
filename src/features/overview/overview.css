@@ -495,9 +495,9 @@
    H=96 viewBox 1:1, so the HTML-overlay dots (px `top` from the SVG y) land on
    the line. */
 .ov-weight-spark-wrap {
+  /* Anchors the absolutely-positioned latest-reading dot. Not interactive — the
+     whole card navigates; the sparkline is an inline read only. */
   position: relative;
-  /* Tapping the chart opens the full trend sheet (see WeightSparkline). */
-  cursor: pointer;
 }
 
 .ov-weight-spark {
@@ -606,7 +606,10 @@
      dark mode, painting a sharp-cornered rectangle inside the rounded banner. */
   background: none;
   border: none;
-  padding: var(--space-5); /* match .page-card content inset so the banner lines up with every other card */
+  /* Horizontal inset matches .page-card so the dot/text line up with every other
+     card's content edge; vertical is tighter — this is a compact two-line banner,
+     so full --space-5 top/bottom left it reading too tall. */
+  padding: var(--space-4) var(--space-5);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-press) var(--ease-press);
