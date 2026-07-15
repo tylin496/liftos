@@ -42,7 +42,10 @@ export function displayNameFor(email: string | null | undefined): string | undef
 /** Async form for the data layer (no React context). Guards the auto-writes
  *  that would otherwise fire on load for a viewer. */
 export async function isViewer(): Promise<boolean> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return false;
-  return emailIsViewer(data.user.email);
+  // getSession reads the locally-cached session (no auth-server round trip);
+  // getUser would revalidate over the network on every call. The identity is
+  // all we need here, and it's already in the stored session.
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session) return false;
+  return emailIsViewer(data.session.user.email);
 }

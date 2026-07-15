@@ -63,9 +63,11 @@ export interface NutritionStateFull {
 }
 
 async function currentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) throw error ?? new Error("Not signed in");
-  return data.user.id;
+  // getSession reads the cached session locally; getUser revalidates over the
+  // network on every call — we only need the id, which is already stored.
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session) throw error ?? new Error("Not signed in");
+  return data.session.user.id;
 }
 
 /** Trailing consecutive days (entries are ascending) logged at `target`. */

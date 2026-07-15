@@ -9,9 +9,11 @@ export type NutritionConfig = Database["public"]["Tables"]["nutrition_config"]["
 const DEFAULT_PHASE_DEFICITS = [805, 655, 455, 150] as const;
 
 async function currentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) throw error ?? new Error("Not signed in");
-  return data.user.id;
+  // getSession reads the cached session locally; getUser revalidates over the
+  // network on every call — we only need the id, which is already stored.
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session) throw error ?? new Error("Not signed in");
+  return data.session.user.id;
 }
 
 /** Fetch the config, creating a default row on first use. A shared viewer reads
