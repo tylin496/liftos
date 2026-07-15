@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 export type TabId = "overview" | "training" | "nutrition" | "health";
 
@@ -103,6 +103,26 @@ export function TabBar({
   const activeIdx = Math.max(0, TABS.findIndex((t) => t.id === active));
   const thumbRef = useRef<HTMLSpanElement>(null);
   const prevIdx = useRef(activeIdx);
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Roving tabindex: only the active tab is in the page tab order; arrow keys
+  // (+ Home/End) move focus among the tabs from there. Focus MOVES but does NOT
+  // switch tabs — activation is manual (Enter/Space fires the button's onClick),
+  // since arrow-scrubbing through tabs shouldn't trigger a page load + slide on
+  // every keypress. Standard WAI-ARIA tablist keyboard model.
+  const onKeyNav = (e: ReactKeyboardEvent<HTMLButtonElement>, i: number) => {
+    const last = TABS.length - 1;
+    let target: number;
+    switch (e.key) {
+      case "ArrowRight": target = i >= last ? 0 : i + 1; break;
+      case "ArrowLeft": target = i <= 0 ? last : i - 1; break;
+      case "Home": target = 0; break;
+      case "End": target = last; break;
+      default: return;
+    }
+    e.preventDefault();
+    btnRefs.current[target]?.focus();
+  };
 
   // Retrigger the gel squash whenever the active tab changes (not on mount).
   // Removing/reflowing/re-adding the class restarts the CSS animation.
@@ -125,13 +145,16 @@ export function TabBar({
       <span className="tabbar-thumb" ref={thumbRef} aria-hidden="true">
         <span className="tabbar-thumb-fill" />
       </span>
-      {TABS.map((t) => (
+      {TABS.map((t, i) => (
         <button
           key={t.id}
+          ref={(el) => { btnRefs.current[i] = el; }}
           role="tab"
           aria-selected={active === t.id}
+          tabIndex={active === t.id ? 0 : -1}
           className={`tabbar-item${active === t.id ? " is-active" : ""}`}
           onClick={() => onChange(t.id)}
+          onKeyDown={(e) => onKeyNav(e, i)}
         >
           <span className="tabbar-icon">{active === t.id ? t.iconActive : t.icon}</span>
           <span className="tabbar-label">{t.label}</span>
