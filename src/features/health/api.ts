@@ -67,7 +67,7 @@ async function fetchTargetTdee(): Promise<number | null> {
   return data?.target_tdee ?? null;
 }
 
-export async function fetchHealthData(days = 180): Promise<HealthData> {
+async function loadHealthData(days: number): Promise<HealthData> {
   // Fetch extra history so previous-period TDEE windows are covered.
   const fetchDays = Math.max(days, 60);
   const [allMetrics, targetTdee, weightTargetRange] = await Promise.all([
@@ -83,4 +83,32 @@ export async function fetchHealthData(days = 180): Promise<HealthData> {
   const metrics = allMetrics.filter((m) => m.metric_date >= cutoffDisplay);
 
   return { metrics, tdee, tdeePrev, targetTdee, activeTarget, weightTargetRange };
+}
+
+// Short-lived request cache. Overview and Health both fetch the same 180-day
+// window (FIXED_DAYS === Overview's 180), so switching between the two tabs
+// re-issued an identical health_metrics query milliseconds apart. Caching the
+// in-flight promise coalesces those into one round trip and lets a rapid tab
+// switch reuse the result. The TTL is deliberately short: both pages refetch on
+// tab re-activation to pick up the nightly Health Sync, so anything past the
+// window still gets fresh data — the cache only absorbs near-simultaneous and
+// rapid-toggle reads, never a real return-to-tab. In-app there are no
+// health_metrics writes (Health Sync is the only writer), so no manual
+// invalidation is needed; the TTL self-heals. Keyed by `days` since different
+// windows (30/35/90/180) are genuinely different reads.
+const CACHE_TTL_MS = 30_000;
+const healthCache = new Map<number, { ts: number; promise: Promise<HealthData> }>();
+
+export function fetchHealthData(days = 180): Promise<HealthData> {
+  const hit = healthCache.get(days);
+  if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit.promise;
+
+  const entry = { ts: Date.now(), promise: loadHealthData(days) };
+  // Don't let a failed fetch stick for the whole TTL — evict on rejection so the
+  // next caller retries. The original caller still sees the rejection.
+  entry.promise.catch(() => {
+    if (healthCache.get(days) === entry) healthCache.delete(days);
+  });
+  healthCache.set(days, entry);
+  return entry.promise;
 }
