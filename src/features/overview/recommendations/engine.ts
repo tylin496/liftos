@@ -37,12 +37,12 @@ import type { RecoveryEvaluation } from "@features/health/math";
 import type { TrainingEvaluation } from "@features/overview/strength";
 import type { LeanMassEvaluation } from "@features/overview/goal";
 import { GOAL_EXIT_MARGIN_PP } from "@features/overview/goal";
-import { recoveryRecommendation } from "./recovery";
+import { recoveryRecommendation, RECOVERY_TITLE } from "./recovery";
 import { nutritionProvider } from "./nutrition";
 
-// Directive titles the hysteresis keys on (must match the strings produced below
-// / by the recovery provider).
-const RECOVERY_TITLE = "Prioritize recovery";
+// Directive titles the hysteresis keys on. RECOVERY_TITLE is owned by recovery.ts
+// (where the directive is produced) and imported so the two can't drift; the rest
+// are produced inline in this file, so their constant and producer are co-located.
 const REDUCE_DEFICIT_TITLE = "Reduce deficit slightly";
 const INCREASE_ACTIVITY_TITLE = "Increase activity";
 const START_MAINTENANCE_TITLE = "Start maintenance";

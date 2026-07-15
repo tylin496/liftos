@@ -332,6 +332,19 @@ describe("Decision Engine — exit hysteresis (no flip-flop)", () => {
     expect(decide({ ...base, recoveryDismissed: true })?.title).not.toBe("Prioritize recovery");
   });
 
+  it("keys hysteresis on the engine's OWN output (guards title/key drift)", () => {
+    // Round-trip the real produced directive as `prior` instead of a hand-typed
+    // string: if the recovery provider's title and the engine's RECOVERY_TITLE key
+    // ever diverge, the hold silently breaks and this fails.
+    const first = decide({ recovery: recovery("Needs Recovery", "rested") });
+    expect(first?.title).toBe("Prioritize recovery");
+    const held = decide(
+      { nutrition: nutrition({ status: "on_target" }), recovery: recovery("Good", "rested") },
+      first, // systemic dip holds through Good — but only if key === produced title
+    );
+    expect(held?.title).toBe("Prioritize recovery");
+  });
+
   it("holds 'Increase activity' near the band edge once it's showing", () => {
     // loss 0.30, band [0.40,0.70]: on_pace at the enter-margin (min−0.15=0.25),
     // but slow at the exit-margin (min−0.05=0.35) — so it only holds with a prior.

@@ -16,6 +16,12 @@
 import type { RecProvider, Recommendation } from "./types";
 import type { RecoveryEvaluation } from "@features/health/math";
 
+/** The recovery directive's title. Single source of truth: the engine keys its
+ *  exit-hysteresis on this exact string, so it imports the constant from here
+ *  rather than re-typing the literal — a copy edit to the title can't silently
+ *  break the hold. */
+export const RECOVERY_TITLE = "Prioritize recovery";
+
 /** The recovery directive itself, framed by recent training load. Exported so the
  *  Decision Engine can hold it under exit-hysteresis (keeping it through a brief
  *  dip to "Fair") without duplicating the copy. Assumes the caller already
@@ -33,7 +39,7 @@ export function recoveryRecommendation(r: RecoveryEvaluation): Recommendation {
     // time-sensitive than a calorie adjustment, and the two never really
     // compete in meaning.
     priority: 75,
-    title: "Prioritize recovery",
+    title: RECOVERY_TITLE,
     subtitle,
     // Only a *systemic* dip (low readiness with little recent training) is the
     // user's to explain away — that's the sickness/travel case they can dismiss.
