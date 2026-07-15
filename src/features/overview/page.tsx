@@ -1091,6 +1091,15 @@ const WEIGHT_SHEET_DAYS = 180;
 // trend sheet the chart opens on tap, not inline.
 const TREND_WINDOW_HOURS = 84;
 
+// Inline spark / corridor window, in calendar days. Deliberately the SAME span
+// the hero rate (and the recommendation's observed rate) is fit on, so the
+// dashed corridor never spans a different period than the number above it. This
+// is why this card's corridor looks steeper/narrower than Health's weight card:
+// Health draws its corridor over a 42-day trend, this one over 21 days of pace.
+// Kept as a named constant so the "21-day pace" label and the cutoff geometry
+// below can't drift apart.
+const SPARK_WINDOW_DAYS = 21;
+
 function WeightSparkline({
   points,
   tone,
@@ -1332,7 +1341,7 @@ function WeightCard({
   // not silently stretch the chart onto a longer window than the rate it
   // sits beside was fit on.
   const sparkCutoff = weightDate
-    ? localDateStr(new Date(new Date(weightDate + "T12:00:00").getTime() - 20 * 86400000))
+    ? localDateStr(new Date(new Date(weightDate + "T12:00:00").getTime() - (SPARK_WINDOW_DAYS - 1) * 86400000))
     : "";
   const sparkPoints = trailingAvg(weightPts, TREND_WINDOW_HOURS).filter((p) => p.date >= sparkCutoff);
   const sparkTone = weightLineTone(weightDelta);
@@ -1472,6 +1481,14 @@ function WeightCard({
             </MetricValue>
             <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
           </div>
+        )}
+        {/* Window qualifier — names the period the hero rate is fit on (and the
+            span the dashed corridor is drawn over: same 21 days). "pace" not
+            "trend" so it reads as a distinct view from Health's "42-day trend"
+            weight card, whose corridor spans a different window. Only shown once
+            a real fit exists (rate != null); Forming/Calibrating has no pace. */}
+        {rate != null && (
+          <span className="ov-weight-window">{SPARK_WINDOW_DAYS}-day pace</span>
         )}
       </div>
 

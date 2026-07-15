@@ -416,6 +416,16 @@
   color: var(--ink-3);
 }
 
+/* Window qualifier on the hero row's right — a passive caption naming the 21-day
+   period the rate is fit on (and the corridor spans). Baseline-aligned with the
+   hero rate via the hero row; quiet ink so it labels without competing. */
+.ov-weight-window {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+
 /* Footer — the current reading, the card's single tactical anchor number. Mono
    to match every other weight figure; value lifted to ink-2, label quiet. */
 .ov-weight-footer {
