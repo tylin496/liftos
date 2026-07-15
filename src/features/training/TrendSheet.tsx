@@ -1,9 +1,9 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
-import { useChartScrub } from "@shared/hooks/useChartScrub";
+import { useTrendChart } from "@shared/hooks/useTrendChart";
 import { defaultSetCount } from "./logFormHelpers";
 import { buildTrendSeries, windowTrend, type TrendPoint } from "./logic";
 import { timelineDate } from "@shared/lib/date";
@@ -25,50 +25,19 @@ const fmtVal = (v: number, isVol: boolean) => (isVol ? String(Math.round(v)) : f
    latest session in accent. Press-drag from the last dot to scrub any point's
    date/value — the stat row below still carries the resting numbers. */
 function TrendChart({ points, isVol, scrubUnit }: { points: TrendPoint[]; isVol: boolean; scrubUnit: string }) {
-  const W = 320;
-  const H = 130;
-  const padX = 10;
-  const padY = 14;
-
+  // Training plots on the raw data extent (no centred/floored domain — that's a
+  // Health concern for flat-metric readability).
   const vals = points.map((p) => trendVal(p, isVol));
   const min = Math.min(...vals);
   const max = Math.max(...vals);
-  const span = max - min || 1;
-  const innerW = W - padX * 2;
-  const innerH = H - padY * 2;
-  const baseline = H - padY;
+  const { W, H, padY, baseline, coords, line, area, lineRef, lineStyle, svgRef, scrubIndex, scrubHandlers } =
+    useTrendChart(vals, min, max);
 
-  const coords = points.map((p, i) => ({
-    x: padX + (points.length === 1 ? 0.5 : i / (points.length - 1)) * innerW,
-    y: padY + (1 - (trendVal(p, isVol) - min) / span) * innerH,
-  }));
-  const line = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
-  const area = `${coords[0].x.toFixed(1)},${baseline} ${line} ${coords[coords.length - 1].x.toFixed(1)},${baseline}`;
   const peak = coords[vals.indexOf(max)];
   const last = coords[coords.length - 1];
 
-  // Draw-in animation: measure the polyline's real length instead of using a
-  // normalized `pathLength`. `pathLength` + vector-effect:non-scaling-stroke +
-  // preserveAspectRatio="none" (our non-uniform viewBox stretch) miscomputes
-  // the dash pattern on WebKit and clips the final segment before the last
-  // dot. Real getTotalLength() is immune to that.
-  const lineRef = useRef<SVGPolylineElement>(null);
-  const [drawLen, setDrawLen] = useState<number | null>(null);
-  const [drawn, setDrawn] = useState(false);
-  useLayoutEffect(() => {
-    const len = lineRef.current?.getTotalLength() ?? 0;
-    setDrawLen(len);
-    setDrawn(false);
-    const id = requestAnimationFrame(() => setDrawn(true));
-    return () => cancelAnimationFrame(id);
-  }, [line]);
-
-  // Scrub: press-drag anywhere on the chart to inspect any point's date/value.
-  const xs = useMemo(() => coords.map((c) => c.x), [coords]);
-  const { svgRef, index: scrubIdx, ...scrubHandlers } = useChartScrub(xs, W);
-
-  const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
-  const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
+  const scrubCoord = scrubIndex != null ? coords[scrubIndex] : null;
+  const scrubPoint = scrubIndex != null ? points[scrubIndex] : null;
   const scrubDate = scrubPoint ? timelineDate(scrubPoint.date) : null;
 
   return (
@@ -98,11 +67,7 @@ function TrendChart({ points, isVol, scrubUnit }: { points: TrendPoint[]; isVol:
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={
-            drawLen != null
-              ? { strokeDasharray: drawLen, strokeDashoffset: drawn ? 0 : drawLen }
-              : { visibility: "hidden" }
-          }
+          style={lineStyle}
         />
         {scrubCoord && (
           <line

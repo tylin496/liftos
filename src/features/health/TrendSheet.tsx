@@ -1,9 +1,9 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
-import { useChartScrub } from "@shared/hooks/useChartScrub";
+import { useTrendChart } from "@shared/hooks/useTrendChart";
 import { timelineDate } from "@shared/lib/date";
 import { median } from "./math";
 
@@ -65,11 +65,6 @@ const fmt = (v: number, d: number) =>
    chart (measured getTotalLength() draw-in, press-drag scrub anywhere) —
    this is the "big graph" a Sparkline tap opens. */
 function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateExtreme, bucketDays, minSpan = 0, corridor }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean; celebrateExtreme: boolean; bucketDays: number; minSpan?: number; corridor?: { minPerWeek: number; maxPerWeek: number } | null }) {
-  const W = 320;
-  const H = 130;
-  const padX = 10;
-  const padY = 14;
-
   const vals = points.map((p) => p.value);
   // Widen the domain to minSpan around the data's own centre (matching the card
   // sparkline) so a flat stretch stays flat instead of filling the full height.
@@ -77,18 +72,8 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateEx
   const half = Math.max((Math.max(...vals) - Math.min(...vals)) / 2, minSpan / 2);
   const min = center - half;
   const max = center + half;
-  const span = max - min || 1;
-  const innerW = W - padX * 2;
-  const innerH = H - padY * 2;
-  const baseline = H - padY;
-
-  const valueToY = (v: number) => padY + (1 - (v - min) / span) * innerH;
-  const coords = points.map((p, i) => ({
-    x: padX + (points.length === 1 ? 0.5 : i / (points.length - 1)) * innerW,
-    y: valueToY(p.value),
-  }));
-  const line = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
-  const area = `${coords[0].x.toFixed(1)},${baseline} ${line} ${coords[coords.length - 1].x.toFixed(1)},${baseline}`;
+  const { W, H, padY, baseline, coords, valueToY, line, area, lineRef, lineStyle, svgRef, scrubIndex, scrubHandlers } =
+    useTrendChart(vals, min, max);
 
   // Target-pace corridor: rays fan from the Theil-Sen fit's start level down at
   // the band's min/max weekly rates over the drawn window — same robust-anchor
@@ -133,27 +118,8 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateEx
   // gold ring. Only when the win is celebrated.
   const isRecordNow = celebrateExtreme && bestIdx === lastIdx;
 
-  // Draw-in animation: measure the polyline's real length rather than using a
-  // normalized `pathLength` — see training/TrendSheet.tsx for why (pathLength +
-  // vector-effect:non-scaling-stroke + preserveAspectRatio="none" miscomputes
-  // the dash pattern on WebKit and clips the final segment).
-  const lineRef = useRef<SVGPolylineElement>(null);
-  const [drawLen, setDrawLen] = useState<number | null>(null);
-  const [drawn, setDrawn] = useState(false);
-  useLayoutEffect(() => {
-    const len = lineRef.current?.getTotalLength() ?? 0;
-    setDrawLen(len);
-    setDrawn(false);
-    const id = requestAnimationFrame(() => setDrawn(true));
-    return () => cancelAnimationFrame(id);
-  }, [line]);
-
-  // Scrub: press-drag anywhere on the chart to inspect any day's date/value.
-  const xs = useMemo(() => coords.map((c) => c.x), [coords]);
-  const { svgRef, index: scrubIdx, ...scrubHandlers } = useChartScrub(xs, W);
-
-  const scrubCoord = scrubIdx != null ? coords[scrubIdx] : null;
-  const scrubPoint = scrubIdx != null ? points[scrubIdx] : null;
+  const scrubCoord = scrubIndex != null ? coords[scrubIndex] : null;
+  const scrubPoint = scrubIndex != null ? points[scrubIndex] : null;
   // Bucketed points (bucketDays > 1) are multi-day averages, not single
   // readings — the tooltip shows the day span the average covers, not just
   // its representative middle date.
@@ -217,11 +183,7 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateEx
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={
-            drawLen != null
-              ? { strokeDasharray: drawLen, strokeDashoffset: drawn ? 0 : drawLen }
-              : { visibility: "hidden" }
-          }
+          style={lineStyle}
         />
         {scrubCoord && (
           <line
