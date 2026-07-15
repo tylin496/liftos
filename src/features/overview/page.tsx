@@ -620,8 +620,9 @@ function GoalTrack({
   goalWeight,
 }: {
   target: number;
-  /** Today's weight — rides the Today tag as a position readout ("you are here,
-   *  at 91.7 kg"), NOT a trend (that stays the Weight card's job). */
+  /** The 7-day smoothed current weight — rides the Now tag as a position readout
+   *  ("you are here, at 91.7 kg"), NOT a trend (that stays the Weight card's job).
+   *  Labelled "Now" not "Today": it's a smoothed average, not a same-day reading. */
   currentWeight: number;
   startWeight: number | null;
   goalWeight: number;
@@ -658,7 +659,7 @@ function GoalTrack({
         className="goal-today"
         style={{ left: `clamp(30px, ${w}%, calc(100% - 30px))`, transition: `left ${ramp}` }}
       >
-        Today · {currentWeight.toFixed(1)} kg
+        Now · {currentWeight.toFixed(1)} kg
       </span>
       <div className="goal-path">
         <div className="goal-bar">
@@ -868,7 +869,7 @@ function CutProgressCard({
           </div>
         </div>
         <div className="goal-track">
-          <span className="goal-today">Today · 00.0 kg</span>
+          <span className="goal-today">Now · 00.0 kg</span>
           <div className="goal-path">
             <div className="goal-bar">
               <div className="goal-bar-fill" style={{ width: 0 }} />

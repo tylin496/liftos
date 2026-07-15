@@ -12,6 +12,7 @@
 import { rollingAvg } from "@features/health/math";
 import type { BodyMetric } from "@features/health/api";
 import { clamp } from "@shared/lib/num";
+import { olsFit } from "@shared/lib/stats";
 
 type GoalType = "fat_loss" | "lean_bulk" | "maintenance" | "recomp";
 
@@ -207,37 +208,6 @@ export interface LeanMassEvaluation {
   confidence: "low" | "high";
 }
 
-/** Least-squares fit over the trailing `days`-day window: per-day slope plus its
- *  standard error, so the caller can tell a real trend from scale noise. Null
- *  when the window is too sparse or degenerate. */
-function leanMassFit(
-  pts: { date: string; value: number }[],
-  days: number,
-): { slopePerDay: number; seSlopePerDay: number } | null {
-  const last = pts.at(-1)?.date;
-  if (!last) return null;
-  const cutoff = new Date(last + "T12:00:00");
-  cutoff.setDate(cutoff.getDate() - days + 1);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
-  const win = pts.filter((p) => p.date >= cutoffStr);
-  if (win.length < LEAN_MASS_MIN_POINTS) return null;
-  const MS = 86400000;
-  const t0 = new Date(win[0].date + "T12:00:00").getTime();
-  const xs = win.map((p) => (new Date(p.date + "T12:00:00").getTime() - t0) / MS);
-  const ys = win.map((p) => p.value);
-  const n = win.length;
-  const meanX = xs.reduce((a, x) => a + x, 0) / n;
-  const meanY = ys.reduce((a, y) => a + y, 0) / n;
-  const sxx = xs.reduce((a, x) => a + (x - meanX) ** 2, 0);
-  if (sxx === 0) return null;
-  const sxy = xs.reduce((a, x, i) => a + (x - meanX) * (ys[i] - meanY), 0);
-  const slopePerDay = sxy / sxx;
-  const intercept = meanY - slopePerDay * meanX;
-  const sse = ys.reduce((a, y, i) => a + (y - (intercept + slopePerDay * xs[i])) ** 2, 0);
-  const seSlopePerDay = Math.sqrt(sse / (n - 2) / sxx);
-  return { slopePerDay, seSlopePerDay };
-}
-
 /** Lean mass = weight × (1 − bodyfat). Its trend is the "am I losing muscle?"
  *  judgment the Decision Engine reads. "falling" requires the downslope to be
  *  BOTH materially negative (≤ LEAN_MASS_FALL_KG_PER_MONTH) AND clearly above the
@@ -252,7 +222,7 @@ export function buildLeanMassEvaluation(metrics: BodyMetric[]): LeanMassEvaluati
       value: (m.weight_kg as number) * (1 - (m.body_fat_pct as number) / 100),
     }));
 
-  const fit = leanMassFit(lmPts, LEAN_MASS_WINDOW_DAYS);
+  const fit = olsFit(lmPts, LEAN_MASS_WINDOW_DAYS, LEAN_MASS_MIN_POINTS);
   if (!fit) return { trend: "stable", slopePerMonth: null, confidence: "low" };
 
   const slopePerMonth = +(fit.slopePerDay * 30).toFixed(3);
