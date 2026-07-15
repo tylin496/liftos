@@ -576,34 +576,6 @@
   color: var(--ink-2);
 }
 
-/* Corridor legend — dashed swatch keying the chart's dashed target corridor
-   (Weight sheet only). Mirrors Overview's ov-weight-legend: passive caption,
-   the swatch IS the glyph, neutral ink because the band is a range reference,
-   not a verdict. */
-.health-trend-sheet-legend {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.health-trend-sheet-legend-swatch {
-  width: var(--space-4);
-  border-top: 1.5px dashed color-mix(in srgb, var(--ink-4) 70%, transparent);
-}
-
-.health-trend-sheet-legend-text {
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--ink-4);
-}
-
-.health-trend-sheet-legend-text b {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  color: var(--ink-3);
-}
-
 .health-trend-sheet-chart-wrap {
   position: relative;
 }
@@ -754,12 +726,11 @@
   gap: 2px;
 }
 
-/* Both are the metric's best extreme for its own polarity (peak for up-good,
-   low for down-good — see TrendSheet's bestLabel) — same gold as the chart's
-   peak dot, never --bad. Only applied when celebrateExtreme; metrics with no
-   genuine win (Resting / TDEE) render the extreme in plain --ink (no modifier). */
-.health-trend-sheet-stat-v--peak,
-.health-trend-sheet-stat-v--low {
+/* The up-good metric's celebrated Peak — same gold as the chart's peak dot,
+   never --bad. Only applied when celebrateExtreme; metrics with no genuine win
+   (Resting / TDEE) render the extreme in plain --ink (no modifier). Down-good
+   metrics show a neutral Start anchor here, so there's no --low gold variant. */
+.health-trend-sheet-stat-v--peak {
   color: var(--gold);
   text-shadow: var(--gold-glow);
 }

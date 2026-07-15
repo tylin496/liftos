@@ -1039,8 +1039,11 @@ export function HealthPage() {
   };
 
   // The Weight trend sheet's config, lifted out of the card map so both the
-  // card tap AND the deep-link auto-open (below) draw the same sheet — corridor
-  // and all — from one definition. Null until there are ≥2 real points.
+  // card tap AND the deep-link auto-open (below) draw the same sheet from one
+  // definition. Null until there are ≥2 real points. No target-pace corridor
+  // here: a start-anchored full-speed wedge over a 6-month window structurally
+  // diverges from the line and reads as chronic failure even when recent pace
+  // is on-target — the pace verdict lives on Overview, a single signal.
   const weightTrendConfig = useMemo<HealthTrendConfig | null>(() => {
     const spec = METRICS.find((s) => s.key === "weight_kg");
     const c = cards.find((x) => x.spec.key === "weight_kg");
@@ -1048,11 +1051,8 @@ export function HealthPage() {
     return {
       label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color,
       points: c.full, higherIsBetter: false, bucketDays: spec.bucket, minSpan: spec.minSpan,
-      corridor: data?.weightTargetRange
-        ? { minPerWeek: data.weightTargetRange.min, maxPerWeek: data.weightTargetRange.max }
-        : null,
     };
-  }, [cards, data]);
+  }, [cards]);
 
   // Nutrition's Weight-loss pace chevron deep-links here with `expand: true` to
   // open the full corridor sheet on arrival. The signal can land before `data`
@@ -1130,17 +1130,12 @@ export function HealthPage() {
             minSpan={spec.minSpan}
             rangeDays={spec.bucket * SPARK_POINTS}
             color={spec.color}
-            // Both trend cards carry a target-pace wedge: Weight's is the
-            // nutrition evaluation's loss band (weightTargetRange), Body Fat's is
-            // that same loss translated to BF points (bfCorridor). Same neutral
-            // "where's target" reference the Overview card and both sheets draw.
-            corridor={
-              spec.key === "body_fat_pct"
-                ? bfCorridor
-                : spec.key === "weight_kg" && data?.weightTargetRange
-                  ? { minPerWeek: data.weightTargetRange.min, maxPerWeek: data.weightTargetRange.max }
-                  : null
-            }
+            // Body Fat carries a target-pace wedge (the cut's loss band
+            // translated to BF points, bfCorridor). Weight does NOT: a
+            // start-anchored full-speed wedge over the drawn window reads as
+            // chronic failure even when recent pace is on-target, contradicting
+            // the pace verdict Overview owns. See weightTrendConfig above.
+            corridor={spec.key === "body_fat_pct" ? bfCorridor : null}
             freshnessKind={spec.key === "weight_kg" ? "weight" : "bodyComp"}
             syncDate={series(metrics, spec.key).at(-1)?.date ?? null}
             updatedAt={c?.updatedAt ?? null}
@@ -1161,11 +1156,11 @@ export function HealthPage() {
             }
             onOpenTrend={
               // Weight and Body Fat are both down-good (matches the hardcoded
-              // down-good MetricDelta on the card above). Weight's sheet carries
-              // the target-pace corridor (the nutrition evaluation's band) — the
-              // full-history counterpart to Overview's recent-window corridor,
-              // and shared with the deep-link auto-open via weightTrendConfig.
-              // The small sparkline draws the same band (see corridor above).
+              // down-good MetricDelta on the card above). Weight's sheet is
+              // shared with the deep-link auto-open via weightTrendConfig.
+              // Neither sheet carries a target-pace corridor (Weight: see
+              // weightTrendConfig; Body Fat: corridor null below) — the pace
+              // verdict lives on Overview.
               spec.key === "weight_kg"
                 ? weightTrendConfig
                   ? () => openTrend(weightTrendConfig)
@@ -1174,7 +1169,6 @@ export function HealthPage() {
                   ? () => openTrend({
                       label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color,
                       points: c.full, higherIsBetter: false, bucketDays: spec.bucket, minSpan: spec.minSpan,
-                      corridor: null,
                     })
                   : undefined
             }

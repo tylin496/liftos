@@ -1396,9 +1396,12 @@ function WeightCard({
   // It's a div with role=button rather than a native <button> only for parity
   // with the loading/empty branches above.
 
-  // Full-history trend sheet — same overlay (and same 7-day buckets / target
-  // corridor) as Health's weight card, so tapping the chart here and there read
-  // identically. Overview fetches the same 180 days, so the two never diverge.
+  // Full-history trend sheet — same overlay (7-day buckets) as Health's weight
+  // card, so tapping the chart here and there read identically. Overview fetches
+  // the same 180 days, so the two never diverge. No target-pace corridor on the
+  // sheet: a start-anchored full-speed wedge over 6 months reads as chronic
+  // failure even when recent pace is on-target. The pace verdict lives on this
+  // card's own sparkline corridor (recent window, graded) — a single signal.
   const trendConfig: HealthTrendConfig = {
     label: "Weight",
     unit: "kg",
@@ -1408,9 +1411,6 @@ function WeightCard({
     bucketDays: 7,
     minSpan: 3,
     higherIsBetter: false,
-    corridor: hasTargetBand
-      ? { minPerWeek: targetRange!.min, maxPerWeek: targetRange!.max }
-      : null,
   };
 
   return (
