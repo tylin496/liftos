@@ -239,7 +239,6 @@
 }
 
 .ov-active-target-week-bar {
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   height: 5px;
   border-radius: var(--radius-pill);
   /* Bar under-track = --rule-strong (the gray-surface rule), matching .goal-bar. */
@@ -504,7 +503,6 @@
 .ov-weight-spark {
   display: block;
   width: 100%;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   height: 96px;
   margin-top: var(--vr-block);
 }
@@ -530,9 +528,7 @@
    stroke tone), so the two surfaces read as one language. */
 .ov-weight-spark-latest-dot {
   position: absolute;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   width: 11px;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   height: 11px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
@@ -877,9 +873,7 @@
   position: absolute;
   top: 50%;
   left: 0;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   width: 15px;
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value */
   height: 15px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
