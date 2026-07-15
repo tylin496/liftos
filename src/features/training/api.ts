@@ -22,14 +22,16 @@ export async function currentUserId(): Promise<string> {
   return data.user.id;
 }
 
-/** Insert the default catalog the first time (no-op if the user already has rows). */
-export async function ensureSeeded(): Promise<void> {
+/** Insert the default catalog the first time (no-op if the user already has
+ *  rows). Returns true only when it actually seeded, so callers can skip a
+ *  redundant reload in the common already-seeded case. */
+export async function ensureSeeded(): Promise<boolean> {
   const userId = await currentUserId();
   const { count, error } = await supabase
     .from("exercises")
     .select("id", { count: "exact", head: true });
   if (error) throw error;
-  if (count && count > 0) return;
+  if (count && count > 0) return false;
 
   const rows = SPLITS.flatMap((s) =>
     SEED[s.id].map((ex, i) => ({
@@ -47,6 +49,7 @@ export async function ensureSeeded(): Promise<void> {
     .from("exercises")
     .upsert(rows, { onConflict: "user_id,slug", ignoreDuplicates: true });
   if (insErr) throw insErr;
+  return true;
 }
 
 export async function fetchExercises(): Promise<Exercise[]> {

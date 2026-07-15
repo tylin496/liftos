@@ -732,9 +732,16 @@ function TrainingPageInner() {
 
   useEffect(() => {
     let active = true;
+    const fail = (e: unknown) => active && setError(String((e as Error)?.message ?? e));
+    // Load immediately — don't gate the fetch behind the seed check (two round
+    // trips of pure overhead for any existing user). Seeding runs in parallel and
+    // only triggers a second reload when it actually inserted the first-use catalog.
+    reloadAll().catch(fail);
     ensureSeeded()
-      .then(reloadAll)
-      .catch((e) => active && setError(String((e as Error)?.message ?? e)));
+      .then((seeded) => {
+        if (seeded && active) reloadAll();
+      })
+      .catch(fail);
     return () => {
       active = false;
     };

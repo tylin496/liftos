@@ -1,5 +1,11 @@
-import { useRef, useState } from "react";
-import { ImageCropModal } from "./ImageCropModal";
+import { lazy, Suspense, useRef, useState } from "react";
+
+// Cropping is a rare action (adding/replacing a photo), and the modal pulls in
+// react-easy-crop. Load it only when the crop modal actually opens so the whole
+// library stays out of the Training tab's initial bundle.
+const ImageCropModal = lazy(() =>
+  import("./ImageCropModal").then((m) => ({ default: m.ImageCropModal })),
+);
 
 export interface ImageWellProps {
   src?: string;
@@ -102,12 +108,14 @@ export function ImageWell({
       </div>
 
       {pending && (
-        <ImageCropModal
-          imageUrl={pending.url}
-          fileName={pending.name}
-          onCancel={closeCropModal}
-          onConfirm={handleCropConfirm}
-        />
+        <Suspense fallback={null}>
+          <ImageCropModal
+            imageUrl={pending.url}
+            fileName={pending.name}
+            onCancel={closeCropModal}
+            onConfirm={handleCropConfirm}
+          />
+        </Suspense>
       )}
     </div>
   );

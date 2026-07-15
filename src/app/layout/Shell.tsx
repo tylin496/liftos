@@ -1,10 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type CSSProperties,
+} from "react";
 import type { Session } from "@shared/lib/auth";
 import { haptic } from "@shared/lib/haptics";
 import { OverviewPage } from "@features/overview/page";
-import { TrainingPage } from "@features/training/page";
-import { NutritionPage } from "@features/nutrition/page";
-import { HealthPage } from "@features/health/page";
 import { TabBar, type TabId } from "./TabBar";
 import { SettingsSheetProvider, useSettingsSheet } from "./SettingsSheetContext";
 import { SettingsSheet } from "./SettingsSheet";
@@ -20,7 +26,21 @@ import { NutritionConfigProvider } from "@features/nutrition/NutritionConfigCont
 import { TrainingMilestone } from "@features/training/TrainingMilestone";
 import "./layout.css";
 
-const PAGES: Record<TabId, () => JSX.Element> = {
+// Overview is the landing tab, so it stays in the initial bundle. The other
+// three are code-split — their chunks (plus heavy deps that live only under
+// them: copyAllData, the image-crop lib, per-feature logic) stay out of first
+// paint and download on demand. They're warmed on idle right after mount (see
+// the prefetch effect below) so a tab switch or a cold deep-link still resolves
+// synchronously, with no Suspense flash.
+const importTraining = () => import("@features/training/page");
+const importNutrition = () => import("@features/nutrition/page");
+const importHealth = () => import("@features/health/page");
+
+const TrainingPage = lazy(() => importTraining().then((m) => ({ default: m.TrainingPage })));
+const NutritionPage = lazy(() => importNutrition().then((m) => ({ default: m.NutritionPage })));
+const HealthPage = lazy(() => importHealth().then((m) => ({ default: m.HealthPage })));
+
+const PAGES: Record<TabId, ComponentType> = {
   overview: OverviewPage,
   training: TrainingPage,
   nutrition: NutritionPage,
@@ -28,6 +48,11 @@ const PAGES: Record<TabId, () => JSX.Element> = {
 };
 
 const TAB_ORDER: TabId[] = ["overview", "training", "nutrition", "health"];
+
+type IdleWindow = Window & {
+  requestIdleCallback?: (cb: () => void) => number;
+  cancelIdleCallback?: (id: number) => void;
+};
 
 // Sourced from the --dur-slide token so the JS finalize timer and the CSS
 // transition can't drift apart (same pattern as useCountUp / --dur-countup).
@@ -184,6 +209,22 @@ export function Shell({ session }: { session: Session }) {
     return () => { clearTimeout(leaveT); clearTimeout(doneT); };
   }, [splash]);
   const settleTimer = useRef<number | null>(null);
+
+  // Warm the code-split tab chunks shortly after first paint, off the critical
+  // path. Once resolved, React.lazy renders those tabs synchronously — so a tab
+  // switch (or a cold deep-link from Overview) never shows the Suspense
+  // fallback. We keep the smaller initial bundle without a visible tab-load.
+  useEffect(() => {
+    const warm = () => { importTraining(); importNutrition(); importHealth(); };
+    const w = window as IdleWindow;
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(warm);
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(warm, 1500);
+    return () => window.clearTimeout(id);
+  }, []);
+
   // The deferred kickoff of a tap-triggered slide (see switchTab). Tracked so a
   // rapid second tap can cancel it before it resurrects a slide we just cleared.
   const kickoffTimer = useRef<number | null>(null);
@@ -901,8 +942,12 @@ export function Shell({ session }: { session: Session }) {
                       {/* Key the page by its activity version so every FRESH
                           tab-enter REMOUNTS it — the entrance replays and the
                           scroller resets to top. A resume keeps the key, so the
-                          panel stays mounted at its scroll position. */}
-                      <Page key={tabVersions[tabId]} />
+                          panel stays mounted at its scroll position. Suspense
+                          covers the code-split tabs; warmed chunks (see prefetch
+                          effect) resolve synchronously with no fallback flash. */}
+                      <Suspense fallback={null}>
+                        <Page key={tabVersions[tabId]} />
+                      </Suspense>
                     </div>
                   </TabActivityContext.Provider>
                 );

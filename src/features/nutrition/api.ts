@@ -15,32 +15,42 @@ async function currentUserId(): Promise<string> {
 }
 
 /** Fetch the config, creating a default row on first use. A shared viewer reads
- *  the owner's config (via RLS) and never creates a row of their own. */
+ *  the owner's config (via RLS) and never creates a row of their own.
+ *
+ *  Seed-on-miss: the common path (row already exists) is a single select with
+ *  no write — the previous version issued a default upsert on *every* call. */
 export async function getConfig(): Promise<NutritionConfig> {
-  if (!(await isViewer())) {
-    const userId = await currentUserId();
-    const { error: upErr } = await supabase
-      .from("nutrition_config")
-      .upsert(
-        {
-          user_id: userId,
-          tdee: DEFAULTS.tdee,
-          protein_target: DEFAULTS.proteinTarget,
-          phase_deficits: [DEFAULTS.deficitTarget],
-        },
-        { onConflict: "user_id", ignoreDuplicates: true },
-      );
-    if (upErr) throw upErr;
-  }
-
   // No user_id filter: RLS returns the caller's own row (owner) or the owner's
-  // row (viewer), so this is exactly one row either way.
+  // row (viewer), so this is at most one row either way.
   const { data, error } = await supabase
     .from("nutrition_config")
     .select("*")
-    .single();
+    .maybeSingle();
   if (error) throw error;
-  return data;
+  if (data) return data;
+
+  // Miss → first use. A viewer never creates a row of their own, so without the
+  // owner's row there is simply nothing to show yet.
+  if (await isViewer()) throw new Error("No nutrition config for owner yet");
+
+  const userId = await currentUserId();
+  // upsert (not insert) so two concurrent first-use calls can't collide on the
+  // user_id unique constraint — the loser just re-writes the same defaults.
+  const { data: created, error: upErr } = await supabase
+    .from("nutrition_config")
+    .upsert(
+      {
+        user_id: userId,
+        tdee: DEFAULTS.tdee,
+        protein_target: DEFAULTS.proteinTarget,
+        phase_deficits: [DEFAULTS.deficitTarget],
+      },
+      { onConflict: "user_id" },
+    )
+    .select("*")
+    .single();
+  if (upErr) throw upErr;
+  return created;
 }
 
 export async function saveConfig(
