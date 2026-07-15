@@ -1223,7 +1223,7 @@ export function HealthPage() {
         }
         onOpenTrend={
           lbmCard && lbmCard.full.length >= 2
-            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.full, higherIsBetter: true, judgeDelta: false, bucketDays: lbmCard.bucketDays, minSpan: 2 })
+            ? () => openTrend({ label: "Lean Mass", unit: "kg", decimals: 1, color: "var(--health-measurement)", points: lbmCard.full, higherIsBetter: true, judgeDelta: false, bucketDays: lbmCard.bucketDays, minSpan: 2, band: { halfWidth: LBM_BAND_HALF_KG } })
             : undefined
         }
       />

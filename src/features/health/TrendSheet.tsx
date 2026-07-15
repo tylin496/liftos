@@ -56,6 +56,13 @@ export interface HealthTrendConfig {
       like Overview's (a target band is a "where's the goal" reference, not a
       verdict — see overview/page.tsx corridorColor). */
   corridor?: { minPerWeek: number; maxPerWeek: number } | null;
+  /** Maintenance zone (± halfWidth in this metric's unit, centred on the drawn
+      window's median) drawn behind the line — the full-history counterpart to
+      the card sparkline's band (Lean Mass: "still inside the zone?"). Neutral
+      ink like the corridor; it's context, not a verdict. Unlike the corridor
+      (clipped, since a 12-week target drop can dwarf the line), the band is
+      small and symmetric, so it folds into the y-domain to stay in view. */
+  band?: { halfWidth: number } | null;
 }
 
 const fmt = (v: number, d: number) =>
@@ -64,12 +71,18 @@ const fmt = (v: number, d: number) =>
 /* Daily-reading progression line. Same shape as Training's exercise trend
    chart (measured getTotalLength() draw-in, press-drag scrub anywhere) —
    this is the "big graph" a Sparkline tap opens. */
-function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateExtreme, bucketDays, minSpan = 0, corridor }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean; celebrateExtreme: boolean; bucketDays: number; minSpan?: number; corridor?: { minPerWeek: number; maxPerWeek: number } | null }) {
+function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateExtreme, bucketDays, minSpan = 0, corridor, band }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; higherIsBetter: boolean; celebrateExtreme: boolean; bucketDays: number; minSpan?: number; corridor?: { minPerWeek: number; maxPerWeek: number } | null; band?: { halfWidth: number } | null }) {
   const vals = points.map((p) => p.value);
+  // The maintenance band centres on the window median (matching the card
+  // sparkline). Its edges fold into the domain so the whole zone stays in view
+  // — small and symmetric, unlike the corridor wedge which is clipped instead.
+  const bandCenter = band ? median(vals) : null;
   // Widen the domain to minSpan around the data's own centre (matching the card
   // sparkline) so a flat stretch stays flat instead of filling the full height.
-  const center = (Math.min(...vals) + Math.max(...vals)) / 2;
-  const half = Math.max((Math.max(...vals) - Math.min(...vals)) / 2, minSpan / 2);
+  const domainVals = [...vals];
+  if (band && bandCenter != null) domainVals.push(bandCenter - band.halfWidth, bandCenter + band.halfWidth);
+  const center = (Math.min(...domainVals) + Math.max(...domainVals)) / 2;
+  const half = Math.max((Math.max(...domainVals) - Math.min(...domainVals)) / 2, minSpan / 2);
   const min = center - half;
   const max = center + half;
   const { W, H, padY, baseline, coords, valueToY, line, area, lineRef, lineStyle, svgRef, scrubIndex, scrubHandlers } =
@@ -103,12 +116,22 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateEx
       ySteep: valueToY(anchor - corridor.maxPerWeek * (windowDays / 7)),
     };
   }
+  // Maintenance band: a flat rect from median ± halfWidth, folded into the
+  // domain above so it's never clipped. Same neutral ink as the corridor.
+  const bandGeom =
+    band && bandCenter != null
+      ? { yTop: valueToY(bandCenter + band.halfWidth), yBot: valueToY(bandCenter - band.halfWidth) }
+      : null;
   // The "best" marker sits on the metric's OWN best extreme — the max for an
   // up-good metric (Lean Mass / Active), the min for a down-good one (Weight /
   // Body Fat), where the low-water mark is the win. Gold (a celebration tone)
   // only when celebrateExtreme: metrics with no genuine win (Resting / TDEE)
   // surface the extreme as a neutral locator instead.
-  const bestIdx = vals.indexOf(higherIsBetter ? max : min);
+  // Search the actual DATA extreme, not the domain bound (min/max): minSpan (and
+  // the band's folded-in edges) widen the domain past the data, so a domain
+  // bound need not equal any real value — indexOf would return -1 and `best`
+  // below would be undefined, crashing at best.x. Matches SheetInner's bestVal.
+  const bestIdx = vals.indexOf(higherIsBetter ? Math.max(...vals) : Math.min(...vals));
   const best = coords[bestIdx];
   const lastIdx = coords.length - 1;
   const last = coords[lastIdx];
@@ -169,6 +192,28 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateEx
               x1={corridorGeom.x0.toFixed(1)} y1={corridorGeom.y0.toFixed(1)}
               x2={corridorGeom.xEnd.toFixed(1)} y2={corridorGeom.ySteep.toFixed(1)}
               stroke="var(--ink-4)" strokeWidth="1" opacity="0.4"
+              strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
+            />
+          </g>
+        )}
+        {bandGeom && (
+          <g clipPath="url(#health-trend-sheet-clip)">
+            <rect
+              x={coords[0].x.toFixed(1)} y={bandGeom.yTop.toFixed(1)}
+              width={(coords[coords.length - 1].x - coords[0].x).toFixed(1)}
+              height={Math.max(0, bandGeom.yBot - bandGeom.yTop).toFixed(1)}
+              fill="var(--ink-4)" opacity="0.1"
+            />
+            <line
+              x1={coords[0].x.toFixed(1)} y1={bandGeom.yTop.toFixed(1)}
+              x2={coords[coords.length - 1].x.toFixed(1)} y2={bandGeom.yTop.toFixed(1)}
+              stroke="var(--ink-4)" strokeWidth="1" opacity="0.3"
+              strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
+            />
+            <line
+              x1={coords[0].x.toFixed(1)} y1={bandGeom.yBot.toFixed(1)}
+              x2={coords[coords.length - 1].x.toFixed(1)} y2={bandGeom.yBot.toFixed(1)}
+              stroke="var(--ink-4)" strokeWidth="1" opacity="0.3"
               strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
             />
           </g>
@@ -256,7 +301,7 @@ function SheetInner({
   onClose: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true, celebrateExtreme = true, bucketDays, minSpan = 0, corridor } = config;
+  const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true, celebrateExtreme = true, bucketDays, minSpan = 0, corridor, band } = config;
 
   const first = points[0];
   const latest = points[points.length - 1];
@@ -345,7 +390,7 @@ function SheetInner({
                 )}
               </div>
 
-              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} celebrateExtreme={celebrateExtreme} bucketDays={bucketDays} minSpan={minSpan} corridor={corridor} />
+              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} celebrateExtreme={celebrateExtreme} bucketDays={bucketDays} minSpan={minSpan} corridor={corridor} band={band} />
 
               <div className="health-trend-sheet-stats">
                 <div className="health-trend-sheet-stat">
