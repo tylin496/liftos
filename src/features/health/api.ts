@@ -2,6 +2,7 @@ import { supabase } from "@shared/lib/supabase";
 import type { Database } from "@shared/lib/database.types";
 import { computeTdeeWindows, type TdeeEstimate } from "./tdee";
 import { computeActiveTarget, type ActiveTargetView } from "./activeTarget";
+import { sanitizeMetrics } from "./math";
 import { localDateStrDaysAgo } from "@shared/lib/date";
 
 export type BodyMetric = Database["public"]["Tables"]["health_metrics"]["Row"];
@@ -18,7 +19,11 @@ async function fetchBodyMetrics(days = 90): Promise<BodyMetric[]> {
     .gte("metric_date", sinceDate(days))
     .order("metric_date", { ascending: true });
   if (error) throw error;
-  return data ?? [];
+  // Single read boundary: nulls out implausible body-fat samples so every
+  // downstream consumer (Health page, Overview goal/lean-mass, TDEE, export)
+  // treats the same days as "no reading" — a value that never reaches a chart
+  // must never reach the engine or the export summary either.
+  return sanitizeMetrics(data ?? []);
 }
 
 export interface HealthData {

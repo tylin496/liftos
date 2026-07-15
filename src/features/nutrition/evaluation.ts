@@ -89,7 +89,7 @@ export const WINDOW_DAYS = 21;
  *  render the rate as "—" rather than a fabricated "0.00 kg/wk". */
 export const MIN_TREND_POINTS = 5;
 /** kg/week deadband around the range edges so the status doesn't flap. */
-const STATUS_EPS = 0.02;
+export const STATUS_EPS = 0.02;
 /** Days a NEW calorie target must be held before the 21-day weight trend can be
  *  a HIGH-confidence verdict on it. Below this, the trailing trend is still partly
  *  the PRIOR target, and weight right after a deficit change carries transient

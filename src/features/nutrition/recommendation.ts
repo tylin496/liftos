@@ -9,7 +9,7 @@
 // only at HIGH confidence, so a smooth 21-day trend keeps the decision put.
 
 import type { NutritionEvaluation, NutritionDiagnostics } from "./evaluation";
-import { MIN_TREND_POINTS } from "./evaluation";
+import { MIN_TREND_POINTS, STATUS_EPS } from "./evaluation";
 
 type NutritionAction = "maintain" | "reduce" | "increase";
 
@@ -215,7 +215,10 @@ export function rateTone(
   const { min, max } = targetRange;
   if (min === max) return null; // Not tracked
   const loss = -observedRate;
-  if (loss >= min && loss <= max) {
+  // Match evaluate()'s STATUS_EPS deadband on the upper edge so a reading in the
+  // (max, max+EPS] sliver — which evaluate() still calls on_target and paceTone
+  // reads as gold — doesn't disagree here by falling through to "warn".
+  if (loss >= min && loss <= max + STATUS_EPS) {
     // Same top-slice-of-band rule as isOptimalPace (paceLabel/paceTone) — kept
     // inline rather than sharing the helper since it doesn't need `status`
     // here (already known in-band from the check above).

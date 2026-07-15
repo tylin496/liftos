@@ -11,7 +11,7 @@ import { supabase } from "@shared/lib/supabase";
 import { isViewer } from "@shared/lib/owner";
 import type { Database } from "@shared/lib/database.types";
 import { localDateStrDaysAgo } from "@shared/lib/date";
-import { series, buildRecoveryEvaluation } from "@features/health/math";
+import { series, buildRecoveryEvaluation, sanitizeMetrics } from "@features/health/math";
 import type { BodyMetric } from "@features/health/api";
 import { computeTdeeWindows } from "@features/health/tdee";
 import { computeStrengthSummary, buildTrainingEvaluation } from "@features/overview/strength";
@@ -235,7 +235,11 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
   if (configRes.error) throw configRes.error;
   if (entriesRes.error) throw entriesRes.error;
 
-  const metrics = (metricsRes.data ?? []) as BodyMetric[];
+  // Sanitize at this read boundary too (this path queries health_metrics
+  // directly, bypassing fetchHealthData): implausible body-fat must not reach
+  // buildGoalStatus / buildLeanMassEvaluation and corrupt the persisted engine
+  // verdict (e.g. a stray 0.22 firing a false "Start maintenance").
+  const metrics = sanitizeMetrics((metricsRes.data ?? []) as BodyMetric[]);
   const config = (configRes.data as NutritionConfig | null) ?? null;
   const entries = entriesRes.data ?? [];
 

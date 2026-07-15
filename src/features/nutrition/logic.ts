@@ -371,7 +371,9 @@ export function trainingMonthsFromStart(
   now = new Date(),
 ): number | null {
   if (!dateStr) return null;
-  const start = new Date(dateStr);
+  // Anchor at local noon so a "YYYY-MM-DD" start date decomposes with local
+  // getters without the UTC-midnight day-shift the rest of the codebase avoids.
+  const start = new Date(dateStr + "T12:00:00");
   const months =
     (now.getFullYear() - start.getFullYear()) * 12 +
     (now.getMonth() - start.getMonth()) +
