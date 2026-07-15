@@ -469,7 +469,7 @@ button {
   border: none;
   border-radius: var(--radius-pill);
   background: var(--gold);
-  color: #2a1d00;
+  color: var(--on-gold);
   font-family: var(--font-ui);
   font-size: var(--text-base);
   font-weight: 700;

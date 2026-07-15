@@ -83,6 +83,12 @@
      button) are the one exception, since a glow would just look like a shadow
      smudged onto the fill rather than a halo. */
   --gold-glow: 0 0 10px color-mix(in srgb, var(--gold) 55%, transparent);
+  /* Foreground (text/icon) for content sitting ON a solid gold fill — the
+     celebration button being the one such surface today. A deep warm brown that
+     clears contrast on both theme golds (light #e0a90e, dark #ffd970), so it's
+     defined once here rather than per-theme. Distinct from `color: var(--gold)`,
+     which is gold TEXT on a normal surface. */
+  --on-gold: #2a1d00;
 
   /* ── Health chart metric colors (iOS-style; read fine on light + dark) ── */
   --health-measurement: #b02fc2; /* Apple purple (IC-light) */
