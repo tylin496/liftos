@@ -171,7 +171,7 @@ export function composition(marks: { status: LiftStatus }[]): string {
 /** Single-lift cell body — the one lift's own note, richer than a bare "At your
  *  best": names the lift and what it's doing, so the cell reads as a sentence
  *  ("Bench maintained PR", "Squat stalled 40 wks"). */
-export function singleLiftNote(ex: StrengthExercise, status: LiftStatus): string {
+function singleLiftNote(ex: StrengthExercise, status: LiftStatus): string {
   switch (status) {
     case "declining":
       return `${ex.name} declining`;

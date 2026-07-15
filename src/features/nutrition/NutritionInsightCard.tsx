@@ -22,6 +22,7 @@ import { MIN_TREND_POINTS } from "./evaluation";
 import { nutritionDecision, rateTone, paceTone } from "./recommendation";
 import { ErrorState } from "@shared/components/ErrorState";
 import { useNav } from "@app/layout/NavContext";
+import { clamp } from "@shared/lib/num";
 import "./nutrition.css";
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
@@ -51,10 +52,6 @@ function EvidenceCell({
       </span>
     </div>
   );
-}
-
-function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
 }
 
 // Pace meter — the one comparison that drives the decision, drawn instead of

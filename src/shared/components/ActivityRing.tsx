@@ -1,7 +1,5 @@
 import { useId, useMemo, type CSSProperties, type ReactNode } from "react";
-
-/** clamp to 0…1 */
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+import { clamp01 } from "@shared/lib/num";
 
 /** Tip-light tone for the leading head/cap — the gradient's lightest stop.
  *  Normally lightens over the first 150° of fill (`k`), maxing out at `maxMix`%

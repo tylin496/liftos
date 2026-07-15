@@ -17,8 +17,9 @@ export function isTabSwipeLocked(): boolean {
   return locks > 0;
 }
 
-// Imperative acquire/release for non-React call sites. Returns the release fn.
-export function acquireTabSwipeLock(): () => void {
+// Imperative acquire/release. Returns the release fn. Internal to this module —
+// the only entry point is the useTabSwipeLock hook below.
+function acquireTabSwipeLock(): () => void {
   locks++;
   let released = false;
   return () => {

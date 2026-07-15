@@ -11,6 +11,7 @@
 //                            only; it never feeds back into the judgment.
 
 import { theilSenSlope, median, weightAcceleration } from "@features/health/math";
+import { clamp01 } from "@shared/lib/num";
 import { CUT_MODE_TARGET_RANGES } from "./targetRanges";
 
 export type EvalStatus = "below_target" | "on_target" | "above_target";
@@ -213,7 +214,6 @@ export interface ConfidenceBreakdown {
   caps: { freshTarget: boolean; intakeDivergence: boolean };
 }
 
-const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
 const round2 = (x: number): number => +x.toFixed(2);
 
 /** Confidence combines three signals (each 0–2): how long the user has held the

@@ -8,8 +8,6 @@ export interface TdeeEstimate {
   restingDays: number;
   /** Number of days with active energy data (14-day window). */
   activeDays: number;
-  /** @deprecated Use restingDays. Kept for backward compatibility. */
-  dataPoints: number;
 }
 
 /**
@@ -31,7 +29,6 @@ export function estimateTdee(
       avgResting: null,
       restingDays: validResting.length,
       activeDays: validActive.length,
-      dataPoints: validResting.length,
     };
   }
 
@@ -48,7 +45,6 @@ export function estimateTdee(
     avgResting,
     restingDays: validResting.length,
     activeDays: validActive.length,
-    dataPoints: validResting.length,
   };
 }
 

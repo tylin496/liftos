@@ -11,6 +11,7 @@
 
 import { rollingAvg } from "@features/health/math";
 import type { BodyMetric } from "@features/health/api";
+import { clamp } from "@shared/lib/num";
 
 type GoalType = "fat_loss" | "lean_bulk" | "maintenance" | "recomp";
 
@@ -41,8 +42,6 @@ export interface Goal {
   targetBodyFat: number;
   evaluation: GoalEvaluation;
 }
-
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** Average of the readings in the `days`-day window starting on `startDate`
  *  (inclusive). Used ONCE at Save time to turn a chosen cut-start date into a
