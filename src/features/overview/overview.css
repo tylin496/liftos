@@ -594,9 +594,12 @@
   align-items: center;
   gap: var(--space-3);
   text-align: left;
-  /* A <button>: kill the UA-default light-grey fill, which doesn't flip for dark
-     mode and would paint over the banner's accent tint (it fills the strip). */
+  /* A <button>: kill the UA-default chrome. `background: none` drops the light-
+     grey fill; `border: none` drops the 2px `outset` border — harmless in light
+     mode (derives to light grey, blends into the card) but derives to BLACK in
+     dark mode, painting a sharp-cornered rectangle inside the rounded banner. */
   background: none;
+  border: none;
   padding: var(--space-5); /* match .page-card content inset so the banner lines up with every other card */
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
