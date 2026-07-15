@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   addLog,
   deleteLog,
@@ -138,7 +138,7 @@ export interface ExerciseCardProps {
   openTrendSignal?: number | null;
 }
 
-export function ExerciseCard({
+function ExerciseCardImpl({
   exercise,
   logs,
   timeFilter,
@@ -1136,3 +1136,9 @@ export function ExerciseCard({
     </article>
   );
 }
+
+// Memoized: the Training page re-renders on many shared-state changes (expanding
+// a row, an unrelated card's edit). With stable props from the parent (frozen
+// EMPTY_LOGS, per-slug handler map, and a per-card-scoped expandedLogId), each
+// card skips reconciliation unless its own props actually change.
+export const ExerciseCard = memo(ExerciseCardImpl);

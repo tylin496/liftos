@@ -530,6 +530,11 @@ function ArchivedSection({
 // Inner page (needs toast/confirm context)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Shared frozen empty list for cards with no logs yet — a stable reference so a
+// `logs={logs[slug] ?? EMPTY_LOGS}` prop doesn't hand memoized ExerciseCards a
+// fresh `[]` every render (which would defeat React.memo for empty cards).
+const EMPTY_LOGS: TrainingLog[] = Object.freeze([]) as unknown as TrainingLog[];
+
 function TrainingPageInner() {
   const toast = useToast();
   const activity = useTabActivity();
@@ -775,11 +780,17 @@ function TrainingPageInner() {
     };
   }, []);
 
-  const activeExercises = (exercises ?? []).filter(
-    (e) => e.split === split && !e.archived,
+  // Memoized so their array identity is stable across unrelated re-renders
+  // (expanding a row, logging a set on one card) — this stability is what lets
+  // the per-slug handler map below stay referentially stable, which in turn
+  // lets the memoized ExerciseCards skip re-rendering.
+  const activeExercises = useMemo(
+    () => (exercises ?? []).filter((e) => e.split === split && !e.archived),
+    [exercises, split],
   );
-  const archivedExercises = (exercises ?? []).filter(
-    (e) => e.split === split && e.archived,
+  const archivedExercises = useMemo(
+    () => (exercises ?? []).filter((e) => e.split === split && e.archived),
+    [exercises, split],
   );
 
   async function handleAddExercise(
@@ -813,43 +824,89 @@ function TrainingPageInner() {
     exercisesRef.current = exercises ?? [];
   }, [exercises]);
 
-  function queueReorder(task: () => Promise<void>): Promise<void> {
-    const run = reorderQueueRef.current.then(task, task);
-    reorderQueueRef.current = run.catch(() => {});
-    return run;
-  }
+  const queueReorder = useCallback(
+    (task: () => Promise<void>): Promise<void> => {
+      const run = reorderQueueRef.current.then(task, task);
+      reorderQueueRef.current = run.catch(() => {});
+      return run;
+    },
+    [],
+  );
 
-  async function moveExercise(slug: string, direction: -1 | 1) {
-    const userId = await currentUserId();
-    await queueReorder(async () => {
-      const list = exercisesRef.current.filter(
-        (e) => e.split === split && !e.archived,
-      );
-      const idx = list.findIndex((e) => e.slug === slug);
-      const otherIdx = idx + direction;
-      if (idx < 0 || otherIdx < 0 || otherIdx >= list.length) return;
-      const slugs = list.map((e) => e.slug);
-      [slugs[idx], slugs[otherIdx]] = [slugs[otherIdx], slugs[idx]];
-      await reorderExercises(userId, slugs);
-      await reloadAll();
+  const moveExercise = useCallback(
+    async (slug: string, direction: -1 | 1) => {
+      const userId = await currentUserId();
+      await queueReorder(async () => {
+        const list = exercisesRef.current.filter(
+          (e) => e.split === split && !e.archived,
+        );
+        const idx = list.findIndex((e) => e.slug === slug);
+        const otherIdx = idx + direction;
+        if (idx < 0 || otherIdx < 0 || otherIdx >= list.length) return;
+        const slugs = list.map((e) => e.slug);
+        [slugs[idx], slugs[otherIdx]] = [slugs[otherIdx], slugs[idx]];
+        await reorderExercises(userId, slugs);
+        await reloadAll();
+      });
+    },
+    [split, queueReorder, reloadAll],
+  );
+
+  // Stable so the per-slug handler map (and thus each memoized ExerciseCard's
+  // onMoveUp/onMoveDown props) only changes when the active list reorders.
+  const handleMoveUp = useCallback(
+    async (slug: string) => {
+      try {
+        await moveExercise(slug, -1);
+      } catch (err) {
+        toast(String((err as Error)?.message ?? err), "error");
+      }
+    },
+    [moveExercise, toast],
+  );
+
+  const handleMoveDown = useCallback(
+    async (slug: string) => {
+      try {
+        await moveExercise(slug, 1);
+      } catch (err) {
+        toast(String((err as Error)?.message ?? err), "error");
+      }
+    },
+    [moveExercise, toast],
+  );
+
+  // Per-slug handler bundle, rebuilt only when the active list changes (add /
+  // remove / reorder / edit). Handing each card stable onUpdate/onMoveUp/
+  // onMoveDown references — instead of fresh inline arrows every render — is what
+  // makes React.memo on ExerciseCard effective. Move handlers are keyed on
+  // position within the active list (disabled at the ends).
+  const cardHandlers = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        onUpdate: (patch: Partial<Exercise>) => void;
+        onMoveUp?: () => Promise<void>;
+        onMoveDown?: () => Promise<void>;
+      }
+    >();
+    activeExercises.forEach((ex, idx) => {
+      map.set(ex.slug, {
+        onUpdate: (patch) =>
+          setExercises((prev) =>
+            (prev ?? []).map((e) =>
+              e.slug === ex.slug ? { ...e, ...patch } : e,
+            ),
+          ),
+        onMoveUp: idx > 0 ? () => handleMoveUp(ex.slug) : undefined,
+        onMoveDown:
+          idx < activeExercises.length - 1
+            ? () => handleMoveDown(ex.slug)
+            : undefined,
+      });
     });
-  }
-
-  async function handleMoveUp(slug: string) {
-    try {
-      await moveExercise(slug, -1);
-    } catch (err) {
-      toast(String((err as Error)?.message ?? err), "error");
-    }
-  }
-
-  async function handleMoveDown(slug: string) {
-    try {
-      await moveExercise(slug, 1);
-    } catch (err) {
-      toast(String((err as Error)?.message ?? err), "error");
-    }
-  }
+    return map;
+  }, [activeExercises, handleMoveUp, handleMoveDown]);
 
   async function handleRestore(slug: string) {
     try {
@@ -1070,35 +1127,38 @@ function TrainingPageInner() {
               : "tr-enter"
           }`}
         >
-          {activeExercises.map((ex, idx) => (
-            <ExerciseCard
-              key={ex.slug}
-              exercise={ex}
-              logs={logs[ex.slug] ?? []}
-              timeFilter={timeFilter}
-              expandedLogId={expandedLogId}
-              setExpandedLogId={setExpandedLogId}
-              onLogged={reloadLogs}
-              onLogAdded={onLogAdded}
-              priorSessionDates={allLogDates}
-              onUpdate={(patch) =>
-                setExercises((prev) =>
-                  (prev ?? []).map((e) =>
-                    e.slug === ex.slug ? { ...e, ...patch } : e,
-                  ),
-                )
-              }
-              onMoveUp={idx > 0 ? () => handleMoveUp(ex.slug) : undefined}
-              onMoveDown={
-                idx < activeExercises.length - 1
-                  ? () => handleMoveDown(ex.slug)
-                  : undefined
-              }
-              isFirst={idx === 0}
-              isLast={idx === activeExercises.length - 1}
-              openTrendSignal={jumpTarget?.slug === ex.slug ? jumpTarget.nonce : null}
-            />
-          ))}
+          {activeExercises.map((ex, idx) => {
+            const h = cardHandlers.get(ex.slug)!;
+            const cardLogs = logs[ex.slug] ?? EMPTY_LOGS;
+            // Scope the shared expandedLogId down to this card: pass the id only
+            // when it belongs to one of this card's rows, else null. So toggling
+            // a row re-renders just the owning card(s) instead of all of them
+            // (the card's internal `expandedLogId === log.id` check is
+            // unaffected — a foreign id never matches any of its rows anyway).
+            const cardExpandedId =
+              expandedLogId != null && cardLogs.some((l) => l.id === expandedLogId)
+                ? expandedLogId
+                : null;
+            return (
+              <ExerciseCard
+                key={ex.slug}
+                exercise={ex}
+                logs={cardLogs}
+                timeFilter={timeFilter}
+                expandedLogId={cardExpandedId}
+                setExpandedLogId={setExpandedLogId}
+                onLogged={reloadLogs}
+                onLogAdded={onLogAdded}
+                priorSessionDates={allLogDates}
+                onUpdate={h.onUpdate}
+                onMoveUp={h.onMoveUp}
+                onMoveDown={h.onMoveDown}
+                isFirst={idx === 0}
+                isLast={idx === activeExercises.length - 1}
+                openTrendSignal={jumpTarget?.slug === ex.slug ? jumpTarget.nonce : null}
+              />
+            );
+          })}
           {exercises && activeExercises.length === 0 && (
             <div className="empty-row">No exercises in this split yet — add one below.</div>
           )}
