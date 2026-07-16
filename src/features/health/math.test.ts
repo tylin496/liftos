@@ -474,6 +474,16 @@ describe("weightAcceleration", () => {
     expect(weightAcceleration(twoRate(0.05, -0.02))).toBeNull(); // prior gaining
   });
 
+  it("mirrors under a bulk direction (+1): gain decelerating reads 'slowing'", () => {
+    // Prior +0.7 kg/wk of gain → recent +0.28: the GAIN is slowing.
+    const a = weightAcceleration(twoRate(0.1, 0.04), 1);
+    expect(a?.direction).toBe("slowing");
+    // And a gain speeding up reads 'faster'.
+    expect(weightAcceleration(twoRate(0.04, 0.1), 1)?.direction).toBe("faster");
+    // A prior LOSS regime is not established gain — silent under +1.
+    expect(weightAcceleration(twoRate(-0.1, 0.05), 1)).toBeNull();
+  });
+
   it("returns null when a window can't fit a trend", () => {
     // 8 days: the prior window (≤ last−14) is empty, so there's nothing to
     // compare against.

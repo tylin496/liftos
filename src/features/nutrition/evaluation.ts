@@ -449,8 +449,10 @@ export function evaluate(input: EvaluateInput): NutritionState {
   const weightDataPoints = windowPoints(weightSeries, WINDOW_DAYS).length;
   const gapDays = longestGap(weightSeries, WINDOW_DAYS);
   // Second-order read on the same series (its own 14+14d windows). Null unless
-  // the rate has clearly moved — feeds the pace arrow, nothing else.
-  const accelDirection = weightAcceleration(weightSeries)?.direction ?? null;
+  // the rate has clearly moved — feeds the pace arrow, nothing else. Phase-
+  // directed: "slowing" always means progress (loss OR gain) decelerating.
+  const accelDirection =
+    weightAcceleration(weightSeries, phaseDirection(phaseKind))?.direction ?? null;
 
   // Diagnostics: what intake the weight trend implies, vs the target. The energy
   // balance from the trend (observedRate kg/wk × 7700 kcal/kg ÷ 7 days) added to

@@ -151,6 +151,11 @@ describe("cutStageLabel", () => {
 });
 
 describe("weightLineTone", () => {
+  it("mirrors under up-good (a bulk): up = good, down = bad", () => {
+    expect(weightLineTone(0.3, "up-good")).toBe("good");
+    expect(weightLineTone(-0.3, "up-good")).toBe("bad");
+    expect(weightLineTone(0, "up-good")).toBe("flat");
+  });
   it("down = good, up = bad, flat/absent = flat", () => {
     expect(weightLineTone(-0.3)).toBe("good");
     expect(weightLineTone(0.3)).toBe("bad");

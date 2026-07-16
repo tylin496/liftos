@@ -35,7 +35,7 @@ import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
 import { paceLabel, paceTone, rateTone, cutEtaLabel } from "@features/nutrition/recommendation";
 import { CONSIDER_ENTER_COUNT, type Recommendation } from "@features/overview/recommendations";
 import type { Goal, BulkGoal, GoalStatusEvaluation, BulkGoalStatusEvaluation } from "./goal";
-import { phaseKindFromName } from "@features/nutrition/logic";
+import { phaseKindFromName, phaseDirection, weightMetricDirection } from "@features/nutrition/logic";
 import type { PhaseTriggerResult } from "./phaseTriggers";
 import type { TabId } from "@app/layout/TabBar";
 import {
@@ -1378,14 +1378,17 @@ function WeightSparkline({
   points,
   tone,
   targetRange,
+  direction = -1,
 }: {
   points: { date: string; value: number }[];
-  // The LINE's own tone: "losing = good" green (down week-over-week), red when
-  // gaining, flat otherwise. Deliberately independent of pace — the pace verdict
-  // is the Journey pill's job, so the trend line NEVER goes gold (coordination
-  // rule: gold stays rare). See WeightCard.
+  // The LINE's own tone: moving in the phase direction = green (down on a cut,
+  // up on a bulk), against it red, flat otherwise. Deliberately independent of
+  // pace — the pace verdict is the Journey pill's job, so the trend line NEVER
+  // goes gold (coordination rule: gold stays rare). See WeightCard.
   tone: "good" | "bad" | "flat";
   targetRange?: { min: number; max: number } | null;
+  /** Phase sign for the corridor wedge (phaseDirection): −1 cut, +1 bulk. */
+  direction?: 1 | -1;
 }) {
   const stroke =
     tone === "good"
@@ -1423,7 +1426,7 @@ function WeightSparkline({
   // pre-smoothed (trailingAvg over the caller's full history, already sliced to
   // this window); the corridor rays anchor at a Theil-Sen fit of the drawn
   // trend, not one edge point. See buildSparkGeometry.
-  const { pts, area, corridor, latest } = buildSparkGeometry(points, targetRange);
+  const { pts, area, corridor, latest } = buildSparkGeometry(points, targetRange, direction);
 
   // The latest dot is a plain "you are here" marker in the line's own tone. Pace
   // lives in the acceleration chip + the Journey pace pill; the dot no longer
@@ -1591,7 +1594,12 @@ function WeightCard({
     ? localDateStr(new Date(new Date(weightDate + "T12:00:00").getTime() - (SPARK_WINDOW_DAYS - 1) * 86400000))
     : "";
   const sparkPoints = trailingAvg(weightPts, TREND_WINDOW_HOURS).filter((p) => p.date >= sparkCutoff);
-  const sparkTone = weightLineTone(weightDelta);
+  // Weight polarity follows the phase from the SAME persisted evaluation row
+  // every other read on this card uses (null state → the cut default): on a
+  // bulk, up = green — the exact mirror of the cut's rule.
+  const phaseKind = state?.evaluation.phaseKind ?? "cut";
+  const weightDir = weightMetricDirection(phaseKind);
+  const sparkTone = weightLineTone(weightDelta, weightDir);
 
   // Corridor legend (hero-right): the target loss-rate band, shown beside the
   // rate so the dashed swatch keys the chart's dashed corridor. Only when a real
@@ -1695,8 +1703,12 @@ function WeightCard({
                 glyph, same accelArrowTone (band-aware: in-band = good, a
                 slowdown or drift toward an edge = warn, far out = bad). */}
             {accelDirection && (
+              // "faster/slowing" is already phase-directed (progress space, see
+              // weightAcceleration); only the wording names the phase's verb.
               <span className={`ov-weight-accel-chip is-${accelTone}`}>
-                {accelDirection === "faster" ? "▲ speeding up" : "▼ slowing"}
+                {phaseKind === "bulk"
+                  ? accelDirection === "faster" ? "▲ gaining faster" : "▼ gain slowing"
+                  : accelDirection === "faster" ? "▲ speeding up" : "▼ slowing"}
               </span>
             )}
           </div>
@@ -1709,7 +1721,7 @@ function WeightCard({
                 format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
               />
             </MetricValue>
-            <MetricDelta value={weightDelta} direction="down-good" decimals={1} unit="kg" />
+            <MetricDelta value={weightDelta} direction={weightDir} decimals={1} unit="kg" />
           </div>
         )}
         {/* Window qualifier — names the period the hero rate is fit on (and the
@@ -1724,12 +1736,13 @@ function WeightCard({
 
       <WeightSparkline
         points={sparkPoints}
-        // Line colour follows the week-over-week direction (down = good on a
-        // cut) and STAYS there regardless of pace — the trend line never floods
-        // the card with gold. Pace is carried by the acceleration chip and the
-        // Journey pace pill, so the sparkline no longer echoes it on the dot.
+        // Line colour follows the week-over-week direction in the phase's
+        // polarity (down = good on a cut, up = good on a bulk) and STAYS there
+        // regardless of pace — the trend line never floods the card with gold.
+        // Pace is carried by the acceleration chip and the Journey pace pill.
         tone={sparkTone}
         targetRange={state?.evaluation.targetRange ?? null}
+        direction={phaseDirection(phaseKind)}
       />
       {/* Footer — current reading (left) + the target corridor legend
           (right), moved down from the hero row so the hero's right side is

@@ -28,6 +28,8 @@ import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNavExpand } from "@app/layout/NavContext";
 import { scrollRevealClear } from "@app/layout/revealScroll";
 import { HealthTrendSheet, type HealthTrendConfig } from "./TrendSheet";
+import { getNutritionState } from "@features/nutrition/evaluationApi";
+import { weightMetricDirection } from "@features/nutrition/logic";
 import "./health.css";
 
 interface MetricSpec {
@@ -868,6 +870,21 @@ export function HealthPage() {
     scrollRevealClear(wrap ?? null);
   }, [energyExpanded]);
 
+  // Weight-metric polarity follows the phase from the persisted nutrition
+  // evaluation (the same snapshot every Overview read uses). Null-safe: no row
+  // (or a failed read) keeps the cut default. ONLY Weight flips on a bulk —
+  // Body Fat stays down-good in every phase (fat gained is objectively the
+  // cost; the bulk's tolerance lives in the Journey card's fat budget, not in
+  // the metric colour) and Lean Mass stays unjudged.
+  const [weightDir, setWeightDir] = useState<"up-good" | "down-good">("down-good");
+  useEffect(() => {
+    getNutritionState()
+      .then((s) => {
+        if (s) setWeightDir(weightMetricDirection(s.evaluation.phaseKind));
+      })
+      .catch(() => {});
+  }, []);
+
   const load = useCallback(() => {
     return fetchHealthData(FIXED_DAYS)
       .then((d) => {
@@ -1050,9 +1067,12 @@ export function HealthPage() {
     if (!spec || !c || c.full.length < 2) return null;
     return {
       label: spec.label, unit: spec.unit, decimals: spec.decimals, color: spec.color,
-      points: c.full, higherIsBetter: false, bucketDays: spec.bucket, minSpan: spec.minSpan,
+      // Phase-aware: up-good on a bulk flips the sheet's delta colour, its
+      // Start/Peak mid tile, and the gold best-dot — TrendSheet is generic on
+      // this flag, so the one boolean carries the whole mirror.
+      points: c.full, higherIsBetter: weightDir === "up-good", bucketDays: spec.bucket, minSpan: spec.minSpan,
     };
-  }, [cards]);
+  }, [cards, weightDir]);
 
   // Nutrition's Weight-loss pace chevron deep-links here with `expand: true` to
   // open the full corridor sheet on arrival. The signal can land before `data`
@@ -1140,13 +1160,19 @@ export function HealthPage() {
             syncDate={series(metrics, spec.key).at(-1)?.date ?? null}
             updatedAt={c?.updatedAt ?? null}
             delta={
-              // Both Weight and Body Fat are down-good on a cut — this page is the
-              // body-composition trend view, so each carries its own coloured
-              // delta (the smoothed rolling average, not a single noisy day; the
-              // threshold still suppresses changes within noise). Overview's weight
-              // card stays delta-free because its pace/Status read covers it there.
+              // Weight follows the phase's polarity (down-good on a cut,
+              // up-good on a bulk — weightDir); Body Fat stays down-good in
+              // EVERY phase. Each card carries its own coloured delta (the
+              // smoothed rolling average, not a single noisy day; the threshold
+              // still suppresses changes within noise). Overview's weight card
+              // stays delta-free because its pace/Status read covers it there.
               c && c.change != null && c.readingCount >= 2 ? (
-                <MetricDelta value={c.change} direction="down-good" decimals={spec.decimals} unit={spec.unit} />
+                <MetricDelta
+                  value={c.change}
+                  direction={spec.key === "weight_kg" ? weightDir : "down-good"}
+                  decimals={spec.decimals}
+                  unit={spec.unit}
+                />
               ) : null
             }
             note={
@@ -1155,9 +1181,8 @@ export function HealthPage() {
                 : undefined
             }
             onOpenTrend={
-              // Weight and Body Fat are both down-good (matches the hardcoded
-              // down-good MetricDelta on the card above). Weight's sheet is
-              // shared with the deep-link auto-open via weightTrendConfig.
+              // Weight's sheet follows the phase polarity via weightTrendConfig
+              // (shared with the deep-link auto-open); Body Fat stays down-good.
               // Neither sheet carries a target-pace corridor (Weight: see
               // weightTrendConfig; Body Fat: corridor null below) — the pace
               // verdict lives on Overview.

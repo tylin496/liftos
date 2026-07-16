@@ -433,11 +433,18 @@ const ACCEL_STRONG_DELTA = 0.2;
  *  plateau; this is the signal that catches that early.
  *
  *  Returns null when it can't speak: either window lacks a fittable trend
- *  (<5 readings), the prior window wasn't a loss regime (a slowing/faster read
- *  is only meaningful against a loss), or the change is inside the steady
- *  deadband. Callers render nothing in those cases. */
+ *  (<5 readings), the prior window wasn't moving in the phase direction (a
+ *  slowing/faster read is only meaningful against established progress), or
+ *  the change is inside the steady deadband. Callers render nothing in those
+ *  cases.
+ *
+ *  `direction` = the phase's sign on the scale (−1 cut/default: progress is a
+ *  falling slope; +1 bulk: progress is a rising slope — see phaseDirection).
+ *  "slowing"/"faster" always describe progress in THAT direction, so the pace
+ *  arrow keeps one meaning across phases. */
 export function weightAcceleration(
   pts: { date: string; value: number }[],
+  direction: 1 | -1 = -1,
 ): WeightAcceleration | null {
   const recentFit = regressionFit(pts, ACCEL_WINDOW_DAYS);
   if (recentFit == null) return null;
@@ -454,9 +461,10 @@ export function weightAcceleration(
   if (priorFit == null) return null;
   const recent = recentFit.slopePerWeek;
   const prior = priorFit.slopePerWeek;
-  // Only a loss regime gives "slowing/faster" a stable meaning. If the prior
-  // window wasn't losing, the sign convention below breaks down — stay silent.
-  if (prior >= 0) return null;
+  // Only an established progress regime gives "slowing/faster" a stable
+  // meaning: the prior window must have been moving in the phase direction
+  // (losing on a cut, gaining on a bulk) — otherwise stay silent.
+  if (direction * prior <= 0) return null;
   const deltaPerWeek = +(recent - prior).toFixed(3);
   // Noise-aware deadband. Each slope carries a standard error set by how much
   // the daily readings scatter around its line; the delta of two independent
@@ -466,11 +474,15 @@ export function weightAcceleration(
   // where a fixed deadband flaps an amber chip on a fortnight of scale noise.
   const combinedSE = Math.hypot(recentFit.sePerWeek, priorFit.sePerWeek);
   if (Math.abs(deltaPerWeek) < Math.max(ACCEL_MIN_DELTA, combinedSE)) return null;
+  // Express the change in PROGRESS space (positive = progress accelerating):
+  // on a cut a delta toward zero/positive means the loss is slowing; on a bulk
+  // a delta toward zero/negative means the gain is slowing.
+  const progressDelta = direction * deltaPerWeek;
   return {
     recentRatePerWeek: +recent.toFixed(3),
     priorRatePerWeek: +prior.toFixed(3),
     deltaPerWeek,
-    direction: deltaPerWeek > 0 ? "slowing" : "faster",
+    direction: progressDelta < 0 ? "slowing" : "faster",
     strong: Math.abs(deltaPerWeek) >= ACCEL_STRONG_DELTA,
   };
 }

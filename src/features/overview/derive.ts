@@ -134,9 +134,16 @@ export function bulkStageLabel(bfCeilingPct: number | null): string {
 
 /* ── Weight card ───────────────────────────────────────────────────────── */
 
-/** Trend-line tone from the week-over-week delta (down = good on a cut). */
-export function weightLineTone(weightDelta: number | null): "good" | "bad" | "flat" {
-  return weightDelta == null ? "flat" : weightDelta < 0 ? "good" : weightDelta > 0 ? "bad" : "flat";
+/** Trend-line tone from the week-over-week delta, in the phase's polarity:
+ *  down-good on a cut (the default), up-good on a bulk — the mirror of the
+ *  cut's "down stays green regardless of pace" rule. */
+export function weightLineTone(
+  weightDelta: number | null,
+  dir: "up-good" | "down-good" = "down-good",
+): "good" | "bad" | "flat" {
+  if (weightDelta == null || weightDelta === 0) return "flat";
+  const goodWhenNegative = dir === "down-good";
+  return (weightDelta < 0) === goodWhenNegative ? "good" : "bad";
 }
 
 /** Acceleration-arrow tone: a real out-of-band rate drift dominates (bad/warn);
@@ -186,6 +193,9 @@ export interface SparkGeometry {
 export function buildSparkGeometry(
   points: { date: string; value: number }[],
   targetRange: { min: number; max: number } | null | undefined,
+  /** Phase sign on the scale (phaseDirection): −1 cut (wedge fans downward,
+   *  the default), +1 bulk (the target band is a GAIN, so it fans upward). */
+  direction: 1 | -1 = -1,
 ): SparkGeometry {
   const trend = points;
   const trendValues = trend.map((p) => p.value);
@@ -203,8 +213,13 @@ export function buildSparkGeometry(
     const fitSlope = median(pairSlopes);
     corridorAnchor = median(trendValues.map((v, i) => v - fitSlope * xs[i]));
   }
-  const corridorMinVal = corridorAnchor != null ? corridorAnchor - targetRange!.min * (windowDays / 7) : null;
-  const corridorMaxVal = corridorAnchor != null ? corridorAnchor - targetRange!.max * (windowDays / 7) : null;
+  // Band magnitudes are in the phase direction, so the wedge's endpoints sit
+  // direction × magnitude away from the anchor: below it on a cut (expected
+  // loss), above it on a bulk (expected gain).
+  const corridorMinVal =
+    corridorAnchor != null ? corridorAnchor + direction * targetRange!.min * (windowDays / 7) : null;
+  const corridorMaxVal =
+    corridorAnchor != null ? corridorAnchor + direction * targetRange!.max * (windowDays / 7) : null;
 
   const scaleValues = [...trendValues];
   if (corridorAnchor != null) scaleValues.push(corridorAnchor);
