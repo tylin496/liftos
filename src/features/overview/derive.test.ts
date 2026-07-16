@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   activeTargetPosition, weekActiveTotal, weekBanked, bankedTone, weekStripCells,
-  phasePlanNote, cutStageLabel, bulkStageLabel, weightLineTone, accelArrowTone,
+  phasePlanNote, cutStageLabel, bulkStageLabel, nextCutStageLabel, weightLineTone, accelArrowTone,
   buildSparkGeometry, SPARK_W, SPARK_PAD,
 } from "./derive";
 import type { BodyMetric } from "@features/health/api";
@@ -107,6 +107,10 @@ describe("phasePlanNote", () => {
     expect(phasePlanNote("maintenance", goalStatus(false, 12), null, 0, 4, 2))
       .toEqual({ text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" });
   });
+  it("post-bulk maintenance names both honest exits (resume or next cut)", () => {
+    expect(phasePlanNote("maintenance", goalStatus(false, 12), null, 0, 4, 2, true))
+      .toEqual({ text: "Hold for a few weeks, then resume the bulk or start the next cut.", tone: "" });
+  });
   it("goal reached outranks the signal count → start maintenance (go)", () => {
     const note = phasePlanNote("cut", goalStatus(true, 12), null, 4, 4, 2);
     expect(note.tone).toBe(" is-go");
@@ -143,6 +147,10 @@ describe("cutStageLabel", () => {
   });
   it("falls back to a bare Cut", () => {
     expect(cutStageLabel(null)).toBe("Cut");
+  });
+  it("next-cut stage reuses the body-fat target, bare until configured", () => {
+    expect(nextCutStageLabel(12)).toBe("Next cut → 12% BF");
+    expect(nextCutStageLabel(null)).toBe("Next cut");
   });
   it("bulk stage names its ceiling, bare until configured", () => {
     expect(bulkStageLabel(21)).toBe("Lean Bulk → 21% cap");

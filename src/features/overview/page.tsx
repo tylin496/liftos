@@ -43,7 +43,7 @@ import {
 } from "./format";
 import {
   activeTargetPosition, weekActiveTotal, weekBanked, bankedTone, weekStripCells,
-  phasePlanNote, cutStageLabel, bulkStageLabel, weightLineTone, accelArrowTone, buildSparkGeometry,
+  phasePlanNote, cutStageLabel, bulkStageLabel, nextCutStageLabel, weightLineTone, accelArrowTone, buildSparkGeometry,
   SPARK_W, SPARK_H, SPARK_PAD,
 } from "./derive";
 import "./overview.css";
@@ -720,11 +720,15 @@ function PhasePlanSection({
   goalStatus,
   bulkGoalStatus,
   cutMode,
+  hadBulk = false,
 }: {
   phase: PhaseTriggerResult;
   goalStatus: GoalStatusEvaluation;
   bulkGoalStatus: BulkGoalStatusEvaluation | null;
   cutMode: string | null;
+  /** A bulk baseline exists (bulk_start_date set) — a bulk has happened, so a
+   *  cut phase now means the NEXT cut (waypoint 4), not the first one. */
+  hadBulk?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   // The roadmap sits mid-card, so expanding it can push the reveal behind the
@@ -739,15 +743,21 @@ function PhasePlanSection({
   const kind = phaseKindFromName(cutMode ?? "");
   const atMaintenance = kind === "maintenance";
   const atBulk = kind === "bulk";
+  // The road is a cycle: once a bulk baseline exists, a cut phase is the cut
+  // AFTER the bulk — the dot lands on waypoint 4 and the first three read done.
+  // (A post-bulk maintenance still reads waypoint 2 — deliberately coarse; the
+  // dot walks the road with the intake, it doesn't keep a phase history.)
+  const atNextCut = kind === "cut" && hadBulk;
   const n = phase.firingCount;
 
   // One-line read, in priority order mirroring the engine's ladder (see
   // phasePlanNote). Deliberately nothing more — the Journey card already answers
   // "where am I" and "is it going well"; this section only answers "what's the
   // road ahead and when should the plan change". No week counters, no numbers.
-  const note = phasePlanNote(kind, goalStatus, bulkGoalStatus, n, phase.triggers.length, CONSIDER_ENTER_COUNT);
+  const note = phasePlanNote(kind, goalStatus, bulkGoalStatus, n, phase.triggers.length, CONSIDER_ENTER_COUNT, hadBulk);
   const cutLabel = cutStageLabel(goalStatus.targetBodyFatPct);
   const bulkLabel = bulkStageLabel(bulkGoalStatus?.bfCeilingPct ?? null);
+  const nextCutLabel = nextCutStageLabel(goalStatus.targetBodyFatPct);
 
   return (
     <div className="goal-plan">
@@ -780,15 +790,18 @@ function PhasePlanSection({
           {/* Vertical waypoint list — reads as the journey's road, not a
               breadcrumb: filled dot = you are here, hollow = ahead. */}
           <ol className="goal-plan-stages">
-            <li className={`goal-plan-step${atMaintenance || atBulk ? " is-done" : " is-current"}`}>
+            <li className={`goal-plan-step${atMaintenance || atBulk || atNextCut ? " is-done" : " is-current"}`}>
               <span className="goal-plan-step-dot" aria-hidden />{cutLabel}
             </li>
-            <li className={`goal-plan-step${atMaintenance ? " is-current" : atBulk ? " is-done" : ""}`}>
+            <li className={`goal-plan-step${atMaintenance ? " is-current" : atBulk || atNextCut ? " is-done" : ""}`}>
               <span className="goal-plan-step-dot" aria-hidden />Maintenance{" "}
               <span className="goal-plan-step-sub">4–6 wk</span>
             </li>
-            <li className={`goal-plan-step${atBulk ? " is-current" : ""}`}>
+            <li className={`goal-plan-step${atBulk ? " is-current" : atNextCut ? " is-done" : ""}`}>
               <span className="goal-plan-step-dot" aria-hidden />{bulkLabel}
+            </li>
+            <li className={`goal-plan-step${atNextCut ? " is-current" : ""}`}>
+              <span className="goal-plan-step-dot" aria-hidden />{nextCutLabel}
             </li>
           </ol>
           <p className={`goal-plan-note${note.tone}`}>{note.text}</p>
@@ -819,6 +832,7 @@ function CutProgressCard({
   phase,
   goalStatus,
   bulkGoalStatus = null,
+  bulkStartDate = null,
   onNav,
   loading = false,
 }: {
@@ -833,6 +847,9 @@ function CutProgressCard({
   goalStatus: GoalStatusEvaluation | null;
   /** Only feeds the roadmap's Lean Bulk stage label (the ceiling, if configured). */
   bulkGoalStatus?: BulkGoalStatusEvaluation | null;
+  /** Only feeds the roadmap's cycle read: set = a bulk has happened, so this
+   *  cut is the road's 4th waypoint (the next cut), not the first. */
+  bulkStartDate?: string | null;
   onNav: () => void;
   loading?: boolean;
 }) {
@@ -1014,6 +1031,7 @@ function CutProgressCard({
           goalStatus={goalStatus}
           bulkGoalStatus={bulkGoalStatus}
           cutMode={state?.diagnostics.cutMode ?? null}
+          hadBulk={bulkStartDate != null}
         />
       )}
     </div>
@@ -1196,6 +1214,7 @@ function BulkJourneyCard({
           goalStatus={goalStatus}
           bulkGoalStatus={bulkGoalStatus}
           cutMode={state?.diagnostics.cutMode ?? null}
+          hadBulk={bulkStartDate != null}
         />
       )}
     </div>
@@ -1918,6 +1937,7 @@ export function OverviewPage() {
           phase={data?.phase ?? null}
           goalStatus={data?.goalStatus ?? null}
           bulkGoalStatus={data?.bulkGoalStatus ?? null}
+          bulkStartDate={data?.bulkStartDate ?? null}
           onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />
       )}

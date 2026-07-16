@@ -101,10 +101,15 @@ export function phasePlanNote(
   firingCount: number,
   triggerCount: number,
   considerEnterCount: number,
+  hadBulk = false,
 ): { text: string; tone: string } {
   const n = firingCount;
   if (phaseKind === "maintenance") {
-    return { text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" };
+    // Post-bulk maintenance has two honest exits (a break resumes the bulk; a
+    // spent fat budget leads to the next cut) — don't pretend to know which.
+    return hadBulk
+      ? { text: "Hold for a few weeks, then resume the bulk or start the next cut.", tone: "" }
+      : { text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" };
   }
   if (phaseKind === "bulk") {
     return bulkGoalStatus?.reached
@@ -130,6 +135,13 @@ export function cutStageLabel(targetBodyFatPct: number | null): string {
  *  CEILING ("Lean Bulk → 21% cap"), bare "Lean Bulk" until one is configured. */
 export function bulkStageLabel(bfCeilingPct: number | null): string {
   return bfCeilingPct != null ? `Lean Bulk → ${bfCeilingPct}% cap` : "Lean Bulk";
+}
+
+/** The road's 4th waypoint — the cut AFTER the bulk, closing the cycle. Same
+ *  endpoint as the first cut (the configured body-fat target: a bulk doesn't
+ *  move the goal, it raises the starting point). */
+export function nextCutStageLabel(targetBodyFatPct: number | null): string {
+  return targetBodyFatPct != null ? `Next cut → ${targetBodyFatPct}% BF` : "Next cut";
 }
 
 /* ── Weight card ───────────────────────────────────────────────────────── */
