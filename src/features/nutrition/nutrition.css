@@ -182,6 +182,42 @@
   line-height: var(--leading-body);
 }
 
+/* Apply CTA — the user's explicit "make this the plan" tap. Accent pill (same
+   action language as .nutri-log-cta): the card only *proposes*; this button is
+   the moment the proposal becomes policy, so it reads as an action, never a
+   passive grey chip. Full-width so the card's one decision gets a generous
+   target (≥44px tall on its own, no hit-area overlay needed). */
+.ni-apply {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--accent-100);
+  color: var(--accent);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-press), opacity var(--dur-press) var(--ease-press);
+}
+
+.ni-apply:active {
+  transform: scale(var(--tap-scale));
+}
+
+/* In-flight: hold the button visibly present but inert — the toast carries the
+   outcome, the card re-render (proposal → hold) removes it. */
+.ni-apply:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 /* Supporting numbers — below a divider, grouped by the order a reader judges
    them: Weight-loss pace (Observed vs Target, paired) → Est. intake (the
    why) → Confidence (a closing stamp, sunk to the bottom). */

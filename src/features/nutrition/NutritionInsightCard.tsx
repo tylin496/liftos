@@ -17,11 +17,15 @@
 // `nutritionDecision` the System card uses, so the two never disagree.
 
 import { useEffect, useRef, useState } from "react";
-import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
+import { getNutritionState, recomputeAndPersist, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS, STATUS_EPS } from "./evaluation";
 import { nutritionDecision, rateTone, paceTone } from "./recommendation";
+import { saveConfig, phaseDefsFromConfig, targetsFromConfig } from "./api";
+import { useNutritionConfig } from "./NutritionConfigContext";
 import { ErrorState } from "@shared/components/ErrorState";
+import { useToast } from "@shared/components/Toast";
 import { useNav } from "@app/layout/NavContext";
+import { useIsReadOnly } from "@app/layout/SessionContext";
 import { clamp } from "@shared/lib/num";
 import "./nutrition.css";
 
@@ -179,9 +183,13 @@ function PaceMeter({
 
 export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }) {
   const nav = useNav();
+  const toast = useToast();
+  const readOnly = useIsReadOnly();
+  const { config, setConfig } = useNutritionConfig();
   const [state, setState] = useState<NutritionStateFull | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
+  const [applying, setApplying] = useState(false);
   // Bumped by the Retry button to re-run the fetch effect (refreshKey is owned
   // by the parent; this is the card's own self-recovery trigger).
   const [errorNonce, setErrorNonce] = useState(0);
@@ -238,6 +246,45 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
 
   const loading = !loaded;
   const noData = loaded && !state && !error;
+
+  // Persist an intake goal (same phase_deficits fifth-element write the
+  // Settings sheet uses), refresh the shared config (Intake card's "/ target"
+  // follows immediately), then recompute the evaluation so this card flips to
+  // its post-change read (fresh target → daysOnTarget resets, confidence caps,
+  // decision returns to a hold). Returns whether the write itself landed.
+  async function persistIntakeGoal(intake: number): Promise<boolean> {
+    const { defs } = phaseDefsFromConfig(config!);
+    const updated = await saveConfig({ phase_deficits: [...defs, intake] as unknown as any });
+    setConfig(updated);
+    const fresh = await recomputeAndPersist().catch(() => null);
+    if (fresh) setState(fresh);
+    else setErrorNonce((n) => n + 1); // recompute failed — refetch what's persisted
+    return true;
+  }
+
+  // Applying the recommendation is the user's explicit decision (the module
+  // only evaluates; this tap is the policy change) — so per the app convention
+  // it's optimistic + Undo toast, never a confirm dialog.
+  async function applyTarget(proposed: number) {
+    if (!config || applying) return;
+    setApplying(true);
+    const prevIntake = targetsFromConfig(config).calorieTarget;
+    try {
+      await persistIntakeGoal(proposed);
+      toast(`Calorie target updated to ${proposed.toLocaleString()}`, "success", 5000, {
+        label: "Undo",
+        onClick: () => {
+          void persistIntakeGoal(prevIntake)
+            .then(() => toast(`Target restored to ${prevIntake.toLocaleString()}`, "info"))
+            .catch(() => toast("Couldn’t restore the target — try again.", "error"));
+        },
+      });
+    } catch {
+      toast("Couldn’t update the target — try again.", "error");
+    } finally {
+      setApplying(false);
+    }
+  }
 
   // Fetch failed — keep the deep-link anchor (Overview jumps here) and offer a
   // retry, rather than masquerading as the "Not enough data yet" empty state.
@@ -326,6 +373,20 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
                 : `${d.daysOnTarget} ${d.daysOnTarget === 1 ? "day" : "days"}`}
             </strong>
           </p>
+        )}
+
+        {/* Apply CTA — turns the proposal into the active target. Only rendered
+            when there's an actual change to make (proposedTarget), never for
+            viewers (read-only share) and never before config loads. */}
+        {!loading && !readOnly && config && decision && decision.proposedTarget != null && (
+          <button
+            type="button"
+            className="ni-apply"
+            disabled={applying}
+            onClick={() => void applyTarget(decision.proposedTarget!)}
+          >
+            {applying ? "Applying…" : `Apply ${decision.proposedTarget.toLocaleString()} kcal`}
+          </button>
         )}
       </div>
 
