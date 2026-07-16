@@ -312,6 +312,8 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       ? tdeeCalibration({
           assumedTdee: nutritionConfig.tdee,
           estimatedTdee: nutritionStateFull.diagnostics.estimatedTdee,
+          // true only when there's real HealthKit energy data (else estimatedTdee
+          // fell back to the assumed TDEE) — gates the under-logging attribution.
           healthTdeeMeasured: tdeeEst.tdee != null,
           loggedIntake: nutritionLoggedIntake,
           observedRate: nutritionStateFull.evaluation.observedRate,
