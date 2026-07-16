@@ -505,6 +505,31 @@
   color: var(--ink-4);
 }
 
+/* Systemic-fatigue strip — the muscle-level verdict + action above the lift
+   rows: ≥2 lifts of this muscle declining in the same training block
+   (muscleCluster.ts). Passive surface → --bg-soft, no border (grey-surface
+   rule). The verdict line carries the status colour (objective verdict); the
+   step stays neutral ink-2 — it's an instruction, not a verdict (same split as
+   .ov-thg-drill-action). */
+.ov-thg-drill-fatigue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-hairline);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+}
+.ov-thg-drill-fatigue-verdict {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.ov-thg-drill-fatigue-step {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
 .ov-thg-drill-row {
   display: grid;
   grid-template-columns: 72px 1fr auto;

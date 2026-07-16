@@ -6,6 +6,7 @@ import type { StrengthSummary, StrengthExercise } from "../overview/api";
 import type { MuscleGroup } from "./muscleGroup";
 import { buildMuscleGrid, cellBody, liftStatus, MARK_WORD, STATUS_ICON, statusWord, steadyNote } from "./muscleGrid";
 import type { LiftStatus, MuscleGridCell } from "./muscleGrid";
+import { computeMuscleClusters, suggestClusterFatigue, type ClusterFatigueAdvice } from "./muscleCluster";
 import { suggestDeload } from "./deload";
 import { MuscleIcon } from "./MuscleIcon";
 import { StatusGlyph } from "./StatusGlyph";
@@ -391,6 +392,27 @@ export function StrengthHealthCard({
     picked != null && grid.some((c) => c.group === picked) ? picked : grid[0]?.group ?? null;
   const selectedCell = grid.find((c) => c.group === selectedGroup) ?? null;
 
+  // Systemic-fatigue overlay — the muscle-level read the per-lift grid can't
+  // make: ≥2 lifts of one muscle declining within the same training block
+  // (muscleCluster.ts). Flagged groups swap their tile insight for the systemic
+  // verdict and gain a muscle-level action strip in the drill-down.
+  const nameBySlug = new Map(strength.exercises.map((e) => [e.slug, e.name]));
+  const fatigueByMuscle = new Map<MuscleGroup, ClusterFatigueAdvice>();
+  for (const c of computeMuscleClusters(strength.exercises)) {
+    const a = suggestClusterFatigue(c, (slug) => nameBySlug.get(slug) ?? slug);
+    if (a) fatigueByMuscle.set(a.muscle, a);
+  }
+  // Tile body: the systemic verdict outranks the per-lift line — "several lifts
+  // sliding together" is exactly what the composition/worst-lift text can't say.
+  const cellInsight = (cell: MuscleGridCell): string => {
+    const f = fatigueByMuscle.get(cell.group);
+    if (!f) return cell.hero ? heroInsight(cell) : cellBody(cell);
+    return cell.hero
+      ? `${f.headline} — ${f.lifts.length} lifts sliding together`
+      : `${f.lifts.length} lifts sliding together`;
+  };
+  const selectedFatigue = selectedGroup != null ? fatigueByMuscle.get(selectedGroup) : undefined;
+
   return (
     <div id={id} className="page-card ov-training-health">
       {header}
@@ -435,7 +457,7 @@ export function StrengthHealthCard({
                 )}
               </span>
             </span>
-            <span className="ov-thg-cell-insight">{cell.hero ? heroInsight(cell) : cellBody(cell)}</span>
+            <span className="ov-thg-cell-insight">{cellInsight(cell)}</span>
             {/* Marks row is spotlight-only: an ordinary tile answers "how is this
                 muscle" with name + status word + a body line (its composition, or
                 the single lift's note). The hero adds the glyph-marks footer on
@@ -455,6 +477,17 @@ export function StrengthHealthCard({
             <span className="ov-thg-drill-title">{selectedCell.group}</span>
             <span className="ov-thg-drill-count">{selectedCell.count}</span>
           </div>
+          {/* Muscle-level action — the decision layer above per-lift deload rows:
+              when the muscle isn't recovering, the fix is its weekly volume, not
+              −10% on one movement (suggestClusterFatigue). */}
+          {selectedFatigue && (
+            <div className="ov-thg-drill-fatigue">
+              <span className="ov-thg-drill-fatigue-verdict status-declining">
+                {selectedFatigue.headline} — {selectedFatigue.lifts.length} of {selectedFatigue.groupSize} lifts sliding together
+              </span>
+              <span className="ov-thg-drill-fatigue-step">{selectedFatigue.step}</span>
+            </div>
+          )}
           {selectedCell.lifts.map((ex) => {
             const st = liftStatus(ex, nowMs);
             const { action, state } = drillLines(ex, st);
