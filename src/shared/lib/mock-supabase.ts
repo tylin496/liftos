@@ -63,6 +63,12 @@ const TRAINING_LOGS = REAL_TRAINING_LOGS.map((r) => ({
 // phase_deficits: [p0, p1, p2, p3, activeIdx] → active = idx 1 = 655 deficit
 // calorie target = 2800 - 655 = 2145
 
+// Manual QA toggle: flip to true to seed a Lean Bulk phase (intake above TDEE
+// + a bulk baseline), so the bulk Journey card / re-rank / polarity paths can
+// be eyeballed locally without editing Settings. Leave false for the normal
+// cut fixture.
+const DEV_BULK_PHASE = false;
+
 const NUTRITION_CONFIG = {
   user_id: DEV_USER_ID,
   tdee: 2800,
@@ -79,11 +85,21 @@ const NUTRITION_CONFIG = {
   cut_start_weight: 98.4,
   // Bulk phase (0017) — null until a bulk actually starts, matching a fresh
   // production row so dev exercises the pre-baseline paths.
-  bulk_start_date: null,
-  bulk_start_weight: null,
-  bulk_start_body_fat_pct: null,
-  bulk_bf_ceiling: null,
+  bulk_start_date: null as string | null,
+  bulk_start_weight: null as number | null,
+  bulk_start_body_fat_pct: null as number | null,
+  bulk_bf_ceiling: null as number | null,
   updated_at: "2026-06-01T00:00:00Z",
+  ...(DEV_BULK_PHASE
+    ? {
+        // Intake goal 3,050 → deficit −250 → phaseFromDeficit names "Lean Bulk".
+        phase_deficits: [805, 655, 455, 150, 3050],
+        bulk_start_date: "2026-06-01",
+        bulk_start_weight: 88.2,
+        bulk_start_body_fat_pct: 14.5,
+        bulk_bf_ceiling: 17,
+      }
+    : {}),
 };
 
 // ── Nutrition entries ──────────────────────────────────────────────────────────

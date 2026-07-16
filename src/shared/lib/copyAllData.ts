@@ -1,12 +1,13 @@
 import { fetchHealthData } from "@features/health/api";
 import { getConfig, getEntries, targetsFromConfig, type NutritionEntry } from "@features/nutrition/api";
-import { monthlyStats, weeklyStats, trainingMonthsFromStart, phaseFromDeficit } from "@features/nutrition/logic";
+import { monthlyStats, weeklyStats, trainingMonthsFromStart, phaseFromDeficit, phaseKindFromName } from "@features/nutrition/logic";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
+import { localDateStr } from "@shared/lib/date";
 import { weeklyWeightRate, tdeeCalibration, confidenceBreakdownFromSeries, MIN_TREND_POINTS, type TdeeCalibration, type ConfidenceBreakdown } from "@features/nutrition/evaluation";
 import { nutritionDecision } from "@features/nutrition/recommendation";
 import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
-import { computeStats, epley1RM, maxReps, scoreWeight } from "@features/training/logic";
+import { computeStats, computeMuscleWeeklyVolume, epley1RM, maxReps, scoreWeight } from "@features/training/logic";
 import { computeStrengthSummary, type StrengthExercise } from "@features/overview/api";
 import { inferMuscleGroup } from "@features/training/muscleGroup";
 import { computeMuscleClusters, suggestClusterFatigue } from "@features/training/muscleCluster";
@@ -507,6 +508,24 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     };
   });
 
+  // Per-muscle weekly tonnage — the SAME derivation the Weekly Volume card's
+  // muscle view uses (computeMuscleWeeklyVolume re-buckets computeWeeklyVolume's
+  // carry-forward rows), never re-derived here. Pace-matched deltas included.
+  const volumeRoster = exercises
+    .filter((e) => !e.archived)
+    .map((e) => ({ slug: e.slug, split: e.split, setCount: defaultSetCount(e), assistedMode: !!e.assisted_mode }));
+  const muscleWeeklyVolume = computeMuscleWeeklyVolume(
+    logsBySlug,
+    volumeRoster,
+    localDateStr(now),
+    (ex) => inferMuscleGroup(nameBySlug.get(ex.slug) ?? ex.slug, ex.slug, ex.split),
+  ).map((m) => ({
+    group: m.group,
+    thisWeekKg: Math.round(m.thisWeekKg),
+    lastWeekKg: Math.round(m.lastWeekKg),
+    deltaPct: m.deltaPct != null ? +m.deltaPct.toFixed(1) : null,
+  }));
+
   const insights = {
     weight: weightTrend,
     nutrition: {
@@ -528,6 +547,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       muscleSummary,
       // Muscle-level fatigue clusters (systemic only) — empty when nothing lines up.
       muscleFatigue,
+      // This calendar week's tonnage per muscle group (Mon-anchored, carry-forward,
+      // pace-matched delta) — the progression-input read a bulk is steered by.
+      muscleWeeklyVolume,
     },
   };
 
@@ -626,10 +648,14 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       };
     });
 
+  // Primary goal named from the phase KIND (same derivation the app's
+  // evaluation carries), so a surplus config reads "Lean bulk", not "Fat loss".
   const cutPhase = targets?.cutPhaseName ?? null;
+  const phaseKind = cutPhase != null ? phaseKindFromName(cutPhase) : null;
   const inferredGoal =
-    cutPhase === "Maintenance" ? "Maintenance" :
-    cutPhase != null ? "Fat loss" : null;
+    phaseKind === "maintenance" ? "Maintenance" :
+    phaseKind === "bulk" ? "Lean bulk" :
+    phaseKind != null ? "Fat loss" : null;
 
   // Same as buildTrainingJson: dataSpan must reflect only the active exercises
   // we actually emit, so an archived lift's log dates don't skew the window.
@@ -668,6 +694,16 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       primary: inferredGoal,
       secondary: "Hypertrophy",
       targetBodyFat: nutritionConfig?.target_body_fat_pct ?? null,
+      // Lean-bulk plan (0017) — the persisted baseline + the body-fat ceiling
+      // that ends the bulk. null until a bulk baseline is set (or pre-migration).
+      bulk: nutritionConfig?.bulk_start_date
+        ? {
+            startDate: nutritionConfig.bulk_start_date,
+            startWeight: nutritionConfig.bulk_start_weight ?? null,
+            startBodyFat: nutritionConfig.bulk_start_body_fat_pct ?? null,
+            bfCeiling: nutritionConfig.bulk_bf_ceiling ?? null,
+          }
+        : null,
     },
     trainingSchedule: {
       split: "PPL",
