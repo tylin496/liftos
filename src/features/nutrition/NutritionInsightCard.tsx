@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getNutritionState, type NutritionStateFull } from "./evaluationApi";
-import { MIN_TREND_POINTS } from "./evaluation";
+import { MIN_TREND_POINTS, STATUS_EPS } from "./evaluation";
 import { nutritionDecision, rateTone, paceTone } from "./recommendation";
 import { ErrorState } from "@shared/components/ErrorState";
 import { useNav } from "@app/layout/NavContext";
@@ -86,7 +86,10 @@ function PaceMeter({
   // Clamp keeps the marker off the rounded ends; extreme reads still read as
   // "pinned past the edge" without being clipped.
   const markerPct = clamp(((obs - domainMin) / span) * 100, 4, 96);
-  const inState = obs >= lo && obs <= hi;
+  // Same STATUS_EPS deadband evaluate()/rateTone use: a read in the edge
+  // slivers is still on_target to the engine (dot green, decision "maintain"),
+  // so the band/caption must not contradict it with a raw in-band check.
+  const inState = obs >= lo - STATUS_EPS && obs <= hi + STATUS_EPS;
   // Same rateTone the Overview Weight card's Rate arrow uses (band-aware
   // severity, not just in/off) — one source, so the dot, the arrow, and
   // Overview never disagree on how far off this number is. Gold, though, is a
