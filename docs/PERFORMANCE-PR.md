@@ -22,7 +22,7 @@ Training status/PR 原本 100% 靠 e1RM(Epley)。Epley 把 `77kg×7 ≈ 75kg×8`
 
 - 🏆 **Strength PR** — 新的 rounded-e1RM 天花板。
 - 💪 **Performance PR** — 不是新天花板,而是**史上最重的完成重量**,或在 e1RM 平手時**做了更多總 reps**。
-- 🎯 **Milestone** — 整數重量。**未建**(需要 per-exercise 邊界規則)。
+- 🎯 **Milestone** — 整數重量。**已建**(`milestone.ts`):新的史上最重完成重量跨過整數 rung 時觸發——100kg 以下每 10kg 一階,100kg(含)以上每 5kg 一階;一次跨多階只慶祝最高那階。邊界規則最終不是 per-exercise 尺度,而是**只限 compound**(`exercises.compound` flag,且非 assisted)——機械孤立動作(Leg Curl 102kg 之類)重量天生大會洗版,直接排除。gating 在 caller(`ExerciseCard`),模組本身是純重量數學。
 
 ## 已 ship 的 feedback 層(2 檔)
 
