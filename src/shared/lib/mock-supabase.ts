@@ -141,6 +141,9 @@ const NUTRITION_EVALUATION = {
   cut_mode: "Moderate Cut",
   window_days: 21,
   weight_data_points: 21,
+  logged_intake: 2520,
+  intake_gap: 125, // estimated_intake − logged_intake
+  longest_gap: 1,
   rec_source: "nutrition",
   rec_priority: 72,
   // Mirror what the live engine actually persists for this state (too-slow loss,

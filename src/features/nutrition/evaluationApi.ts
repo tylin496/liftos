@@ -105,15 +105,12 @@ function rowToState(row: Row): NutritionStateFull {
     cutMode: row.cut_mode ?? "",
     windowDays: row.window_days ?? 0,
     weightDataPoints: row.weight_data_points ?? 0,
-    // NOT stored as columns, so they can't round-trip: a persisted-row READER
-    // always sees these stubs, never the real values `evaluate` used to set
-    // `confidence`. The confidence LABEL is already stored, so the app is fine —
-    // but any consumer that reprints these (the AI export) must RECOMPUTE them from
-    // live data, or it prints null/null/0 beside a confidence built from the real
-    // numbers (see copyAllData engineHypothesis `liveDiag`).
-    longestGap: 0,
-    loggedIntake: null,
-    intakeGap: null,
+    // Persisted since 0016 so the row round-trips — readers (incl. the AI export)
+    // see the same values `evaluate` used to set `confidence`. Pre-0016 rows read
+    // null and degrade to the old stubs until the next recompute fills them.
+    longestGap: row.longest_gap ?? 0,
+    loggedIntake: row.logged_intake ?? null,
+    intakeGap: row.intake_gap ?? null,
     daysOnTarget: row.days_on_target ?? 0,
   };
   const recommendation: Recommendation | null = row.rec_title
@@ -153,6 +150,9 @@ function stateToRow(
     window_days: diagnostics.windowDays,
     weight_data_points: diagnostics.weightDataPoints,
     days_on_target: diagnostics.daysOnTarget,
+    longest_gap: diagnostics.longestGap,
+    logged_intake: diagnostics.loggedIntake,
+    intake_gap: diagnostics.intakeGap,
     rec_source: recommendation?.source ?? null,
     rec_priority: recommendation?.priority ?? null,
     rec_title: recommendation?.title ?? null,

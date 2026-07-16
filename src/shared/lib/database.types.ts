@@ -215,6 +215,9 @@ export type Database = {
           estimated_tdee: number | null
           evaluated_at: string
           intake_difference: number | null
+          intake_gap: number | null
+          logged_intake: number | null
+          longest_gap: number | null
           observed_rate: number
           rec_dismissible: boolean | null
           rec_priority: number | null
@@ -241,6 +244,9 @@ export type Database = {
           estimated_tdee?: number | null
           evaluated_at: string
           intake_difference?: number | null
+          intake_gap?: number | null
+          logged_intake?: number | null
+          longest_gap?: number | null
           observed_rate: number
           rec_dismissible?: boolean | null
           rec_priority?: number | null
@@ -267,6 +273,9 @@ export type Database = {
           estimated_tdee?: number | null
           evaluated_at?: string
           intake_difference?: number | null
+          intake_gap?: number | null
+          logged_intake?: number | null
+          longest_gap?: number | null
           observed_rate?: number
           rec_dismissible?: boolean | null
           rec_priority?: number | null

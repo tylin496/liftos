@@ -1,8 +1,8 @@
 import { fetchHealthData } from "@features/health/api";
 import { getConfig, getEntries, targetsFromConfig, type NutritionEntry } from "@features/nutrition/api";
 import { monthlyStats, weeklyStats, trainingMonthsFromStart, phaseFromDeficit } from "@features/nutrition/logic";
-import { getNutritionState, windowedLoggedIntake, type NutritionStateFull } from "@features/nutrition/evaluationApi";
-import { weeklyWeightRate, tdeeCalibration, confidenceBreakdownFromSeries, longestGap, MIN_TREND_POINTS, WINDOW_DAYS, type TdeeCalibration, type ConfidenceBreakdown } from "@features/nutrition/evaluation";
+import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
+import { weeklyWeightRate, tdeeCalibration, confidenceBreakdownFromSeries, MIN_TREND_POINTS, type TdeeCalibration, type ConfidenceBreakdown } from "@features/nutrition/evaluation";
 import { nutritionDecision } from "@features/nutrition/recommendation";
 import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
@@ -302,11 +302,11 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   // TDEE calibration + confidence breakdown (inform-only) — mirrors
   // buildNutritionJson so the full-data export and the nutrition-tab export can
   // never disagree.
-  const nutritionLoggedIntake = windowedLoggedIntake(sortedEntries);
-  const nutritionIntakeGap =
-    nutritionStateFull && nutritionLoggedIntake != null
-      ? nutritionStateFull.diagnostics.estimatedIntake - Math.round(nutritionLoggedIntake)
-      : null;
+  // loggedIntake/intakeGap round-trip from the persisted row (0016) — the same
+  // values evaluate() used to set the stored confidence, so the export can never
+  // disagree with the app.
+  const nutritionLoggedIntake = nutritionStateFull?.diagnostics.loggedIntake ?? null;
+  const nutritionIntakeGap = nutritionStateFull?.diagnostics.intakeGap ?? null;
   const nutritionCalibration: TdeeCalibration | null =
     nutritionConfig && nutritionStateFull
       ? tdeeCalibration({
@@ -333,16 +333,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           nutritionIntakeGap,
         )
       : null;
-  const nutritionEngine = engineHypothesis(
-    nutritionStateFull,
-    nutritionCalibration,
-    nutritionConfidence,
-    {
-      loggedIntake: nutritionLoggedIntake != null ? Math.round(nutritionLoggedIntake) : null,
-      intakeGap: nutritionIntakeGap,
-      longestGap: longestGap(nutritionWeightSeries, WINDOW_DAYS),
-    },
-  );
+  const nutritionEngine = engineHypothesis(nutritionStateFull, nutritionCalibration, nutritionConfidence);
   const logged = sortedEntries.filter((e) => e.calories != null);
   const avgCalories = logged.length
     ? Math.round(logged.reduce((s, e) => s + (e.calories ?? 0), 0) / logged.length)
@@ -793,17 +784,9 @@ function engineHypothesis(
   state: NutritionStateFull | null,
   calibration: TdeeCalibration | null,
   confidence: ConfidenceBreakdown | null,
-  // rowToState stubs loggedIntake/intakeGap/longestGap when reading the persisted
-  // row back (they're not columns), so state.diagnostics always carries null/null/0
-  // for them. The export recomputes them fresh for the confidence/TDEE sidecars, so
-  // patch the SAME live values into the emitted diagnostics — otherwise the printed
-  // diagnostics contradict the confidence/calibration built from those numbers.
-  liveDiag?: { loggedIntake: number | null; intakeGap: number | null; longestGap: number },
 ) {
   if (!state) return null;
-  const diagnostics = liveDiag ? { ...state.diagnostics, ...liveDiag } : state.diagnostics;
-  // nutritionDecision must read the PERSISTED diagnostics so the hypothesis matches
-  // what the app decided (it never sees the live loggedIntake/intakeGap either).
+  const diagnostics = state.diagnostics;
   const d = nutritionDecision(state.evaluation, state.diagnostics);
   // Discrete labels for the rules that actually fired, so a reviewer sees
   // *which* rules produced the hypothesis instead of re-deriving them from
@@ -825,9 +808,8 @@ function engineHypothesis(
     evaluation: state.evaluation,
     // The inputs behind evaluation.confidence, so a reviewer can re-derive (or
     // dispute) it rather than take the label at face value. loggedIntake/intakeGap/
-    // longestGap are the export's freshly-recomputed values (see liveDiag) — the
-    // persisted row doesn't store them, so this keeps them consistent with the
-    // confidence/tdee blocks below instead of printing null/null/0 beside them.
+    // longestGap round-trip from the persisted row (0016) — the same values
+    // evaluate() used to set the confidence label.
     diagnostics,
     // The label on `evaluation.confidence` is the gate; this decomposes it into the
     // continuous per-source signals it collapses (freshness / weightData / trend /
@@ -898,11 +880,10 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
     ...weeklyStats(byWeek.get(wk)!),
   }));
 
-  // loggedIntake / intakeGap reuse the engine's own windowed mean and diagnostics
-  // so the export never re-derives them differently from the app.
-  const loggedIntake = windowedLoggedIntake(sorted);
-  const intakeGap =
-    state && loggedIntake != null ? state.diagnostics.estimatedIntake - Math.round(loggedIntake) : null;
+  // loggedIntake / intakeGap round-trip from the persisted row (0016) — the same
+  // values evaluate() used, so the export never re-derives them differently.
+  const loggedIntake = state?.diagnostics.loggedIntake ?? null;
+  const intakeGap = state?.diagnostics.intakeGap ?? null;
 
   // TDEE calibration cross-check (inform-only): compare the TDEE the target is
   // built on (config.tdee) against measured burn + the log/weight-implied TDEE.
@@ -951,11 +932,7 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
     // which calorie/protein goal was in force over which dates. See
     // buildTargetPhases: judge each day's intake against its day's target.
     phases,
-    engine: engineHypothesis(state, calibration, confidence, {
-      loggedIntake: loggedIntake != null ? Math.round(loggedIntake) : null,
-      intakeGap,
-      longestGap: longestGap(weightSeries, WINDOW_DAYS),
-    }),
+    engine: engineHypothesis(state, calibration, confidence),
     summary: {
       periodDays: days,
       days: sorted.length,
