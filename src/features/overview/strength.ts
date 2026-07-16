@@ -7,7 +7,7 @@
 // the training parser/e1RM, nothing else.
 
 import { parse, score } from "@features/training/parser";
-import { epley1RM, maxReps, totalReps, scoreWeight, type ScoreMode } from "@features/training/logic";
+import { strengthScore, maxReps, totalReps, scoreWeight, type ScoreMode } from "@features/training/logic";
 import { milestoneReached } from "@features/training/milestone";
 
 /** Reps for the local reps-tiebreak — NOT training/logic.ts's totalReps, which
@@ -303,7 +303,10 @@ export function computeStrengthSummary(
       const sw = scoreWeight(p, assistedMode);
       if (!Number.isFinite(sw)) continue;
       if (slugAssisted === undefined && p.assisted) isAssisted = true;
-      const e = epley1RM(sw, p.reps);
+      // strengthScore, not epley1RM: an assisted lift's axis is plain %BW —
+      // projecting Epley above the 100%-BW ceiling re-creates the phantom
+      // "decline" on rep changes that logic.ts/toLogEntry already strips.
+      const e = strengthScore(sw, p.reps, assistedMode);
       const tng = sw > 0 ? sw * maxReps(p.reps) : 0; // uncapped reps — matches logic.ts toLogEntry
       const tr = sessionReps(p.reps);
       const cur = byDate[l.log_date] ?? { e1rm: 0, tonnage: 0, weightKg: 0, scoreW: 0, topReps: 0, ceilingReps: 0 };

@@ -403,8 +403,11 @@ export function computeHistDelta(
   // assisted-mode exercise, so a lighter body doesn't read as a loss).
   const cSw = cSwAxis;
   const pSw = pSwAxis;
-  const cE1 = epley1RM(cSw, cp.reps);
-  const pE1 = epley1RM(pSw, pp.reps);
+  // strengthScore, not epley1RM: assisted compares on plain %BW (no Epley),
+  // otherwise a reps drop at equal-or-higher %BW flips the arrow against the
+  // %BW magnitude shown next to it.
+  const cE1 = strengthScore(cSw, cp.reps, assistedMode);
+  const pE1 = strengthScore(pSw, pp.reps, assistedMode);
   const cmp = cmpStrength(
     { e1rm: cE1, totalReps: totalReps(cp.reps, setCount), tonnage: cSw * maxReps(cp.reps), weightKg: cKg },
     { e1rm: pE1, totalReps: totalReps(pp.reps, setCount), tonnage: pSw * maxReps(pp.reps), weightKg: pKg },
@@ -415,7 +418,11 @@ export function computeHistDelta(
   // normal lifts, %BW for assisted (an assisted lift's kg is contaminated by
   // bodyweight change, exactly what the %BW axis exists to strip out). Direction
   // always comes from cmpStrength above; this is only what the number/unit reads.
-  const isAssistedPair = !!(cp.assisted && pp.assisted);
+  // The exercise's mode, not per-log syntax: the axis guard above already
+  // ensures both logs are comparable, and a non-assisted exercise whose raws
+  // happen to use bw-(assist) syntax scores in kg — labelling that delta "%"
+  // would lie about the unit.
+  const isAssistedPair = assistedMode;
   const loadDelta = isAssistedPair ? cSw - pSw : kgDelta;
   // Assisted deltas read in "%" — the "BW" is redundant next to the row's own
   // "= NN% BW" read-out, so the delta drops it and keeps just the percent (glued

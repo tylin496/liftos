@@ -357,6 +357,26 @@ describe("computeStrengthSummary — milestoneKg (reward-row 🎯 chip)", () => 
     expect(ex.milestoneKg).toBeUndefined();
   });
 
+  it("scores an assisted compound on plain %BW — same %BW at fewer reps is NOT a decline", () => {
+    // All four sessions lift 80% BW; only reps differ (10 → 5). Under Epley the
+    // ×10 session would project 106.7 vs 93.3 for ×5 and the lift would read as
+    // sliding below peak — the exact phantom 58f20d9 removed from logic.ts.
+    const s = computeStrengthSummary(
+      {
+        "assist-pull": [
+          log("2026-01-01", "100-(20) *10"), // 80% BW × 10
+          log("2026-01-08", "100-(20) *5"),
+          log("2026-01-15", "100-(20) *5"),
+          log("2026-02-01", "100-(20) *5"),
+        ],
+      },
+      new Set(["assist-pull"]),
+    );
+    const ex = s.exercises.find((e) => e.slug === "assist-pull")!;
+    expect(ex.prE1RM).toBeCloseTo(80, 5);     // plain %BW, never Epley(%BW)
+    expect(ex.latestE1RM).toBeCloseTo(80, 5); // holding 80% BW = full retention
+  });
+
   it("stays undefined when no compound set is supplied (engine / export callers)", () => {
     const s = computeStrengthSummary(crossing);
     expect(s.exercises.find((e) => e.slug === "squat")!.milestoneKg).toBeUndefined();

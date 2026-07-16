@@ -223,6 +223,18 @@ describe("scoreWeight — assisted %BW axis", () => {
     expect(d.text).not.toContain("kg");
   });
 
+  it("histDelta direction follows %BW (no Epley) when reps swing on an assisted pair", () => {
+    // prev: 70%BW × 12; curr: 75%BW × 3. Under Epley the rep drop would win
+    // (98 vs 82.5 → loss) and the arrow would contradict the "+5%" magnitude
+    // shown beside it. Assisted compares plain %BW: 75 > 70 → gain.
+    const curr = { log_date: "2026-07-01", raw: "100-(25) *3" } as TrainingLog;
+    const prev = { log_date: "2026-06-01", raw: "100-(30) *12" } as TrainingLog;
+    const d = computeHistDelta(curr, prev, 3, "compound", true)!;
+    expect(d.direction).toBe("gain");
+    expect(d.text).toContain("%");
+    expect(d.text).not.toContain("kg");
+  });
+
   it("histDelta uses kg for a normal (non-assisted) pair", () => {
     const curr = { log_date: "2026-07-01", raw: "102*10" } as TrainingLog;
     const prev = { log_date: "2026-06-01", raw: "100*10" } as TrainingLog;
