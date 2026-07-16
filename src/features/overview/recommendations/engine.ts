@@ -39,9 +39,8 @@ import type { LeanMassEvaluation } from "@features/overview/goal";
 import { GOAL_EXIT_MARGIN_PP } from "@features/overview/goal";
 import { recoveryRecommendation, RECOVERY_TITLE } from "./recovery";
 import { nutritionProvider } from "./nutrition";
-import { atBandFloorSlowing } from "@features/nutrition/recommendation";
 // nutrition's own "Review calorie target" (reduce) is the slow-side correction the
-// engine defers to when muscle is safe — keep the title here so the hysteresis keys
+// engine defers to when strength is safe — keep the title here so the hysteresis keys
 // on the same string nutritionDecision emits (eventType).
 const REVIEW_TARGET_TITLE = "Review calorie target";
 
@@ -247,29 +246,35 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
         "You're losing faster than planned and training's starting to slip — ease the deficit to protect muscle",
     };
   }
-  // 2b Slow / stalled / easing-at-the-floor while adherent. Lowering the calorie
-  //    target is a valid lever here: logging is imprecise but roughly a constant
-  //    offset, so cutting the target N kcal cuts real intake ~N kcal regardless. So
-  //    the default is to let nutrition's own "Review calorie target" (reduce) surface
-  //    — UNLESS strength is confidently declining, in which case cutting further
-  //    would accelerate muscle loss, so we fall back to adding activity instead. The
-  //    floor-slowing case (still technically in-band but drifting down + decelerating)
-  //    is caught here too, a step before the rate actually stalls.
-  const wantsTighten =
-    (w === "stalled" ||
-      w === "slow" ||
-      (ctx.nutrition != null && atBandFloorSlowing(ctx.nutrition.evaluation))) &&
-    isAdherent(ctx.nutrition);
-  if (wantsTighten && trn === "declining") {
-    return {
-      source: "weight",
-      priority: 68,
-      title: INCREASE_ACTIVITY_TITLE,
-      subtitle:
-        "The scale's stalled and your lifts are slipping — add activity rather than cutting calories further while strength recovers",
-    };
+  // 2b Genuinely slow / stalled while adherent — the scale isn't moving enough.
+  //    Lowering the target is a valid lever ONLY when strength is clearly safe:
+  //    deepening the deficit trades muscle for speed, and for a hypertrophy-minded
+  //    lifter that's usually a bad trade. So the DEFAULT is to add activity (or hold)
+  //    rather than cut, and we fall through to nutrition's own reduce ONLY when the
+  //    lifts confirm there's room — training present, not low-confidence, not
+  //    declining, and no lift on watch. Absent/soft strength data → stay conservative
+  //    and don't cut. (Being at the band FLOOR is NOT a trigger — that's often the
+  //    safest pace; the deceleration is already shown by the Weight card's accel arrow.)
+  const wantsTighten = (w === "stalled" || w === "slow") && isAdherent(ctx.nutrition);
+  if (wantsTighten) {
+    // Divert to activity (don't cut) on POSITIVE evidence the lifts are softening —
+    // a declining trend OR any lift on watch. Absent/low-confidence training = no
+    // evidence, so we don't block the cut (no data → no bad news). This is broader
+    // than the old "only a confirmed decline" gate: a stalling key lift is enough to
+    // stop deepening the deficit.
+    const t = ctx.training;
+    const strengthSoftening = t != null && t.confidence !== "low" && (t.trend === "declining" || t.watch > 0);
+    if (strengthSoftening) {
+      return {
+        source: "weight",
+        priority: 68,
+        title: INCREASE_ACTIVITY_TITLE,
+        subtitle:
+          "You're on target but the scale's stalled — add activity before cutting calories further, so you protect strength while your lifts are under strain",
+      };
+    }
+    // Lifts show no strain → fall through to nutrition's own reduce (below).
   }
-  // wantsTighten with training safe → fall through to nutrition's reduce (below).
 
   // ─ Tier 3 / 4 — Sustain vs Capitalize ───────────────────────────────────────
   // Nutrition's own decision is the default (maintain, or ease-the-deficit when

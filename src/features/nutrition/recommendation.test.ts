@@ -39,21 +39,12 @@ describe("nutritionDecision", () => {
     expect(d.currentTarget).toBe(2145);
   });
 
-  it("proposes a reduce when at the band floor AND slowing (still technically in-band)", () => {
+  it("does NOT reduce when merely at the band floor and slowing (that's not a stall)", () => {
+    // Being at the low edge is often the safest pace — only a genuine below-band
+    // read proposes a cut. on_target + decelerating must still maintain.
     const { evaluation, diagnostics } = make("on_target", "high");
-    // loss 0.42 is in the bottom slice of [0.4, 0.7] (floor..0.46) and decelerating.
-    evaluation.observedRate = -0.42;
+    evaluation.observedRate = -0.42; // low edge of [0.4, 0.7]
     evaluation.accelDirection = "slowing";
-    const d = nutritionDecision(evaluation, diagnostics);
-    expect(d.action).toBe("reduce");
-    expect(d.proposedTarget).toBe(1995);
-    expect(d.actionLine).toMatch(/low edge/i);
-  });
-
-  it("does NOT reduce at the floor when the rate is not slowing", () => {
-    const { evaluation, diagnostics } = make("on_target", "high");
-    evaluation.observedRate = -0.42;
-    evaluation.accelDirection = null; // flat, not decelerating
     const d = nutritionDecision(evaluation, diagnostics);
     expect(d.action).toBe("maintain");
   });
@@ -83,10 +74,10 @@ describe("paceLabel", () => {
     expect(paceLabel(make("below_target", "low").evaluation)).toBe("Calibrating");
   });
 
-  it("reads 'Easing' at the band floor while slowing (not a flat 'On pace')", () => {
+  it("stays 'On pace' at the band floor while slowing (deceleration lives on the accel arrow)", () => {
     const e = make("on_target", "high").evaluation;
-    e.observedRate = -0.42; // bottom slice of [0.4, 0.7]
+    e.observedRate = -0.42; // low edge of [0.4, 0.7]
     e.accelDirection = "slowing";
-    expect(paceLabel(e)).toBe("Easing");
+    expect(paceLabel(e)).toBe("On pace");
   });
 });

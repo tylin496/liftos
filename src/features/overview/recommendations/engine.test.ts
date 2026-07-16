@@ -62,10 +62,11 @@ const priorRec = (title: string): Recommendation => ({ source: "weight", priorit
 const training = (
   trend: TrainingEvaluation["trend"],
   confidence: TrainingEvaluation["confidence"] = "high",
+  watch = trend === "declining" ? 2 : 0,
 ): TrainingEvaluation => ({
   trend,
   confidence,
-  watch: trend === "declining" ? 2 : 0,
+  watch,
   total: 4,
 });
 
@@ -164,18 +165,12 @@ describe("Decision Engine — precedence ladder", () => {
     expect(rec?.title).not.toBe("Increase activity");
   });
 
-  it("2b: at the band FLOOR and SLOWING (in-band) + adhering + lifts safe → nutrition's reduce", () => {
+  it("2b: stalled + adhering + a key lift on WATCH (not yet declining) → still holds off the cut", () => {
     const rec = decide({
-      nutrition: nutrition({
-        status: "on_target",
-        observedRate: -0.42, // bottom slice of [0.4, 0.7]
-        accelDirection: "slowing",
-        confidence: "high",
-        daysOnTarget: 20,
-      }),
-      training: training("holding"),
+      nutrition: nutrition({ status: "below_target", observedRate: -0.05, confidence: "high", daysOnTarget: 20 }),
+      training: training("holding", "high", 1), // holding overall, but 1 lift on watch
     });
-    expect(rec?.title).toBe("Review calorie target");
+    expect(rec?.title).toBe("Increase activity");
   });
 
   it("stalled but NOT adhering → falls through to nutrition (activity isn't the fix)", () => {

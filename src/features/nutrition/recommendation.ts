@@ -35,28 +35,6 @@ export interface NutritionDecision {
 const CUT_STEP = 150;
 const RAISE_STEP = 150;
 
-/** Fraction of the band width, measured up from the floor, that counts as "at the
- *  bottom edge" — the mirror of isOptimalPace's top slice (same OPTIMAL_BAND_FRACTION),
- *  so the band's top and bottom slivers are symmetric. */
-const FLOOR_BAND_FRACTION = 0.2;
-
-/** Sitting at the low edge of the band AND decelerating — an on_target read that is
- *  quietly drifting toward the floor/plateau. Distinct from below_target (already out
- *  of band): this catches it a step earlier, while still technically in-band, so the
- *  engine can propose a small cut before the loss actually stalls. Uses accelDirection
- *  (a separate 14+14d read) so a flat-but-in-band rate doesn't trip it. Shared by
- *  nutritionDecision (the target proposal) and the Decision Engine (its guardrail),
- *  so the two can never disagree on whether you're at the floor. */
-export function atBandFloorSlowing(
-  evaluation: Pick<NutritionEvaluation, "status" | "observedRate" | "targetRange" | "accelDirection">,
-): boolean {
-  if (evaluation.status !== "on_target" || evaluation.accelDirection !== "slowing") return false;
-  const { min, max } = evaluation.targetRange;
-  if (min === max) return false; // Not tracked
-  const loss = -evaluation.observedRate;
-  return loss <= min + (max - min) * FLOOR_BAND_FRACTION;
-}
-
 function maintain(
   target: number,
   reason: string,
@@ -104,18 +82,13 @@ export function nutritionDecision(
     );
   }
 
-  const belowBand = evaluation.status === "below_target";
-  const floorSlowing = atBandFloorSlowing(evaluation);
-  // "Wants a cut" = either genuinely below the band, OR sitting at the band floor
-  // and decelerating (caught a step early, while still technically in-band). Both
-  // are addressed the same way: a small target cut. Lowering the target lowers real
-  // intake by the same amount even though logging is imprecise (a roughly constant
-  // offset), so it's a valid lever, not a guess.
-  const wantsCut = belowBand || floorSlowing;
-  const tooFast = evaluation.status === "above_target";
+  // Being at/near the band FLOOR is not a problem to fix — it's often the safest,
+  // most muscle-preserving pace. Only a genuine below-band stall proposes a cut, and
+  // whether that cut is the right call (vs protecting the lifts) is the Decision
+  // Engine's job — see its rung 2b strength guardrail. Nutrition just states its view.
+  const tooSlow = evaluation.status === "below_target";
 
-  // On plan and not drifting to the floor → hold.
-  if (!wantsCut && !tooFast) {
+  if (evaluation.status === "on_target") {
     return maintain(
       target,
       "Weight loss is tracking within the planned range.",
@@ -124,34 +97,30 @@ export function nutritionDecision(
     );
   }
 
-  // Medium confidence on a below/above/floor-slowing signal → hold; the trend isn't
-  // settled enough to justify moving the target.
+  // Medium confidence on a below/above signal → hold; the trend isn't settled
+  // enough to justify moving the target.
   if (evaluation.confidence !== "high") {
     return maintain(
       target,
-      wantsCut
-        ? (floorSlowing
-            ? "Weight loss is easing toward the low edge of your range, but confidence is not yet high enough to justify changing your calorie target."
-            : "Weight loss appears slower than planned, but confidence is not yet high enough to justify changing your calorie target.")
+      tooSlow
+        ? "Weight loss appears slower than planned, but confidence is not yet high enough to justify changing your calorie target."
         : "Weight loss appears faster than planned, but confidence is not yet high enough to justify changing your calorie target.",
       55,
-      wantsCut
+      tooSlow
         ? "Loss looks slow, but the trend isn't confirmed yet"
         : "Loss looks fast, but the trend isn't confirmed yet",
     );
   }
 
   // High confidence → propose an actual adjustment.
-  if (wantsCut) {
+  if (tooSlow) {
     const proposed = Math.max(0, target - CUT_STEP);
     return {
       action: "reduce",
       eventType: "Review calorie target",
-      actionLine: floorSlowing ? "Loss is easing at the low edge of your range" : "Weight loss has slowed",
+      actionLine: "Weight loss has slowed",
       actionHeadline: "Reduce calorie target",
-      reason: floorSlowing
-        ? "You're at the low edge of your target range and the loss is easing — a small cut should restart it."
-        : "Weight loss has been slower than planned — a small cut should restart it.",
+      reason: "Weight loss has been slower than planned — a small cut should restart it.",
       currentTarget: target,
       proposedTarget: proposed,
       priority: 72,
@@ -180,12 +149,7 @@ export function paceLabel(evaluation: NutritionEvaluation): string {
   const noActiveTarget = evaluation.targetRange.min === evaluation.targetRange.max;
   if (noActiveTarget) return "Not tracked";
   if (evaluation.confidence === "low") return "Calibrating";
-  if (evaluation.status === "on_target") {
-    // At the low edge and decelerating — flag it rather than a flat "On pace", so
-    // the Weight card word matches the System card when it proposes a small cut.
-    if (atBandFloorSlowing(evaluation)) return "Easing";
-    return isOptimalPace(evaluation) ? "Optimal" : "On pace";
-  }
+  if (evaluation.status === "on_target") return isOptimalPace(evaluation) ? "Optimal" : "On pace";
   if (evaluation.confidence !== "high") return "Forming";
   // Losing too fast is "Too fast", not "Above pace": on a cut it's a muscle risk
   // the Decision Engine wants corrected, not a lead to celebrate.
@@ -226,10 +190,7 @@ export function paceTone(evaluation: NutritionEvaluation): PaceTone {
   const noActiveTarget = evaluation.targetRange.min === evaluation.targetRange.max;
   if (noActiveTarget) return null;                    // Not tracked
   if (evaluation.confidence === "low") return null;   // Calibrating
-  if (evaluation.status === "on_target") {
-    if (atBandFloorSlowing(evaluation)) return "warn"; // Easing toward the floor
-    return isOptimalPace(evaluation) ? "gold" : "good"; // On pace / Optimal
-  }
+  if (evaluation.status === "on_target") return isOptimalPace(evaluation) ? "gold" : "good"; // On pace
   if (evaluation.confidence !== "high") return null;  // Forming — not conclusive
   // Outside the band, either direction, is a caution — too fast (loss > band) is
   // a muscle risk, too slow (loss < band) is stalled progress. Only outright
