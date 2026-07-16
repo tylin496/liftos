@@ -218,7 +218,7 @@ describe("T3 — recovery persistently worsening", () => {
 
 describe("T4 — adherence slipping", () => {
   const today = "2026-03-01";
-  // calories vs tdee 2705 / target 500: 2205 on-plan, 2400 over, 2800 surplus, 1700 low-intake
+  // calories vs tdee 2705 / target 500: 2205 on-plan, 2400 over, 2800 counter, 1700 under
   const days = (calories: number[], start = 13): PhaseTriggerEntry[] =>
     calories.map((c, i) => entry(daysAgo(start - i, today), c));
 
@@ -238,7 +238,7 @@ describe("T4 — adherence slipping", () => {
     expect(triggerByKey(r, "adherence_slipping").state).toBe("ok");
   });
 
-  it("low-intake days are not misses", () => {
+  it("under-budget cut days are not misses", () => {
     const r = evaluatePhaseTriggers(
       inputs({ today, entries: days([1700, 1700, 1700, 1700, 2205, 2205, 2205, 2205, 2205, 2205]) }),
     );

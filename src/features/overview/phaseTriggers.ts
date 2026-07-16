@@ -107,11 +107,13 @@ const dateMinusDays = (iso: string, days: number): string => {
   return d.toISOString().slice(0, 10);
 };
 
-/** Over-budget days among the LOGGED days of the trailing window. Each day is
+/** Off-plan days among the LOGGED days of the trailing window. Each day is
  *  judged against its own persisted tdee/deficit snapshot via the same per-day
  *  primitive the Today card uses (getCalorieResult), so this can never disagree
- *  with the day's own verdict: over/surplus = a miss, low-intake is NOT a miss,
- *  and an unlogged day carries no verdict at all. */
+ *  with the day's own verdict: a miss = the red "counter" day or the
+ *  against-direction deviation (cut: over budget; bulk: under budget). The
+ *  with-direction deviation is NOT a miss, and an unlogged day carries no
+ *  verdict at all. */
 export function countOverBudgetDays(
   entries: PhaseTriggerEntry[],
   today: string,
@@ -123,12 +125,12 @@ export function countOverBudgetDays(
   for (const e of entries) {
     if (e.entry_date < from || e.entry_date > today || e.calories == null) continue;
     logged++;
-    const { state } = getCalorieResult(
+    const { state, phase } = getCalorieResult(
       e.calories,
       e.tdee ?? DEFAULTS.tdee,
       e.deficit_target ?? DEFAULTS.deficitTarget,
     );
-    if (state === "over" || state === "surplus") over++;
+    if (state === "counter" || state === (phase === "bulk" ? "under" : "over")) over++;
   }
   return { over, logged };
 }

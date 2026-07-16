@@ -9,33 +9,38 @@ import {
   getCalorieResult,
   getProteinResult,
   monthlyStats,
+  phaseKindFromName,
   toDateStr,
   weeklyStats,
   type CalorieState,
   type DayInput,
+  type PhaseKind,
 } from "./logic";
 
 const WEEKDAY_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
 
-// Bar order tells the adherence story left-to-right: the two states that KEEP
-// the deficit (on-plan + low-intake) sit together on the left, then the two
-// that break it (over + surplus). Colour follows logic.ts's single four-level
-// verdict scale — on-plan good; ANY deviation amber (low-intake AND over-budget,
-// both still in a deficit); only a surplus (no deficit at all) is red. Direction
-// is carried by the glyph (▲ over/surplus vs ▼ low-intake), not the colour.
-const DIST_STATES: { key: CalorieState; label: string; glyph: string; color: string }[] = [
-  { key: "on-plan", label: "On plan", glyph: "●", color: "var(--good)" },
-  { key: "low-intake", label: "Low intake", glyph: "▼", color: "var(--warn)" },
-  { key: "over", label: "Over budget", glyph: "▲", color: "var(--warn)" },
-  { key: "surplus", label: "Surplus", glyph: "▲", color: "var(--bad)" },
-];
-
-// Legend keeps all four buckets separate so it agrees with the adherence KPI:
-// low-intake counts toward adherence, so it must NOT be lumped into an "Off
-// target" row — otherwise the card reads "87% adherence" above a bar that
-// calls 70% of the month off target.
-const DIST_LEGEND: { keys: CalorieState[]; label: string; glyph: string; color: string }[] =
-  DIST_STATES.map((s) => ({ keys: [s.key], label: s.label, glyph: s.glyph, color: s.color }));
+// Bar order tells the adherence story left-to-right: the states that KEEP the
+// phase (on-plan + the with-direction deviation) sit together on the left, then
+// the ones that break it. Colour follows logic.ts's single four-level verdict
+// scale — on-plan good, ANY deviation amber, only the against-the-phase
+// "counter" day red. Direction is carried by the glyph (▲ ate more vs ▼ ate
+// less), not the colour. Ordering/labels follow the CURRENT phase (a
+// transition month self-corrects as it fills with the new phase's days).
+function distStates(phase: PhaseKind): { key: CalorieState; label: string; glyph: string; color: string }[] {
+  return phase === "bulk"
+    ? [
+        { key: "on-plan", label: "On plan", glyph: "●", color: "var(--good)" },
+        { key: "over", label: "Over budget", glyph: "▲", color: "var(--warn)" },
+        { key: "under", label: "Under budget", glyph: "▼", color: "var(--warn)" },
+        { key: "counter", label: "No surplus", glyph: "▼", color: "var(--bad)" },
+      ]
+    : [
+        { key: "on-plan", label: "On plan", glyph: "●", color: "var(--good)" },
+        { key: "under", label: "Low intake", glyph: "▼", color: "var(--warn)" },
+        { key: "over", label: "Over budget", glyph: "▲", color: "var(--warn)" },
+        { key: "counter", label: "Surplus", glyph: "▲", color: "var(--bad)" },
+      ];
+}
 
 /* Static integer — count-up dropped app-wide (only progress-bar / activity-ring
    cards animate their number). The week KPIs have neither, so they just show. */
@@ -122,6 +127,10 @@ export function HistoryView({
   }, [weekNavDir]);
 
   const defaultTargets = useMemo(() => targetsFromConfig(config), [config]);
+  const distBands = useMemo(
+    () => distStates(phaseKindFromName(defaultTargets.cutPhaseName)),
+    [defaultTargets.cutPhaseName],
+  );
 
   const todayStrNow = toDateStr(new Date());
   const canGoBack = shiftDate(weekAnchor, -7) >= MIN_DATE;
@@ -320,7 +329,9 @@ export function HistoryView({
               ? Math.max(7, Math.round(Math.min(100, (d.protein! / Math.max(1, protTarget)) * 100)))
               : 0;
 
-            const isSurplus = calResult?.isSurplus ?? false;
+            // Red kcal bar only when the day worked against its own phase —
+            // a bulk day's surplus is the plan, not a flag.
+            const isCounter = calResult?.state === "counter";
             const doubleHit = calResult?.state === "on-plan" && protResult?.celebrated;
 
             return (
@@ -363,7 +374,7 @@ export function HistoryView({
                   {hasCal || hasProtein ? (
                     <div className="ntb-pair">
                       <div
-                        className={`ntb-bar ntb-bar-kcal${isSurplus ? " surplus" : ""}`}
+                        className={`ntb-bar ntb-bar-kcal${isCounter ? " counter" : ""}`}
                         style={{ height: hasCal ? `${kcalPct}%` : "7px" }}
                       />
                       <div
@@ -419,28 +430,30 @@ export function HistoryView({
               <MetricValue size="sm" unit="% double hit">{month.doubleHitPct}</MetricValue>
             </div>
 
-            {/* Spells out double hit so a low-intake day with protein met doesn't
+            {/* Spells out double hit so an under-budget day with protein met doesn't
                 read as an unexplained miss: it's the tight calorie band, not just
                 "a good day". */}
             <p className="nutri-month-note">Double hit = calories on plan · protein met</p>
 
-            {/* Distribution — one proportionally-coloured bar + text legend below */}
+            {/* Distribution — one proportionally-coloured bar + text legend below.
+                Legend keeps all four buckets separate so it agrees with the
+                adherence KPI: the with-direction deviation counts toward
+                adherence, so it must NOT be lumped into an "Off target" row. */}
             <div className="nutri-dist-track" aria-hidden="true">
               {loading ? (
                 <span style={{ width: "35%", opacity: 0.3, background: "var(--ink-4)" }} />
               ) : (
-                DIST_STATES.map(({ key, color }) => {
+                distBands.map(({ key, color }) => {
                   const pct = Math.round(((month.distribution[key] || 0) / (month.logged || 1)) * 100);
                   return pct > 0 ? <span key={key} style={{ width: `${pct}%`, background: color }} /> : null;
                 })
               )}
             </div>
             <div className="nutri-dist-legend">
-              {DIST_LEGEND.map(({ keys, label, glyph, color }) => {
-                const count = keys.reduce((sum, k) => sum + (month.distribution[k] || 0), 0);
-                const pct = Math.round((count / (month.logged || 1)) * 100);
+              {distBands.map(({ key, label, glyph, color }) => {
+                const pct = Math.round(((month.distribution[key] || 0) / (month.logged || 1)) * 100);
                 return pct > 0 ? (
-                  <span className="nutri-dist-item" key={label}>
+                  <span className="nutri-dist-item" key={key}>
                     <span className="nutri-dist-glyph" style={{ color }} aria-hidden="true">{glyph}</span>
                     {label} {pct}%
                   </span>

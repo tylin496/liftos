@@ -54,13 +54,15 @@ export function weightMetricDirection(kind: PhaseKind): "up-good" | "down-good" 
 // single four-level verdict scale (see [[feedback-text-color-rule]]): on-target
 // green; ANY deviation amber (direction told by the glyph, not the colour); only
 // a surplus (no deficit at all — actively working against the cut) is red.
-//   surplus    — ate above maintenance (no deficit)           → 🔴 bad   ▲
-//   over       — ate over budget but still in a deficit        → 🟠 warn  ▲
-//   on-plan    — hit the target deficit band                   → 🟢 good  ●
-//   low-intake — ate under budget (a bigger deficit than plan) → 🟠 warn  ▼
-// (The old thin "under" band and "extreme" collapse into low-intake; a very
-//  low day just gets a different note, not its own state.)
-export type CalorieState = "surplus" | "over" | "on-plan" | "low-intake";
+//   counter — intake worked against the phase                → 🔴 bad
+//             (cut: ate above maintenance — no deficit at all;
+//              bulk: ate at/below maintenance — no surplus at all;
+//              maintenance: never — a deadband has no "against")
+//   over    — ate above the intake budget                     → 🟠 warn  ▲
+//   on-plan — hit the target band                             → 🟢 good  ●
+//   under   — ate below the intake budget                     → 🟠 warn  ▼
+// (Formerly surplus/over/on-plan/low-intake — cut-only names.)
+export type CalorieState = "counter" | "over" | "on-plan" | "under";
 
 export interface CalorieResult {
   deficit: number;
@@ -68,6 +70,9 @@ export interface CalorieResult {
   isSurplus: boolean;
   isPerfect: boolean;
   state: CalorieState;
+  /** Phase named by the day's own deficit_target snapshot — drives copy and
+   *  adherence direction downstream. */
+  phase: PhaseKind;
   celebrated: boolean;
   progress: number;
   status: "Deficit" | "Surplus";
@@ -85,36 +90,47 @@ export function getCalorieResult(
   tdee: number = DEFAULTS.tdee,
   deficitTarget: number = DEFAULTS.deficitTarget,
 ): CalorieResult {
-  const rawDelta = roundInt(tdee - calories);
+  const rawDelta = roundInt(tdee - calories); // signed daily deficit (− = surplus)
   const isSurplus = rawDelta < 0;
   const deficit = Math.max(rawDelta, 0);
   const surplus = Math.max(-rawDelta, 0);
-  const target = roundInt(deficitTarget);
+  const target = roundInt(deficitTarget); // signed (− = surplus target → bulk)
+  const phase = phaseKindFromName(phaseFromDeficit(target));
+
+  // Symmetric band around the target, in intake kcal. ±25% of the target
+  // magnitude reproduces the original cut band exactly (target 500 → on-plan
+  // 375–625); the 125 floor keeps the band sane for small targets, where ±25%
+  // collapses below food-logging error (a 200 kcal surplus target would get
+  // ±50). Both numbers are product judgments, not outcome-calibrated.
+  const halfWidth = Math.max(125, Math.round(Math.abs(target) * 0.25));
+  const dev = rawDelta - target; // + = ate less than plan, − = ate more
 
   let state: CalorieState;
-  if (isSurplus) {
-    state = "surplus";
-  } else if (target === 0) {
+  if (Math.abs(dev) <= halfWidth) {
     state = "on-plan";
+  } else if (dev < 0) {
+    // Ate more than plan. On a cut, erasing the deficit entirely is the red
+    // "worked against the phase" read; merely under-shooting it stays amber.
+    state = phase === "cut" && rawDelta < 0 ? "counter" : "over";
   } else {
-    const ratio = deficit / target;
-    // Symmetric ±25% band around the target deficit (target 500 → on-plan 375–625).
-    // Wide enough that ordinary food-logging error (±5–20%, see the protein-floor
-    // note below) and normal day-to-day intake swing read as on-plan rather than a
-    // miss; the ±25% width itself is a product judgment, not outcome-calibrated.
-    if (ratio < 0.75) state = "over";           // small deficit = ate over budget
-    else if (ratio <= 1.25) state = "on-plan";
-    else state = "low-intake";                  // bigger deficit = ate under budget
+    // Ate less than plan. On a bulk, erasing the surplus entirely is the red
+    // mirror; a smaller-than-planned surplus stays amber.
+    state = phase === "bulk" && rawDelta >= 0 ? "counter" : "under";
   }
+
+  // Kcal moved in the phase direction — deficit kept on a cut, surplus kept on
+  // a bulk. Only over-days show partial progress (the plan fell short).
+  const achieved = phase === "bulk" ? -rawDelta : rawDelta;
 
   return {
     deficit,
     surplus,
     isSurplus,
-    isPerfect: state === "on-plan" && deficit === target,
+    isPerfect: state === "on-plan" && rawDelta === target,
     state,
+    phase,
     celebrated: state === "on-plan",
-    progress: state === "over" ? progressPercent(deficit, target) : 100,
+    progress: state === "over" ? progressPercent(Math.max(0, achieved), Math.abs(target)) : 100,
     status: isSurplus ? "Surplus" : "Deficit",
   };
 }
@@ -165,12 +181,13 @@ export function calorieTone(
   calResult: CalorieResult,
 ): "good" | "warn" | "bad" | null {
   if (!hasEntry) return null;
-  // Four-level verdict scale: on-target green, any deviation amber, surplus red.
+  // Four-level verdict scale: on-target green, any deviation amber, working
+  // against the phase red. Phase-independent — the states already encode it.
   switch (calResult.state) {
-    case "on-plan": return "good";      // 🟢 ●
-    case "over": return "warn";         // 🟠 ▲ over budget — a deviation, not neutral
-    case "low-intake": return "warn";   // 🟠 ▼ ate too little — recovery reminder
-    case "surplus": return "bad";       // 🔴 ▲ no deficit today
+    case "on-plan": return "good";  // 🟢 ●
+    case "over": return "warn";     // 🟠 ▲ ate over budget
+    case "under": return "warn";    // 🟠 ▼ ate under budget
+    case "counter": return "bad";   // 🔴 no deficit on a cut / no surplus on a bulk
   }
 }
 
@@ -191,22 +208,28 @@ export function proteinTone(
 export function calorieNote(hasEntry: boolean, calResult: CalorieResult, deficitTarget: number): string {
   if (!hasEntry) return "";
   // The target/unit now rides inline beside the number ("1,886 / 2,078"), so the
-  // note drops "kcal" — the deltas read as budget headroom/overage, not a restated unit.
-  if (calResult.isSurplus) return `+${calResult.surplus.toLocaleString()} surplus`;
+  // note drops "kcal" — the deltas read as budget headroom/overage, not a restated
+  // unit. "Budget" = the intake target (tdee − signed deficit target), so the
+  // over/below arithmetic is the same expression in every phase.
+  const signedDelta = calResult.isSurplus ? -calResult.surplus : calResult.deficit;
+  if (calResult.state === "counter") {
+    // The red read spells out the phase violation, not a budget delta.
+    return calResult.phase === "bulk"
+      ? "No surplus — below maintenance"
+      : `+${calResult.surplus.toLocaleString()} surplus`;
+  }
   if (calResult.state === "over") {
-    // Ate over the calorie budget (deficit fell short). Budget-framed to match
-    // the inline target and the "below budget" note.
-    const over = deficitTarget - calResult.deficit;
+    const over = deficitTarget - signedDelta; // intake − budget
     return `${over.toLocaleString()} over budget`;
   }
   if (calResult.state === "on-plan") return "✓ On plan";
-  if (calResult.state === "low-intake") {
-    // A very low day (deficit past ~1.35× target) reads as a recovery caveat
-    // rather than a number; a moderate one just shows how far below budget.
-    if (deficitTarget > 0 && calResult.deficit > deficitTarget * 1.35) {
+  if (calResult.state === "under") {
+    // On a cut, a very low day (deficit past ~1.35× target) reads as a recovery
+    // caveat rather than a number; a moderate one just shows how far below budget.
+    if (calResult.phase === "cut" && deficitTarget > 0 && calResult.deficit > deficitTarget * 1.35) {
       return "Well under budget";
     }
-    const below = calResult.deficit - deficitTarget;
+    const below = signedDelta - deficitTarget; // budget − intake
     return `${below.toLocaleString()} below budget`;
   }
   return "";
@@ -280,17 +303,20 @@ export function weeklyStats(days: DayInput[]): WeeklyStats {
 }
 
 // Adherence vs precision are two different questions the month card answers:
-//   • Adherence — did you stay inside the cut strategy at all? A day keeps the
-//     deficit whether you hit the band ("on-plan") OR undershot the budget
-//     ("low-intake" — ate even less). Only actively drifting toward maintenance
-//     ("over" — deficit too small) or erasing it ("surplus") breaks adherence.
-//     Eating too little is not optimal, but it is still moving toward the goal,
-//     so it should not be scored the same as eating over budget.
+//   • Adherence — did you stay inside the phase strategy at all? A deviation
+//     IN the phase direction still keeps it: a cut day that undershot the
+//     budget ("under" — a bigger deficit) is suboptimal but still moving
+//     toward the goal, and a bulk day that overshot ("over" — a bigger
+//     surplus) likewise. Only the against-direction deviation and the red
+//     "counter" day break adherence. Maintenance has no direction, so only
+//     on-plan keeps it.
 //   • Precision — of the adherent days, how many landed in the tight target
 //     band. That's `onPlan` / the distribution's green block / double-hit.
-// So low-intake counts toward adherencePct + the streak, but NOT toward onPlan
-// or double-hit, and it still renders as an amber deviation in the distribution.
-const isAdherentState = (s: CalorieState) => s === "on-plan" || s === "low-intake";
+// So the with-direction warn state counts toward adherencePct + the streak,
+// but NOT toward onPlan or double-hit, and it still renders as an amber
+// deviation in the distribution.
+export const isAdherentState = (s: CalorieState, phase: PhaseKind): boolean =>
+  s === "on-plan" || (phase === "cut" ? s === "under" : phase === "bulk" ? s === "over" : false);
 
 export interface MonthlyStats {
   logged: number;
@@ -314,10 +340,10 @@ const daysApart = (a: string, b: string): number =>
 export function monthlyStats(days: DayInput[]): MonthlyStats {
   const logged = days.filter((d) => d.calories != null);
   const distribution: Record<CalorieState, number> = {
-    surplus: 0,
+    counter: 0,
     over: 0,
     "on-plan": 0,
-    "low-intake": 0,
+    under: 0,
   };
   let onPlan = 0;
   let adherent = 0;
@@ -326,7 +352,7 @@ export function monthlyStats(days: DayInput[]): MonthlyStats {
   for (const d of logged) {
     const cal = getCalorieResult(d.calories as number, d.tdee ?? DEFAULTS.tdee, d.deficitTarget ?? DEFAULTS.deficitTarget);
     distribution[cal.state] += 1;
-    if (isAdherentState(cal.state)) adherent += 1;
+    if (isAdherentState(cal.state, cal.phase)) adherent += 1;
     if (cal.celebrated) {
       onPlan += 1;
       const prot = getProteinResult(d.protein ?? 0, d.proteinTarget ?? DEFAULTS.proteinTarget);
@@ -334,18 +360,19 @@ export function monthlyStats(days: DayInput[]): MonthlyStats {
     }
   }
 
-  // Streak: consecutive most-recent CALENDAR days that kept the deficit (on-plan
-  // OR low-intake), matching the adherence definition — days sorted ascending.
-  // An unlogged day between two logged rows BREAKS the run: walking only the
-  // logged rows would silently jump the gap and report e.g. "3 days" for a run
-  // that actually straddles three weeks. A calendar gap > 1 day ends the streak.
+  // Streak: consecutive most-recent CALENDAR days that kept the phase (adherent
+  // per the day's own snapshot), matching the adherence definition — days sorted
+  // ascending. An unlogged day between two logged rows BREAKS the run: walking
+  // only the logged rows would silently jump the gap and report e.g. "3 days"
+  // for a run that actually straddles three weeks. A calendar gap > 1 day ends
+  // the streak.
   let currentStreak = 0;
   let prevDate: string | null = null;
   for (let i = logged.length - 1; i >= 0; i--) {
     const d = logged[i];
     if (prevDate != null && daysApart(d.date, prevDate) > 1) break;
     const cal = getCalorieResult(d.calories as number, d.tdee ?? DEFAULTS.tdee, d.deficitTarget ?? DEFAULTS.deficitTarget);
-    if (!isAdherentState(cal.state)) break;
+    if (!isAdherentState(cal.state, cal.phase)) break;
     currentStreak += 1;
     prevDate = d.date;
   }
