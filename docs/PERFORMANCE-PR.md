@@ -70,7 +70,6 @@ exercises.filter(e => e.status === "watch" && e.stalledWeeks >= 3)
 
 1. **snapshotHighlight「本週新 PR」納入 Performance PR** — 目前仍只數 e1RM。這是 highlight 不是 status,不碰 engine 的 `IMPROVING`。
 2. **「Completed all working sets」Performance PR** — 需要結構化 target sets/reps;`exercises.target` 現為自由文字(data-model 工作)。同一份 setCount 若 thread 進 `computeStrengthSummary`,也能讓 stall clock 納入 reps-tiebreak 第三支。
-3. **Milestone** — 需要邊界規則(側平舉 vs 深蹲尺度差很大)。
 
 ## Open knobs（產品決定）
 
