@@ -66,10 +66,10 @@ exercises.filter(e => e.status === "watch" && e.stalledWeeks >= 3)
 
 > ⚠️ 注意:`computeStrengthSummary` 已從 `overview/api.ts` **搬到 `overview/strength.ts`**(api.ts re-export)。舊 handoff 指向 api.ts,現以 strength.ts 為準,`buildTrainingEvaluation` 就在隔壁。
 
-## 未建（剩下的 engine work）
+## 未建（已全數結案,2026-07-17）
 
-1. **snapshotHighlight「本週新 PR」納入 Performance PR** — 目前仍只數 e1RM。這是 highlight 不是 status,不碰 engine 的 `IMPROVING`。
-2. **「Completed all working sets」Performance PR** — 需要結構化 target sets/reps;`exercises.target` 現為自由文字(data-model 工作)。同一份 setCount 若 thread 進 `computeStrengthSummary`,也能讓 stall clock 納入 reps-tiebreak 第三支。
+- **snapshotHighlight「本週新 PR」** — 其實已隨 PR taxonomy 落地:「PRs this week」clause 走 `lastPRDate`(`StrengthHealthCard` prsThisWeek → `muscleGrid.liftStatus`),而 `lastPRDate` 兩軸 PR 都會設(`overview/strength.test.ts` 驗過 weight-axis 案例)。
+- **「Completed all working sets」Performance PR** — 決定**不做**(完成既定組數不需要特別獎勵)。`exercises.target` 維持自由文字;現有 consumer 只有卡片原文顯示與 `logFormHelpers.targetSetCount` 的「× N」尾綴解析,要結構化屬另案。
 
 ## Open knobs（產品決定）
 
