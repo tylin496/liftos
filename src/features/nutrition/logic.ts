@@ -7,17 +7,47 @@ export const DEFAULTS = {
   deficitTarget: 500,
 } as const;
 
-// Names a cut by its daily deficit. The cutpoints track weekly fat-loss regimes
-// via the ~7700 kcal/kg rule (weekly loss ≈ deficit × 7 / 7700):
-//   <200  Maintenance  (<~0.18 kg/wk — inside daily TDEE-estimate error, not really cutting)
-//   <500  Cruise       (~0.18–0.45 kg/wk — gentle, lean-mass-sparing)
+// Names a phase by its daily deficit (negative = surplus). The cutpoints track
+// weekly rate regimes via the ~7700 kcal/kg rule (weekly change ≈ deficit × 7 / 7700):
+//   ≤-100 Lean Bulk    (surplus ≥100 — deliberately eating above maintenance)
+//   <200  Maintenance  (-99..199 — inside daily TDEE-estimate error, neither cutting nor bulking)
+//   <500  Cruise       (~0.18–0.45 kg/wk loss — gentle, lean-mass-sparing)
 //   <800  Moderate Cut (~0.45–0.73 kg/wk)
 //   ≥800  Aggressive   (>~0.73 kg/wk)
+// ONE bulk gear on purpose (the "Cut is one phase" lesson): intensity lives in
+// the intake number, judgment lives in the gain band, not in more phase names.
 export function phaseFromDeficit(deficit: number): string {
+  if (deficit <= -100) return "Lean Bulk";
   if (deficit < 200) return "Maintenance";
   if (deficit < 500) return "Cruise";
   if (deficit < 800) return "Moderate Cut";
   return "Aggressive Cut";
+}
+
+// ── Phase kind & polarity — the single source every judgment/tone site derives
+// direction from. Derived from the phase NAME (persisted as `cut_mode` on the
+// evaluation row), so all surfaces of one snapshot agree. ────────────────────
+
+export type PhaseKind = "cut" | "maintenance" | "bulk";
+
+export function phaseKindFromName(phase: string): PhaseKind {
+  if (phase === "Lean Bulk") return "bulk";
+  if (phase === "Maintenance") return "maintenance";
+  return "cut";
+}
+
+/** Sign of "progress" on the scale: multiply observedRate (kg/wk, negative =
+ *  losing) by this to get movement in the phase direction. Maintenance keeps
+ *  the cut's −1 — it has no band, so the direction only shapes copy/tones. */
+export function phaseDirection(kind: PhaseKind): 1 | -1 {
+  return kind === "bulk" ? 1 : -1;
+}
+
+/** Weight-metric polarity for display surfaces (MetricDelta direction,
+ *  sparkline tone). Only WEIGHT flips on a bulk; body fat stays down-good in
+ *  every phase and lean mass stays uncoloured (context, not verdict). */
+export function weightMetricDirection(kind: PhaseKind): "up-good" | "down-good" {
+  return kind === "bulk" ? "up-good" : "down-good";
 }
 
 // Four states, named by intake vs the calorie budget. Colour follows the app's
@@ -342,7 +372,8 @@ export const MAINTENANCE_LOOKBACK_DAYS = 60;
  *  "Maintenance" (same phaseFromDeficit boundary as everywhere else) IS the
  *  block — no schema needed. Feeds the Plan section's "week N of 4–6" read.
  *  Entries must be ascending by date; a null snapshot (pre-snapshot legacy row)
- *  falls back to the default deficit, i.e. reads as cutting. */
+ *  falls back to the default deficit, i.e. reads as cutting. A surplus snapshot
+ *  names "Lean Bulk", so a bulk day correctly ends the maintenance block too. */
 export function maintenanceStartDate(
   entries: { entry_date: string; deficit_target: number | null }[],
 ): string | null {

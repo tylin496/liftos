@@ -3,6 +3,9 @@ import {
   getCalorieResult,
   getProteinResult,
   phaseFromDeficit,
+  phaseKindFromName,
+  phaseDirection,
+  weightMetricDirection,
   maintenanceStartDate,
   monthlyStats,
   type DayInput,
@@ -141,6 +144,31 @@ describe("phaseFromDeficit", () => {
     expect(phaseFromDeficit(300)).toBe("Cruise");
     expect(phaseFromDeficit(600)).toBe("Moderate Cut");
     expect(phaseFromDeficit(900)).toBe("Aggressive Cut");
+  });
+
+  it("names a surplus of 100+ Lean Bulk; smaller surpluses stay in the maintenance deadband", () => {
+    expect(phaseFromDeficit(-100)).toBe("Lean Bulk");
+    expect(phaseFromDeficit(-500)).toBe("Lean Bulk");
+    expect(phaseFromDeficit(-99)).toBe("Maintenance");
+    expect(phaseFromDeficit(0)).toBe("Maintenance");
+  });
+});
+
+describe("phase kind & polarity", () => {
+  it("classifies phase names into kinds", () => {
+    expect(phaseKindFromName("Lean Bulk")).toBe("bulk");
+    expect(phaseKindFromName("Maintenance")).toBe("maintenance");
+    expect(phaseKindFromName("Cruise")).toBe("cut");
+    expect(phaseKindFromName("Moderate Cut")).toBe("cut");
+    expect(phaseKindFromName("Aggressive Cut")).toBe("cut");
+  });
+
+  it("derives scale direction and weight-metric polarity from the kind", () => {
+    expect(phaseDirection("bulk")).toBe(1);
+    expect(phaseDirection("cut")).toBe(-1);
+    expect(phaseDirection("maintenance")).toBe(-1);
+    expect(weightMetricDirection("bulk")).toBe("up-good");
+    expect(weightMetricDirection("cut")).toBe("down-good");
   });
 });
 

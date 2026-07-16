@@ -135,8 +135,15 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
 
   const liveTrainingMonths = trainingMonthsFromStart(trainingStartDate);
   const intake = Math.max(0, Number(currentIntake) || 0);
-  const liveDeficit = Math.max(0, Math.round((config?.tdee ?? 0) - intake));
+  // Signed: intake above TDEE gives a negative deficit (surplus → Lean Bulk).
+  const liveDeficit = Math.round((config?.tdee ?? 0) - intake);
   const livePhaseName = phaseFromDeficit(liveDeficit);
+  const liveDeficitLabel =
+    liveDeficit >= 200
+      ? `−${liveDeficit.toLocaleString()} kcal deficit`
+      : liveDeficit <= -100
+        ? `+${(-liveDeficit).toLocaleString()} kcal surplus`
+        : "at maintenance";
 
   function editRow(row: RowKey) {
     if (readOnly) return; // viewers see config values but can't edit them
@@ -282,7 +289,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
               <span className="k">Phase</span>
               <span className="v">{livePhaseName}</span>
             </span>
-            <span className="settings-phase-def">−{liveDeficit.toLocaleString()} kcal deficit</span>
+            <span className="settings-phase-def">{liveDeficitLabel}</span>
           </div>
 
           <p className="settings-section-label settings-section-label--spaced">Profile</p>

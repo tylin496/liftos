@@ -82,8 +82,9 @@ export function targetsFromConfig(config: NutritionConfig) {
   if (nums.length >= 5) {
     const fifth = nums[4];
     if (fifth >= 100) {
-      // New format: fifth element is the explicit calorie intake goal
-      deficitTarget = Math.max(0, Math.round(config.tdee - fifth));
+      // New format: fifth element is the explicit calorie intake goal. Signed:
+      // intake above TDEE yields a NEGATIVE deficit (a surplus → "Lean Bulk").
+      deficitTarget = Math.round(config.tdee - fifth);
     } else {
       // Old format: fifth element is activeIndex
       const activeIdx = Math.max(0, Math.min(3, Math.round(fifth)));
