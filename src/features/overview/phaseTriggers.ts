@@ -1,9 +1,11 @@
-// Phase Triggers — the upstream "consider maintenance early?" monitor.
+// Phase Triggers — the upstream "consider leaving this phase early?" monitor.
 //
 // The user's long-term plan is Cut → Maintenance (4–6 wk at goal body fat) →
-// Lean Bulk, with an early-exit rule: when enough independent plateau signals
-// stack up, a maintenance block beats grinding the cut. This module computes
-// those signals ONCE, and both consumers read the same result:
+// Lean Bulk, with an early-exit rule either way: when enough independent
+// plateau signals stack up, a maintenance block beats grinding the current
+// phase (cut OR bulk — the four signals read the same, only some details/
+// prescriptions differ). This module computes those signals ONCE, and both
+// consumers read the same result:
 //
 //   evaluatePhaseTriggers() ── Journey card (trigger lights)
 //                           └─ Decision Engine (RecContext.phase → directive)
@@ -59,6 +61,10 @@ export interface PhaseTriggerInputs {
   /** Local calendar date anchoring the adherence window — keeps the module
    *  now-free (all other triggers anchor on their own data's latest date). */
   today: string;
+  /** Current phase — flavors the DETAIL copy only (a flat scale on a bulk means
+   *  the surplus is too small, not a diet plateau). Detection is identical;
+   *  omitting it keeps the cut wording. */
+  phaseKind?: "cut" | "maintenance" | "bulk";
 }
 
 export interface PhaseTriggerResult {
@@ -92,7 +98,7 @@ const RECOVERY_LOW_SCORE = 1;
 
 /** Adherence window: the "recently" in "recently eating over budget". */
 const ADHERENCE_WINDOW_DAYS = 14;
-/** Over/surplus days in the window before it's a pattern, not a party. The
+/** Off-plan days in the window before it's a pattern, not a party. The
  *  on-plan band is already ±25% forgiving, so each miss is real; 4+ in a
  *  fortnight ≈ two bad weekends, while 3 can be one weekend plus a dinner. */
 const ADHERENCE_OVER_DAYS = 4;
@@ -141,7 +147,7 @@ export function countOverBudgetDays(
  *  21-day Theil–Sen window); this replays that same window at weekly checkpoints
  *  stepping back from the latest weigh-in. All three flat → a real plateau, not
  *  a slow week. Data-anchored and now-free, like theilSenSlope itself. */
-function weightStallTrigger(metrics: BodyMetric[]): PhaseTrigger {
+function weightStallTrigger(metrics: BodyMetric[], phaseKind?: string): PhaseTrigger {
   // Labels are neutral metric names, not problem names — the lights read
   // green-when-fine, so "Weight trend" (not "Weight stall") is what's green.
   const label = "Weight trend";
@@ -158,7 +164,10 @@ function weightStallTrigger(metrics: BodyMetric[]): PhaseTrigger {
   }
 
   if (slopes.every((s) => Math.abs(s) < STALL_RATE_EPS)) {
-    return { key: "weight_stall", label, state: "firing", detail: "Flat for 3+ weeks" };
+    // Same detection, phase-flavored evidence: on a bulk a flat scale means the
+    // surplus isn't landing, not that the diet plateaued.
+    const detail = phaseKind === "bulk" ? "Flat for 3+ weeks — surplus may be too small" : "Flat for 3+ weeks";
+    return { key: "weight_stall", label, state: "firing", detail };
   }
   const now = slopes[0];
   return {
@@ -226,7 +235,8 @@ function recoveryWorseningTrigger(metrics: BodyMetric[]): PhaseTrigger {
   return { key: "recovery_worsening", label, state: "ok", detail: `Score ${s0}/3 this week` };
 }
 
-/** T4 — the diet is getting hard to hold: too many over-budget days recently. */
+/** T4 — the plan is getting hard to hold: too many off-plan days recently
+ *  (each day judged against its own snapshot, misses phase-relative). */
 function adherenceTrigger(entries: PhaseTriggerEntry[], today: string): PhaseTrigger {
   const label = "Adherence";
   const { over, logged } = countOverBudgetDays(entries, today);
@@ -237,7 +247,7 @@ function adherenceTrigger(entries: PhaseTriggerEntry[], today: string): PhaseTri
     key: "adherence_slipping",
     label,
     state: over >= ADHERENCE_OVER_DAYS ? "firing" : "ok",
-    detail: `${over} over-budget day${over === 1 ? "" : "s"} in ${ADHERENCE_WINDOW_DAYS}`,
+    detail: `${over} off-plan day${over === 1 ? "" : "s"} in ${ADHERENCE_WINDOW_DAYS}`,
   };
 }
 
@@ -245,7 +255,7 @@ function adherenceTrigger(entries: PhaseTriggerEntry[], today: string): PhaseTri
 
 export function evaluatePhaseTriggers(inputs: PhaseTriggerInputs): PhaseTriggerResult {
   const triggers: PhaseTrigger[] = [
-    weightStallTrigger(inputs.metrics),
+    weightStallTrigger(inputs.metrics, inputs.phaseKind),
     strengthDeclineTrigger(inputs.strength, inputs.compoundSlugs),
     recoveryWorseningTrigger(inputs.metrics),
     adherenceTrigger(inputs.entries, inputs.today),

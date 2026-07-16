@@ -37,6 +37,7 @@ import type { RecoveryEvaluation } from "@features/health/math";
 import type { TrainingEvaluation } from "@features/overview/strength";
 import type { LeanMassEvaluation } from "@features/overview/goal";
 import { GOAL_EXIT_MARGIN_PP } from "@features/overview/goal";
+import { phaseDirection } from "@features/nutrition/logic";
 import { recoveryRecommendation, RECOVERY_TITLE } from "./recovery";
 import { nutritionProvider } from "./nutrition";
 // nutrition's own "Review calorie target" (reduce) is the slow-side correction the
@@ -51,6 +52,11 @@ const REDUCE_DEFICIT_TITLE = "Reduce deficit slightly";
 const INCREASE_ACTIVITY_TITLE = "Increase activity";
 const START_MAINTENANCE_TITLE = "Start maintenance";
 const CONSIDER_MAINTENANCE_TITLE = "Consider switching to maintenance";
+// Bulk mirrors — same ladder positions as their cut counterparts, gated on
+// isBulking instead of isCutting (mutually exclusive by phase).
+const START_CUT_TITLE = "Start the cut";
+const CONSIDER_BREAK_TITLE = "Consider a maintenance break";
+const REDUCE_SURPLUS_TITLE = "Reduce surplus";
 
 // Phase policy — how many firing plateau triggers warrant the maintenance
 // suggestion (enter), and how many keep it showing (hold). The triggers
@@ -96,20 +102,25 @@ function weightState(n: RecContext["nutrition"], priorTitle: string | null): Wei
   const e = n.evaluation;
   // No active band (maintenance) or an unsettled trend can't drive a correction.
   if (e.targetRange.min === e.targetRange.max || e.confidence === "low") return "unknown";
-  const loss = -e.observedRate; // observedRate is negative while losing
+  // Progress in the phase direction: the loss on a cut, the gain on a bulk —
+  // so "fast" always means "moving faster than the plan", whichever way.
+  const progress = phaseDirection(e.phaseKind) * e.observedRate;
   // Schmitt hysteresis: a directive already showing uses a narrower exit margin,
   // so the rate must return well inside the band before the directive drops. A held
   // "Review calorie target" (nutrition's own reduce/increase) counts as a shown
   // correction on both edges — the slow-side lever now surfaces under that title, and
   // its eventType doesn't encode direction — so it's treated as sticky either way.
   const heldReview = priorTitle === REVIEW_TARGET_TITLE;
-  const fastMargin = priorTitle === REDUCE_DEFICIT_TITLE || heldReview ? RATE_EXIT_MARGIN : RATE_MARGIN;
+  const fastMargin =
+    priorTitle === REDUCE_DEFICIT_TITLE || priorTitle === REDUCE_SURPLUS_TITLE || heldReview
+      ? RATE_EXIT_MARGIN
+      : RATE_MARGIN;
   const heldStalled = priorTitle === INCREASE_ACTIVITY_TITLE || heldReview;
   const slowMargin = heldStalled ? RATE_EXIT_MARGIN : RATE_MARGIN;
   const stalledEps = heldStalled ? STALLED_EXIT_EPS : STALLED_EPS;
   if (Math.abs(e.observedRate) < stalledEps) return "stalled";
-  if (loss > e.targetRange.max + fastMargin) return "fast";
-  if (loss < e.targetRange.min - slowMargin) return "slow";
+  if (progress > e.targetRange.max + fastMargin) return "fast";
+  if (progress < e.targetRange.min - slowMargin) return "slow";
   return "on_pace";
 }
 
@@ -142,12 +153,17 @@ function leanMassFalling(l: LeanMassEvaluation | null | undefined): boolean {
   return !!l && l.confidence === "high" && l.trend === "falling";
 }
 
-// The maintenance directives only make sense while actually cutting. cutMode is
-// derived from the live deficit (phaseFromDeficit) — once the user moves intake
-// to maintenance, both rungs go quiet on the next evaluation. No nutrition
-// slice → can't confirm a cut → don't fire (unknown never fires advice).
+// The phase directives only make sense in their own phase. The kind is derived
+// from the live deficit (phaseFromDeficit → phaseKindFromName) — once the user
+// moves intake, the rungs re-gate on the next evaluation. No nutrition slice →
+// can't confirm a phase → don't fire (unknown never fires advice). Kind-based
+// on purpose: the old `cutMode !== "Maintenance"` check would have counted a
+// Lean Bulk as "cutting".
 function isCutting(n: RecContext["nutrition"]): boolean {
-  return !!n && n.diagnostics.cutMode !== "Maintenance";
+  return !!n && n.evaluation.phaseKind === "cut";
+}
+function isBulking(n: RecContext["nutrition"]): boolean {
+  return !!n && n.evaluation.phaseKind === "bulk";
 }
 
 // ── The ladder ────────────────────────────────────────────────────────────────
@@ -202,6 +218,29 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
     };
   }
 
+  // 1a″ Start the cut — the bulk mirror of 1a′. The lean bulk's endpoint is
+  //     reached (14-day body fat at or above the configured ceiling): the fat
+  //     budget is spent, so the next phase starts. Same ladder position, same
+  //     mirrored exit-hysteresis (holds until bf14 clears ceiling − margin), and
+  //     mutually exclusive with 1a′ via the phase gate.
+  const bg = ctx.bulkGoal;
+  const bulkGoalFires =
+    isBulking(ctx.nutrition) &&
+    bg != null &&
+    (bg.reached ||
+      (priorTitle === START_CUT_TITLE &&
+        bg.bodyFat14dAvg != null &&
+        bg.bfCeilingPct != null &&
+        bg.bodyFat14dAvg >= bg.bfCeilingPct - GOAL_EXIT_MARGIN_PP));
+  if (bulkGoalFires) {
+    return {
+      source: "phase",
+      priority: 78,
+      title: START_CUT_TITLE,
+      subtitle: `Body fat has reached your ${bg.bfCeilingPct}% ceiling — the bulk's fat budget is spent, time to cut back down`,
+    };
+  }
+
   // 1b Hold off on further cuts. Lean mass is genuinely sliding — the scariest
   //    call, so it only fires on a confident, sustained downslope. Gated on
   //    isCutting: its action is "pause the deficit", which is meaningless in
@@ -242,6 +281,25 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
     };
   }
 
+  // 2-pre-bulk Consider a maintenance break — the bulk mirror. The same four
+  //    plateau signals stacking up mid-bulk (scale flat, lifts sliding, recovery
+  //    low, plan slipping) say the surplus isn't being turned into progress —
+  //    a hold beats force-feeding through it. Same enter/hold counts.
+  const breakFires =
+    isBulking(ctx.nutrition) &&
+    p != null &&
+    (p.firingCount >= CONSIDER_ENTER_COUNT ||
+      (priorTitle === CONSIDER_BREAK_TITLE && p.firingCount >= CONSIDER_HOLD_COUNT));
+  if (breakFires) {
+    const n = p.firingCount;
+    return {
+      source: "phase",
+      priority: 72,
+      title: CONSIDER_BREAK_TITLE,
+      subtitle: `${n} of ${p.triggers.length} plateau signal${n === 1 ? " is" : "s are"} on — the surplus isn't landing as progress; a maintenance hold would reset before pushing on`,
+    };
+  }
+
   // 2a Reduce deficit. Losing too fast AND it's starting to cost training — the
   //    cross-domain read the ladder exists for. (Nutrition alone would flag the
   //    rate; naming the training slip is the point.) Spec's second trigger is
@@ -252,13 +310,33 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
   //    only bites once recovery is dismissed, closing the hole where a fast cut
   //    on a fatigued (but snoozed) dieter fell through to a bland nutrition read.
   const recoveryPoor = r?.status === "Needs Recovery";
-  if (w === "fast" && (trn === "declining" || recoveryPoor)) {
+  if (isCutting(ctx.nutrition) && w === "fast" && (trn === "declining" || recoveryPoor)) {
     return {
       source: "nutrition",
       priority: 71,
       title: REDUCE_DEFICIT_TITLE,
       subtitle:
         "You're losing faster than planned and training's starting to slip — ease the deficit to protect muscle",
+    };
+  }
+
+  // 2a-bulk Reduce surplus. Gaining faster than the band AND the gain shows a
+  //    cost — body fat confidently climbing or training sliding — or lean mass
+  //    is confidently FALLING while the scale rises (the gain isn't lean at
+  //    all). Evidence-gated like 2a: a fast week alone falls through to
+  //    nutrition's own high-confidence reduce, which needs the settled trend.
+  const bfRising = ctx.bodyFatTrend?.confidence === "high" && ctx.bodyFatTrend.trend === "rising";
+  const gainNotLean = leanMassFalling(ctx.leanMass) && (w === "fast" || w === "on_pace");
+  if (isBulking(ctx.nutrition) && ((w === "fast" && (bfRising || trn === "declining")) || gainNotLean)) {
+    return {
+      source: "nutrition",
+      priority: 71,
+      title: REDUCE_SURPLUS_TITLE,
+      subtitle: gainNotLean
+        ? "The scale is climbing but lean mass isn't — trim the surplus; the extra calories aren't building muscle"
+        : bfRising
+          ? "You're gaining faster than planned and body fat is climbing — trim the surplus to keep the gain lean"
+          : "You're gaining faster than planned while training slips — trim the surplus; more food isn't helping",
     };
   }
   // 2b Genuinely slow / stalled while adherent — the scale isn't moving enough.
@@ -270,7 +348,10 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
   //    declining, and no lift on watch. Absent/soft strength data → stay conservative
   //    and don't cut. (Being at the band FLOOR is NOT a trigger — that's often the
   //    safest pace; the deceleration is already shown by the Weight card's accel arrow.)
-  const wantsTighten = (w === "stalled" || w === "slow") && isAdherent(ctx.nutrition);
+  // Cut-only: on a bulk a stalled scale means the surplus is too SMALL — adding
+  // activity would make it smaller still, so the bulk's slow-side lever is
+  // nutritionDecision's own "Increase calorie target" (the default below).
+  const wantsTighten = isCutting(ctx.nutrition) && (w === "stalled" || w === "slow") && isAdherent(ctx.nutrition);
   if (wantsTighten) {
     // Divert to activity (don't cut) on POSITIVE evidence the lifts are softening —
     // a declining trend OR any lift on watch. Absent/low-confidence training = no

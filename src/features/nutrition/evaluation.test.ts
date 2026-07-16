@@ -61,6 +61,40 @@ describe("evaluate — status vs cut-mode band", () => {
     expect(evaluation.status).toBe("below_target");
     expect(evaluation.targetRange).toEqual({ min: 0.6, max: 0.9 });
   });
+
+  it("carries the phase kind derived from the mode", () => {
+    expect(evaluate(input({ weightSeries: weightSeries(-0.55) })).evaluation.phaseKind).toBe("cut");
+    expect(
+      evaluate(input({ weightSeries: weightSeries(0.2), cutMode: "Lean Bulk" })).evaluation.phaseKind,
+    ).toBe("bulk");
+    expect(
+      evaluate(input({ weightSeries: weightSeries(0), cutMode: "Maintenance" })).evaluation.phaseKind,
+    ).toBe("maintenance");
+  });
+});
+
+describe("evaluate — Lean Bulk band (phase-directed status)", () => {
+  it("is on_target inside the gain band", () => {
+    const { evaluation } = evaluate(input({ weightSeries: weightSeries(0.2), cutMode: "Lean Bulk" }));
+    expect(evaluation.status).toBe("on_target");
+    expect(evaluation.observedRate).toBeCloseTo(0.2, 2); // positive = gaining
+    expect(evaluation.targetRange).toEqual({ min: 0.1, max: 0.3 });
+  });
+
+  it("flags below_target when gaining too slowly (flat scale)", () => {
+    const { evaluation } = evaluate(input({ weightSeries: weightSeries(0.02), cutMode: "Lean Bulk" }));
+    expect(evaluation.status).toBe("below_target");
+  });
+
+  it("flags above_target when gaining faster than the band", () => {
+    const { evaluation } = evaluate(input({ weightSeries: weightSeries(0.5), cutMode: "Lean Bulk" }));
+    expect(evaluation.status).toBe("above_target");
+  });
+
+  it("flags below_target when LOSING during a bulk (moving against the phase)", () => {
+    const { evaluation } = evaluate(input({ weightSeries: weightSeries(-0.3), cutMode: "Lean Bulk" }));
+    expect(evaluation.status).toBe("below_target");
+  });
 });
 
 describe("evaluate — confidence", () => {

@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import { getNutritionState, recomputeAndPersist, type NutritionStateFull } from "./evaluationApi";
 import { MIN_TREND_POINTS, STATUS_EPS } from "./evaluation";
 import { nutritionDecision, rateTone, paceTone } from "./recommendation";
+import { phaseDirection, type PhaseKind } from "./logic";
 import { saveConfig, phaseDefsFromConfig, targetsFromConfig } from "./api";
 import { useNutritionConfig } from "./NutritionConfigContext";
 import { ErrorState } from "@shared/components/ErrorState";
@@ -73,6 +74,7 @@ function PaceMeter({
   hi,
   accelDirection,
   optimal,
+  phaseKind,
 }: {
   observedRate: number;
   lo: number;
@@ -82,8 +84,12 @@ function PaceMeter({
       confidence), computed by the caller so this meter's gold matches the pace
       pill and the Overview Weight card exactly. */
   optimal: boolean;
+  phaseKind: PhaseKind;
 }) {
-  const obs = Math.abs(observedRate);
+  // Progress in the phase direction (loss on a cut, gain on a bulk) — a rate
+  // moving AGAINST the phase goes negative and pins at the left edge, rather
+  // than |rate| accidentally landing it inside the band.
+  const obs = phaseDirection(phaseKind) * observedRate;
   const w = hi - lo;
   const domainMin = lo - w;
   const span = 3 * w;
@@ -102,14 +108,15 @@ function PaceMeter({
   // premature — the Overview card gates its gold on paceTone (confidence-aware),
   // so here a top-slice rate that isn't `optimal` yet reads as plain in-band
   // good. Both surfaces then flip to gold together, never one alone.
-  const rTone = rateTone({ observedRate, targetRange: { min: lo, max: hi } });
+  const rTone = rateTone({ observedRate, targetRange: { min: lo, max: hi }, phaseKind });
   const tone = optimal ? "gold" : rTone === "gold" ? "good" : (rTone ?? "good");
 
   const sign = observedRate < 0 ? "−" : observedRate > 0 ? "+" : "±";
   // Caption only fires off-band, where it adds the "why" the meter can't show;
   // in-band it would just restate the marker sitting inside the green — dropped.
+  const word = phaseKind === "bulk" ? "gaining" : "losing";
   const note =
-    obs < lo ? "below range — losing too slowly" : "above range — losing too fast";
+    obs < lo ? `below range — ${word} too slowly` : `above range — ${word} too fast`;
 
   return (
     <div className="ni-pace">
@@ -421,6 +428,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
               hi={e.targetRange.max}
               accelDirection={e.accelDirection}
               optimal={paceTone(e) === "gold"}
+              phaseKind={e.phaseKind}
             />
           ) : (
             <div className="ni-cell ni-cell-full">

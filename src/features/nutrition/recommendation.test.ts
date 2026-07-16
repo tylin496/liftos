@@ -7,6 +7,7 @@ function make(status: EvalStatus, confidence: Confidence, calorieTarget = 2145) 
     status,
     observedRate: -0.07,
     targetRange: { min: 0.4, max: 0.7 },
+    phaseKind: "cut",
     confidence,
     evaluatedAt: "2026-07-01T00:00:00.000Z",
     accelDirection: null,
@@ -63,6 +64,45 @@ describe("nutritionDecision", () => {
     const d = nutritionDecision(evaluation, diagnostics);
     expect(d.action).toBe("increase");
     expect(d.proposedTarget).toBe(2295);
+  });
+
+  describe("lean bulk — the levers mirror", () => {
+    const bulk = (status: EvalStatus, confidence: Confidence) => {
+      const { evaluation, diagnostics } = make(status, confidence, 2955);
+      evaluation.phaseKind = "bulk";
+      evaluation.observedRate = 0.2;
+      evaluation.targetRange = { min: 0.1, max: 0.3 };
+      diagnostics.cutMode = "Lean Bulk";
+      return { evaluation, diagnostics };
+    };
+
+    it("proposes an INCREASE when gaining too slowly (below_target)", () => {
+      const { evaluation, diagnostics } = bulk("below_target", "high");
+      const d = nutritionDecision(evaluation, diagnostics);
+      expect(d.action).toBe("increase");
+      expect(d.proposedTarget).toBe(3105); // 2955 + 150
+      expect(d.actionLine).toBe("Weight gain has stalled");
+    });
+
+    it("proposes a REDUCE when gaining too fast (above_target)", () => {
+      const { evaluation, diagnostics } = bulk("above_target", "high");
+      const d = nutritionDecision(evaluation, diagnostics);
+      expect(d.action).toBe("reduce");
+      expect(d.proposedTarget).toBe(2805); // 2955 − 150
+      expect(d.reason).toMatch(/keep the gain lean/i);
+    });
+
+    it("on_target reads as gain on plan", () => {
+      const { evaluation, diagnostics } = bulk("on_target", "high");
+      expect(nutritionDecision(evaluation, diagnostics).actionLine).toBe("Weight gain remains on plan");
+    });
+
+    it("medium confidence holds with gain-framed copy", () => {
+      const { evaluation, diagnostics } = bulk("below_target", "medium");
+      const d = nutritionDecision(evaluation, diagnostics);
+      expect(d.action).toBe("maintain");
+      expect(d.actionLine).toMatch(/gain looks slow/i);
+    });
   });
 });
 

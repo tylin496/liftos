@@ -228,7 +228,7 @@ describe("T4 — adherence slipping", () => {
     );
     const t = triggerByKey(r, "adherence_slipping");
     expect(t.state).toBe("firing");
-    expect(t.detail).toBe("4 over-budget days in 14");
+    expect(t.detail).toBe("4 off-plan days in 14");
   });
 
   it("3 over-budget days stays ok", () => {

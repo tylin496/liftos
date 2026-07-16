@@ -9,6 +9,7 @@ function ctx(status: EvalStatus, confidence: Confidence, calorieTarget = 2145): 
     status,
     observedRate: -0.3,
     targetRange: { min: 0.4, max: 0.7 },
+    phaseKind: "cut",
     confidence,
     evaluatedAt: "2026-07-01T00:00:00.000Z",
     accelDirection: null,

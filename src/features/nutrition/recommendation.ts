@@ -10,6 +10,7 @@
 
 import type { NutritionEvaluation, NutritionDiagnostics } from "./evaluation";
 import { MIN_TREND_POINTS, STATUS_EPS } from "./evaluation";
+import { phaseDirection } from "./logic";
 
 type NutritionAction = "maintain" | "reduce" | "increase";
 
@@ -59,19 +60,21 @@ export function nutritionDecision(
 ): NutritionDecision {
   const target = diagnostics.calorieTarget;
 
+  const bulk = evaluation.phaseKind === "bulk";
+
   // Low confidence → never propose a change; hold and keep observing. Two very
   // different causes land here, so the wording splits them: a Maintenance/Cruise
   // phase has no evaluation band at all (nothing to judge — signalled by an empty
-  // target range), vs. a real cut that simply lacks enough clean data yet. Same
-  // action ("No action needed"), different reason.
+  // target range), vs. a tracked cut/bulk that simply lacks enough clean data
+  // yet. Same action ("No action needed"), different reason.
   if (evaluation.confidence === "low") {
     const noActiveTarget = evaluation.targetRange.min === evaluation.targetRange.max;
     if (noActiveTarget) {
       return maintain(
         target,
-        "This phase isn't a tracked cut, so there's no weight-loss target to evaluate.",
+        "This phase has no weight-rate target, so there's nothing to evaluate.",
         40,
-        "No active weight-loss target in this phase",
+        "No active weight-rate target in this phase",
       );
     }
     return maintain(
@@ -82,61 +85,86 @@ export function nutritionDecision(
     );
   }
 
-  // Being at/near the band FLOOR is not a problem to fix — it's often the safest,
-  // most muscle-preserving pace. Only a genuine below-band stall proposes a cut, and
-  // whether that cut is the right call (vs protecting the lifts) is the Decision
-  // Engine's job — see its rung 2b strength guardrail. Nutrition just states its view.
+  // Being at/near the band FLOOR is not a problem to fix — on a cut it's often
+  // the safest, most muscle-preserving pace. Only a genuine below-band stall
+  // proposes a change, and whether that change is the right call (vs protecting
+  // the lifts) is the Decision Engine's job — see its rung 2b strength guardrail.
+  // Nutrition just states its view.
   const tooSlow = evaluation.status === "below_target";
 
   if (evaluation.status === "on_target") {
     return maintain(
       target,
-      "Weight loss is tracking within the planned range.",
+      bulk
+        ? "Weight gain is tracking within the planned range."
+        : "Weight loss is tracking within the planned range.",
       30,
-      "Weight loss remains on plan",
+      bulk ? "Weight gain remains on plan" : "Weight loss remains on plan",
     );
   }
 
   // Medium confidence on a below/above signal → hold; the trend isn't settled
   // enough to justify moving the target.
   if (evaluation.confidence !== "high") {
+    const word = bulk ? "gain" : "loss";
     return maintain(
       target,
       tooSlow
-        ? "Weight loss appears slower than planned, but confidence is not yet high enough to justify changing your calorie target."
-        : "Weight loss appears faster than planned, but confidence is not yet high enough to justify changing your calorie target.",
+        ? `Weight ${word} appears slower than planned, but confidence is not yet high enough to justify changing your calorie target.`
+        : `Weight ${word} appears faster than planned, but confidence is not yet high enough to justify changing your calorie target.`,
       55,
       tooSlow
-        ? "Loss looks slow, but the trend isn't confirmed yet"
-        : "Loss looks fast, but the trend isn't confirmed yet",
+        ? `${bulk ? "Gain" : "Loss"} looks slow, but the trend isn't confirmed yet`
+        : `${bulk ? "Gain" : "Loss"} looks fast, but the trend isn't confirmed yet`,
     );
   }
 
-  // High confidence → propose an actual adjustment.
+  // High confidence → propose an actual adjustment. The lever mirrors with the
+  // phase: a slow cut cuts calories, a slow bulk adds them — and vice versa.
   if (tooSlow) {
-    const proposed = Math.max(0, target - CUT_STEP);
-    return {
-      action: "reduce",
-      eventType: "Review calorie target",
-      actionLine: "Weight loss has slowed",
-      actionHeadline: "Reduce calorie target",
-      reason: "Weight loss has been slower than planned — a small cut should restart it.",
-      currentTarget: target,
-      proposedTarget: proposed,
-      priority: 72,
-    };
+    return bulk
+      ? {
+          action: "increase",
+          eventType: "Review calorie target",
+          actionLine: "Weight gain has stalled",
+          actionHeadline: "Increase calorie target",
+          reason: "Gaining slower than planned — a small increase should restart it.",
+          currentTarget: target,
+          proposedTarget: target + RAISE_STEP,
+          priority: 72,
+        }
+      : {
+          action: "reduce",
+          eventType: "Review calorie target",
+          actionLine: "Weight loss has slowed",
+          actionHeadline: "Reduce calorie target",
+          reason: "Weight loss has been slower than planned — a small cut should restart it.",
+          currentTarget: target,
+          proposedTarget: Math.max(0, target - CUT_STEP),
+          priority: 72,
+        };
   }
-  const proposed = target + RAISE_STEP;
-  return {
-    action: "increase",
-    eventType: "Review calorie target",
-    actionLine: "You're losing faster than planned",
-    actionHeadline: "Increase calorie target",
-    reason: "You're losing faster than planned — ease the deficit to protect muscle.",
-    currentTarget: target,
-    proposedTarget: proposed,
-    priority: 70,
-  };
+  return bulk
+    ? {
+        action: "reduce",
+        eventType: "Review calorie target",
+        actionLine: "You're gaining faster than planned",
+        actionHeadline: "Reduce calorie target",
+        reason: "You're gaining faster than planned — trim the surplus to keep the gain lean.",
+        currentTarget: target,
+        proposedTarget: Math.max(0, target - CUT_STEP),
+        priority: 70,
+      }
+    : {
+        action: "increase",
+        eventType: "Review calorie target",
+        actionLine: "You're losing faster than planned",
+        actionHeadline: "Increase calorie target",
+        reason: "You're losing faster than planned — ease the deficit to protect muscle.",
+        currentTarget: target,
+        proposedTarget: target + RAISE_STEP,
+        priority: 70,
+      };
 }
 
 /** One-word pace read for the Overview Weight card (the status question). Kept
@@ -151,8 +179,10 @@ export function paceLabel(evaluation: NutritionEvaluation): string {
   if (evaluation.confidence === "low") return "Calibrating";
   if (evaluation.status === "on_target") return isOptimalPace(evaluation) ? "Optimal" : "On pace";
   if (evaluation.confidence !== "high") return "Forming";
-  // Losing too fast is "Too fast", not "Above pace": on a cut it's a muscle risk
-  // the Decision Engine wants corrected, not a lead to celebrate.
+  // Same words in both phases — status is already phase-directed. "Too fast",
+  // not "Above pace": on a cut fast loss is a muscle risk, on a bulk fast gain
+  // is a fat risk — either way it's a problem the Decision Engine wants
+  // corrected, not a lead to celebrate.
   return evaluation.status === "below_target" ? "Below pace" : "Too fast";
 }
 
@@ -163,17 +193,23 @@ export function paceLabel(evaluation: NutritionEvaluation): string {
  *  proportional top slice. */
 const OPTIMAL_BAND_FRACTION = 0.2;
 
-/** Is the observed loss rate on-target AND sitting in the top slice of the
- *  band (closest to the safe max)? Shared by paceLabel/paceTone (the Pace
- *  word) and rateTone (the Rate number) so both surfaces flip to gold
- *  together — never one alone. No band (not tracked) → never optimal. */
-function isOptimalPace(evaluation: Pick<NutritionEvaluation, "status" | "observedRate" | "targetRange">): boolean {
+/** Is the observed rate on-target AND sitting in the top slice of the band
+ *  (closest to the max)? Shared by paceLabel/paceTone (the Pace word) and
+ *  rateTone (the Rate number) so both surfaces flip to gold together — never
+ *  one alone. CUT ONLY: on a cut the band's top is the fastest SAFE loss, a
+ *  celebration; on a bulk the top is the fat-co-gain ceiling — faster is not
+ *  better, so a bulk is never "Optimal"/gold, just plainly on pace. No band
+ *  (not tracked) → never optimal. */
+function isOptimalPace(
+  evaluation: Pick<NutritionEvaluation, "status" | "observedRate" | "targetRange" | "phaseKind">,
+): boolean {
   if (evaluation.status !== "on_target") return false;
+  if (evaluation.phaseKind === "bulk") return false;
   const { min, max } = evaluation.targetRange;
   if (min === max) return false;
-  const loss = -evaluation.observedRate;
+  const progress = phaseDirection(evaluation.phaseKind) * evaluation.observedRate;
   const threshold = max - (max - min) * OPTIMAL_BAND_FRACTION;
-  return loss >= threshold;
+  return progress >= threshold;
 }
 
 export type PaceTone = "good" | "warn" | "bad" | "gold" | null;
@@ -192,10 +228,11 @@ export function paceTone(evaluation: NutritionEvaluation): PaceTone {
   if (evaluation.confidence === "low") return null;   // Calibrating
   if (evaluation.status === "on_target") return isOptimalPace(evaluation) ? "gold" : "good"; // On pace
   if (evaluation.confidence !== "high") return null;  // Forming — not conclusive
-  // Outside the band, either direction, is a caution — too fast (loss > band) is
-  // a muscle risk, too slow (loss < band) is stalled progress. Only outright
-  // gaining weight during the cut (observedRate > 0) is the worst read.
-  return evaluation.observedRate > 0 ? "bad" : "warn";
+  // Outside the band, either direction, is a caution — too fast is a muscle
+  // risk (cut) / fat risk (bulk), too slow is stalled progress. Only the scale
+  // moving outright AGAINST the phase (gaining on a cut, losing on a bulk) is
+  // the worst read.
+  return phaseDirection(evaluation.phaseKind) * evaluation.observedRate < 0 ? "bad" : "warn";
 }
 
 export type RateTone = "good" | "warn" | "bad" | "gold" | null;
@@ -213,25 +250,26 @@ const RATE_NEAR_MARGIN = 0.15;
  *  the band; warn = within RATE_NEAR_MARGIN of an edge; bad = further out
  *  than that. No active target → neutral, nothing to compare against. */
 export function rateTone(
-  evaluation: Pick<NutritionEvaluation, "observedRate" | "targetRange">,
+  evaluation: Pick<NutritionEvaluation, "observedRate" | "targetRange" | "phaseKind">,
 ): RateTone {
-  const { observedRate, targetRange } = evaluation;
+  const { observedRate, targetRange, phaseKind } = evaluation;
   const { min, max } = targetRange;
   if (min === max) return null; // Not tracked
-  const loss = -observedRate;
+  const progress = phaseDirection(phaseKind) * observedRate;
   // Match evaluate()'s STATUS_EPS deadband on BOTH edges: a reading in the
   // [min−EPS, min) or (max, max+EPS] slivers is still on_target to evaluate() (so
   // paceTone reads "On pace"/good). Widening the in-band check the same way keeps
   // the rate number/dot from disagreeing with the pace word by falling through to
   // "warn" at either edge.
-  if (loss >= min - STATUS_EPS && loss <= max + STATUS_EPS) {
+  if (progress >= min - STATUS_EPS && progress <= max + STATUS_EPS) {
     // Same top-slice-of-band rule as isOptimalPace (paceLabel/paceTone) — kept
     // inline rather than sharing the helper since it doesn't need `status`
-    // here (already known in-band from the check above).
+    // here (already known in-band from the check above). And the same cut-only
+    // gold: a bulk's band top is the fat ceiling, not a celebration.
     const threshold = max - (max - min) * OPTIMAL_BAND_FRACTION;
-    return loss >= threshold ? "gold" : "good";
+    return phaseKind !== "bulk" && progress >= threshold ? "gold" : "good";
   }
-  const distance = loss < min ? min - loss : loss - max;
+  const distance = progress < min ? min - progress : progress - max;
   return distance <= RATE_NEAR_MARGIN ? "warn" : "bad";
 }
 
@@ -251,10 +289,13 @@ const ETA_CEILING_WEEKS = 52;
  *  reading can't make the ETA jump from 15 to 22 weeks and back. Returns null
  *  when there's nothing worth showing (goal already reached/passed). */
 export function cutEtaLabel(
-  evaluation: Pick<NutritionEvaluation, "confidence" | "observedRate">,
+  evaluation: Pick<NutritionEvaluation, "confidence" | "observedRate" | "phaseKind">,
   weightDataPoints: number,
   remainingWeight: number,
 ): string | null {
+  // Cut-only: extrapolating a bulk's BIA body-fat slope to a ceiling date is
+  // false precision, so a bulk deliberately shows no ETA at all.
+  if (evaluation.phaseKind === "bulk") return null;
   if (remainingWeight <= 0) return null;
   if (weightDataPoints < MIN_TREND_POINTS) return "Building estimate…";
   if (evaluation.confidence === "low") return "Estimate unavailable";

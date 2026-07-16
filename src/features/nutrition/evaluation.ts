@@ -12,17 +12,24 @@
 
 import { theilSenSlope, median, weightAcceleration } from "@features/health/math";
 import { clamp01 } from "@shared/lib/num";
-import { CUT_MODE_TARGET_RANGES } from "./targetRanges";
+import { PHASE_TARGET_RANGES } from "./targetRanges";
+import { phaseDirection, phaseKindFromName, type PhaseKind } from "./logic";
 
 export type EvalStatus = "below_target" | "on_target" | "above_target";
 export type Confidence = "low" | "medium" | "high";
 
 export interface NutritionEvaluation {
+  /** Progress vs the band, in the PHASE DIRECTION: below_target = slower than
+   *  the planned rate (losing/gaining too slowly), above_target = faster. */
   status: EvalStatus;
   /** Observed weekly weight change, kg/week. Negative = losing. */
   observedRate: number;
-  /** Acceptable loss band for the current cut mode (positive kg/week). */
+  /** Acceptable weekly-rate band for the current phase — positive magnitudes
+   *  in the phase direction (loss on a cut, gain on a bulk). */
   targetRange: { min: number; max: number };
+  /** Derived from cutMode (never persisted; rowToState rebuilds it) — the
+   *  single polarity source every judgment/tone consumer reads. */
+  phaseKind: PhaseKind;
   confidence: Confidence;
   /** ISO timestamp of when this evaluation was produced. */
   evaluatedAt: string;
@@ -434,7 +441,8 @@ export function tdeeCalibration(input: {
 export function evaluate(input: EvaluateInput): NutritionState {
   const { weightSeries, cutMode, calorieTarget, estimatedTdee, daysOnTarget, now, loggedIntake = null } = input;
   const evaluatedAt = now.toISOString();
-  const range = CUT_MODE_TARGET_RANGES[cutMode] ?? null;
+  const range = PHASE_TARGET_RANGES[cutMode] ?? null;
+  const phaseKind = phaseKindFromName(cutMode);
 
   const slope = theilSenSlope(weightSeries, WINDOW_DAYS); // kg/week or null
   const observedRate = slope ?? 0;
@@ -464,7 +472,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
     daysOnTarget,
   };
 
-  // No band for this cut mode, or not enough weight data to fit a trend → we
+  // No band for this phase, or not enough weight data to fit a trend → we
   // can't judge. Return a neutral, low-confidence evaluation.
   if (!range || slope == null) {
     return {
@@ -472,6 +480,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
         status: "on_target",
         observedRate,
         targetRange: range ?? { min: 0, max: 0 },
+        phaseKind,
         confidence: "low",
         evaluatedAt,
         accelDirection,
@@ -480,12 +489,14 @@ export function evaluate(input: EvaluateInput): NutritionState {
     };
   }
 
-  // Judge the loss magnitude against the band. observedRate is negative while
-  // losing, so loss = −observedRate. Below the band = losing too slowly.
-  const loss = -observedRate;
+  // Judge the rate against the band IN THE PHASE DIRECTION: observedRate is
+  // negative while losing, so on a cut progress = −observedRate (the loss) and
+  // on a bulk progress = +observedRate (the gain). Below the band = moving too
+  // slowly for the plan, whichever way the plan points.
+  const progress = phaseDirection(phaseKind) * observedRate;
   const status: EvalStatus =
-    loss < range.min - STATUS_EPS ? "below_target"
-    : loss > range.max + STATUS_EPS ? "above_target"
+    progress < range.min - STATUS_EPS ? "below_target"
+    : progress > range.max + STATUS_EPS ? "above_target"
     : "on_target";
 
   const confidence = computeConfidence(
@@ -497,7 +508,7 @@ export function evaluate(input: EvaluateInput): NutritionState {
   );
 
   return {
-    evaluation: { status, observedRate, targetRange: range, confidence, evaluatedAt, accelDirection },
+    evaluation: { status, observedRate, targetRange: range, phaseKind, confidence, evaluatedAt, accelDirection },
     diagnostics,
   };
 }

@@ -2,7 +2,15 @@ import { supabase } from "@shared/lib/supabase";
 import { fetchHealthData, type BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
-import { computeGoal, cutBaselineAt, buildGoalStatus, type Goal, type GoalStatusEvaluation } from "./goal";
+import {
+  computeGoal,
+  cutBaselineAt,
+  buildGoalStatus,
+  buildBulkGoalStatus,
+  type Goal,
+  type GoalStatusEvaluation,
+  type BulkGoalStatusEvaluation,
+} from "./goal";
 import { evaluatePhaseTriggers, type PhaseTriggerResult } from "./phaseTriggers";
 import { maintenanceStartDate, MAINTENANCE_LOOKBACK_DAYS } from "@features/nutrition/logic";
 import { localDateStrDaysAgo } from "@shared/lib/date";
@@ -63,6 +71,15 @@ export interface OverviewData {
   /** "Is the cut's body-fat endpoint reached?" — same formula as the engine's
    *  goal slice and computeGoal's bodyFat14dAvg, so the three never disagree. */
   goalStatus: GoalStatusEvaluation;
+  /** The bulk mirror — "is the body-fat CEILING reached?". Meaningful only
+   *  while the phase is a bulk with a configured ceiling; harmless otherwise. */
+  bulkGoalStatus: BulkGoalStatusEvaluation;
+  /** Persisted bulk baseline + endpoint (0017) — null until the bulk's one-time
+   *  initializer runs (or pre-migration, where the columns read back null). */
+  bulkStartDate: string | null;
+  bulkStartWeight: number | null;
+  bulkStartBodyFat: number | null;
+  bulkBfCeiling: number | null;
   /** First day of the current maintenance block (derived from the entries' own
    *  deficit snapshots — see maintenanceStartDate), or null while cutting /
    *  before any maintenance day is logged. Data-layer only for now: the Plan
@@ -170,8 +187,13 @@ export async function fetchOverview(): Promise<OverviewData> {
     compoundSlugs,
     entries,
     today: localDateStrDaysAgo(0),
+    // Same phase snapshot the persisted evaluation carries — null state (first
+    // run) just keeps the cut wording.
+    phaseKind: nutritionState?.evaluation.phaseKind,
   });
   const goalStatus = buildGoalStatus(metrics as BodyMetric[], configRes.data?.target_body_fat_pct ?? null);
+  const bulkBfCeiling = configRes.data?.bulk_bf_ceiling ?? null;
+  const bulkGoalStatus = buildBulkGoalStatus(metrics as BodyMetric[], bulkBfCeiling);
   const maintenanceSince = maintenanceStartDate(entries);
 
   return {
@@ -190,6 +212,11 @@ export async function fetchOverview(): Promise<OverviewData> {
     activeTarget: health.activeTarget,
     phase,
     goalStatus,
+    bulkGoalStatus,
+    bulkStartDate: configRes.data?.bulk_start_date ?? null,
+    bulkStartWeight: configRes.data?.bulk_start_weight ?? null,
+    bulkStartBodyFat: configRes.data?.bulk_start_body_fat_pct ?? null,
+    bulkBfCeiling,
     maintenanceSince,
   };
 }

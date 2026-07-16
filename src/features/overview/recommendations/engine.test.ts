@@ -9,8 +9,14 @@ import type {
 } from "@features/nutrition/evaluation";
 import type { RecoveryEvaluation, RecoveryStatus } from "@features/health/math";
 import type { TrainingEvaluation } from "@features/overview/strength";
-import type { LeanMassEvaluation, GoalStatusEvaluation } from "@features/overview/goal";
+import type {
+  LeanMassEvaluation,
+  GoalStatusEvaluation,
+  BulkGoalStatusEvaluation,
+  BodyFatTrendEvaluation,
+} from "@features/overview/goal";
 import type { PhaseTriggerResult, PhaseTrigger } from "@features/overview/phaseTriggers";
+import { phaseKindFromName } from "@features/nutrition/logic";
 
 function nutrition(
   over: {
@@ -28,6 +34,9 @@ function nutrition(
     status: over.status ?? "on_target",
     observedRate: over.observedRate ?? -0.5,
     targetRange: { min: over.min ?? 0.4, max: over.max ?? 0.7 },
+    // Derived from cutMode exactly like rowToState, so phase-gated rungs see
+    // the same kind the production path would.
+    phaseKind: phaseKindFromName(over.cutMode ?? "Moderate Cut"),
     confidence: over.confidence ?? "high",
     evaluatedAt: "2026-07-01T00:00:00.000Z",
     accelDirection: over.accelDirection ?? null,
@@ -407,5 +416,131 @@ describe("Decision Engine — exit hysteresis (no flip-flop)", () => {
     };
     expect(decide(ctx)?.title).not.toBe("Increase activity");
     expect(decide(ctx, priorRec("Increase activity"))?.title).toBe("Increase activity");
+  });
+});
+
+// ── Lean Bulk — the mirrored rungs ────────────────────────────────────────────
+
+/** Bulk-phase nutrition slice: Lean Bulk band [0.1, 0.3] kg/wk of GAIN,
+ *  observedRate positive while gaining. */
+const bulkNutrition = (
+  over: Parameters<typeof nutrition>[0] = {},
+): NonNullable<RecContext["nutrition"]> =>
+  nutrition({ cutMode: "Lean Bulk", min: 0.1, max: 0.3, observedRate: 0.2, ...over });
+
+const bulkGoal = (
+  reached: boolean,
+  bodyFat14dAvg: number | null = 20.5,
+  bfCeilingPct: number | null = 21,
+): BulkGoalStatusEvaluation => ({ reached, bodyFat14dAvg, bfCeilingPct });
+
+const bodyFatTrend = (
+  trend: BodyFatTrendEvaluation["trend"],
+  confidence: BodyFatTrendEvaluation["confidence"] = "high",
+): BodyFatTrendEvaluation => ({
+  trend,
+  slopePpPerMonth: trend === "rising" ? 1.1 : 0.1,
+  confidence,
+});
+
+describe("Decision Engine — lean bulk rungs", () => {
+  it("an in-band gain is a plain 'No action needed' (never gold-rushed into advice)", () => {
+    const rec = decide({ nutrition: bulkNutrition({ status: "on_target" }) });
+    expect(rec?.title).toBe("No action needed");
+  });
+
+  it("1a″: body fat at the ceiling fires 'Start the cut'", () => {
+    const rec = decide({
+      nutrition: bulkNutrition({ status: "on_target" }),
+      bulkGoal: bulkGoal(true, 21.2, 21),
+    });
+    expect(rec?.title).toBe("Start the cut");
+    expect(rec?.source).toBe("phase");
+  });
+
+  it("1a″ never fires while cutting (phase gates are mutually exclusive)", () => {
+    const rec = decide({
+      nutrition: nutrition({ status: "on_target" }),
+      bulkGoal: bulkGoal(true, 21.2, 21),
+    });
+    expect(rec?.title).not.toBe("Start the cut");
+  });
+
+  it("1a″ holds within the exit margin once showing, releases below it", () => {
+    const ctx = (bf14: number): RecContext => ({
+      nutrition: bulkNutrition({ status: "on_target" }),
+      bulkGoal: bulkGoal(false, bf14, 21),
+    });
+    // 20.8 ≥ ceiling − 0.3 → held; 20.6 < margin → released.
+    expect(decide(ctx(20.8), priorRec("Start the cut"))?.title).toBe("Start the cut");
+    expect(decide(ctx(20.6), priorRec("Start the cut"))?.title).not.toBe("Start the cut");
+    // Sanity: neither fires fresh (not reached).
+    expect(decide(ctx(20.8))?.title).not.toBe("Start the cut");
+  });
+
+  it("1a: an acute recovery debt still outranks the bulk's goal rung", () => {
+    const rec = decide({
+      nutrition: bulkNutrition({ status: "on_target" }),
+      bulkGoal: bulkGoal(true),
+      recovery: recovery("Needs Recovery", "trained"),
+    });
+    expect(rec?.title).toBe("Prioritize recovery");
+  });
+
+  it("2-pre-bulk: stacked plateau signals suggest a maintenance break", () => {
+    const rec = decide({ nutrition: bulkNutrition({ status: "on_target" }), phase: phase(2) });
+    expect(rec?.title).toBe("Consider a maintenance break");
+    // One signal isn't enough to enter…
+    expect(decide({ nutrition: bulkNutrition({ status: "on_target" }), phase: phase(1) })?.title).not.toBe(
+      "Consider a maintenance break",
+    );
+    // …but holds an already-showing directive.
+    expect(
+      decide(
+        { nutrition: bulkNutrition({ status: "on_target" }), phase: phase(1) },
+        priorRec("Consider a maintenance break"),
+      )?.title,
+    ).toBe("Consider a maintenance break");
+  });
+
+  it("2a-bulk: gaining fast + body fat confidently rising → Reduce surplus", () => {
+    const rec = decide({
+      nutrition: bulkNutrition({ status: "above_target", observedRate: 0.5 }),
+      bodyFatTrend: bodyFatTrend("rising"),
+    });
+    expect(rec?.title).toBe("Reduce surplus");
+  });
+
+  it("2a-bulk: gaining fast alone (no evidence of cost) falls through to nutrition's own reduce", () => {
+    const rec = decide({
+      nutrition: bulkNutrition({ status: "above_target", observedRate: 0.5 }),
+      bodyFatTrend: bodyFatTrend("stable", "low"),
+    });
+    expect(rec?.title).toBe("Review calorie target");
+  });
+
+  it("2a-bulk: in-band gain with lean mass confidently FALLING → Reduce surplus (gain isn't lean)", () => {
+    const rec = decide({
+      nutrition: bulkNutrition({ status: "on_target", observedRate: 0.2 }),
+      leanMass: leanMass("falling"),
+    });
+    expect(rec?.title).toBe("Reduce surplus");
+  });
+
+  it("a stalled bulk never gets 'Increase activity' — the slow-side lever is more food", () => {
+    const rec = decide({
+      nutrition: bulkNutrition({ status: "below_target", observedRate: 0.02, daysOnTarget: 30 }),
+      training: training("declining"),
+    });
+    expect(rec?.title).not.toBe("Increase activity");
+    expect(rec?.title).toBe("Review calorie target"); // nutrition's own increase
+  });
+
+  it("1b 'Hold off on further cuts' stays cut-only (a bulking faller routes to Reduce surplus)", () => {
+    const rec = decide({
+      nutrition: bulkNutrition({ status: "on_target" }),
+      leanMass: leanMass("falling"),
+    });
+    expect(rec?.title).not.toBe("Hold off on further cuts");
   });
 });

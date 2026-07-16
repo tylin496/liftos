@@ -15,10 +15,15 @@ import { series, buildRecoveryEvaluation, sanitizeMetrics } from "@features/heal
 import type { BodyMetric } from "@features/health/api";
 import { computeTdeeWindows } from "@features/health/tdee";
 import { computeStrengthSummary, buildTrainingEvaluation } from "@features/overview/strength";
-import { buildLeanMassEvaluation, buildGoalStatus } from "@features/overview/goal";
+import {
+  buildLeanMassEvaluation,
+  buildGoalStatus,
+  buildBulkGoalStatus,
+  buildBodyFatTrendEvaluation,
+} from "@features/overview/goal";
 import { evaluatePhaseTriggers } from "@features/overview/phaseTriggers";
 import { targetsFromConfig, type NutritionConfig } from "./api";
-import { DEFAULTS, phaseFromDeficit } from "./logic";
+import { DEFAULTS, phaseFromDeficit, phaseKindFromName } from "./logic";
 import {
   evaluate,
   WINDOW_DAYS,
@@ -91,6 +96,9 @@ function rowToState(row: Row): NutritionStateFull {
     status: row.status as EvalStatus,
     observedRate: row.observed_rate,
     targetRange: { min: row.target_min, max: row.target_max },
+    // Derived, not persisted: cut_mode is the stored phase name, so the kind
+    // (and every polarity read built on it) reconstructs from the same snapshot.
+    phaseKind: phaseKindFromName(row.cut_mode ?? ""),
     confidence: row.confidence as Confidence,
     evaluatedAt: row.evaluated_at,
     // Nullable + tolerant of the pre-accel_direction column (older rows / before
@@ -309,15 +317,20 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
   }
 
   // Phase slice (plateau triggers — evaluation only, the engine owns the policy)
-  // and goal slice (is the cut's body-fat endpoint reached?).
+  // and the two goal slices (cut endpoint = body-fat target reached; bulk
+  // endpoint = body-fat ceiling reached). Both are cheap pure reads; the engine
+  // only consults the one its phase gate admits.
   const phase = evaluatePhaseTriggers({
     metrics,
     strength: strengthSummary,
     compoundSlugs,
     entries,
     today: localDateStrDaysAgo(0),
+    phaseKind: evaluation.phaseKind,
   });
   const goal = buildGoalStatus(metrics, config?.target_body_fat_pct ?? null);
+  const bulkGoal = buildBulkGoalStatus(metrics, config?.bulk_bf_ceiling ?? null);
+  const bodyFatTrend = buildBodyFatTrendEvaluation(metrics);
 
   // Carry forward a recovery dismiss, auto-clearing it once its premise is gone:
   // the user's back to training (the sick/travel window ended — trainingLoad flips
@@ -342,6 +355,8 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
       leanMass,
       phase,
       goal,
+      bulkGoal,
+      bodyFatTrend,
       recoveryDismissed: recoveryDismissedAt != null,
     },
     priorState?.recommendation ?? null,

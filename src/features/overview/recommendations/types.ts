@@ -16,7 +16,12 @@
 import type { NutritionEvaluation, NutritionDiagnostics } from "@features/nutrition/evaluation";
 import type { RecoveryEvaluation } from "@features/health/math";
 import type { TrainingEvaluation } from "@features/overview/strength";
-import type { LeanMassEvaluation, GoalStatusEvaluation } from "@features/overview/goal";
+import type {
+  LeanMassEvaluation,
+  GoalStatusEvaluation,
+  BulkGoalStatusEvaluation,
+  BodyFatTrendEvaluation,
+} from "@features/overview/goal";
 import type { PhaseTriggerResult } from "@features/overview/phaseTriggers";
 
 export type RecSource = "nutrition" | "training" | "weight" | "recovery" | "phase";
@@ -48,6 +53,11 @@ export interface RecContext {
   phase?: PhaseTriggerResult | null;
   /** "Is the cut's body-fat endpoint reached?" — from goal.ts, not a trigger. */
   goal?: GoalStatusEvaluation | null;
+  /** The bulk mirror: "is the body-fat CEILING reached?" — from goal.ts. */
+  bulkGoal?: BulkGoalStatusEvaluation | null;
+  /** "Is the gain mostly fat?" — confident bf% upslope, evidence for the
+   *  bulk's reduce-surplus rung. Evaluation only; never colours UI deltas. */
+  bodyFatTrend?: BodyFatTrendEvaluation | null;
   /** The user dismissed the recovery directive (they know the cause — sick/
    *  travel — and the app can't). Suppresses the recovery rung until it auto-
    *  clears on returning to training. Resolved in the recompute, not here. */

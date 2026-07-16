@@ -177,6 +177,73 @@ export function buildGoalStatus(metrics: BodyMetric[], targetBodyFatPct: number 
   return { reached, bodyFat14dAvg, targetBodyFatPct };
 }
 
+// ─── Bulk Goal Status (the Decision Engine's "at the body-fat ceiling?" slice) ─
+
+/** The bulk mirror of GoalStatusEvaluation: is the lean bulk's ENDPOINT reached?
+ *  A bulk ends at a body-fat CEILING (bulk_bf_ceiling) rather than a floor —
+ *  bf14 at or above it says the fat budget is spent and the next cut should
+ *  start. Same 14-day smoothing and the same GOAL_EXIT_MARGIN_PP hysteresis,
+ *  mirrored: once "Start the cut" shows, it holds until bf14 drops back below
+ *  ceiling − margin. */
+export interface BulkGoalStatusEvaluation {
+  /** 14-day body-fat average at or above the configured ceiling. */
+  reached: boolean;
+  bodyFat14dAvg: number | null;
+  bfCeilingPct: number | null;
+}
+
+export function buildBulkGoalStatus(
+  metrics: BodyMetric[],
+  bfCeilingPct: number | null,
+): BulkGoalStatusEvaluation {
+  const bfPts = metrics
+    .filter((m) => m.body_fat_pct != null)
+    .map((m) => ({ date: m.metric_date, value: m.body_fat_pct as number }));
+  const bodyFat14dAvg = rollingAvg(bfPts, 14, 0);
+  const reached =
+    bfCeilingPct != null && bodyFat14dAvg != null && bodyFat14dAvg >= bfCeilingPct;
+  return { reached, bodyFat14dAvg, bfCeilingPct };
+}
+
+// ─── Body-Fat Trend Evaluation (the bulk's "is the gain mostly fat?" slice) ──
+
+/** pp/month of body-fat RISE before a bulk's "reduce surplus" evidence counts.
+ *  Mirror of the lean-mass falling detector's dull bar: gaining the band's max
+ *  (0.3 kg/wk at ~90 kg) ENTIRELY as fat would be ≈ +1 pp/month, so a sustained
+ *  ≥0.8 says most of the gain is fat — not just BIA scatter. */
+const BULK_BF_RISE_PP_PER_MONTH = 0.8;
+
+export interface BodyFatTrendEvaluation {
+  trend: "stable" | "rising";
+  /** Fitted body-fat slope over the trailing window, pp/month; null when there
+   *  aren't enough readings to fit a trend. */
+  slopePpPerMonth: number | null;
+  confidence: "low" | "high";
+}
+
+/** Body-fat % trend over the same 60-day window / SE-significance gate as
+ *  buildLeanMassEvaluation (BIA body fat is the same noisy input, so the same
+ *  guards apply). "rising" requires the upslope to be BOTH materially positive
+ *  AND ≥ K standard errors above flat; anything less is a low-confidence
+ *  "stable" that never fires engine advice. Evaluation-layer only — this NEVER
+ *  colours a lean-mass or body-fat delta in the UI (LBM stays context). */
+export function buildBodyFatTrendEvaluation(metrics: BodyMetric[]): BodyFatTrendEvaluation {
+  const bfPts = metrics
+    .filter((m) => m.body_fat_pct != null)
+    .map((m) => ({ date: m.metric_date, value: m.body_fat_pct as number }));
+
+  const fit = olsFit(bfPts, LEAN_MASS_WINDOW_DAYS, LEAN_MASS_MIN_POINTS);
+  if (!fit) return { trend: "stable", slopePpPerMonth: null, confidence: "low" };
+
+  const slopePpPerMonth = +(fit.slopePerDay * 30).toFixed(3);
+  const sePerMonth = fit.seSlopePerDay * 30;
+  const rising =
+    slopePpPerMonth >= BULK_BF_RISE_PP_PER_MONTH &&
+    slopePpPerMonth >= LEAN_MASS_SIGNIF_K * sePerMonth;
+
+  return { trend: rising ? "rising" : "stable", slopePpPerMonth, confidence: rising ? "high" : "low" };
+}
+
 // ─── Lean Mass Evaluation (the Decision Engine's body-composition slice) ─────
 
 /** kg/month of lean-mass loss before "hold off on further cuts" is even
