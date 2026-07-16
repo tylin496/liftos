@@ -14,6 +14,10 @@
          just the OS scheme. Updated on mount and on every theme change. -->
     <meta name="theme-color" content="#f4f4f6" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- black-translucent: lets page content draw under the iOS status bar
+         instead of the OS painting an opaque bar above it — needed since
+         nothing in-app paints that strip (removed .status-glass). -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>LiftOS</title>
     <script>
       (function () {

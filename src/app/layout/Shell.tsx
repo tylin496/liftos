@@ -889,7 +889,6 @@ export function Shell({ session }: { session: Session }) {
       <NavContext.Provider value={switchTab}>
       <NavExpandContext.Provider value={pendingLanding?.expand ? pendingLanding.id : null}>
         <div className="shell">
-          <div className="status-glass" aria-hidden="true" />
           <div
             className="top-tap-zone"
             aria-hidden="true"
