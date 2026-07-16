@@ -36,6 +36,18 @@ export function defaultSetCount(exercise: Exercise) {
   return targetSetCount(exercise.target) || DEFAULT_SET_COUNT;
 }
 
+/** Canonicalize a target string to the "reps × sets" convention on save —
+ *  "6-8x3" / "6–8 X 3" → "6-8 × 3", "12*2" → "12 × 2". Only reshapes input that
+ *  IS a plain reps[-reps][× sets] expression; anything else (free-text cues,
+ *  extra words) passes through trimmed, so the field stays free-form. */
+export function normalizeTarget(raw: string): string {
+  const trimmed = raw.trim();
+  const m = trimmed.match(/^(\d+)(?:\s*[-–—~]\s*(\d+))?(?:\s*(?:×|x|\*)\s*(\d+))?$/i);
+  if (!m) return trimmed;
+  const [, lo, hi, sets] = m;
+  return lo + (hi ? `-${hi}` : "") + (sets ? ` × ${sets}` : "");
+}
+
 export function emptyRepValues(n: number) {
   return Array.from({ length: n }, () => "");
 }

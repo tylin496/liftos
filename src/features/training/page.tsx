@@ -24,11 +24,11 @@ import {
   useToast,
 } from "./ExerciseCard";
 import { computeStats, computeWeeklyVolume, computeMuscleWeeklyVolume } from "./logic";
-import { inferMuscleGroup } from "./muscleGroup";
+import { inferMuscleGroup, resolveMuscleBySlug } from "./muscleGroup";
 import { StrengthHealthCard } from "./StrengthHealthCard";
 import { WeeklyVolumeCard } from "./WeeklyVolumeCard";
 import { computeStrengthSummary } from "@features/overview/api";
-import { defaultSetCount, useScrollAboveKeyboard } from "./logFormHelpers";
+import { defaultSetCount, normalizeTarget, useScrollAboveKeyboard } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
 import { fmtWeightNum } from "./ExprDisplay";
 import type { TimeFilter } from "./logic";
@@ -371,7 +371,7 @@ function AddExerciseForm({
     if (!name.trim() || submitting) return;
     // Don't clear the fields here: on success the parent unmounts this form, on
     // error it stays open — resetting would wipe the user's input on failure.
-    onAdd(name.trim(), target.trim(), note.trim(), assisted, compound);
+    onAdd(name.trim(), normalizeTarget(target), note.trim(), assisted, compound);
   }
 
   return (
@@ -989,6 +989,11 @@ function TrainingPageInner() {
   // The muscle view re-buckets the same session rows per inferred muscle group
   // (inference only, no schema — see muscleGroup.ts), so the two views always
   // sum to the same week.
+  // Override-aware muscle resolution, shared by the weekly-volume muscle view
+  // and the Training Health card so a pinned muscle_group_override moves the
+  // lift everywhere at once.
+  const muscleBySlug = useMemo(() => resolveMuscleBySlug(exercises ?? []), [exercises]);
+
   const weeklyVolume = useMemo(() => {
     const roster = (exercises ?? [])
       .filter((e) => !e.archived)
@@ -998,10 +1003,11 @@ function TrainingPageInner() {
     return {
       stat: computeWeeklyVolume(logs, roster, today),
       muscle: computeMuscleWeeklyVolume(logs, roster, today, (ex) =>
+        muscleBySlug.get(ex.slug) ??
         inferMuscleGroup(namesBySlug[ex.slug] ?? ex.slug, ex.slug, ex.split),
       ),
     };
-  }, [logs, exercises]);
+  }, [logs, exercises, muscleBySlug]);
 
   // Every distinct log date on record, any exercise — feeds the session-count
   // milestone (every 100th training day) in ExerciseCard. A log can only ever
@@ -1217,6 +1223,7 @@ function TrainingPageInner() {
         loading={!exercises}
         strength={exercises ? strengthHealth.strength : undefined}
         onJumpToExercise={jumpToExercise}
+        muscleBySlug={muscleBySlug}
       />
 
       <WeeklyVolumeCard

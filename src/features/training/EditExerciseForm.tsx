@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { ImageWell } from "./ImageWell";
-import { useScrollAboveKeyboard } from "./logFormHelpers";
+import { normalizeTarget, useScrollAboveKeyboard } from "./logFormHelpers";
 import type { Exercise } from "./api";
 
 export interface EditExerciseFormProps {
@@ -46,7 +46,7 @@ export function EditExerciseForm({
     try {
       await onSave({
         name: name.trim(),
-        target: target.trim() || null,
+        target: normalizeTarget(target) || null,
         note: note.trim() || null,
         assisted_mode: assisted,
         compound,
