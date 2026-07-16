@@ -252,12 +252,16 @@ function IntakeRailFill({ pct, short }: { pct: number; short?: boolean }) {
     }, delayMs);
     return () => clearTimeout(timer);
   }, [delayMs]);
-  const ramp = `width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`;
+  // Both segments hold their final width; only scaleX animates, so grey grows
+  // left→right (origin left) while the orange gap grows the opposite way,
+  // right→middle (origin right) — the two meet at the boundary.
+  const ramp = `transform ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`;
+  const grow = (on: boolean) => (on ? "scaleX(1)" : "scaleX(0)");
   return (
     <div ref={ref} className="nt-track" aria-hidden="true">
-      <div className="nt-track-fill" style={{ width: shown ? `${pct}%` : 0, transition: ramp }} />
+      <div className="nt-track-fill" style={{ width: `${pct}%`, transform: grow(shown), transition: ramp }} />
       {short && (
-        <div className="nt-track-gap" style={{ width: shown ? `${100 - pct}%` : 0, transition: ramp }} />
+        <div className="nt-track-gap" style={{ width: `${100 - pct}%`, transform: grow(shown), transition: ramp }} />
       )}
     </div>
   );

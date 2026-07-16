@@ -1111,7 +1111,7 @@
    column's 4px gap) gives it equal breathing room from both.
    align-self: stretch because .nutri-col is align-items: flex-start. */
 .nt-track {
-  display: flex;
+  position: relative;
   align-self: stretch;
   height: 6px;
   margin: var(--space-1) 0;
@@ -1120,11 +1120,19 @@
   overflow: hidden;
 }
 .nt-track-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
   height: 100%;
+  transform-origin: left; /* grows left→right */
   background: var(--ink-3); /* neutral — the consumed portion isn't a signal */
 }
 .nt-track-gap {
+  position: absolute;
+  top: 0;
+  right: 0;
   height: 100%;
+  transform-origin: right; /* grows right→middle, opposite the fill */
   background: var(--warn); /* 🟠 protein short of floor */
 }
 
