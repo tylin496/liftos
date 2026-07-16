@@ -86,12 +86,14 @@ export async function fetchOverview(): Promise<OverviewData> {
     supabase.from("exercises").select("slug, name, archived, compound"),
     // Shared nutrition state — a plain read; recompute happens on data change.
     getNutritionState(),
-    // Goal Provider config: the target plus the persisted cut baseline
-    // (cut_start_date + cut_start_body_fat_pct). Set once via config and only ever
-    // read here — there is no in-app UI. To restart a cut, edit these directly.
+    // Goal Provider config: the target plus the persisted cut/bulk baselines.
+    // select("*") rather than named columns so the read tolerates a not-yet-
+    // applied migration (an explicit select of a missing column errors in
+    // PostgREST); one row, so the wildcard costs nothing. Bulk fields are read
+    // with ?? null below for the same reason.
     supabase
       .from("nutrition_config")
-      .select("target_body_fat_pct, cut_start_date, cut_start_body_fat_pct, cut_start_weight")
+      .select("*")
       .maybeSingle(),
     // Recent per-day nutrition entries — the adherence trigger reads the last
     // fortnight, the maintenance-week counter scans further back for the

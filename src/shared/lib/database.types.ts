@@ -115,6 +115,11 @@ export type Database = {
       }
       nutrition_config: {
         Row: {
+          active_phase_index: number | null
+          bulk_bf_ceiling: number | null
+          bulk_start_body_fat_pct: number | null
+          bulk_start_date: string | null
+          bulk_start_weight: number | null
           cut_start_body_fat_pct: number | null
           cut_start_date: string | null
           cut_start_weight: number | null
@@ -130,6 +135,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          active_phase_index?: number | null
+          bulk_bf_ceiling?: number | null
+          bulk_start_body_fat_pct?: number | null
+          bulk_start_date?: string | null
+          bulk_start_weight?: number | null
           cut_start_body_fat_pct?: number | null
           cut_start_date?: string | null
           cut_start_weight?: number | null
@@ -145,6 +155,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          active_phase_index?: number | null
+          bulk_bf_ceiling?: number | null
+          bulk_start_body_fat_pct?: number | null
+          bulk_start_date?: string | null
+          bulk_start_weight?: number | null
           cut_start_body_fat_pct?: number | null
           cut_start_date?: string | null
           cut_start_weight?: number | null

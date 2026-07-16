@@ -77,6 +77,12 @@ const NUTRITION_CONFIG = {
   cut_start_date: "2026-02-11",
   cut_start_body_fat_pct: 21.3,
   cut_start_weight: 98.4,
+  // Bulk phase (0017) — null until a bulk actually starts, matching a fresh
+  // production row so dev exercises the pre-baseline paths.
+  bulk_start_date: null,
+  bulk_start_weight: null,
+  bulk_start_body_fat_pct: null,
+  bulk_bf_ceiling: null,
   updated_at: "2026-06-01T00:00:00Z",
 };
 
