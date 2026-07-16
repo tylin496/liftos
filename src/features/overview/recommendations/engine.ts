@@ -39,6 +39,11 @@ import type { LeanMassEvaluation } from "@features/overview/goal";
 import { GOAL_EXIT_MARGIN_PP } from "@features/overview/goal";
 import { recoveryRecommendation, RECOVERY_TITLE } from "./recovery";
 import { nutritionProvider } from "./nutrition";
+import { atBandFloorSlowing } from "@features/nutrition/recommendation";
+// nutrition's own "Review calorie target" (reduce) is the slow-side correction the
+// engine defers to when muscle is safe — keep the title here so the hysteresis keys
+// on the same string nutritionDecision emits (eventType).
+const REVIEW_TARGET_TITLE = "Review calorie target";
 
 // Directive titles the hysteresis keys on. RECOVERY_TITLE is owned by recovery.ts
 // (where the directive is produced) and imported so the two can't drift; the rest
@@ -94,9 +99,13 @@ function weightState(n: RecContext["nutrition"], priorTitle: string | null): Wei
   if (e.targetRange.min === e.targetRange.max || e.confidence === "low") return "unknown";
   const loss = -e.observedRate; // observedRate is negative while losing
   // Schmitt hysteresis: a directive already showing uses a narrower exit margin,
-  // so the rate must return well inside the band before the directive drops.
-  const fastMargin = priorTitle === REDUCE_DEFICIT_TITLE ? RATE_EXIT_MARGIN : RATE_MARGIN;
-  const heldStalled = priorTitle === INCREASE_ACTIVITY_TITLE;
+  // so the rate must return well inside the band before the directive drops. A held
+  // "Review calorie target" (nutrition's own reduce/increase) counts as a shown
+  // correction on both edges — the slow-side lever now surfaces under that title, and
+  // its eventType doesn't encode direction — so it's treated as sticky either way.
+  const heldReview = priorTitle === REVIEW_TARGET_TITLE;
+  const fastMargin = priorTitle === REDUCE_DEFICIT_TITLE || heldReview ? RATE_EXIT_MARGIN : RATE_MARGIN;
+  const heldStalled = priorTitle === INCREASE_ACTIVITY_TITLE || heldReview;
   const slowMargin = heldStalled ? RATE_EXIT_MARGIN : RATE_MARGIN;
   const stalledEps = heldStalled ? STALLED_EXIT_EPS : STALLED_EPS;
   if (Math.abs(e.observedRate) < stalledEps) return "stalled";
@@ -238,18 +247,29 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
         "You're losing faster than planned and training's starting to slip — ease the deficit to protect muscle",
     };
   }
-  // 2b Increase activity. Following the plan but the scale's stuck — reach for
-  //    movement before cutting food further (calories are a budget, not the only
-  //    lever). Deliberately overrides nutrition's own "cut more" reflex.
-  if ((w === "stalled" || w === "slow") && isAdherent(ctx.nutrition)) {
+  // 2b Slow / stalled / easing-at-the-floor while adherent. Lowering the calorie
+  //    target is a valid lever here: logging is imprecise but roughly a constant
+  //    offset, so cutting the target N kcal cuts real intake ~N kcal regardless. So
+  //    the default is to let nutrition's own "Review calorie target" (reduce) surface
+  //    — UNLESS strength is confidently declining, in which case cutting further
+  //    would accelerate muscle loss, so we fall back to adding activity instead. The
+  //    floor-slowing case (still technically in-band but drifting down + decelerating)
+  //    is caught here too, a step before the rate actually stalls.
+  const wantsTighten =
+    (w === "stalled" ||
+      w === "slow" ||
+      (ctx.nutrition != null && atBandFloorSlowing(ctx.nutrition.evaluation))) &&
+    isAdherent(ctx.nutrition);
+  if (wantsTighten && trn === "declining") {
     return {
       source: "weight",
       priority: 68,
       title: INCREASE_ACTIVITY_TITLE,
       subtitle:
-        "You're on target but the scale's stalled — add activity rather than cutting calories further",
+        "The scale's stalled and your lifts are slipping — add activity rather than cutting calories further while strength recovers",
     };
   }
+  // wantsTighten with training safe → fall through to nutrition's reduce (below).
 
   // ─ Tier 3 / 4 — Sustain vs Capitalize ───────────────────────────────────────
   // Nutrition's own decision is the default (maintain, or ease-the-deficit when

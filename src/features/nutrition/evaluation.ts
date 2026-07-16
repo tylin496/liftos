@@ -98,10 +98,10 @@ export const STATUS_EPS = 0.02;
 const FRESH_TARGET_DAYS = 14;
 
 /** kcal/day the weight-implied intake may differ from the logged intake before
- *  the two sources are "materially disagreeing". A large gap means the trend
- *  isn't a settled read of *this* intake (transient water, mis-logging, or TDEE
- *  drift), so it can't stand as a HIGH-confidence verdict. Conservative,
- *  uncalibrated default — no nutrition export on hand to tune it against yet. */
+ *  the two sources are "materially disagreeing". Now used only DESCRIPTIVELY — the
+ *  `intakeDivergence` flag and the smooth `intake` vector component — never to gate
+ *  the confidence label (see confidenceBreakdown: imprecise logs shouldn't distrust a
+ *  clean weight trend). Conservative, uncalibrated default. */
 const INTAKE_DIVERGENCE_KCAL = 200;
 
 /** Canonical weekly weight rate (kg/week) — the exact number the UI's "Trend"
@@ -209,8 +209,10 @@ export interface ConfidenceBreakdown {
   /** Mean of the present components (0–1) BEFORE the hard caps — "what the raw
    *  signals alone would give". A cap can hold `label` below what this implies. */
   rawScore: number;
-  /** Which hard cap (if any) pulled the label below the raw signals — the reason a
-   *  strong-looking window still reads medium. Invaluable for an LLM audit. */
+  /** `freshTarget` = the one hard cap that still GATES (held the label to medium
+   *  because the target is <14d old). `intakeDivergence` is INFORMATIONAL ONLY — a
+   *  flag that the food log and weight-implied intake disagree by ≥INTAKE_DIVERGENCE_KCAL;
+   *  it no longer lowers the label (imprecise logs shouldn't distrust a clean trend). */
   caps: { freshTarget: boolean; intakeDivergence: boolean };
 }
 
@@ -250,13 +252,16 @@ export function confidenceBreakdown(
   // isn't yet a settled verdict on THIS target. Hold at medium ("Forming") until
   // it's had ~2 weeks to express itself.
   const freshCap = base === "high" && daysOnTarget < FRESH_TARGET_DAYS;
-  // Food-log divergence cap: when the logged intake and the weight-implied intake
-  // disagree by more than INTAKE_DIVERGENCE_KCAL, the trend isn't a settled read
-  // of this intake — hold at medium even on a clean, dense weight window. Null gap
-  // (too few logged days) = no food-log signal, so no effect.
-  const intakeCap =
-    base === "high" && intakeGap != null && Math.abs(intakeGap) >= INTAKE_DIVERGENCE_KCAL;
-  const label: Confidence = base === "high" && (freshCap || intakeCap) ? "medium" : base;
+  // Food-log divergence — INFORMATIONAL ONLY, does NOT gate the label. Logging is
+  // inherently imprecise (you don't lab-test every meal), so a persistent log↔weight
+  // gap is an *expected* constant offset, not a reason to distrust an independent,
+  // clean weight trend. It once capped confidence to medium; that punished imprecise
+  // logging and — since a real target change needs HIGH confidence — silently
+  // stopped the engine from ever acting. We surface the flag (an LLM/reader can weigh
+  // it) but the weight verdict stands on its own. Null gap = no food-log signal.
+  const intakeDiverges =
+    intakeGap != null && Math.abs(intakeGap) >= INTAKE_DIVERGENCE_KCAL;
+  const label: Confidence = base === "high" && freshCap ? "medium" : base;
 
   // ── Continuous vector (descriptive) — smooth versions of the same signals ──────
   const freshness = clamp01(daysOnTarget / FRESH_TARGET_DAYS);
@@ -281,7 +286,7 @@ export function confidenceBreakdown(
       intake: intake == null ? null : round2(intake),
     },
     rawScore: round2(rawScore),
-    caps: { freshTarget: freshCap, intakeDivergence: intakeCap },
+    caps: { freshTarget: freshCap, intakeDivergence: intakeDiverges },
   };
 }
 
@@ -319,22 +324,26 @@ export interface TdeeCalibration {
   /** HealthKit-measured TDEE (30d resting + 14d active) — independent of the food log. */
   measuredHealthTdee: number;
   /** TDEE implied by the food log + weight trend: loggedIntake − the trend's energy
-   *  balance. Independent of HealthKit, so it corroborates (or disputes) it. */
+   *  balance. NOT a peer of measuredHealthTdee: it rides on loggedIntake, the softest
+   *  input (self-report is systematically UNDER-counted), so it inherits that error. A
+   *  soft cross-check, not a second sensor reading — weigh it below the HealthKit burn. */
   measuredLogTdee: number;
-  /** Conservative signed miscalibration (kcal/day). +ve = you burn MORE than the
-   *  target assumes (real deficit is bigger than planned); −ve = you burn less. When
-   *  corroborated, the smaller-magnitude of the two agreeing deltas; when single-
-   *  source (no HealthKit), the log-implied delta itself. 0 when within the bar. */
+  /** Conservative signed miscalibration (kcal/day): the smaller-magnitude of the two
+   *  corroborating deltas. +ve = you burn MORE than the target assumes (real deficit
+   *  is bigger than planned); −ve = you burn less. 0 unless both sources corroborate. */
   delta: number;
-  /** "under"/"over" = the assumed TDEE looks off by ≥ TDEE_MISCALIBRATION_KCAL.
-   *  "aligned" = it looks right. "unclear" = two sources that disagree or only one
-   *  crosses — not enough to claim. Read WITH `corroborated`. */
+  /** "under"/"over" only when BOTH independent sources agree in direction AND both
+   *  clear TDEE_MISCALIBRATION_KCAL. "aligned" = both within the bar (assumed TDEE
+   *  looks right). "unclear" = they disagree or only one crosses — not enough to claim. */
   status: "aligned" | "under" | "over" | "unclear";
-  /** True only when two INDEPENDENT sources (HealthKit burn + log/weight) agree.
-   *  False when the claim rests on the log alone — because there's no real HealthKit
-   *  measurement, the assumed TDEE just echoes itself, so the log is the only
-   *  evidence. A single-source "under"/"over" is a lead to confirm, not a verdict. */
-  corroborated: boolean;
+  /** Where a divergence most likely originates, ranked by the reliability hierarchy
+   *  (weight trend hard > HealthKit burn > food log). "tdee" = the SENSOR corroborates
+   *  that the assumed TDEE is off (status is under/over) → the target's TDEE is the
+   *  culprit. "under-logging"/"over-logging" = the measured HealthKit burn backs the
+   *  assumed TDEE and only the log-implied number diverges → the gap rides on the soft
+   *  log, so the log is the suspect, NOT the TDEE (the common case: habitual
+   *  under-reporting). null = aligned, or no measured burn to attribute against. */
+  likelyCause: "tdee" | "under-logging" | "over-logging" | null;
 }
 
 /** kcal/day a MEASURED TDEE must exceed the target's assumed TDEE before we'll
@@ -344,30 +353,28 @@ export interface TdeeCalibration {
 const TDEE_MISCALIBRATION_KCAL = 250;
 
 /** Is the target's assumed TDEE (config.tdee) still consistent with reality?
- *  Compares it against up to two INDEPENDENT measured estimates — HealthKit burn, and
- *  the TDEE implied by (food log + weight trend).
+ *  Compares it against two INDEPENDENT measured estimates — HealthKit burn, and the
+ *  TDEE implied by (food log + weight trend) — and only claims a miscalibration when
+ *  BOTH agree in direction and both clear TDEE_MISCALIBRATION_KCAL. Requiring
+ *  corroboration is the guard against a single fat logging week or a HealthKit blip
+ *  moving the verdict.
  *
- *  Two-source path (HealthKit data present): only claims a miscalibration when BOTH
- *  agree in direction and both clear TDEE_MISCALIBRATION_KCAL, and marks it
- *  `corroborated`. Requiring corroboration guards against a single fat logging week
- *  or a HealthKit blip moving the verdict.
+ *  `likelyCause` then attributes any divergence by the reliability hierarchy — the
+ *  food log is the SOFTEST input (self-report, systematically under-counted), so when
+ *  the measured HealthKit burn backs the assumed TDEE and only the log-implied number
+ *  diverges, the log is the suspect, not the TDEE. Doubting the TDEE is warranted only
+ *  when the sensor itself corroborates it (status under/over).
  *
- *  Single-source path (no HealthKit measurement — estimatedTdee is a fallback that
- *  just echoes assumedTdee, so its leg is not independent): the log+weight is the
- *  ONLY real evidence. Rather than stay structurally silent (assumed vs assumed can
- *  never disagree, so the two-source path could only ever return "unclear"), report
- *  the log-implied delta with `corroborated: false` — an honest "here's the one lead
- *  I have, unconfirmed" instead of nothing.
- *
- *  Inform-only either way: never proposes a calorie change — it hands the numbers to
- *  the reader (the AI export's audit). Returns null when there isn't enough to judge:
- *  no trusted weight trend, or no food-log signal. */
+ *  Inform-only: never proposes a calorie change — it hands the numbers to the reader
+ *  (the AI export's audit). Returns null when there isn't enough to judge: no trusted
+ *  weight trend, or no food-log signal. */
 export function tdeeCalibration(input: {
   assumedTdee: number;
   estimatedTdee: number;
   /** True when estimatedTdee is a genuine HealthKit measurement (30d resting + 14d
-   *  active). False when it's a fallback that just echoes assumedTdee — then the
-   *  HealthKit leg isn't independent and the log becomes the sole evidence. */
+   *  active), false when it fell back to the assumed TDEE (no HealthKit energy data).
+   *  Only a real measurement can BACK the assumption, which is what lets a lone
+   *  log divergence be pinned on logging rather than left unattributed. */
   healthTdeeMeasured: boolean;
   loggedIntake: number | null;
   observedRate: number | null;
@@ -377,43 +384,41 @@ export function tdeeCalibration(input: {
 }): TdeeCalibration | null {
   const { assumedTdee, estimatedTdee, healthTdeeMeasured, loggedIntake, observedRate, weightTrustworthy } =
     input;
-  // The log-implied TDEE needs BOTH a trusted weight trend and a food-log signal.
-  // Missing either → no evidence at all, so stay silent.
+  // The log-implied TDEE needs BOTH a trusted weight trend and a food-log signal;
+  // it's also the corroborating second source. Missing either → no independent
+  // cross-check, so stay silent rather than claim on one source.
   if (!weightTrustworthy || loggedIntake == null || observedRate == null) return null;
 
   const impliedFromLog = loggedIntake - (observedRate * KCAL_PER_KG) / 7;
   const dHealth = estimatedTdee - assumedTdee;
   const dLog = impliedFromLog - assumedTdee;
+
+  const healthClears = Math.abs(dHealth) >= TDEE_MISCALIBRATION_KCAL;
   const logClears = Math.abs(dLog) >= TDEE_MISCALIBRATION_KCAL;
+  const bothClear = healthClears && logClears;
+  const agree = Math.sign(dHealth) === Math.sign(dLog);
+  const bothSmall = !healthClears && !logClears;
 
   let delta = 0;
   let status: TdeeCalibration["status"];
-  let corroborated = false;
-
-  if (healthTdeeMeasured) {
-    // Two independent sources — claim only on agreement.
-    const bothClear = Math.abs(dHealth) >= TDEE_MISCALIBRATION_KCAL && logClears;
-    const agree = Math.sign(dHealth) === Math.sign(dLog);
-    const bothSmall = Math.abs(dHealth) < TDEE_MISCALIBRATION_KCAL && !logClears;
-    if (bothClear && agree) {
-      // Report the smaller-magnitude delta — "off by AT LEAST this", never the rosier
-      // of the two estimates.
-      delta = Math.abs(dHealth) <= Math.abs(dLog) ? dHealth : dLog;
-      status = delta > 0 ? "under" : "over";
-      corroborated = true;
-    } else {
-      status = bothSmall ? "aligned" : "unclear";
-    }
+  if (bothClear && agree) {
+    // Report the smaller-magnitude delta — "off by AT LEAST this", never the rosier
+    // of the two estimates.
+    delta = Math.abs(dHealth) <= Math.abs(dLog) ? dHealth : dLog;
+    status = delta > 0 ? "under" : "over";
   } else {
-    // Single source: the HealthKit leg is a fallback (dHealth ≈ 0, meaningless), so
-    // the log/weight is all we have. Surface it — flagged uncorroborated — instead of
-    // letting the assumed-vs-assumed comparison bury a real signal as "unclear".
-    if (logClears) {
-      delta = dLog;
-      status = delta > 0 ? "under" : "over";
-    } else {
-      status = "aligned";
-    }
+    status = bothSmall ? "aligned" : "unclear";
+  }
+
+  // Attribute the divergence by reliability. A corroborated under/over is the sensor
+  // itself flagging the TDEE. Otherwise, if a REAL HealthKit burn backs the assumed
+  // TDEE (dHealth small) and only the soft log-implied number diverges, the log is the
+  // likely culprit — habitual under-reporting, not a wrong TDEE.
+  let likelyCause: TdeeCalibration["likelyCause"] = null;
+  if (status === "under" || status === "over") {
+    likelyCause = "tdee";
+  } else if (healthTdeeMeasured && !healthClears && logClears) {
+    likelyCause = dLog < 0 ? "under-logging" : "over-logging";
   }
 
   return {
@@ -422,7 +427,7 @@ export function tdeeCalibration(input: {
     measuredLogTdee: Math.round(impliedFromLog),
     delta: Math.round(delta),
     status,
-    corroborated,
+    likelyCause,
   };
 }
 

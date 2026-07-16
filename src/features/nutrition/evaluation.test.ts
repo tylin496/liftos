@@ -141,17 +141,19 @@ describe("evaluate — fresh-target confidence cap", () => {
   });
 });
 
-describe("evaluate — food-log divergence confidence cap", () => {
+describe("evaluate — food-log divergence does NOT cap confidence", () => {
   // Same clean, dense, ≥14-day series that scores "high" on its own (estimated
   // intake ≈ 2195 kcal); only the logged intake's agreement with it varies.
-  it("caps at medium when the logged intake disagrees with the weight-implied intake", () => {
+  it("stays high even when the logged intake disagrees with the weight-implied intake", () => {
+    // Logging is imprecise (a roughly constant offset), so a log↔weight gap is
+    // expected and must NOT distrust an independent, clean weight trend.
     const { evaluation, diagnostics } = evaluate(
       input({ weightSeries: weightSeries(-0.55), daysOnTarget: 30, loggedIntake: 2450 }),
     );
     expect(diagnostics.loggedIntake).toBe(2450);
     expect(diagnostics.intakeGap).toBe(diagnostics.estimatedIntake - 2450);
     expect(Math.abs(diagnostics.intakeGap!)).toBeGreaterThanOrEqual(200);
-    expect(evaluation.confidence).toBe("medium");
+    expect(evaluation.confidence).toBe("high");
   });
 
   it("stays high when the logged intake agrees with the weight-implied intake", () => {
@@ -190,6 +192,7 @@ describe("tdeeCalibration — inform-only cross-check", () => {
   const base = {
     assumedTdee: 2250,
     estimatedTdee: 2800,
+    healthTdeeMeasured: true,
     loggedIntake: 2300,
     observedRate: -0.5, // impliedFromLog = 2300 + 0.5*1100 = 2850
     weightTrustworthy: true,
@@ -202,6 +205,8 @@ describe("tdeeCalibration — inform-only cross-check", () => {
     expect(c.measuredLogTdee).toBe(2850);
     // Conservative: the SMALLER-magnitude of the two deltas, never the rosier one.
     expect(c.delta).toBe(550);
+    // Sensor corroborates → the TDEE itself is the culprit.
+    expect(c.likelyCause).toBe("tdee");
   });
 
   it("claims 'over' when both sources agree the assumed TDEE is too high", () => {
@@ -209,12 +214,14 @@ describe("tdeeCalibration — inform-only cross-check", () => {
     const c = tdeeCalibration({
       assumedTdee: 2800,
       estimatedTdee: 2450,
+      healthTdeeMeasured: true,
       loggedIntake: 2000,
       observedRate: -0.3,
       weightTrustworthy: true,
     })!;
     expect(c.status).toBe("over");
     expect(c.delta).toBe(-350);
+    expect(c.likelyCause).toBe("tdee");
   });
 
   it("stays 'aligned' when both deltas are within the bar", () => {
@@ -222,25 +229,30 @@ describe("tdeeCalibration — inform-only cross-check", () => {
     const c = tdeeCalibration({
       assumedTdee: 2800,
       estimatedTdee: 2750,
+      healthTdeeMeasured: true,
       loggedIntake: 2200,
       observedRate: -0.5,
       weightTrustworthy: true,
     })!;
     expect(c.status).toBe("aligned");
     expect(c.delta).toBe(0);
+    expect(c.likelyCause).toBeNull();
   });
 
   it("stays 'unclear' when only one source crosses the bar", () => {
-    // health clears (+300) but log doesn't (−90) → no corroboration.
+    // health clears (+300) but log doesn't (−90) → no corroboration. The SENSOR is
+    // the one diverging, not the log, so no under-logging attribution.
     const c = tdeeCalibration({
       assumedTdee: 2700,
       estimatedTdee: 3000,
+      healthTdeeMeasured: true,
       loggedIntake: 2500,
       observedRate: -0.1,
       weightTrustworthy: true,
     })!;
     expect(c.status).toBe("unclear");
     expect(c.delta).toBe(0);
+    expect(c.likelyCause).toBeNull();
   });
 
   it("stays 'unclear' when both cross but disagree in direction", () => {
@@ -248,12 +260,47 @@ describe("tdeeCalibration — inform-only cross-check", () => {
     const c = tdeeCalibration({
       assumedTdee: 2600,
       estimatedTdee: 2900,
+      healthTdeeMeasured: true,
       loggedIntake: 2000,
       observedRate: -0.2,
       weightTrustworthy: true,
     })!;
     expect(c.status).toBe("unclear");
     expect(c.delta).toBe(0);
+    expect(c.likelyCause).toBeNull();
+  });
+
+  it("blames the LOG, not the TDEE, when a real burn backs the target but the log diverges (the real-user case)", () => {
+    // assumed 2800; HealthKit measured 2800 (dHealth 0, backs the target); log
+    // 1812 + 0.592*1100 ≈ 2464 → dLog −336 clears. The soft log is the outlier →
+    // probable under-reporting, NOT a wrong TDEE. status stays honestly "unclear".
+    const c = tdeeCalibration({
+      assumedTdee: 2800,
+      estimatedTdee: 2800,
+      healthTdeeMeasured: true,
+      loggedIntake: 1812,
+      observedRate: -0.592308,
+      weightTrustworthy: true,
+    })!;
+    expect(c.status).toBe("unclear");
+    expect(c.delta).toBe(0);
+    expect(c.measuredLogTdee).toBe(2464);
+    expect(c.likelyCause).toBe("under-logging");
+  });
+
+  it("does NOT blame logging when there's no measured burn to back the target", () => {
+    // Same numbers, but estimatedTdee is a FALLBACK (no HealthKit data): dHealth 0
+    // is tautological, not a confirmation, so the log divergence can't be attributed.
+    const c = tdeeCalibration({
+      assumedTdee: 2800,
+      estimatedTdee: 2800,
+      healthTdeeMeasured: false,
+      loggedIntake: 1812,
+      observedRate: -0.592308,
+      weightTrustworthy: true,
+    })!;
+    expect(c.status).toBe("unclear");
+    expect(c.likelyCause).toBeNull();
   });
 
   it("returns null with no food-log signal (single source can't corroborate)", () => {
@@ -286,10 +333,13 @@ describe("confidenceBreakdown — continuous vector + caps", () => {
     expect(c.components.freshness).toBeLessThan(1);
   });
 
-  it("a large food-log divergence caps to medium and shows a low intake score", () => {
+  it("a large food-log divergence flags intakeDivergence but does NOT cap the label", () => {
+    // Informational only now: the flag + low intake score surface for a reader, but
+    // the label stays high — imprecise logs shouldn't distrust a clean weight trend.
     const c = confidenceBreakdown(30, 18, 1, 0.1, 300); // 300 ≥ 200 bar
-    expect(c.label).toBe("medium");
+    expect(c.label).toBe("high");
     expect(c.caps.intakeDivergence).toBe(true);
+    expect(c.caps.freshTarget).toBe(false);
     expect(c.components.intake).toBeLessThan(0.5);
   });
 

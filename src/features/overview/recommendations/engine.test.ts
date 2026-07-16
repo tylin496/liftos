@@ -21,6 +21,7 @@ function nutrition(
     confidence?: Confidence;
     daysOnTarget?: number;
     cutMode?: string;
+    accelDirection?: "faster" | "slowing" | null;
   } = {},
 ): NonNullable<RecContext["nutrition"]> {
   const evaluation: NutritionEvaluation = {
@@ -29,7 +30,7 @@ function nutrition(
     targetRange: { min: over.min ?? 0.4, max: over.max ?? 0.7 },
     confidence: over.confidence ?? "high",
     evaluatedAt: "2026-07-01T00:00:00.000Z",
-    accelDirection: null,
+    accelDirection: over.accelDirection ?? null,
   };
   const diagnostics: NutritionDiagnostics = {
     estimatedTdee: 2800,
@@ -143,12 +144,38 @@ describe("Decision Engine — precedence ladder", () => {
     expect(rec?.title).not.toBe("Reduce deficit slightly");
   });
 
-  it("2b: stalled but adhering → increase activity (overrides 'cut more')", () => {
+  it("2b: stalled + adhering + lifts DECLINING → increase activity (muscle guardrail)", () => {
     const rec = decide({
       nutrition: nutrition({ status: "below_target", observedRate: -0.05, confidence: "high", daysOnTarget: 20 }),
+      training: training("declining"),
     });
     expect(rec?.title).toBe("Increase activity");
     expect(rec?.source).toBe("weight");
+  });
+
+  it("2b: stalled + adhering + lifts SAFE → nutrition's reduce (lower the target, not add activity)", () => {
+    // Logging offset is ~constant, so lowering the target is a valid lever; only a
+    // declining lift trend diverts to 'add activity'.
+    const rec = decide({
+      nutrition: nutrition({ status: "below_target", observedRate: -0.05, confidence: "high", daysOnTarget: 20 }),
+      training: training("holding"),
+    });
+    expect(rec?.title).toBe("Review calorie target");
+    expect(rec?.title).not.toBe("Increase activity");
+  });
+
+  it("2b: at the band FLOOR and SLOWING (in-band) + adhering + lifts safe → nutrition's reduce", () => {
+    const rec = decide({
+      nutrition: nutrition({
+        status: "on_target",
+        observedRate: -0.42, // bottom slice of [0.4, 0.7]
+        accelDirection: "slowing",
+        confidence: "high",
+        daysOnTarget: 20,
+      }),
+      training: training("holding"),
+    });
+    expect(rec?.title).toBe("Review calorie target");
   });
 
   it("stalled but NOT adhering → falls through to nutrition (activity isn't the fix)", () => {
@@ -345,11 +372,14 @@ describe("Decision Engine — exit hysteresis (no flip-flop)", () => {
     expect(held?.title).toBe("Prioritize recovery");
   });
 
-  it("holds 'Increase activity' near the band edge once it's showing", () => {
-    // loss 0.30, band [0.40,0.70]: on_pace at the enter-margin (min−0.15=0.25),
-    // but slow at the exit-margin (min−0.05=0.35) — so it only holds with a prior.
+  it("holds 'Increase activity' (the muscle guardrail) near the band edge once it's showing", () => {
+    // loss 0.30, band [0.40,0.70]: on_pace at the enter-margin (min−0.15=0.25), but
+    // slow at the exit-margin (min−0.05=0.35). Lifts declining, so the slow read
+    // yields the guardrail 'Increase activity' — which the hold keeps across the wobble
+    // (without a prior it's on_pace → falls through to nutrition's own reduce).
     const ctx: RecContext = {
       nutrition: nutrition({ status: "below_target", observedRate: -0.3, confidence: "high", daysOnTarget: 30 }),
+      training: training("declining"),
     };
     expect(decide(ctx)?.title).not.toBe("Increase activity");
     expect(decide(ctx, priorRec("Increase activity"))?.title).toBe("Increase activity");
