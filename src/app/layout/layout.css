@@ -526,6 +526,12 @@ html.kb-open .tabbar {
   backdrop-filter: var(--scrim-blur);
   -webkit-backdrop-filter: var(--scrim-blur);
   animation: fade-in var(--dur-enter) ease both;
+  /* The scrim covers the whole viewport ON TOP of the page. Without this, a
+     touch-drag anywhere on it panned the .tab-panel behind (the sheet's own
+     grabber/header block this via touch-action:none and the body via
+     overscroll-behavior:contain — the scrim was the one uncovered surface).
+     none stops the pan-through; tap-to-close (onClick) still fires. */
+  touch-action: none;
 }
 
 .settings-backdrop.is-closing {
