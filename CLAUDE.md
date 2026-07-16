@@ -18,6 +18,7 @@ React / Vite / TypeScript + Supabase (Postgres + RLS + Auth)。4 tabs = 4 個獨
 | 卡路里計算 | `nutrition/logic.ts`；Today UI `nutrition/today.tsx` |
 | Health 體重/體脂 | `health/page.tsx` |
 | Shell / TabBar | `app/layout/Shell.tsx`（**先載入 `tab-navigation-scroll` skill**）|
+| 全螢幕高度 / 狀態列 / safe-area / PWA meta | **先載入 `ios-standalone-viewport` skill**；一律 `var(--app-height)`，勿寫 100vh/100dvh |
 | 顏色 / 間距 / 字級 | `src/shared/styles/tokens.css`；全域 reset/animations `global.css` |
 | 找 CSS class | 大 CSS 檔（training / nutrition / layout / overview）頂部有 TOC（附行號），先看 TOC 跳行 |
 
