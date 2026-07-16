@@ -261,6 +261,34 @@ describe("computeRecovery", () => {
     expect(snap.insight).toBe("Several 7-day averages are running below baseline — recovery's running low");
   });
 
+  it("a marker with a value but no baseline reads neutral, not a miss (partial baseline)", () => {
+    // Sleep has a full 30-day baseline and sits on it; HRV and RHR appear ONLY on
+    // the final day, so neither can be graded. The ungradeable markers must read
+    // neutral (like their gauges) — scoring them as misses dropped a perfect
+    // sleep to a false "Fair" against two neutral gauges.
+    const MS = 86400000;
+    const t0 = new Date("2026-06-01T12:00:00").getTime();
+    const days: BodyMetric[] = [];
+    for (let i = 0; i < 30; i++) {
+      days.push({
+        metric_date: new Date(t0 + i * MS).toISOString().slice(0, 10),
+        sleep_seconds: 25200,
+      } as unknown as BodyMetric);
+    }
+    days.push({
+      metric_date: new Date(t0 + 30 * MS).toISOString().slice(0, 10),
+      sleep_seconds: 25200,
+      hrv_sdnn_ms: 60,
+      resting_heart_rate: 55,
+    } as unknown as BodyMetric);
+    const snap = computeRecovery(days);
+    expect(snap.hrvBaseline).toBeNull();
+    expect(snap.rhrBaseline).toBeNull();
+    expect(snap.baselineBuilding).toBe(false); // sleep IS gradeable → normal verdict
+    expect(snap.score).toBe(3);
+    expect(snap.status).toBe("Ready");
+  });
+
   // exercise_minutes attributes a low reading to its likely cause (loadContext).
   function withExercise(metrics: BodyMetric[], count: number, minutes: number): BodyMetric[] {
     return metrics.map((m, i) =>

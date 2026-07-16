@@ -124,6 +124,14 @@ describe("Decision Engine — precedence ladder", () => {
     expect(rec?.title).toBe("No action needed");
   });
 
+  it("1b does not fire in maintenance — 'pause the deficit' is meaningless with no deficit", () => {
+    const rec = decide({
+      nutrition: nutrition({ cutMode: "Maintenance" }),
+      leanMass: leanMass("falling"),
+    });
+    expect(rec?.title).not.toBe("Hold off on further cuts");
+  });
+
   // ─ Tier 2 — Correct ─────────────────────────────────────────────────────────
   it("2a: losing too fast AND training declining → reduce deficit (the joint verdict)", () => {
     const rec = decide({
@@ -203,6 +211,16 @@ describe("Decision Engine — precedence ladder", () => {
 
   it("PR needs training evidence — absence keeps it at maintain", () => {
     const rec = decide({ nutrition: nutrition({ status: "on_target" }), recovery: recovery("Ready") });
+    expect(rec?.title).toBe("No action needed");
+  });
+
+  it("4: recovery merely 'Good' (score 2, one marker down) is NOT green enough for a PR push", () => {
+    const rec = decide({
+      nutrition: nutrition({ status: "on_target", confidence: "high" }),
+      recovery: recovery("Good"),
+      training: training("improving"),
+    });
+    // GOOD gate = Ready (score 3) only; a score-2 "Good" holds at maintain.
     expect(rec?.title).toBe("No action needed");
   });
 });
@@ -352,6 +370,17 @@ describe("Decision Engine — exit hysteresis (no flip-flop)", () => {
     expect(decide(base)?.title).toBe("Prioritize recovery");
     // Dismissed → the ladder falls through, recovery stays silent.
     expect(decide({ ...base, recoveryDismissed: true })?.title).not.toBe("Prioritize recovery");
+  });
+
+  it("2a: fast weight + dismissed recovery debt still reduces the deficit (fills the dismiss gap)", () => {
+    // With 1a snoozed, a fast cut on a fatigued dieter would otherwise fall to a
+    // bland nutrition read. Spec's 'Weight=FAST AND Recovery=POOR' arm catches it.
+    const rec = decide({
+      nutrition: nutrition({ status: "above_target", observedRate: -1.0, confidence: "high" }),
+      recovery: recovery("Needs Recovery", "rested"),
+      recoveryDismissed: true,
+    });
+    expect(rec?.title).toBe("Reduce deficit slightly");
   });
 
   it("keys hysteresis on the engine's OWN output (guards title/key drift)", () => {

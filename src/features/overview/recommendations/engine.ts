@@ -120,11 +120,16 @@ function isAdherent(n: RecContext["nutrition"]): boolean {
 }
 
 type RecoveryState = "good" | "ok" | "poor" | "unknown";
+// Discretization per DECISION-ENGINE.md §狀態離散化: GOOD = score 3 (Ready),
+// OK = score 2 (Good), POOR = score ≤1 (Fair | Needs Recovery). Tier 4's
+// "everything green" gate needs GOOD — a score-2 "Good" (one marker off
+// baseline) is NOT fully green and must read as "ok", or the PR push fires
+// before recovery is actually clear.
 function recoveryState(r: RecoveryEvaluation | null | undefined): RecoveryState {
   if (!r || r.status == null) return "unknown";
-  if (r.status === "Needs Recovery") return "poor";
-  if (r.status === "Fair") return "ok";
-  return "good"; // Ready | Good
+  if (r.status === "Ready") return "good"; // score 3
+  if (r.status === "Good") return "ok"; // score 2 — one marker down, not fully green
+  return "poor"; // Fair (1) | Needs Recovery (0)
 }
 
 type TrainingState = "improving" | "holding" | "declining" | "unknown";
@@ -198,8 +203,11 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
   }
 
   // 1b Hold off on further cuts. Lean mass is genuinely sliding — the scariest
-  //    call, so it only fires on a confident, sustained downslope.
-  if (leanMassFalling(ctx.leanMass)) {
+  //    call, so it only fires on a confident, sustained downslope. Gated on
+  //    isCutting: its action is "pause the deficit", which is meaningless in
+  //    maintenance (no deficit to pause) — like 1a′/2-pre, this rung is a
+  //    cut-only directive.
+  if (isCutting(ctx.nutrition) && leanMassFalling(ctx.leanMass)) {
     return {
       source: "weight",
       priority: 80,
@@ -236,8 +244,15 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
 
   // 2a Reduce deficit. Losing too fast AND it's starting to cost training — the
   //    cross-domain read the ladder exists for. (Nutrition alone would flag the
-  //    rate; naming the training slip is the point.)
-  if (w === "fast" && trn === "declining") {
+  //    rate; naming the training slip is the point.) Spec's second trigger is
+  //    "Weight=FAST AND (Training=DECLINING OR Recovery=POOR)"; the recovery arm
+  //    is scoped to a settled "Needs Recovery" (the only recovery state the
+  //    engine treats as a real problem — Fair never fires 1a and lacks the
+  //    persistence spec's POOR requires). Normally 1a pre-empts it; this arm
+  //    only bites once recovery is dismissed, closing the hole where a fast cut
+  //    on a fatigued (but snoozed) dieter fell through to a bland nutrition read.
+  const recoveryPoor = r?.status === "Needs Recovery";
+  if (w === "fast" && (trn === "declining" || recoveryPoor)) {
     return {
       source: "nutrition",
       priority: 71,

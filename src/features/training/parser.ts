@@ -111,7 +111,12 @@ export function parse(raw: string): Parsed | null {
     assisted = { bw, assist };
   }
 
-  return { raw, weightExpr, weight: evalArith(weightExpr), reps, notes, unit, assisted };
+  // A negative resolved weight is nonsensical (mirrors the negative-assist
+  // reject above) — bail rather than passing a negative load downstream. A NaN
+  // weight still flows through; score()/e1rm guard non-finite as before.
+  const weight = evalArith(weightExpr);
+  if (Number.isFinite(weight) && weight < 0) return null;
+  return { raw, weightExpr, weight, reps, notes, unit, assisted };
 }
 
 /** Settlement weight in kg (for PR comparison). */

@@ -57,8 +57,16 @@ export function computeMuscleClusters(
     // Shared-block check: the decliners' latest sessions must span ≤ one block.
     let sameBlock = false;
     if (decliners.length >= 2) {
-      const times = decliners.map((e) => Date.parse(e.lastLogDate)).sort((a, b) => a - b);
-      sameBlock = (times[times.length - 1] - times[0]) / DAY_MS <= CLUSTER_BLOCK_DAYS;
+      // Drop unparseable dates first: a single NaN would poison the span
+      // subtraction (NaN <= X is false) and silently suppress the whole
+      // cluster's systemic-fatigue flag. Still need ≥2 datable decliners.
+      const times = decliners
+        .map((e) => Date.parse(e.lastLogDate))
+        .filter((t) => Number.isFinite(t))
+        .sort((a, b) => a - b);
+      sameBlock =
+        times.length >= 2 &&
+        (times[times.length - 1] - times[0]) / DAY_MS <= CLUSTER_BLOCK_DAYS;
     }
     const systemicFatigue = decliners.length >= 2 && sameBlock;
 

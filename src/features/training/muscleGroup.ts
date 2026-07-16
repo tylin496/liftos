@@ -26,6 +26,9 @@ const RULES: { re: RegExp; group: Exclude<MuscleGroup, "unknown"> }[] = [
   { re: /(rear[-\s]?delt|reverse.*fl(y|ies|yes))/, group: "shoulders" },
   { re: /(shoulder|overhead)[-\s]?press|\bohp\b/, group: "shoulders" },
   { re: /(lateral|side[-\s]?raise)/, group: "shoulders" },
+  // Upright row is a delt movement — must precede the back \brow\b below, which
+  // would otherwise swallow it.
+  { re: /upright[-\s]?row/, group: "shoulders" },
   // ── triceps (before generic "extension" and "dip") ──
   { re: /(triceps?|pushdown|skull|\bdips?\b)/, group: "triceps" },
   // ── calves / abs / glutes (specific compounds before their generic parts) ──
@@ -33,7 +36,10 @@ const RULES: { re: RegExp; group: Exclude<MuscleGroup, "unknown"> }[] = [
   { re: /(leg[-\s]?raise|crunch|plank|sit[-\s]?up|ab[-\s]?wheel)/, group: "abs" },
   { re: /(hip[-\s]?thrust|glute|kickback|abduction|bridge)/, group: "glutes" },
   // ── hamstrings hip-hinges / quads squats ──
-  { re: /(rdl|romanian|good[-\s]?morning|stiff[-\s]?leg)/, group: "hamstrings" },
+  // All hip-hinges tag hamstrings (coarse, overridable) — deadlift included, so
+  // a bare "Deadlift" with no split isn't dropped to "unknown". "Romanian
+  // deadlift" still matches `romanian` first (same group).
+  { re: /(rdl|romanian|good[-\s]?morning|stiff[-\s]?leg|deadlift)/, group: "hamstrings" },
   { re: /(squat|hack)/, group: "quads" },
   // ── back pulls ──
   { re: /(pulldown|pull[-\s]?up|pullup|pull[-\s]?around|pullover|chin[-\s]?up|\brow\b)/, group: "back" },

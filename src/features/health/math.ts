@@ -255,10 +255,18 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
   const hrvBand = rollingBand(hrvPts, 30, 1);
   const rhrBand = rollingBand(rhrPts, 30, 1);
 
-  let score = 0;
-  if (sleepHours != null && sleepBaseline != null && sleepHours >= sleepBaseline * 0.95) score++;
-  if (hrv != null && hrvBaseline != null && hrv >= hrvBaseline * 0.95) score++;
-  if (rhr != null && rhrBaseline != null && rhr <= rhrBaseline * 1.05) score++;
+  // A marker counts AGAINST readiness only when it's gradeable (has both a value
+  // and a 30-day baseline) AND sits below baseline. A marker with a value but no
+  // baseline is NEUTRAL — the gauges render it neutral, so it must not read as a
+  // miss (that would drop the score, e.g. one perfect sleep + two baseline-less
+  // markers → false "Fair" against two neutral gauges). Score = 3 − (markers
+  // actively below baseline): with full data it equals the old pass-count; with
+  // partial data neutral markers neither help nor hurt.
+  const sleepLow = sleepHours != null && sleepBaseline != null && sleepHours < sleepBaseline * 0.95;
+  const hrvLow   = hrv != null && hrvBaseline != null && hrv < hrvBaseline * 0.95;
+  const rhrHigh  = rhr != null && rhrBaseline != null && rhr > rhrBaseline * 1.05;
+  const downCount = (sleepLow ? 1 : 0) + (hrvLow ? 1 : 0) + (rhrHigh ? 1 : 0);
+  const score = 3 - downCount;
 
   const hasAny = sleepHours != null || hrv != null || rhr != null;
   // A reading with no 30-day baseline can't be graded (new user, <30 days of
@@ -277,13 +285,9 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
     : "Needs Recovery";
 
   // Insight: a short, plain-language read of where the user's 7-day averages sit.
-  // When a marker is off we name it; when everything's holding we surface the
-  // strongest one. Descriptive, not prescriptive — the read reflects the state,
-  // it never tells the user what to do.
-  const sleepLow = sleepHours != null && sleepBaseline != null && sleepHours < sleepBaseline * 0.95;
-  const hrvLow   = hrv != null && hrvBaseline != null && hrv < hrvBaseline * 0.95;
-  const rhrHigh  = rhr != null && rhrBaseline != null && rhr > rhrBaseline * 1.05;
-  const downCount = (sleepLow ? 1 : 0) + (hrvLow ? 1 : 0) + (rhrHigh ? 1 : 0);
+  // When a marker is off we name it (sleepLow/hrvLow/rhrHigh/downCount computed
+  // above with the score); when everything's holding we surface the strongest
+  // one. Descriptive, not prescriptive — it reflects the state, never prescribes.
 
   // Closing clause, driven by the overall status.
   const read =

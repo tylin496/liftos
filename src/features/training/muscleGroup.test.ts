@@ -59,6 +59,11 @@ describe("inferMuscleGroup — rule disambiguations (future exercises)", () => {
     ["Pullover", "pullover", "back"],
     // "lat" in a pulldown must NOT read as "lateral" (shoulders)
     ["Lat Pulldown", "lat-pulldown", "back"],
+    // upright row is a delt movement — must NOT be swallowed by the back \brow\b
+    ["Upright Row", "upright-row", "shoulders"],
+    // deadlift is a hip-hinge → hamstrings (not dropped to unknown without a split)
+    ["Deadlift", "deadlift", "hamstrings"],
+    ["Romanian Deadlift", "romanian-deadlift", "hamstrings"],
   ];
   for (const [name, slug, want] of cases) {
     it(`${name} → ${want}`, () => {

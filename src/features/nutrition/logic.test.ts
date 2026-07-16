@@ -114,6 +114,18 @@ describe("monthlyStats — adherence vs precision", () => {
     expect(m.currentStreak).toBe(3); // days 3,4,5 — the over on day 2 stops it
   });
 
+  it("streak breaks across an unlogged calendar gap, not just a bad day", () => {
+    // Three adherent logs but a 9-day hole between the first and the rest. Only
+    // the contiguous 06-10/06-11 pair counts — walking logged rows alone would
+    // report 3 for a run that actually straddles 11 calendar days.
+    const m = monthlyStats([
+      day("2026-06-01", 2205, 190),
+      day("2026-06-10", 2205, 190),
+      day("2026-06-11", 2205, 190), // most recent
+    ]);
+    expect(m.currentStreak).toBe(2);
+  });
+
   it("surplus breaks the streak immediately", () => {
     const m = monthlyStats([
       day("2026-06-01", 2205, 190),

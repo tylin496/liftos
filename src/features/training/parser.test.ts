@@ -81,6 +81,10 @@ describe("parse", () => {
   it("rejects negative assistance", () => {
     expect(parse("70-(-5)*8")).toBeNull();
   });
+
+  it("rejects a negative resolved weight", () => {
+    expect(parse("-5*8")).toBeNull();
+  });
 });
 
 describe("score", () => {

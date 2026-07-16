@@ -272,6 +272,15 @@ export interface MonthlyStats {
   distribution: Record<CalorieState, number>;
 }
 
+// Whole-day gap between two YYYY-MM-DD dates, noon-anchored so local getters
+// avoid the UTC-midnight day-shift the rest of this file sidesteps.
+const daysApart = (a: string, b: string): number =>
+  Math.abs(
+    Math.round(
+      (new Date(a + "T12:00:00").getTime() - new Date(b + "T12:00:00").getTime()) / 86_400_000,
+    ),
+  );
+
 export function monthlyStats(days: DayInput[]): MonthlyStats {
   const logged = days.filter((d) => d.calories != null);
   const distribution: Record<CalorieState, number> = {
@@ -295,14 +304,20 @@ export function monthlyStats(days: DayInput[]): MonthlyStats {
     }
   }
 
-  // Streak: consecutive most-recent days that kept the deficit (on-plan OR
-  // low-intake), matching the adherence definition — days sorted ascending.
+  // Streak: consecutive most-recent CALENDAR days that kept the deficit (on-plan
+  // OR low-intake), matching the adherence definition — days sorted ascending.
+  // An unlogged day between two logged rows BREAKS the run: walking only the
+  // logged rows would silently jump the gap and report e.g. "3 days" for a run
+  // that actually straddles three weeks. A calendar gap > 1 day ends the streak.
   let currentStreak = 0;
+  let prevDate: string | null = null;
   for (let i = logged.length - 1; i >= 0; i--) {
     const d = logged[i];
+    if (prevDate != null && daysApart(d.date, prevDate) > 1) break;
     const cal = getCalorieResult(d.calories as number, d.tdee ?? DEFAULTS.tdee, d.deficitTarget ?? DEFAULTS.deficitTarget);
-    if (isAdherentState(cal.state)) currentStreak += 1;
-    else break;
+    if (!isAdherentState(cal.state)) break;
+    currentStreak += 1;
+    prevDate = d.date;
   }
 
   const n = logged.length || 1;

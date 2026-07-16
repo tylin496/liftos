@@ -43,7 +43,11 @@ export function useTrendChart(values: number[], min: number, max: number) {
     y: valueToY(v),
   }));
   const line = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
-  const area = `${coords[0].x.toFixed(1)},${baseline} ${line} ${coords[coords.length - 1].x.toFixed(1)},${baseline}`;
+  // Empty series → no polygon (callers guard length<2, but keep the hook total
+  // rather than crash on coords[0] if one ever slips through).
+  const area = coords.length
+    ? `${coords[0].x.toFixed(1)},${baseline} ${line} ${coords[coords.length - 1].x.toFixed(1)},${baseline}`
+    : "";
 
   // Draw-in animation: measure the polyline's real length instead of using a
   // normalized `pathLength`. `pathLength` + vector-effect:non-scaling-stroke +
