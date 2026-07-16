@@ -198,6 +198,9 @@ export interface ExercisePatch {
   /** Compound lift? Gates round-weight Milestone feedback (see milestone.ts).
    *  Seeded by migration 0013; settable from the add + edit exercise forms. */
   compound?: boolean;
+  /** Pinned primary muscle (migration 0018) — null = trust inference. Only the
+   *  edit form sets this, to correct the rare misclassification. */
+  muscle_group_override?: string | null;
   archived?: boolean;
   sort_order?: number;
   image_url?: string | null;

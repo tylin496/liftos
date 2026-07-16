@@ -2192,6 +2192,24 @@
   min-width: 0;
 }
 
+/* Primary-muscle row — label left, select right. The select is an editable
+   input, so it keeps the field-input border/background (grey-surface rule);
+   native appearance stays so the platform picker affordance is preserved. */
+.edit-exercise-muscle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.edit-exercise-muscle-select {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 60%;
+}
+
 .edit-exercise-actions {
   display: flex;
   gap: var(--space-2);

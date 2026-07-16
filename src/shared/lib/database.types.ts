@@ -70,6 +70,7 @@ export type Database = {
           created_at: string
           id: string
           image_url: string | null
+          muscle_group_override: string | null
           name: string
           note: string | null
           slug: string
@@ -86,6 +87,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          muscle_group_override?: string | null
           name: string
           note?: string | null
           slug: string
@@ -102,6 +104,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          muscle_group_override?: string | null
           name?: string
           note?: string | null
           slug?: string

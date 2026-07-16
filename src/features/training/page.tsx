@@ -986,8 +986,8 @@ function TrainingPageInner() {
   // Weekly volume — total kg lifted this calendar week, completing each trained
   // split's roster via carry-forward (log one Pull set → the whole Pull roster
   // still counts, at each lift's most recent numbers). Same in-memory logs.
-  // The muscle view re-buckets the same session rows per inferred muscle group
-  // (inference only, no schema — see muscleGroup.ts), so the two views always
+  // The muscle view re-buckets the same session rows per muscle group
+  // (override-aware resolution — see muscleGroup.ts), so the two views always
   // sum to the same week.
   // Override-aware muscle resolution, shared by the weekly-volume muscle view
   // and the Training Health card so a pinned muscle_group_override moves the

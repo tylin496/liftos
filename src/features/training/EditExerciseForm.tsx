@@ -1,7 +1,13 @@
 import { useRef, useState } from "react";
 import { ImageWell } from "./ImageWell";
 import { normalizeTarget, useScrollAboveKeyboard } from "./logFormHelpers";
+import { asMuscleGroup, inferMuscleGroup, MUSCLE_GROUPS } from "./muscleGroup";
 import type { Exercise } from "./api";
+
+/** "hamstrings" → "Hamstrings" — the option list's display case. */
+function capitalize(s: string): string {
+  return s[0].toUpperCase() + s.slice(1);
+}
 
 export interface EditExerciseFormProps {
   exercise: Exercise;
@@ -31,6 +37,9 @@ export function EditExerciseForm({
   const [note, setNote] = useState(exercise.note ?? "");
   const [assisted, setAssisted] = useState(!!exercise.assisted_mode);
   const [compound, setCompound] = useState(exercise.compound);
+  // "" = trust inference (stored as null); a group name pins the muscle.
+  // Tolerant read: rows fetched before migration 0018 have no override field.
+  const [muscle, setMuscle] = useState(asMuscleGroup(exercise.muscle_group_override) ?? "");
   const [saving, setSaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -50,6 +59,7 @@ export function EditExerciseForm({
         note: note.trim() || null,
         assisted_mode: assisted,
         compound,
+        muscle_group_override: muscle || null,
       });
       onCancel();
     } finally {
@@ -131,6 +141,26 @@ export function EditExerciseForm({
             onChange={(e) => setCompound(e.target.checked)}
           />
           Compound lift
+        </label>
+        {/* Primary limiting muscle — feeds the muscle grid, cluster fatigue and
+            weekly-volume buckets. "Auto" trusts inference (muscleGroup.ts);
+            picking a group pins it, for the rare misclassification only. */}
+        <label className="edit-exercise-muscle">
+          Primary muscle
+          <select
+            className="field-input edit-exercise-muscle-select"
+            value={muscle}
+            onChange={(e) => setMuscle(e.target.value)}
+          >
+            <option value="">
+              Auto — {capitalize(inferMuscleGroup(name, exercise.slug, exercise.split))}
+            </option>
+            {MUSCLE_GROUPS.map((g) => (
+              <option key={g} value={g}>
+                {capitalize(g)}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 

@@ -9,7 +9,7 @@ import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
 import { computeStats, computeMuscleWeeklyVolume, epley1RM, maxReps, scoreWeight } from "@features/training/logic";
 import { computeStrengthSummary, type StrengthExercise } from "@features/overview/api";
-import { inferMuscleGroup } from "@features/training/muscleGroup";
+import { inferMuscleGroup, resolveMuscleBySlug } from "@features/training/muscleGroup";
 import { computeMuscleClusters, suggestClusterFatigue } from "@features/training/muscleCluster";
 import { buildMuscleGrid } from "@features/training/muscleGrid";
 import { defaultSetCount } from "@features/training/logFormHelpers";
@@ -471,13 +471,13 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   // Muscle-cluster fatigue: several lifts of one primary muscle sliding together
   // in the same block — a systemic signal a per-lift read can't see. Riding on
-  // trajectory; muscle inferred from name/slug/split (no DB column). Only the
-  // flagged (systemic) groups are surfaced, each with its muscle-level action.
-  const splitBySlug = new Map(exercises.map((e) => [e.slug, e.split]));
-  const muscleFatigue = computeMuscleClusters(
-    [...strengthBySlug.values()],
-    (x) => inferMuscleGroup(x.name, x.slug, splitBySlug.get(x.slug)),
-  )
+  // trajectory; muscle resolved override-first then name/slug/split (the same
+  // resolveMuscleBySlug the cards use). Only the flagged (systemic) groups are
+  // surfaced, each with its muscle-level action.
+  const muscleBySlug = resolveMuscleBySlug(exercises);
+  const muscleOf = (x: { slug: string; name: string }) =>
+    muscleBySlug.get(x.slug) ?? inferMuscleGroup(x.name, x.slug);
+  const muscleFatigue = computeMuscleClusters([...strengthBySlug.values()], muscleOf)
     .map((c) => suggestClusterFatigue(c, (s) => nameBySlug.get(s) ?? s))
     .filter((a): a is NonNullable<typeof a> => a !== null);
 
@@ -492,7 +492,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     0,
     ...strengthExercises.map((x) => Date.parse(x.lastLogDate) || 0),
   );
-  const muscleSummary = buildMuscleGrid(strengthExercises, trainingNowMs).map((cell) => {
+  const muscleSummary = buildMuscleGrid(strengthExercises, trainingNowMs, muscleOf).map((cell) => {
     const byRetention = [...cell.lifts].sort((a, b) => a.trend - b.trend);
     const worst = byRetention[0];
     const best = byRetention[byRetention.length - 1];
@@ -518,7 +518,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     logsBySlug,
     volumeRoster,
     localDateStr(now),
-    (ex) => inferMuscleGroup(nameBySlug.get(ex.slug) ?? ex.slug, ex.slug, ex.split),
+    (ex) =>
+      muscleBySlug.get(ex.slug) ??
+      inferMuscleGroup(nameBySlug.get(ex.slug) ?? ex.slug, ex.slug, ex.split),
   ).map((m) => ({
     group: m.group,
     thisWeekKg: Math.round(m.thisWeekKg),

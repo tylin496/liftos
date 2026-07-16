@@ -3,7 +3,7 @@ import { MetricValue } from "@shared/components/Metric";
 import { useBottomUpDelay } from "@shared/hooks/useBottomUpDelay";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import type { StrengthSummary, StrengthExercise } from "../overview/api";
-import type { MuscleGroup } from "./muscleGroup";
+import { inferMuscleGroup, type MuscleGroup } from "./muscleGroup";
 import { buildMuscleGrid, cellBody, liftStatus, MARK_WORD, STATUS_ICON, statusWord, steadyNote } from "./muscleGrid";
 import type { LiftStatus, MuscleGridCell } from "./muscleGrid";
 import { computeMuscleClusters, suggestClusterFatigue, type ClusterFatigueAdvice } from "./muscleCluster";
@@ -190,6 +190,10 @@ export interface StrengthHealthCardProps {
   /** Full variant only — tapping a drill-down lift row jumps to its card in the
    *  list and opens its Trend. Absent = rows aren't tappable. */
   onJumpToExercise?: (slug: string) => void;
+  /** Override-aware muscle resolution (resolveMuscleBySlug) — lets a pinned
+   *  `muscle_group_override` reach the grid + cluster reads. Absent (or a slug
+   *  missing from the map) falls back to pure inference. */
+  muscleBySlug?: Map<string, MuscleGroup>;
 }
 
 export function StrengthHealthCard({
@@ -199,6 +203,7 @@ export function StrengthHealthCard({
   id,
   loading = false,
   onJumpToExercise,
+  muscleBySlug,
 }: StrengthHealthCardProps) {
   // Selected muscle group for the drill-down. Uncontrolled default = worst group
   // (grid[0]); this holds a user's explicit pick, falling back to the worst group
@@ -265,7 +270,12 @@ export function StrengthHealthCard({
 
   // Now is read once per render for the fresh-PR window. Fine as a plain read.
   const nowMs = Date.now();
-  const grid = buildMuscleGrid(strength.exercises, nowMs);
+  // Same override-aware resolver for the grid AND the cluster read below —
+  // undefined lets both fall back to their built-in inference default.
+  const muscleOf = muscleBySlug
+    ? (ex: StrengthExercise) => muscleBySlug.get(ex.slug) ?? inferMuscleGroup(ex.name, ex.slug)
+    : undefined;
+  const grid = buildMuscleGrid(strength.exercises, nowMs, muscleOf);
   // On track = lifts NOT flagged for intervention (strength.attention is exactly
   // the declining ∪ stalled count). Hero % + trend come from the summary so the
   // number never re-derives independently of the export/engine.
@@ -412,7 +422,7 @@ export function StrengthHealthCard({
   // verdict and gain a muscle-level action strip in the drill-down.
   const nameBySlug = new Map(strength.exercises.map((e) => [e.slug, e.name]));
   const fatigueByMuscle = new Map<MuscleGroup, ClusterFatigueAdvice>();
-  for (const c of computeMuscleClusters(strength.exercises)) {
+  for (const c of computeMuscleClusters(strength.exercises, muscleOf)) {
     const a = suggestClusterFatigue(c, (slug) => nameBySlug.get(slug) ?? slug);
     if (a) fatigueByMuscle.set(a.muscle, a);
   }

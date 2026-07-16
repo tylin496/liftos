@@ -1944,6 +1944,7 @@ export function OverviewPage() {
             variant="snapshot"
             loading={loading}
             strength={data?.strength}
+            muscleBySlug={data?.muscleBySlug}
             onNav={() => nav("training", { scrollTo: "training-strength-health-card", expand: true })}
           />
         );

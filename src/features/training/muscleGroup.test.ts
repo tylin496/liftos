@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { inferMuscleGroup, type MuscleGroup } from "./muscleGroup";
+import { inferMuscleGroup, resolveMuscleBySlug, type MuscleGroup } from "./muscleGroup";
 
 // The 15 real exercises, classified exactly as the user specified. slug + name
 // are the real seed values (see seed.ts); split disambiguates only as a fallback.
@@ -80,5 +80,34 @@ describe("inferMuscleGroup — fallbacks", () => {
   });
   it("returns 'unknown' when nothing matches and there's no split", () => {
     expect(inferMuscleGroup("Mystery Move", "mystery-move")).toBe("unknown");
+  });
+});
+
+describe("inferMuscleGroup — muscle_group_override", () => {
+  it("a valid override beats every heuristic, keyword hits included", () => {
+    // RDL keyword says hamstrings; the user pinned glutes.
+    expect(inferMuscleGroup("Romanian Deadlift", "rdl", "legs", "glutes")).toBe("glutes");
+  });
+  it("null/undefined override falls through to inference", () => {
+    expect(inferMuscleGroup("Bench Press", "bench-press", "push", null)).toBe("chest");
+    expect(inferMuscleGroup("Bench Press", "bench-press", "push", undefined)).toBe("chest");
+  });
+  it("an unrecognised stored value falls through instead of poisoning the group", () => {
+    expect(inferMuscleGroup("Bench Press", "bench-press", "push", "forearms")).toBe("chest");
+    expect(inferMuscleGroup("Bench Press", "bench-press", "push", "unknown")).toBe("chest");
+  });
+});
+
+describe("resolveMuscleBySlug", () => {
+  it("resolves each row override-first, inference otherwise", () => {
+    const map = resolveMuscleBySlug([
+      { slug: "rdl", name: "Romanian Deadlift", split: "legs", muscle_group_override: "glutes" },
+      { slug: "bench-press", name: "Bench Press", split: "push", muscle_group_override: null },
+      // Pre-0018 row shape: no override field at all.
+      { slug: "mystery-move", name: "Mystery Move", split: "pull" },
+    ]);
+    expect(map.get("rdl")).toBe("glutes");
+    expect(map.get("bench-press")).toBe("chest");
+    expect(map.get("mystery-move")).toBe("back");
   });
 });

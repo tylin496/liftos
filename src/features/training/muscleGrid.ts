@@ -242,10 +242,14 @@ function buildInsight(status: LiftStatus, worst: StrengthExercise): string {
  * with no tracked lifts are simply absent (no placeholder cells). `nowMs` is the
  * render clock, only used to age the fresh-PR window.
  */
-export function buildMuscleGrid(exercises: StrengthExercise[], nowMs: number): MuscleGridCell[] {
+export function buildMuscleGrid(
+  exercises: StrengthExercise[],
+  nowMs: number,
+  muscleOf: (ex: StrengthExercise) => MuscleGroup = (ex) => inferMuscleGroup(ex.name, ex.slug),
+): MuscleGridCell[] {
   const byGroup = new Map<TrackedGroup, StrengthExercise[]>();
   for (const ex of exercises) {
-    const g = inferMuscleGroup(ex.name, ex.slug);
+    const g = muscleOf(ex);
     if (g === "unknown") continue; // unknowns are excluded, never guessed into a group
     const arr = byGroup.get(g);
     if (arr) arr.push(ex);

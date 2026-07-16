@@ -22,6 +22,7 @@ import {
   type StrengthExercise,
   type StrengthSummary,
 } from "./strength";
+import { resolveMuscleBySlug, type MuscleGroup } from "@features/training/muscleGroup";
 
 // Re-exported so existing consumers keep importing these from `overview/api`
 // (Training Health card, copyAllData export, Training page) unchanged — the
@@ -42,6 +43,10 @@ export interface OverviewData {
   /** Active energy change vs the prior 14–28d window — the up-good delta. */
   activeChange: number | null;
   strength: StrengthSummary;
+  /** Override-aware per-slug muscle resolution (resolveMuscleBySlug) — feeds
+   *  the snapshot Training Health card so a pinned muscle_group_override is
+   *  honoured here exactly as on the Training tab. */
+  muscleBySlug: Map<string, MuscleGroup>;
   /** Shared nutrition evaluation + recommendation (single source of truth).
    *  Feeds the System, Weight, and Nutrition cards — Overview never recomputes. */
   nutritionState: NutritionStateFull | null;
@@ -103,9 +108,12 @@ export async function fetchOverview(): Promise<OverviewData> {
       .select("exercise_slug, raw, log_date")
       .order("log_date", { ascending: true }),
     // All exercises' flags: `archived` (excluded from the strength watch list —
-    // retired, not stalled) and `compound` (earns round-weight milestones on the
-    // reward row). Fetched together to avoid a second round trip.
-    supabase.from("exercises").select("slug, name, archived, compound"),
+    // retired, not stalled), `compound` (earns round-weight milestones on the
+    // reward row), plus split/muscle_group_override for muscle resolution.
+    // select("*") so the read tolerates a not-yet-applied migration 0018 (an
+    // explicit select of a missing column errors in PostgREST); the table is a
+    // dozen rows, so the wildcard costs nothing.
+    supabase.from("exercises").select("*"),
     // Shared nutrition state — a plain read; recompute happens on data change.
     getNutritionState(),
     // Goal Provider config: the target plus the persisted cut/bulk baselines.
@@ -169,6 +177,11 @@ export async function fetchOverview(): Promise<OverviewData> {
 
   const strength = computeStrengthSummary(bySlug, compoundSlugs, namesBySlug);
 
+  // Override-aware muscle resolution for the snapshot card's grid read — the
+  // same resolver the Training tab and the export use, so a pinned
+  // muscle_group_override moves the lift on every surface at once.
+  const muscleBySlug = resolveMuscleBySlug(exercisesRes.data ?? []);
+
   // Primary Goal — computed entirely upstream in the Provider. The card only
   // renders the finished payload; swapping goal types never touches this call.
   // Progress and the goal weight are anchored to the persisted cut baseline
@@ -212,6 +225,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     activeEnergy,
     activeChange,
     strength,
+    muscleBySlug,
     nutritionState,
     goal,
     bulkGoal,

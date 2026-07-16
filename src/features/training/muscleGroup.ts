@@ -2,13 +2,30 @@
 // failure first, not every muscle involved. Single-muscle tagging is what makes
 // cluster analysis meaningful: if every lift counted 2–3 muscles, a "chest
 // fatigue" read would never separate from a "shoulder fatigue" read. Inferred
-// from the name — no database column, no migration, no per-exercise selection.
-// A muscle_group_override column can be added later for the rare misclassification.
+// from the name; `exercises.muscle_group_override` (migration 0018) pins the
+// rare misclassification and short-circuits inference entirely.
 
 export type MuscleGroup =
   | "chest" | "back" | "shoulders" | "biceps" | "triceps"
   | "quads" | "hamstrings" | "glutes" | "calves" | "abs"
   | "unknown";
+
+/** The storable groups, in display order — the edit form's option list and the
+ *  override validator both read this. "unknown" is deliberately absent: you
+ *  clear an override, you never set one to unknown. */
+export const MUSCLE_GROUPS: Exclude<MuscleGroup, "unknown">[] = [
+  "chest", "back", "shoulders", "biceps", "triceps",
+  "quads", "hamstrings", "glutes", "calves", "abs",
+];
+
+/** Narrow a raw DB string to a storable MuscleGroup. An unrecognised value
+ *  (typo'd row, future rename) falls back to inference instead of poisoning
+ *  the cluster keys. */
+export function asMuscleGroup(s: string | null | undefined): Exclude<MuscleGroup, "unknown"> | null {
+  return (MUSCLE_GROUPS as string[]).includes(s ?? "")
+    ? (s as Exclude<MuscleGroup, "unknown">)
+    : null;
+}
 
 // Ordered rules, FIRST MATCH WINS — specific disambiguations come before the
 // generic keyword that would otherwise swallow them. The ordering IS the logic:
@@ -70,15 +87,43 @@ function fromSplit(split: string | undefined): MuscleGroup {
 }
 
 /**
- * Primary limiting muscle for an exercise. Priority: slug (most reliable — it's
- * a clean kebab-case key with no note/casing noise) → name keywords → split
- * fallback → "unknown". "unknown" lifts are simply excluded from cluster
- * analysis rather than guessed into the wrong group.
+ * Primary limiting muscle for an exercise. Priority: explicit override (the
+ * user said so — beats every heuristic) → slug (most reliable — it's a clean
+ * kebab-case key with no note/casing noise) → name keywords → split fallback →
+ * "unknown". "unknown" lifts are simply excluded from cluster analysis rather
+ * than guessed into the wrong group.
  */
-export function inferMuscleGroup(name: string, slug: string, split?: string): MuscleGroup {
+export function inferMuscleGroup(
+  name: string,
+  slug: string,
+  split?: string,
+  override?: string | null,
+): MuscleGroup {
   return (
+    asMuscleGroup(override) ??
     matchRules(slug.toLowerCase()) ??
     matchRules(name.toLowerCase()) ??
     fromSplit(split)
+  );
+}
+
+/** Resolve every exercise row's muscle once (override-aware) into a slug-keyed
+ *  map — the shape the grid/cluster/volume consumers look muscles up by. One
+ *  resolution point, so a pinned override can never reach one surface and miss
+ *  another. `muscle_group_override` is optional so rows read before migration
+ *  0018 lands (or mock rows) simply fall through to inference. */
+export function resolveMuscleBySlug(
+  rows: Array<{
+    slug: string;
+    name: string;
+    split?: string | null;
+    muscle_group_override?: string | null;
+  }>,
+): Map<string, MuscleGroup> {
+  return new Map(
+    rows.map((r) => [
+      r.slug,
+      inferMuscleGroup(r.name, r.slug, r.split ?? undefined, r.muscle_group_override),
+    ]),
   );
 }
