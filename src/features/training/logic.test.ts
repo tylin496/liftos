@@ -81,7 +81,7 @@ describe("classifyPR — score mode", () => {
 
 // ─── computeWeeklyVolume ─────────────────────────────────────────────────────
 
-import { computeWeeklyVolume } from "./logic";
+import { computeWeeklyVolume, computeMuscleWeeklyVolume } from "./logic";
 import type { TrainingLog } from "./api";
 
 // Minimal log builder — computeWeeklyVolume only reads log_date + raw (via
@@ -163,6 +163,50 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
     expect(stat.deltaPct).toBeNull();
     expect(stat.lastWeekSessions).toEqual([]);
+  });
+});
+
+describe("computeMuscleWeeklyVolume — same rows, muscle buckets", () => {
+  const muscleOf = (ex: { slug: string }) => (ex.slug === "row" ? "back" : "biceps");
+
+  it("re-buckets the split view's rows so the totals reconcile", () => {
+    const logs = {
+      row: [vlog("2026-07-08", "110*10"), vlog("2026-06-30", "100*10")],
+      curl: [vlog("2026-06-30", "50*10")],
+    };
+    const split = computeWeeklyVolume(logs, pullRoster, TODAY);
+    const muscle = computeMuscleWeeklyVolume(logs, pullRoster, TODAY, muscleOf);
+    // Sorted by this-week volume, and the group totals sum to the split total.
+    expect(muscle.map((m) => m.group)).toEqual(["back", "biceps"]);
+    expect(muscle.reduce((s, m) => s + m.thisWeekKg, 0)).toBe(split.thisWeekKg);
+    const back = muscle.find((m) => m.group === "back")!;
+    expect(back.thisWeekKg).toBe(1100); // logged row
+    expect(back.lastWeekKg).toBe(1000);
+    expect(back.slugs).toEqual(["row"]);
+    // Carried-forward curl still credits biceps this week.
+    expect(muscle.find((m) => m.group === "biceps")!.thisWeekKg).toBe(500);
+  });
+
+  it("pace-matches each group's delta like the split view", () => {
+    // today Mon 7/13: last week trained Mon 7/6 + Wed 7/8 — only Monday counts.
+    const logs = {
+      row: [vlog("2026-07-13", "100*10"), vlog("2026-07-08", "90*10"), vlog("2026-07-06", "80*10")],
+      curl: [vlog("2026-07-13", "50*10"), vlog("2026-07-06", "40*10")],
+    };
+    const back = computeMuscleWeeklyVolume(logs, pullRoster, "2026-07-13", muscleOf).find(
+      (m) => m.group === "back",
+    )!;
+    expect(back.thisWeekKg).toBe(1000);
+    expect(back.lastWeekKg).toBe(800 + 900); // both sessions
+    expect(back.lastWeekKgToDate).toBe(800); // through Monday only
+    expect(back.deltaPct).toBeCloseTo(((1000 - 800) / 800) * 100, 5);
+  });
+
+  it("omits groups with no volume in either week and reports null deltas", () => {
+    const logs = { row: [vlog("2026-07-08", "100*10")], curl: [] };
+    const muscle = computeMuscleWeeklyVolume(logs, pullRoster, TODAY, muscleOf);
+    expect(muscle.map((m) => m.group)).toEqual(["back"]); // curl never logged → no biceps
+    expect(muscle[0].deltaPct).toBeNull();
   });
 });
 

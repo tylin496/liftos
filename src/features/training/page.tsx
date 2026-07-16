@@ -23,7 +23,8 @@ import {
   ExerciseCard,
   useToast,
 } from "./ExerciseCard";
-import { computeStats, computeWeeklyVolume } from "./logic";
+import { computeStats, computeWeeklyVolume, computeMuscleWeeklyVolume } from "./logic";
+import { inferMuscleGroup } from "./muscleGroup";
 import { StrengthHealthCard } from "./StrengthHealthCard";
 import { WeeklyVolumeCard } from "./WeeklyVolumeCard";
 import { computeStrengthSummary } from "@features/overview/api";
@@ -985,11 +986,21 @@ function TrainingPageInner() {
   // Weekly volume — total kg lifted this calendar week, completing each trained
   // split's roster via carry-forward (log one Pull set → the whole Pull roster
   // still counts, at each lift's most recent numbers). Same in-memory logs.
+  // The muscle view re-buckets the same session rows per inferred muscle group
+  // (inference only, no schema — see muscleGroup.ts), so the two views always
+  // sum to the same week.
   const weeklyVolume = useMemo(() => {
     const roster = (exercises ?? [])
       .filter((e) => !e.archived)
       .map((e) => ({ slug: e.slug, split: e.split, setCount: defaultSetCount(e), assistedMode: !!e.assisted_mode }));
-    return computeWeeklyVolume(logs, roster, localDateStr());
+    const namesBySlug = Object.fromEntries((exercises ?? []).map((e) => [e.slug, e.name]));
+    const today = localDateStr();
+    return {
+      stat: computeWeeklyVolume(logs, roster, today),
+      muscle: computeMuscleWeeklyVolume(logs, roster, today, (ex) =>
+        inferMuscleGroup(namesBySlug[ex.slug] ?? ex.slug, ex.slug, ex.split),
+      ),
+    };
   }, [logs, exercises]);
 
   // Every distinct log date on record, any exercise — feeds the session-count
@@ -1208,7 +1219,11 @@ function TrainingPageInner() {
         onJumpToExercise={jumpToExercise}
       />
 
-      <WeeklyVolumeCard stat={exercises ? weeklyVolume : undefined} loading={!exercises} />
+      <WeeklyVolumeCard
+        stat={exercises ? weeklyVolume.stat : undefined}
+        muscle={exercises ? weeklyVolume.muscle : undefined}
+        loading={!exercises}
+      />
 
       {/* ── Archived (owner only) ── */}
       {!readOnly && (

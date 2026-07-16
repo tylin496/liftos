@@ -66,9 +66,22 @@
   transition: grid-template-rows var(--dur-enter) var(--ease-enter);
 }
 
-.wv-sessions {
+/* The single grid child the 0fr→1fr trick collapses; holds the view toggle +
+   whichever rows list is active. */
+.wv-reveal-inner {
   overflow: hidden;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Split ⇄ Muscle view toggle — the shared segmented control, given the same
+   top breath the first row otherwise carries. */
+.wv-view-seg {
+  margin-top: var(--space-3);
+}
+
+.wv-sessions {
   display: flex;
   flex-direction: column;
 }

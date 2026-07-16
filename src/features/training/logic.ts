@@ -521,6 +521,59 @@ function logVolume(log: TrainingLog, setCount: number, assistedMode: boolean): n
   return e.weightKg * e.totalReps;
 }
 
+/** Per-exercise carry-forward volume for every session (split × date) in the
+ *  week starting `weekStart` — the shared internals: computeWeeklyVolume sums
+ *  these per session, computeMuscleWeeklyVolume re-buckets the same rows per
+ *  muscle group, so the two views can never disagree on what a session was
+ *  worth. */
+function weekExerciseRows(
+  logs: Record<string, TrainingLog[]>,
+  roster: WeeklyVolumeExercise[],
+  weekStart: string,
+): { date: string; split: string; ex: WeeklyVolumeExercise; volumeKg: number }[] {
+  const bySplit = new Map<string, WeeklyVolumeExercise[]>();
+  for (const ex of roster) {
+    const arr = bySplit.get(ex.split) ?? [];
+    arr.push(ex);
+    bySplit.set(ex.split, arr);
+  }
+
+  // Most recent set for `slug` on or before `date` — logs are newest-first, so
+  // the first entry within range wins.
+  const latestUpTo = (slug: string, date: string): TrainingLog | null => {
+    for (const l of logs[slug] ?? []) {
+      if (l.log_date && l.log_date <= date) return l;
+    }
+    return null;
+  };
+
+  const weekEndExcl = addDays(weekStart, 7);
+  // split -> the distinct dates that split was trained this week
+  const trained = new Map<string, Set<string>>();
+  for (const ex of roster) {
+    for (const l of logs[ex.slug] ?? []) {
+      const d = l.log_date;
+      if (d && d >= weekStart && d < weekEndExcl) {
+        const set = trained.get(ex.split) ?? new Set<string>();
+        set.add(d);
+        trained.set(ex.split, set);
+      }
+    }
+  }
+
+  const rows: { date: string; split: string; ex: WeeklyVolumeExercise; volumeKg: number }[] = [];
+  for (const [split, dates] of trained) {
+    const rosterForSplit = bySplit.get(split) ?? [];
+    for (const date of dates) {
+      for (const ex of rosterForSplit) {
+        const src = latestUpTo(ex.slug, date);
+        if (src) rows.push({ date, split, ex, volumeKg: logVolume(src, ex.setCount, ex.assistedMode) });
+      }
+    }
+  }
+  return rows;
+}
+
 /**
  * Weekly training volume with split-completion carry-forward.
  *
@@ -538,49 +591,15 @@ export function computeWeeklyVolume(
   roster: WeeklyVolumeExercise[],
   today: string,
 ): WeeklyVolumeStat {
-  const bySplit = new Map<string, WeeklyVolumeExercise[]>();
-  for (const ex of roster) {
-    const arr = bySplit.get(ex.split) ?? [];
-    arr.push(ex);
-    bySplit.set(ex.split, arr);
-  }
-
-  // Most recent set for `slug` on or before `date` — logs are newest-first, so
-  // the first entry within range wins.
-  const latestUpTo = (slug: string, date: string): TrainingLog | null => {
-    for (const l of logs[slug] ?? []) {
-      if (l.log_date && l.log_date <= date) return l;
-    }
-    return null;
-  };
-
   const weekSessions = (weekStart: string): WeeklyVolumeSession[] => {
-    const weekEndExcl = addDays(weekStart, 7);
-    // split -> the distinct dates that split was trained this week
-    const trained = new Map<string, Set<string>>();
-    for (const ex of roster) {
-      for (const l of logs[ex.slug] ?? []) {
-        const d = l.log_date;
-        if (d && d >= weekStart && d < weekEndExcl) {
-          const set = trained.get(ex.split) ?? new Set<string>();
-          set.add(d);
-          trained.set(ex.split, set);
-        }
-      }
+    const perSession = new Map<string, WeeklyVolumeSession>();
+    for (const r of weekExerciseRows(logs, roster, weekStart)) {
+      const key = `${r.split} ${r.date}`;
+      const s = perSession.get(key) ?? { date: r.date, split: r.split, volumeKg: 0 };
+      s.volumeKg += r.volumeKg;
+      perSession.set(key, s);
     }
-
-    const sessions: WeeklyVolumeSession[] = [];
-    for (const [split, dates] of trained) {
-      const rosterForSplit = bySplit.get(split) ?? [];
-      for (const date of dates) {
-        let volumeKg = 0;
-        for (const ex of rosterForSplit) {
-          const src = latestUpTo(ex.slug, date);
-          if (src) volumeKg += logVolume(src, ex.setCount, ex.assistedMode);
-        }
-        sessions.push({ date, split, volumeKg });
-      }
-    }
+    const sessions = [...perSession.values()];
     sessions.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     return sessions;
   };
@@ -617,4 +636,71 @@ export function computeWeeklyVolume(
     thisWeekSessions,
     lastWeekSessions,
   };
+}
+
+/** Weekly volume re-bucketed by muscle group instead of split. */
+export interface MuscleVolumeStat {
+  /** Muscle group name (inferMuscleGroup output via the caller's muscleOf). */
+  group: string;
+  thisWeekKg: number;
+  /** Pace-matched baseline (same weekday cutoff as WeeklyVolumeStat). */
+  lastWeekKgToDate: number;
+  lastWeekKg: number;
+  /** % change, pace-matched; null when last week has no comparable baseline. */
+  deltaPct: number | null;
+  /** Distinct slugs contributing volume this week — the drill-down evidence. */
+  slugs: string[];
+}
+
+/**
+ * Weekly training volume PER MUSCLE GROUP — the same sessions, carry-forward
+ * and pace-matched comparison as computeWeeklyVolume (it literally re-buckets
+ * the same per-exercise rows), so the muscle view's total always equals the
+ * split view's. `muscleOf` maps a roster exercise to its group (callers build
+ * it from inferMuscleGroup — no schema, inference only). Groups are returned
+ * sorted by this week's volume, groups with zero volume in BOTH weeks omitted.
+ */
+export function computeMuscleWeeklyVolume(
+  logs: Record<string, TrainingLog[]>,
+  roster: WeeklyVolumeExercise[],
+  today: string,
+  muscleOf: (ex: WeeklyVolumeExercise) => string,
+): MuscleVolumeStat[] {
+  const thisWeekStart = weekStartMonday(today);
+  const lastWeekStart = addDays(thisWeekStart, -7);
+  const elapsed = Math.round(daysBetween(thisWeekStart, today));
+  const lastWeekCutoff = addDays(lastWeekStart, elapsed);
+
+  const groups = new Map<
+    string,
+    { thisWeekKg: number; lastWeekKg: number; lastWeekKgToDate: number; slugs: Set<string> }
+  >();
+  const bucket = (group: string) => {
+    const g = groups.get(group) ?? { thisWeekKg: 0, lastWeekKg: 0, lastWeekKgToDate: 0, slugs: new Set<string>() };
+    groups.set(group, g);
+    return g;
+  };
+  for (const r of weekExerciseRows(logs, roster, thisWeekStart)) {
+    const g = bucket(muscleOf(r.ex));
+    g.thisWeekKg += r.volumeKg;
+    if (r.volumeKg > 0) g.slugs.add(r.ex.slug);
+  }
+  for (const r of weekExerciseRows(logs, roster, lastWeekStart)) {
+    const g = bucket(muscleOf(r.ex));
+    g.lastWeekKg += r.volumeKg;
+    if (r.date <= lastWeekCutoff) g.lastWeekKgToDate += r.volumeKg;
+  }
+
+  return [...groups.entries()]
+    .filter(([, g]) => g.thisWeekKg > 0 || g.lastWeekKg > 0)
+    .map(([group, g]) => ({
+      group,
+      thisWeekKg: g.thisWeekKg,
+      lastWeekKg: g.lastWeekKg,
+      lastWeekKgToDate: g.lastWeekKgToDate,
+      deltaPct:
+        g.lastWeekKgToDate > 0 ? ((g.thisWeekKg - g.lastWeekKgToDate) / g.lastWeekKgToDate) * 100 : null,
+      slugs: [...g.slugs],
+    }))
+    .sort((a, b) => b.thisWeekKg - a.thisWeekKg);
 }

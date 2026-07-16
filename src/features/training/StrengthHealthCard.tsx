@@ -304,11 +304,25 @@ export function StrengthHealthCard({
       <span className="ov-th-avg-retention">Avg retention</span>
     </div>
   );
+  // PR cadence — how many lifts set a PR in the trailing month (one per lift:
+  // lastPRDate is each lift's most recent). The progression-velocity read a
+  // retention % can't carry: retention says "near your best", this says "still
+  // SETTING bests" — the number a bulk is run on. Full variant only; the
+  // snapshot keeps its tighter this-week PR clause.
+  const PR_CADENCE_DAYS = 30;
+  const prCutoffMs = nowMs - PR_CADENCE_DAYS * 86400000;
+  const recentPRCount = strength.exercises.filter(
+    (e) => e.lastPRDate && new Date(e.lastPRDate + "T12:00:00").getTime() >= prCutoffMs,
+  ).length;
+
   // "tracked" qualifies the denominator — only lifts with enough history
   // (≥4 sessions) are judged.
   const countLine = (
     <span className="ov-th-ret-count">
       {onTrack} of {strength.total} tracked lifts on track{trendSuffix(trend)}
+      {variant === "full" && recentPRCount > 0 && (
+        <span className="ov-th-pr-clause"> · 🏆 {recentPRCount} PR{recentPRCount === 1 ? "" : "s"} in 30d</span>
+      )}
     </span>
   );
 

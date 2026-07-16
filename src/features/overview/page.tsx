@@ -1922,23 +1922,35 @@ export function OverviewPage() {
         />
       )}
 
-      <WeightCard
-        key="weight"
-        loading={loading}
-        weightLatest={data?.weightLatest ?? null}
-        metrics={data?.metrics ?? []}
-        state={data?.nutritionState ?? null}
-        onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
-        onNavEmpty={() => nav("health", { scrollTo: "health-weight-card" })}
-      />
-
-      <StrengthHealthCard
-        key="strength"
-        variant="snapshot"
-        loading={loading}
-        strength={data?.strength}
-        onNav={() => nav("training", { scrollTo: "training-strength-health-card", expand: true })}
-      />
+      {/* Bulk re-rank: Training Health is the bulk's KPI (the surplus is spent
+          on progression, not the scale), so it promotes above Weight — the
+          weight card demotes to context. Cut/maintenance keep Weight first.
+          Same keys either way, so React reorders the nodes in place. */}
+      {(() => {
+        const weightCard = (
+          <WeightCard
+            key="weight"
+            loading={loading}
+            weightLatest={data?.weightLatest ?? null}
+            metrics={data?.metrics ?? []}
+            state={data?.nutritionState ?? null}
+            onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
+            onNavEmpty={() => nav("health", { scrollTo: "health-weight-card" })}
+          />
+        );
+        const strengthCard = (
+          <StrengthHealthCard
+            key="strength"
+            variant="snapshot"
+            loading={loading}
+            strength={data?.strength}
+            onNav={() => nav("training", { scrollTo: "training-strength-health-card", expand: true })}
+          />
+        );
+        return data?.nutritionState?.evaluation.phaseKind === "bulk"
+          ? [strengthCard, weightCard]
+          : [weightCard, strengthCard];
+      })()}
     </div>
   );
 }
