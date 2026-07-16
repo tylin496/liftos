@@ -201,6 +201,9 @@ describe("scoreWeight — assisted %BW axis", () => {
     const heavy = toLogEntry({ log_date: "2026-06-01", raw: "100-(20) *10/10/10" } as TrainingLog, 3, true)!;
     const light = toLogEntry({ log_date: "2026-07-01", raw: "90-(18) *10/10/10" } as TrainingLog, 3, true)!;
     expect(light.e1rm).toBeCloseTo(heavy.e1rm, 5);
+    // Assisted scores the plain %BW lifted — NO Epley. 80% BW stays 80, never a
+    // 1RM projection (which would inflate 10 reps to ~106% and misread as load).
+    expect(heavy.e1rm).toBeCloseTo(80, 5);
     expect(light.tonnage).toBeCloseTo(heavy.tonnage, 5);
     // Display/milestone kg still tracks the real effective load.
     expect(heavy.weightKg).toBe(80);

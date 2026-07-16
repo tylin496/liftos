@@ -24,7 +24,7 @@ const fmtVal = (v: number, isVol: boolean) => (isVol ? String(Math.round(v)) : f
    sheet width; the peak (all-time within the window) is ringed in gold, the
    latest session in accent. Press-drag from the last dot to scrub any point's
    date/value — the stat row below still carries the resting numbers. */
-function TrendChart({ points, isVol, scrubUnit }: { points: TrendPoint[]; isVol: boolean; scrubUnit: string }) {
+function TrendChart({ points, isVol, isPct, scrubUnit }: { points: TrendPoint[]; isVol: boolean; isPct: boolean; scrubUnit: string }) {
   // Training plots on the raw data extent (no centred/floored domain — that's a
   // Health concern for flat-metric readability).
   const vals = points.map((p) => trendVal(p, isVol));
@@ -48,7 +48,7 @@ function TrendChart({ points, isVol, scrubUnit }: { points: TrendPoint[]; isVol:
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         role="img"
-        aria-label={isVol ? "Training volume over time" : "Estimated one-rep-max over time"}
+        aria-label={isVol ? "Training volume over time" : isPct ? "Percent of bodyweight lifted over time" : "Estimated one-rep-max over time"}
         {...scrubHandlers}
       >
         <defs>
@@ -144,6 +144,7 @@ function SheetInner({
 
   // Isolation lifts trend on volume (tonnage), compound on Est-1RM — same axis
   // as the Training Health card, so the chart can't contradict the verdict.
+  // (Assisted compounds trend on plain %BW lifted, not Est-1RM — see isPct.)
   const isVol = !exercise.compound;
   const points = win.points;
   const first = points[0];
@@ -153,11 +154,12 @@ function SheetInner({
   const delta = first && latest ? trendVal(latest, isVol) - trendVal(first, isVol) : 0;
   const deltaDir = delta > 0.05 ? "gain" : delta < -0.05 ? "loss" : "flat";
   const windowLabel = win.clipped ? "Last 365 days" : "All time";
-  // Assisted lifts score on % of bodyweight lifted (see scoreWeight), so their
-  // Est-1RM axis is %BW — kg would misread as an absolute barbell number. The
-  // read-out matches the card: "%" glues to the number (it modifies the value),
-  // "BW" is the small unit label; the delta drops "BW" since the stats beside it
-  // already carry it. scrubUnit is the inline tooltip form.
+  // Assisted lifts score on the plain % of bodyweight lifted (see strengthScore:
+  // no Epley, so the number never exceeds 100% BW and reads as real load, not a
+  // 1RM projection). The stat is labelled "Lifted", not "Est. 1RM". The read-out
+  // matches the card: "%" glues to the number (it modifies the value), "BW" is
+  // the small unit label; the delta drops "BW" since the stats beside it already
+  // carry it. scrubUnit is the inline tooltip form.
   const isPct = !isVol && exercise.assisted_mode;
   const unitLabel = isVol ? "vol" : exercise.assisted_mode ? "BW" : "kg";
   const scrubUnit = isVol ? " vol" : isPct ? "% BW" : " kg";
@@ -216,11 +218,11 @@ function SheetInner({
                 <span className="trend-count">{points.length} sessions</span>
               </div>
 
-              <TrendChart points={points} isVol={isVol} scrubUnit={scrubUnit} />
+              <TrendChart points={points} isVol={isVol} isPct={isPct} scrubUnit={scrubUnit} />
 
               <div className="trend-stats">
                 <div className="trend-stat">
-                  <span className="trend-stat-k">{isVol ? "Volume" : "Est. 1RM"}</span>
+                  <span className="trend-stat-k">{isVol ? "Volume" : isPct ? "Lifted" : "Est. 1RM"}</span>
                   <span className="trend-stat-v">
                     {fmtVal(latestVal, isVol)}{isPct ? "%" : ""}{" "}<span className="trend-stat-u">{unitLabel}</span>
                   </span>

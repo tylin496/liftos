@@ -15,7 +15,7 @@ import {
   computeHistDelta,
   filterByTime,
   toLogEntry,
-  epley1RM,
+  strengthScore,
   scoreWeight,
   computePRBests,
   classifyPR,
@@ -361,7 +361,7 @@ function ExerciseCardImpl({
       const newSwRaw = newParsed ? scoreWeight(newParsed, am) : 0;
       const newSw = Number.isFinite(newSwRaw) ? newSwRaw : 0;
       const newReps = newParsed?.reps ?? "1";
-      const newE1RM = epley1RM(newSw, newReps);
+      const newE1RM = strengthScore(newSw, newReps, am);
       const prevBests = computePRBests(effectiveLogsAsc, sc, am);
       const prKind = classifyPR(
         { e1rm: newE1RM, weightKg: newScore, totalReps: totalReps(newReps, sc), tonnage: newSw * maxReps(newReps) },
@@ -445,7 +445,7 @@ function ExerciseCardImpl({
       // Score axes on scoreWeight (%BW for an assisted-mode exercise) — matches toLogEntry.
       const editSwRaw = scoreWeight(parsed, am);
       const editSw = Number.isFinite(editSwRaw) ? editSwRaw : 0;
-      const newE1RM = epley1RM(editSw, parsed.reps);
+      const newE1RM = strengthScore(editSw, parsed.reps, am);
       // Measure against every OTHER log (self excluded), so re-saving the record
       // row doesn't read as beating itself. Editing the reigning best is never a
       // fresh PR — same guard the old `log.id !== oldBest` check gave.
@@ -994,9 +994,11 @@ function ExerciseCardImpl({
                           Volume (weight × reps) — the axis it's actually judged on.
                           Tonnage is a kg·reps product, not a weight, so it is NOT
                           run through fmtWeightNum's lb conversion. Assisted logs
-                          score on % of bodyweight lifted (scoreWeight), so their
-                          e1RM unit is %BW, not kg. */}
-                      <span className="hist-detail-k">{mode === "isolation" ? "Volume" : "Est. 1RM"}</span>
+                          score on the plain % of bodyweight lifted (scoreWeight, no
+                          Epley), so they read "Lifted" in %BW rather than Est. 1RM. */}
+                      <span className="hist-detail-k">
+                        {mode === "isolation" ? "Volume" : histBw != null && histAssist != null ? "Lifted" : "Est. 1RM"}
+                      </span>
                       <span className="hist-detail-v mono">
                         {entryScore > 0
                           ? mode === "isolation"

@@ -112,6 +112,19 @@ export function scoreWeight(p: Parsed, assistedMode: boolean): number {
   return NaN;
 }
 
+/** The strength-axis value fed into e1rm / cmpStrength / the trend.
+ *  Non-assisted: Epley e1RM in kg (folds weight × reps into one number).
+ *  Assisted: the plain %BW lifted (scoreWeight) with NO Epley. An assisted
+ *  movement's true 1RM ceiling IS bodyweight (100% BW = zero assist), so
+ *  projecting an e1RM above that is both physically meaningless AND misread as
+ *  "lifted >100% of bodyweight" (a 10-rep set at 80% BW minted a 106% "e1RM").
+ *  The honest axis is simply how much of your bodyweight you moved — it climbs
+ *  toward 100% as assist drops, then you graduate to weighted. Reps no longer
+ *  inflate the number; they still break ties in cmpStrength. */
+export function strengthScore(sw: number, repsStr: string, assistedMode: boolean): number {
+  return assistedMode ? sw : epley1RM(sw, repsStr);
+}
+
 // ─── toLogEntry ──────────────────────────────────────────────────────────────
 
 export function toLogEntry(log: TrainingLog, setCount: number, assistedMode: boolean): LogEntry | null {
@@ -131,7 +144,9 @@ export function toLogEntry(log: TrainingLog, setCount: number, assistedMode: boo
     log,
     weightKg,
     reps: parsed.reps,
-    e1rm: epley1RM(sw, parsed.reps),
+    // Assisted exercises skip Epley: e1rm holds the plain %BW lifted, not a 1RM
+    // projection (see strengthScore for why >100% BW is meaningless there).
+    e1rm: strengthScore(sw, parsed.reps, assistedMode),
     totalReps: totalReps(parsed.reps, setCount),
     // Best-set tonnage = top-set weight × its reps, UNCAPPED (unlike e1rm, which
     // caps reps at 12 because Epley degrades past that). For hypertrophy the high
