@@ -57,7 +57,7 @@ button {
 }
 
 #root {
-  min-height: 100dvh;
+  min-height: var(--app-height);
 }
 
 /* ── Toast tray ──────────────────────────────────────────────────────────────*/

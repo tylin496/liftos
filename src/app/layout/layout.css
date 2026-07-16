@@ -17,7 +17,7 @@
    ───────────────────────────────────────────────────────────────────────────── */
 .shell {
   position: relative;
-  height: 100dvh;
+  height: var(--app-height);
   display: flex;
   flex-direction: column;
   /* The window no longer scrolls — each tab panel is its own scroller (below),
@@ -940,7 +940,7 @@ html.kb-open .tabbar {
   z-index: var(--z-splash);
 }
 .splash--static {
-  min-height: 100dvh;
+  min-height: var(--app-height);
 }
 .splash.is-leaving { animation: fade-out var(--dur-exit) ease forwards; }
 .splash::after {

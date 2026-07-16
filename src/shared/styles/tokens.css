@@ -342,11 +342,24 @@
   --content-max: 560px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Full-viewport height. dvh in the browser (tracks Safari's collapsing
+     toolbar); vh in standalone, where iOS reports a cold-start dvh that
+     excludes the status-bar band under black-translucent (leaving a dead
+     strip at the bottom until an orientation change) while vh is correct
+     from launch — and with no dynamic toolbars they're otherwise equal. */
+  --app-height: 100dvh;
   /* Scroll clearance for a card that scrolls itself to its panel's bottom
      (the manually-expanded "last card on a short page", training's jump-to-
      exercise) — must clear the floating tab bar itself, not just its own
      padding. Shared by every bottom-docked card so the formula lives once. */
   --dock-bottom-clearance: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-6));
+}
+
+/* See --app-height above: installed-PWA branch of the viewport-height token. */
+@media (display-mode: standalone) {
+  :root {
+    --app-height: 100vh;
+  }
 }
 
 :root[data-theme="dark"] {

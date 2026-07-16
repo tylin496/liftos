@@ -1,5 +1,5 @@
 .auth-gate {
-  min-height: 100dvh;
+  min-height: var(--app-height);
   display: grid;
   place-items: center;
   padding: var(--space-6);
