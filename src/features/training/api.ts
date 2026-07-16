@@ -196,7 +196,7 @@ export interface ExercisePatch {
   note?: string | null;
   assisted_mode?: boolean;
   /** Compound lift? Gates round-weight Milestone feedback (see milestone.ts).
-   *  Seeded by migration 0013; an editor toggle to set it for new lifts is TODO. */
+   *  Seeded by migration 0013; settable from the add + edit exercise forms. */
   compound?: boolean;
   archived?: boolean;
   sort_order?: number;

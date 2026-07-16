@@ -29,6 +29,7 @@ export function EditExerciseForm({
   const [name, setName] = useState(exercise.name);
   const [target, setTarget] = useState(exercise.target ?? "");
   const [note, setNote] = useState(exercise.note ?? "");
+  const [assisted, setAssisted] = useState(!!exercise.assisted_mode);
   const [compound, setCompound] = useState(exercise.compound);
   const [saving, setSaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -47,6 +48,7 @@ export function EditExerciseForm({
         name: name.trim(),
         target: target.trim() || null,
         note: note.trim() || null,
+        assisted_mode: assisted,
         compound,
       });
       onCancel();
@@ -109,6 +111,17 @@ export function EditExerciseForm({
           />
         </div>
 
+        {/* Assisted mode fixes the lift's score axis to %BW (counterweight
+            machines — see scoreWeight) and picks the assisted log form for a
+            lift with no entries yet. */}
+        <label className="add-ex-opt">
+          <input
+            type="checkbox"
+            checked={assisted}
+            onChange={(e) => setAssisted(e.target.checked)}
+          />
+          Assisted mode
+        </label>
         {/* Compound lifts get round-weight Milestone celebrations (see
             milestone.ts); machine isolations don't. */}
         <label className="add-ex-opt">
