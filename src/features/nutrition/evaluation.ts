@@ -169,7 +169,7 @@ function bucket3(value: number, strong: number, medium: number): 0 | 1 | 2 {
  *  lever arm — two clusters joined by a void — that's over-sensitive to the
  *  points at each end. Returns 0 for <2 points (moot: <5 points fits no trend at
  *  all → the evaluation is already forced to low confidence). */
-function longestGap(pts: { date: string; value: number }[], days: number): number {
+export function longestGap(pts: { date: string; value: number }[], days: number): number {
   const win = windowPoints(pts, days);
   if (win.length < 2) return 0;
   const MS = 86400000;
@@ -321,14 +321,20 @@ export interface TdeeCalibration {
   /** TDEE implied by the food log + weight trend: loggedIntake − the trend's energy
    *  balance. Independent of HealthKit, so it corroborates (or disputes) it. */
   measuredLogTdee: number;
-  /** Conservative signed miscalibration (kcal/day): the smaller-magnitude of the two
-   *  corroborating deltas. +ve = you burn MORE than the target assumes (real deficit
-   *  is bigger than planned); −ve = you burn less. 0 unless both sources corroborate. */
+  /** Conservative signed miscalibration (kcal/day). +ve = you burn MORE than the
+   *  target assumes (real deficit is bigger than planned); −ve = you burn less. When
+   *  corroborated, the smaller-magnitude of the two agreeing deltas; when single-
+   *  source (no HealthKit), the log-implied delta itself. 0 when within the bar. */
   delta: number;
-  /** "under"/"over" only when BOTH independent sources agree in direction AND both
-   *  clear TDEE_MISCALIBRATION_KCAL. "aligned" = both within the bar (assumed TDEE
-   *  looks right). "unclear" = they disagree or only one crosses — not enough to claim. */
+  /** "under"/"over" = the assumed TDEE looks off by ≥ TDEE_MISCALIBRATION_KCAL.
+   *  "aligned" = it looks right. "unclear" = two sources that disagree or only one
+   *  crosses — not enough to claim. Read WITH `corroborated`. */
   status: "aligned" | "under" | "over" | "unclear";
+  /** True only when two INDEPENDENT sources (HealthKit burn + log/weight) agree.
+   *  False when the claim rests on the log alone — because there's no real HealthKit
+   *  measurement, the assumed TDEE just echoes itself, so the log is the only
+   *  evidence. A single-source "under"/"over" is a lead to confirm, not a verdict. */
+  corroborated: boolean;
 }
 
 /** kcal/day a MEASURED TDEE must exceed the target's assumed TDEE before we'll
@@ -338,47 +344,76 @@ export interface TdeeCalibration {
 const TDEE_MISCALIBRATION_KCAL = 250;
 
 /** Is the target's assumed TDEE (config.tdee) still consistent with reality?
- *  Compares it against two INDEPENDENT measured estimates — HealthKit burn, and the
- *  TDEE implied by (food log + weight trend) — and only claims a miscalibration when
- *  BOTH agree in direction and both clear TDEE_MISCALIBRATION_KCAL. Requiring
- *  corroboration is the guard against a single fat logging week or a HealthKit blip
- *  moving the verdict. Inform-only: never proposes a calorie change — it hands the
- *  numbers to the reader (the AI export's audit). Returns null when there isn't
- *  enough to judge: no trusted weight trend, or no food-log signal. */
+ *  Compares it against up to two INDEPENDENT measured estimates — HealthKit burn, and
+ *  the TDEE implied by (food log + weight trend).
+ *
+ *  Two-source path (HealthKit data present): only claims a miscalibration when BOTH
+ *  agree in direction and both clear TDEE_MISCALIBRATION_KCAL, and marks it
+ *  `corroborated`. Requiring corroboration guards against a single fat logging week
+ *  or a HealthKit blip moving the verdict.
+ *
+ *  Single-source path (no HealthKit measurement — estimatedTdee is a fallback that
+ *  just echoes assumedTdee, so its leg is not independent): the log+weight is the
+ *  ONLY real evidence. Rather than stay structurally silent (assumed vs assumed can
+ *  never disagree, so the two-source path could only ever return "unclear"), report
+ *  the log-implied delta with `corroborated: false` — an honest "here's the one lead
+ *  I have, unconfirmed" instead of nothing.
+ *
+ *  Inform-only either way: never proposes a calorie change — it hands the numbers to
+ *  the reader (the AI export's audit). Returns null when there isn't enough to judge:
+ *  no trusted weight trend, or no food-log signal. */
 export function tdeeCalibration(input: {
   assumedTdee: number;
   estimatedTdee: number;
+  /** True when estimatedTdee is a genuine HealthKit measurement (30d resting + 14d
+   *  active). False when it's a fallback that just echoes assumedTdee — then the
+   *  HealthKit leg isn't independent and the log becomes the sole evidence. */
+  healthTdeeMeasured: boolean;
   loggedIntake: number | null;
   observedRate: number | null;
   /** Weight trend is dense/clean enough to imply a TDEE (else the log-implied number
    *  is noise). Caller passes weightDataPoints ≥ MIN_TREND_POINTS && confidence != low. */
   weightTrustworthy: boolean;
 }): TdeeCalibration | null {
-  const { assumedTdee, estimatedTdee, loggedIntake, observedRate, weightTrustworthy } = input;
-  // The log-implied TDEE needs BOTH a trusted weight trend and a food-log signal;
-  // it's also the corroborating second source. Missing either → no independent
-  // cross-check, so stay silent rather than claim on one source.
+  const { assumedTdee, estimatedTdee, healthTdeeMeasured, loggedIntake, observedRate, weightTrustworthy } =
+    input;
+  // The log-implied TDEE needs BOTH a trusted weight trend and a food-log signal.
+  // Missing either → no evidence at all, so stay silent.
   if (!weightTrustworthy || loggedIntake == null || observedRate == null) return null;
 
   const impliedFromLog = loggedIntake - (observedRate * KCAL_PER_KG) / 7;
   const dHealth = estimatedTdee - assumedTdee;
   const dLog = impliedFromLog - assumedTdee;
-
-  const bothClear =
-    Math.abs(dHealth) >= TDEE_MISCALIBRATION_KCAL && Math.abs(dLog) >= TDEE_MISCALIBRATION_KCAL;
-  const agree = Math.sign(dHealth) === Math.sign(dLog);
-  const bothSmall =
-    Math.abs(dHealth) < TDEE_MISCALIBRATION_KCAL && Math.abs(dLog) < TDEE_MISCALIBRATION_KCAL;
+  const logClears = Math.abs(dLog) >= TDEE_MISCALIBRATION_KCAL;
 
   let delta = 0;
   let status: TdeeCalibration["status"];
-  if (bothClear && agree) {
-    // Report the smaller-magnitude delta — "off by AT LEAST this", never the rosier
-    // of the two estimates.
-    delta = Math.abs(dHealth) <= Math.abs(dLog) ? dHealth : dLog;
-    status = delta > 0 ? "under" : "over";
+  let corroborated = false;
+
+  if (healthTdeeMeasured) {
+    // Two independent sources — claim only on agreement.
+    const bothClear = Math.abs(dHealth) >= TDEE_MISCALIBRATION_KCAL && logClears;
+    const agree = Math.sign(dHealth) === Math.sign(dLog);
+    const bothSmall = Math.abs(dHealth) < TDEE_MISCALIBRATION_KCAL && !logClears;
+    if (bothClear && agree) {
+      // Report the smaller-magnitude delta — "off by AT LEAST this", never the rosier
+      // of the two estimates.
+      delta = Math.abs(dHealth) <= Math.abs(dLog) ? dHealth : dLog;
+      status = delta > 0 ? "under" : "over";
+      corroborated = true;
+    } else {
+      status = bothSmall ? "aligned" : "unclear";
+    }
   } else {
-    status = bothSmall ? "aligned" : "unclear";
+    // Single source: the HealthKit leg is a fallback (dHealth ≈ 0, meaningless), so
+    // the log/weight is all we have. Surface it — flagged uncorroborated — instead of
+    // letting the assumed-vs-assumed comparison bury a real signal as "unclear".
+    if (logClears) {
+      delta = dLog;
+      status = delta > 0 ? "under" : "over";
+    } else {
+      status = "aligned";
+    }
   }
 
   return {
@@ -387,6 +422,7 @@ export function tdeeCalibration(input: {
     measuredLogTdee: Math.round(impliedFromLog),
     delta: Math.round(delta),
     status,
+    corroborated,
   };
 }
 

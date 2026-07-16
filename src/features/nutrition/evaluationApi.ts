@@ -105,8 +105,12 @@ function rowToState(row: Row): NutritionStateFull {
     cutMode: row.cut_mode ?? "",
     windowDays: row.window_days ?? 0,
     weightDataPoints: row.weight_data_points ?? 0,
-    // Not persisted (debug-only inputs to the confidence score, whose result is
-    // already stored on `confidence`); the live `evaluate` path recomputes them.
+    // NOT stored as columns, so they can't round-trip: a persisted-row READER
+    // always sees these stubs, never the real values `evaluate` used to set
+    // `confidence`. The confidence LABEL is already stored, so the app is fine —
+    // but any consumer that reprints these (the AI export) must RECOMPUTE them from
+    // live data, or it prints null/null/0 beside a confidence built from the real
+    // numbers (see copyAllData engineHypothesis `liveDiag`).
     longestGap: 0,
     loggedIntake: null,
     intakeGap: null,
