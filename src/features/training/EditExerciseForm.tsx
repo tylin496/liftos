@@ -59,7 +59,12 @@ export function EditExerciseForm({
         note: note.trim() || null,
         assisted_mode: assisted,
         compound,
-        muscle_group_override: muscle || null,
+        // Only sent when actually changed: an update naming a column that
+        // doesn't exist yet errors in PostgREST, so an untouched select must
+        // not break saves made before migration 0018 is applied.
+        ...(muscle !== (asMuscleGroup(exercise.muscle_group_override) ?? "")
+          ? { muscle_group_override: muscle || null }
+          : {}),
       });
       onCancel();
     } finally {
