@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   activeTargetPosition, weekActiveTotal, weekBanked, bankedTone, weekStripCells,
-  phasePlanNote, cutStageLabel, weightLineTone, accelArrowTone,
+  phasePlanNote, cutStageLabel, bulkStageLabel, weightLineTone, accelArrowTone,
   buildSparkGeometry, SPARK_W, SPARK_PAD,
 } from "./derive";
 import type { BodyMetric } from "@features/health/api";
@@ -100,23 +100,40 @@ describe("weekStripCells", () => {
 });
 
 describe("phasePlanNote", () => {
+  const bulkGoal = (reached: boolean, ceiling = 21) =>
+    ({ reached, bodyFat14dAvg: 19, bfCeilingPct: ceiling });
+
   it("at maintenance → hold, no tone", () => {
-    expect(phasePlanNote(true, goalStatus(false, 12), 0, 4, 2))
+    expect(phasePlanNote("maintenance", goalStatus(false, 12), null, 0, 4, 2))
       .toEqual({ text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" });
   });
   it("goal reached outranks the signal count → start maintenance (go)", () => {
-    const note = phasePlanNote(false, goalStatus(true, 12), 4, 4, 2);
+    const note = phasePlanNote("cut", goalStatus(true, 12), null, 4, 4, 2);
     expect(note.tone).toBe(" is-go");
     expect(note.text).toContain("12% goal");
   });
   it("enough signals stacked → consider", () => {
-    const note = phasePlanNote(false, goalStatus(false, 12), 3, 4, 2);
+    const note = phasePlanNote("cut", goalStatus(false, 12), null, 3, 4, 2);
     expect(note.tone).toBe(" is-consider");
     expect(note.text).toBe("3 of 4 signals are on — consider switching to maintenance.");
   });
   it("below the consider threshold → the watch-for prompt", () => {
-    expect(phasePlanNote(false, goalStatus(false, 12), 1, 4, 2))
+    expect(phasePlanNote("cut", goalStatus(false, 12), null, 1, 4, 2))
       .toEqual({ text: "Switch early if these stack up:", tone: "" });
+  });
+  it("bulk at the ceiling → start the cut (go)", () => {
+    const note = phasePlanNote("bulk", goalStatus(false, 12), bulkGoal(true), 4, 4, 2);
+    expect(note.tone).toBe(" is-go");
+    expect(note.text).toContain("21% ceiling — start the cut");
+  });
+  it("bulk with stacked signals → consider a maintenance break", () => {
+    const note = phasePlanNote("bulk", goalStatus(false, 12), bulkGoal(false), 2, 4, 2);
+    expect(note.tone).toBe(" is-consider");
+    expect(note.text).toBe("2 of 4 signals are on — consider a maintenance break.");
+  });
+  it("bulk below the threshold → the building prompt", () => {
+    expect(phasePlanNote("bulk", goalStatus(false, 12), bulkGoal(false), 0, 4, 2))
+      .toEqual({ text: "Building — switch early if these stack up:", tone: "" });
   });
 });
 
@@ -126,6 +143,10 @@ describe("cutStageLabel", () => {
   });
   it("falls back to a bare Cut", () => {
     expect(cutStageLabel(null)).toBe("Cut");
+  });
+  it("bulk stage names its ceiling, bare until configured", () => {
+    expect(bulkStageLabel(21)).toBe("Lean Bulk → 21% cap");
+    expect(bulkStageLabel(null)).toBe("Lean Bulk");
   });
 });
 

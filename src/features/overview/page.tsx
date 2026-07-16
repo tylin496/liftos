@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type Ref } from "react";
-import { fetchOverview, saveCutBaseline, type OverviewData } from "./api";
+import { fetchOverview, saveCutBaseline, saveBulkBaseline, type OverviewData } from "./api";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
@@ -34,7 +34,8 @@ import { dismissRecoveryDirective } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
 import { paceLabel, paceTone, rateTone, cutEtaLabel } from "@features/nutrition/recommendation";
 import { CONSIDER_ENTER_COUNT, type Recommendation } from "@features/overview/recommendations";
-import type { Goal, GoalStatusEvaluation } from "./goal";
+import type { Goal, BulkGoal, GoalStatusEvaluation, BulkGoalStatusEvaluation } from "./goal";
+import { phaseKindFromName } from "@features/nutrition/logic";
 import type { PhaseTriggerResult } from "./phaseTriggers";
 import type { TabId } from "@app/layout/TabBar";
 import {
@@ -42,7 +43,7 @@ import {
 } from "./format";
 import {
   activeTargetPosition, weekActiveTotal, weekBanked, bankedTone, weekStripCells,
-  phasePlanNote, cutStageLabel, weightLineTone, accelArrowTone, buildSparkGeometry,
+  phasePlanNote, cutStageLabel, bulkStageLabel, weightLineTone, accelArrowTone, buildSparkGeometry,
   SPARK_W, SPARK_H, SPARK_PAD,
 } from "./derive";
 import "./overview.css";
@@ -713,15 +714,16 @@ function GoalTrack({
 // the reveal holds the three-stage plan (Cut → Maintenance 4–6 wk → Lean Bulk),
 // a one-line read of where the plan stands, and the plateau-trigger lights —
 // the SAME evaluatePhaseTriggers result the Decision Engine consumed, so the
-// lights can never disagree with the SystemCard directive. Lean Bulk is a
-// roadmap stage only (no surplus mechanics yet), so it's never "current".
+// lights can never disagree with the SystemCard directive.
 function PhasePlanSection({
   phase,
   goalStatus,
+  bulkGoalStatus,
   cutMode,
 }: {
   phase: PhaseTriggerResult;
   goalStatus: GoalStatusEvaluation;
+  bulkGoalStatus: BulkGoalStatusEvaluation | null;
   cutMode: string | null;
 }) {
   const [open, setOpen] = useState(false);
@@ -731,17 +733,21 @@ function PhasePlanSection({
   // only; must be called while still collapsed so it can measure the grow.
   const revealRef = useRef<HTMLDivElement>(null);
 
-  // Phase stays derived from the live deficit (phaseFromDeficit): anything
-  // still running a deficit is the Cut stage; intake at maintenance = stage 2.
-  const atMaintenance = cutMode === "Maintenance";
+  // Phase stays derived from the live deficit (phaseFromDeficit → kind): a
+  // deficit is the Cut stage, the deadband is Maintenance, a surplus is the
+  // Lean Bulk stage — the waypoint dot walks the road with the intake.
+  const kind = phaseKindFromName(cutMode ?? "");
+  const atMaintenance = kind === "maintenance";
+  const atBulk = kind === "bulk";
   const n = phase.firingCount;
 
   // One-line read, in priority order mirroring the engine's ladder (see
   // phasePlanNote). Deliberately nothing more — the Journey card already answers
   // "where am I" and "is it going well"; this section only answers "what's the
   // road ahead and when should the plan change". No week counters, no numbers.
-  const note = phasePlanNote(atMaintenance, goalStatus, n, phase.triggers.length, CONSIDER_ENTER_COUNT);
+  const note = phasePlanNote(kind, goalStatus, bulkGoalStatus, n, phase.triggers.length, CONSIDER_ENTER_COUNT);
   const cutLabel = cutStageLabel(goalStatus.targetBodyFatPct);
+  const bulkLabel = bulkStageLabel(bulkGoalStatus?.bfCeilingPct ?? null);
 
   return (
     <div className="goal-plan">
@@ -759,6 +765,8 @@ function PhasePlanSection({
           <span className="goal-plan-subtitle">Cut → Maintenance → Lean Bulk</span>
         </span>
         {!atMaintenance && n > 0 && (
+          // Cut AND bulk both watch the lights; only maintenance mutes the flag
+          // (its "signals" are the plan working as intended).
           <span className="goal-plan-flag">{n} signal{n === 1 ? "" : "s"} on</span>
         )}
         <span className={`goal-plan-chevron${open ? " open" : ""}`} aria-hidden>
@@ -772,15 +780,15 @@ function PhasePlanSection({
           {/* Vertical waypoint list — reads as the journey's road, not a
               breadcrumb: filled dot = you are here, hollow = ahead. */}
           <ol className="goal-plan-stages">
-            <li className={`goal-plan-step${atMaintenance ? " is-done" : " is-current"}`}>
+            <li className={`goal-plan-step${atMaintenance || atBulk ? " is-done" : " is-current"}`}>
               <span className="goal-plan-step-dot" aria-hidden />{cutLabel}
             </li>
-            <li className={`goal-plan-step${atMaintenance ? " is-current" : ""}`}>
+            <li className={`goal-plan-step${atMaintenance ? " is-current" : atBulk ? " is-done" : ""}`}>
               <span className="goal-plan-step-dot" aria-hidden />Maintenance{" "}
               <span className="goal-plan-step-sub">4–6 wk</span>
             </li>
-            <li className="goal-plan-step">
-              <span className="goal-plan-step-dot" aria-hidden />Lean Bulk
+            <li className={`goal-plan-step${atBulk ? " is-current" : ""}`}>
+              <span className="goal-plan-step-dot" aria-hidden />{bulkLabel}
             </li>
           </ol>
           <p className={`goal-plan-note${note.tone}`}>{note.text}</p>
@@ -810,6 +818,7 @@ function CutProgressCard({
   state,
   phase,
   goalStatus,
+  bulkGoalStatus = null,
   onNav,
   loading = false,
 }: {
@@ -822,6 +831,8 @@ function CutProgressCard({
   state: NutritionStateFull | null;
   phase: PhaseTriggerResult | null;
   goalStatus: GoalStatusEvaluation | null;
+  /** Only feeds the roadmap's Lean Bulk stage label (the ceiling, if configured). */
+  bulkGoalStatus?: BulkGoalStatusEvaluation | null;
   onNav: () => void;
   loading?: boolean;
 }) {
@@ -1001,6 +1012,189 @@ function CutProgressCard({
         <PhasePlanSection
           phase={phase}
           goalStatus={goalStatus}
+          bulkGoalStatus={bulkGoalStatus}
+          cutMode={state?.diagnostics.cutMode ?? null}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Bulk Journey (the lean-bulk twin of the cut card, same slot) ────────── */
+
+/** Budget-used fraction at which the bar flips from neutral to warn — the
+ *  approaching-the-ceiling caution, not a verdict on the day. */
+const BULK_BUDGET_WARN_PCT = 80;
+
+// The bulk's track answers a different question than the cut's: not "how far
+// to the goal" (spending the fat budget is a COST, not progress) but "how much
+// runway is left". So the fill is neutral ink that turns warn near the
+// ceiling — never the green ramp, never gold. Same bottom-up reveal timing as
+// GoalTrack so the two cards feel like siblings.
+function BulkBudgetTrack({
+  budgetUsedPct,
+  bodyFat14dAvg,
+  startBodyFat,
+  bfCeiling,
+}: {
+  budgetUsedPct: number;
+  bodyFat14dAvg: number;
+  startBodyFat: number;
+  bfCeiling: number;
+}) {
+  const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
+  const [w, setW] = useState(0);
+  const target = Math.round(budgetUsedPct);
+  useEffect(() => {
+    if (delayMs == null) return;
+    const timer = setTimeout(() => {
+      requestAnimationFrame(() => setW(target));
+    }, delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs, target]);
+  const ramp = `${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`;
+  const color = target >= BULK_BUDGET_WARN_PCT ? "var(--warn)" : "var(--ink-4)";
+  return (
+    <div ref={ref} className="goal-track">
+      <span
+        className="goal-today"
+        style={{ left: `clamp(30px, ${w}%, calc(100% - 30px))`, transition: `left ${ramp}` }}
+      >
+        Now · {bodyFat14dAvg.toFixed(1)}% BF
+      </span>
+      <div className="goal-path">
+        <div className="goal-bar">
+          <div
+            className="goal-bar-fill"
+            style={{ width: `${w}%`, backgroundColor: color, transition: `width ${ramp}` }}
+          />
+        </div>
+        <div
+          className="goal-dot"
+          style={{
+            left: `${w}%`,
+            backgroundColor: color,
+            ["--dot-core" as string]: color,
+            transition: `left ${ramp}`,
+          }}
+        />
+      </div>
+      <div className="goal-signposts">
+        <span className="goal-signpost">
+          Start <b>{startBodyFat.toFixed(1)}%</b>
+        </span>
+        <span className="goal-signpost">
+          <b>{bfCeiling.toFixed(1)}%</b> Cap
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function BulkJourneyCard({
+  bulkGoal,
+  bulkStartDate,
+  weightLatestDate,
+  state,
+  phase,
+  goalStatus,
+  bulkGoalStatus,
+  onNav,
+  loading = false,
+}: {
+  bulkGoal: BulkGoal | null;
+  bulkStartDate: string | null;
+  weightLatestDate?: string | null;
+  state: NutritionStateFull | null;
+  phase: PhaseTriggerResult | null;
+  goalStatus: GoalStatusEvaluation | null;
+  bulkGoalStatus: BulkGoalStatusEvaluation | null;
+  onNav: () => void;
+  loading?: boolean;
+}) {
+  const e = bulkGoal?.evaluation;
+
+  // Loading rides the cut card's skeleton (same slot, same shape); this branch
+  // covers "phase is a bulk but the payload can't build" — a viewer before the
+  // owner sets a baseline, or a pre-0017 read. Quiet static placeholder.
+  if (loading || !e) {
+    return (
+      <section className="page-card goal">
+        <div className="goal-head">
+          <span className="goal-label">Bulk Journey</span>
+        </div>
+        <p className="goal-sub">
+          {loading ? "Loading…" : "No bulk baseline yet — the owner sets it when the bulk starts."}
+        </p>
+      </section>
+    );
+  }
+
+  const bulkDay = bulkStartDate ? daysSince(bulkStartDate) : null;
+  const gained = e.gainedWeight;
+  const gainedStale = isStale("weight", weightLatestDate ?? null);
+  const atCeiling = bulkGoalStatus?.reached ?? false;
+  const paceWord = state ? paceLabel(state.evaluation) : null;
+  const tone = state ? paceTone(state.evaluation) : null;
+  return (
+    <div className="page-card goal">
+      <button type="button" className="goal-navblock" onClick={onNav}>
+        <div className="goal-head">
+          <span className="goal-label">{atCeiling ? "Fat budget spent" : "Bulk Journey"}</span>
+          <span className="goal-head-right">
+            {!atCeiling && bulkDay != null && (
+              <span className="goal-label goal-day">
+                Day <b>{bulkDay}</b>
+              </span>
+            )}
+            <span className="goal-chevron" aria-hidden>›</span>
+          </span>
+        </div>
+        {/* Hero — the win (weight gained) vs the runway (body-fat headroom).
+            The gained number stays neutral ink here; the up-good polarity read
+            lives on the Weight card's delta, and the pace verdict on the pill. */}
+        <div className="goal-hero">
+          <div className="goal-hero-left">
+            <span className="goal-pct">
+              {gained >= 0 ? "+" : "−"}
+              {Math.abs(gained).toFixed(1)}
+            </span>
+            <span className="goal-complete">kg gained</span>
+          </div>
+          <div className="goal-hero-right">
+            <MetricValue size="md" unit="pp headroom">{e.headroomPp.toFixed(1)}</MetricValue>
+            <div className="goal-sub">to {e.bfCeiling.toFixed(0)}% cap</div>
+          </div>
+        </div>
+        <BulkBudgetTrack
+          budgetUsedPct={e.budgetUsedPct}
+          bodyFat14dAvg={e.bodyFat14dAvg}
+          startBodyFat={e.startBodyFat}
+          bfCeiling={e.bfCeiling}
+        />
+        <div className="goal-footer">
+          {paceWord && (
+            <Badge
+              pill
+              tone={tone ?? "neutral"}
+              mark={tone ? (tone === "good" || tone === "gold" ? "✓" : "!") : undefined}
+            >
+              {paceWord}
+            </Badge>
+          )}
+          <span className="goal-sub goal-lost">
+            Budget <b>{Math.round(e.budgetUsedPct)}</b>% used
+            {gainedStale && weightLatestDate && (
+              <span className="goal-lost-stale"> as of {formatAgo(weightLatestDate)}</span>
+            )}
+          </span>
+        </div>
+      </button>
+      {phase && goalStatus && (
+        <PhasePlanSection
+          phase={phase}
+          goalStatus={goalStatus}
+          bulkGoalStatus={bulkGoalStatus}
           cutMode={state?.diagnostics.cutMode ?? null}
         />
       )}
@@ -1057,6 +1251,89 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
               }`
             : "No readings near that date — pick a date with body-fat data."}
         </p>
+      )}
+      <button type="button" className="goal-init-save" onClick={handleSave} disabled={!canSave || saving}>
+        {saving ? "Saving…" : "Create baseline"}
+      </button>
+      {error && <p className="auth-error">{error}</p>}
+    </div>
+  );
+}
+
+// The bulk twin of CutBaselineCard: shown ONLY while the phase is a Lean Bulk
+// (intake in surplus) and no bulk baseline exists. Pins the starting line AND
+// the endpoint in one save — the body-fat ceiling at which the bulk ends and
+// the next cut starts. Same one-time rules: the snapshot is persisted, never
+// recomputed; to redo a bulk, edit nutrition_config.bulk_* directly.
+function BulkBaselineCard({
+  metrics,
+  defaultCeiling,
+  onSaved,
+}: {
+  metrics: BodyMetric[];
+  /** Prefill for the ceiling — the cut target + a few pp when configured. */
+  defaultCeiling: number;
+  onSaved: () => void;
+}) {
+  const [date, setDate] = useState("");
+  const [ceiling, setCeiling] = useState(String(defaultCeiling));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const preview = date ? cutBaselineAt(metrics, date) : null;
+  const ceilingNum = Number(ceiling);
+  const ceilingOk = isFinite(ceilingNum) && ceilingNum >= 8 && ceilingNum <= 30;
+  const canSave = !!date && preview?.bodyFatPct != null && ceilingOk;
+
+  async function handleSave() {
+    if (!canSave) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await saveBulkBaseline(date, ceilingNum, metrics);
+      onSaved();
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="page-card goal goal-init">
+      <div className="goal-head">
+        <span className="goal-label">Bulk Journey</span>
+      </div>
+      <p className="goal-init-lede">
+        Set when this bulk began and the body-fat ceiling that ends it. Weight gained and the
+        fat budget are both measured from that fixed point.
+      </p>
+      <label className="goal-init-field">
+        <span>Bulk start date</span>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      </label>
+      <label className="goal-init-field">
+        <span>Body-fat ceiling (%)</span>
+        <input
+          type="number"
+          inputMode="decimal"
+          min={8}
+          max={30}
+          step={0.5}
+          value={ceiling}
+          onChange={(e) => setCeiling(e.target.value)}
+        />
+      </label>
+      {date && (
+        <p className="goal-init-preview">
+          {preview?.bodyFatPct != null
+            ? `Baseline: ${preview.bodyFatPct.toFixed(1)}% body fat${
+                preview.weightKg != null ? ` · ${preview.weightKg.toFixed(1)} kg` : ""
+              }`
+            : "No readings near that date — pick a date with body-fat data."}
+        </p>
+      )}
+      {!ceilingOk && ceiling !== "" && (
+        <p className="goal-init-preview">Ceiling must be between 8% and 30%.</p>
       )}
       <button type="button" className="goal-init-save" onClick={handleSave} disabled={!canSave || saving}>
         {saving ? "Saving…" : "Create baseline"}
@@ -1589,11 +1866,32 @@ export function OverviewPage() {
         onNav={() => nav("health", { scrollTo: "health-energy-card", expand: true })}
       />
 
-      {/* Cut Progress — the skeleton and the common loaded state are both
-          CutProgress; CutBaseline only appears once data reveals the rare
-          "target set, no baseline yet" state. Same key means the goal case
-          resolves in place instead of remounting. */}
-      {data && !readOnly && data.targetBodyFat != null && data.cutStartDate == null ? (
+      {/* Journey slot — one card, phase-picked. A bulk phase swaps in the Bulk
+          Journey (or its one-time baseline initializer); everything else keeps
+          the cut pair, whose skeleton also covers loading (phase unknown until
+          data lands). Same key so states resolve in place, not remount. */}
+      {data && data.nutritionState?.evaluation.phaseKind === "bulk" ? (
+        !readOnly && data.bulkStartDate == null ? (
+          <BulkBaselineCard
+            key="cut"
+            metrics={data.metrics}
+            defaultCeiling={Math.min(30, Math.max(8, (data.targetBodyFat ?? 18) + 3))}
+            onSaved={() => void load()}
+          />
+        ) : (
+          <BulkJourneyCard
+            key="cut"
+            bulkGoal={data.bulkGoal}
+            bulkStartDate={data.bulkStartDate}
+            weightLatestDate={series(data.metrics, "weight_kg").at(-1)?.date ?? null}
+            state={data.nutritionState}
+            phase={data.phase}
+            goalStatus={data.goalStatus}
+            bulkGoalStatus={data.bulkGoalStatus}
+            onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
+          />
+        )
+      ) : data && !readOnly && data.targetBodyFat != null && data.cutStartDate == null ? (
         <CutBaselineCard key="cut" metrics={data.metrics} onSaved={() => void load()} />
       ) : (
         <CutProgressCard
@@ -1606,6 +1904,7 @@ export function OverviewPage() {
           state={data?.nutritionState ?? null}
           phase={data?.phase ?? null}
           goalStatus={data?.goalStatus ?? null}
+          bulkGoalStatus={data?.bulkGoalStatus ?? null}
           onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
         />
       )}

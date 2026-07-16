@@ -4,10 +4,12 @@ import type { ActiveTargetView } from "@features/health/activeTarget";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
 import {
   computeGoal,
+  computeBulkGoal,
   cutBaselineAt,
   buildGoalStatus,
   buildBulkGoalStatus,
   type Goal,
+  type BulkGoal,
   type GoalStatusEvaluation,
   type BulkGoalStatusEvaluation,
 } from "./goal";
@@ -46,6 +48,9 @@ export interface OverviewData {
   /** Primary Goal payload, finished by the upstream Provider (`goal.ts`).
    *  Null when there's no target or not enough body-composition data. */
   goal: Goal | null;
+  /** Lean-bulk Journey payload — null until a bulk baseline + ceiling exist
+   *  (the initializer card renders instead while the phase is a bulk). */
+  bulkGoal: BulkGoal | null;
   /** Target body fat from config (null = goal not configured). */
   targetBodyFat: number | null;
   /** Persisted cut-start date, or null when no baseline is set yet — the card
@@ -194,6 +199,12 @@ export async function fetchOverview(): Promise<OverviewData> {
   const goalStatus = buildGoalStatus(metrics as BodyMetric[], configRes.data?.target_body_fat_pct ?? null);
   const bulkBfCeiling = configRes.data?.bulk_bf_ceiling ?? null;
   const bulkGoalStatus = buildBulkGoalStatus(metrics as BodyMetric[], bulkBfCeiling);
+  const bulkGoal = computeBulkGoal(
+    metrics as BodyMetric[],
+    bulkBfCeiling,
+    configRes.data?.bulk_start_weight ?? null,
+    configRes.data?.bulk_start_body_fat_pct ?? null,
+  );
   const maintenanceSince = maintenanceStartDate(entries);
 
   return {
@@ -203,6 +214,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     strength,
     nutritionState,
     goal,
+    bulkGoal,
     targetBodyFat: configRes.data?.target_body_fat_pct ?? null,
     cutStartDate: configRes.data?.cut_start_date ?? null,
     cutStartWeight: configRes.data?.cut_start_weight ?? null,
@@ -236,5 +248,24 @@ export async function saveCutBaseline(startDate: string, metrics: BodyMetric[]) 
     cut_start_date: startDate,
     cut_start_body_fat_pct: bodyFatPct,
     cut_start_weight: weightKg,
+  });
+}
+
+/** The bulk mirror of saveCutBaseline: anchor the bulk baseline to `startDate`
+ *  (same one-time snapshot via cutBaselineAt — it's goal-agnostic 14-day
+ *  smoothing) and persist the endpoint ceiling alongside it. Same no-restart
+ *  rule: to redo a bulk, edit nutrition_config.bulk_* directly. Throws if the
+ *  date has no readings nearby, or (pre-0017) if the columns don't exist yet —
+ *  callers surface the message. */
+export async function saveBulkBaseline(startDate: string, bfCeiling: number, metrics: BodyMetric[]) {
+  const { bodyFatPct, weightKg } = cutBaselineAt(metrics, startDate);
+  if (bodyFatPct == null) {
+    throw new Error("No body-fat readings near that date to anchor the baseline.");
+  }
+  return saveConfig({
+    bulk_start_date: startDate,
+    bulk_start_body_fat_pct: bodyFatPct,
+    bulk_start_weight: weightKg,
+    bulk_bf_ceiling: bfCeiling,
   });
 }

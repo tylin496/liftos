@@ -8,7 +8,8 @@ import { progressColor } from "@shared/lib/progressColor";
 import { localDateStr } from "@shared/lib/date";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import type { GoalStatusEvaluation } from "./goal";
+import type { GoalStatusEvaluation, BulkGoalStatusEvaluation } from "./goal";
+import type { PhaseKind } from "@features/nutrition/logic";
 import type { RateTone } from "@features/nutrition/recommendation";
 import { WEEKDAY_ABBR, shiftISODays, diffDays } from "./format";
 
@@ -89,30 +90,46 @@ export function weekStripCells(
 
 /* ── Phase plan (roadmap) ──────────────────────────────────────────────── */
 
-/** One-line roadmap read, in the engine's ladder order: at maintenance → hold;
- *  goal reached → start maintenance; signals stacked (same gate the engine
- *  decided with) → consider; otherwise explain what the lights watch for. */
+/** One-line roadmap read, in the engine's ladder order, per phase:
+ *  maintenance → hold; cut at goal → start maintenance; bulk at the ceiling →
+ *  start the cut; signals stacked (same gate the engine decided with) →
+ *  consider leaving; otherwise explain what the lights watch for. */
 export function phasePlanNote(
-  atMaintenance: boolean,
+  phaseKind: PhaseKind,
   goalStatus: GoalStatusEvaluation,
+  bulkGoalStatus: BulkGoalStatusEvaluation | null,
   firingCount: number,
   triggerCount: number,
   considerEnterCount: number,
 ): { text: string; tone: string } {
   const n = firingCount;
-  return atMaintenance
-    ? { text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" }
-    : goalStatus.reached
-      ? { text: `Body fat has reached your ${goalStatus.targetBodyFatPct}% goal — start maintenance.`, tone: " is-go" }
+  if (phaseKind === "maintenance") {
+    return { text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" };
+  }
+  if (phaseKind === "bulk") {
+    return bulkGoalStatus?.reached
+      ? { text: `Body fat has reached your ${bulkGoalStatus.bfCeilingPct}% ceiling — start the cut.`, tone: " is-go" }
       : n >= considerEnterCount
-        ? { text: `${n} of ${triggerCount} signals are on — consider switching to maintenance.`, tone: " is-consider" }
-        : { text: "Switch early if these stack up:", tone: "" };
+        ? { text: `${n} of ${triggerCount} signals are on — consider a maintenance break.`, tone: " is-consider" }
+        : { text: "Building — switch early if these stack up:", tone: "" };
+  }
+  return goalStatus.reached
+    ? { text: `Body fat has reached your ${goalStatus.targetBodyFatPct}% goal — start maintenance.`, tone: " is-go" }
+    : n >= considerEnterCount
+      ? { text: `${n} of ${triggerCount} signals are on — consider switching to maintenance.`, tone: " is-consider" }
+      : { text: "Switch early if these stack up:", tone: "" };
 }
 
 /** The Cut stage names its ENDPOINT ("Cut → 12% BF"), falling back to a bare
  *  "Cut" only when no body-fat target is configured. */
 export function cutStageLabel(targetBodyFatPct: number | null): string {
   return targetBodyFatPct != null ? `Cut → ${targetBodyFatPct}% BF` : "Cut";
+}
+
+/** Same endpoint-naming for the Lean Bulk stage — its endpoint is the body-fat
+ *  CEILING ("Lean Bulk → 21% cap"), bare "Lean Bulk" until one is configured. */
+export function bulkStageLabel(bfCeilingPct: number | null): string {
+  return bfCeilingPct != null ? `Lean Bulk → ${bfCeilingPct}% cap` : "Lean Bulk";
 }
 
 /* ── Weight card ───────────────────────────────────────────────────────── */

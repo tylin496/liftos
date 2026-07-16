@@ -146,6 +146,86 @@ export function computeGoal(
   };
 }
 
+// ─── Bulk Goal (the Journey card's lean-bulk payload) ────────────────────────
+
+export interface BulkGoalEvaluation {
+  /** 7-day smoothed weight — same smoothing as the cut payload. */
+  currentWeight: number;
+  /** currentWeight − bulk_start_weight; positive = gained (the headline stat,
+   *  up-good under the bulk's polarity). */
+  gainedWeight: number;
+  /** 0–100, how much of the body-fat budget (start → ceiling) the 14-day
+   *  average has consumed. Rendered in NEUTRAL→WARN tones only — spending the
+   *  budget is expected, not celebrated; a green/gold "progress toward the fat
+   *  ceiling" would be exactly the wrong framing. */
+  budgetUsedPct: number;
+  /** 14-day average body fat (%) — the same number buildBulkGoalStatus judges. */
+  bodyFat14dAvg: number;
+  /** Latest raw body-fat % — reference display only. */
+  currentBodyFat: number;
+  /** Persisted baseline body fat (%) at the bulk's start. */
+  startBodyFat: number;
+  /** Configured endpoint ceiling (%). */
+  bfCeiling: number;
+  /** bfCeiling − bodyFat14dAvg, percentage points left before "Start the cut". */
+  headroomPp: number;
+}
+
+export interface BulkGoal {
+  type: "lean_bulk";
+  bfCeiling: number;
+  evaluation: BulkGoalEvaluation;
+}
+
+/** Build the lean-bulk Goal payload, or null when the bulk isn't configured
+ *  (no ceiling / no persisted baseline — the initializer card renders instead)
+ *  or there isn't enough body-composition data. Mirrors computeGoal's contract:
+ *  computed entirely here, the card only draws it. */
+export function computeBulkGoal(
+  metrics: BodyMetric[],
+  bfCeiling: number | null,
+  bulkStartWeight: number | null,
+  bulkStartBodyFat: number | null,
+): BulkGoal | null {
+  if (bfCeiling == null || bulkStartWeight == null || bulkStartBodyFat == null) return null;
+
+  const bfPts = metrics
+    .filter((m) => m.body_fat_pct != null)
+    .map((m) => ({ date: m.metric_date, value: m.body_fat_pct as number }));
+  const wtPts = metrics
+    .filter((m) => m.weight_kg != null)
+    .map((m) => ({ date: m.metric_date, value: m.weight_kg as number }));
+
+  const bodyFat14dAvg = rollingAvg(bfPts, 14, 0);
+  const weight7dAvg = rollingAvg(wtPts, 7, 0);
+  const currentBodyFat = bfPts.at(-1)?.value ?? null;
+  if (bodyFat14dAvg == null || weight7dAvg == null || currentBodyFat == null) return null;
+
+  // Fat budget: how far bf14 has moved from the frozen start toward the
+  // ceiling. The start is persisted (the destination can move, the starting
+  // line shouldn't — same rule as the cut baseline); a degenerate span
+  // (ceiling at/under the start) reads as fully spent rather than dividing
+  // by zero.
+  const span = bfCeiling - bulkStartBodyFat;
+  const budgetUsedPct =
+    span > 0 ? clamp(((bodyFat14dAvg - bulkStartBodyFat) / span) * 100, 0, 100) : 100;
+
+  return {
+    type: "lean_bulk",
+    bfCeiling,
+    evaluation: {
+      currentWeight: weight7dAvg,
+      gainedWeight: weight7dAvg - bulkStartWeight,
+      budgetUsedPct,
+      bodyFat14dAvg,
+      currentBodyFat,
+      startBodyFat: bulkStartBodyFat,
+      bfCeiling,
+      headroomPp: bfCeiling - bodyFat14dAvg,
+    },
+  };
+}
+
 // ─── Goal Status (the Decision Engine's "at target body fat?" slice) ─────────
 
 /** How far past target (percentage points) body fat may drift back up before
