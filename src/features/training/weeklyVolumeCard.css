@@ -251,6 +251,26 @@
      number for plot area. */
   height: 130px;
   border-bottom: 1px solid var(--rule-strong);
+  /* Press-drag scrubs (useChartScrub) — the touch must never start a scroll,
+     same as .trend-chart. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.wvt-bars:active {
+  cursor: grabbing;
+}
+
+/* While scrubbing, the held week keeps full strength and the rest step back,
+   so the tooltip's subject is unambiguous. Carried weeks keep their relative
+   fade. No transition — scrub tracks the finger frame-by-frame, like the
+   line chart's guide/dot. */
+.wvt-bars.is-scrubbing .wvt-bar:not(.is-scrubbed) {
+  opacity: 0.45;
+}
+
+.wvt-bars.is-scrubbing .wvt-bar--carried:not(.is-scrubbed) {
+  opacity: 0.18;
 }
 
 .wvt-bar {

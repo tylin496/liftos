@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { createPortal } from "react-dom";
+import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
@@ -24,6 +25,15 @@ function SheetInner({
   useFocusTrap(sheetRef, onClose);
   const { onPointerDown: onDragStart, onPointerMove: onDragMove, onPointerUp: onDragEnd, onPointerCancel: onDragCancel } =
     useSheetSwipe(sheetRef, onClose);
+
+  // Press-drag on the bars scrubs to the nearest week (same gesture as the
+  // line-chart trend sheets). Bars are evenly spaced, so unit centres suffice.
+  const { svgRef: barsRef, index: scrubIndex, ...scrubHandlers } = useChartScrub<HTMLDivElement>(
+    points.map((_, i) => i + 0.5),
+    points.length,
+  );
+  const scrubPoint = scrubIndex != null ? points[scrubIndex] : null;
+  const scrubDate = scrubPoint ? timelineDate(scrubPoint.weekStart) : null;
 
   const max = Math.max(...points.map((p) => p.kg), 1);
   const latest = points[points.length - 1];
@@ -82,18 +92,35 @@ function SheetInner({
                   headline averages). Weeks with no log at all are dimmed:
                   maintained, not recorded. */}
               <div>
-                <div
-                  className="wvt-bars"
-                  role="img"
-                  aria-label={`Weekly training volume, last ${points.length} weeks, ${fmtKg(latest.kg)} kg most recently`}
-                >
-                  {points.map((p) => (
-                    <div
-                      key={p.weekStart}
-                      className={`wvt-bar${p.logged ? "" : " wvt-bar--carried"}`}
-                      style={{ height: `${Math.max((p.kg / max) * 100, 1.5)}%` }}
-                    />
-                  ))}
+                <div className="trend-chart-wrap">
+                  <div
+                    ref={barsRef}
+                    className={`wvt-bars${scrubIndex != null ? " is-scrubbing" : ""}`}
+                    role="img"
+                    aria-label={`Weekly training volume, last ${points.length} weeks, ${fmtKg(latest.kg)} kg most recently`}
+                    {...scrubHandlers}
+                  >
+                    {points.map((p, i) => (
+                      <div
+                        key={p.weekStart}
+                        className={`wvt-bar${p.logged ? "" : " wvt-bar--carried"}${i === scrubIndex ? " is-scrubbed" : ""}`}
+                        style={{ height: `${Math.max((p.kg / max) * 100, 1.5)}%` }}
+                      />
+                    ))}
+                  </div>
+                  {scrubPoint && scrubDate && (() => {
+                    // Same edge-anchored pill as the line-chart trend sheets.
+                    const pct = ((scrubIndex! + 0.5) / points.length) * 100;
+                    const anchor = pct < 20 ? "start" : pct > 80 ? "end" : "center";
+                    return (
+                      <div className={`trend-tooltip trend-tooltip--${anchor}`} style={{ left: `${pct}%` }}>
+                        <span className="trend-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
+                        <span className="trend-tooltip-val mono">
+                          {fmtKg(scrubPoint.kg)} kg{scrubPoint.logged ? "" : " · carried"}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
                 {first && last && (
                   <div className="wvt-axis mono">

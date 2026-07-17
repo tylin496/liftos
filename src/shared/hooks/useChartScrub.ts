@@ -1,16 +1,23 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 /**
- * Press-drag anywhere on an SVG sparkline/chart to scrub to the nearest data
- * point by x position. Native Pointer Events (mouse + touch, no extra libs) —
- * spread the returned handlers onto the `<svg>` element.
+ * Press-drag anywhere on a chart to scrub to the nearest data point by x
+ * position. Native Pointer Events (mouse + touch, no extra libs) — spread the
+ * returned handlers onto the chart element. Works on an SVG sparkline (the
+ * default element type) or any HTML chart (e.g. a flex bar chart — pass the
+ * element type and per-bar centres).
  *
  * `xs` are each point's x-coordinate in the same user-space units as
  * `viewBoxWidth` (the numbers already used to lay out the chart); this is
  * viewBox-relative, so it works under `preserveAspectRatio="none"` stretching.
+ * For an evenly-spaced HTML chart, `xs = [0.5, 1.5, …]` with `viewBoxWidth =
+ * n` is exact enough — flex gaps shift true centres by well under a bar.
  */
-export function useChartScrub(xs: number[], viewBoxWidth: number) {
-  const elRef = useRef<SVGSVGElement | null>(null);
+export function useChartScrub<T extends HTMLElement | SVGSVGElement = SVGSVGElement>(
+  xs: number[],
+  viewBoxWidth: number,
+) {
+  const elRef = useRef<T | null>(null);
   const [index, setIndex] = useState<number | null>(null);
 
   const scrubToClientX = (clientX: number) => {
@@ -31,11 +38,11 @@ export function useChartScrub(xs: number[], viewBoxWidth: number) {
     setIndex(nearest);
   };
 
-  const onPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
+  const onPointerDown = (e: ReactPointerEvent<T>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     scrubToClientX(e.clientX);
   };
-  const onPointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+  const onPointerMove = (e: ReactPointerEvent<T>) => {
     if (index == null) return;
     scrubToClientX(e.clientX);
   };
@@ -59,7 +66,7 @@ export function useChartScrub(xs: number[], viewBoxWidth: number) {
   // chart's listeners silently never attach. A callback ref re-fires on every
   // attach/detach, so it catches that later swap.
   const cleanupRef = useRef<(() => void) | null>(null);
-  const svgRef = useCallback((el: SVGSVGElement | null) => {
+  const svgRef = useCallback((el: T | null) => {
     cleanupRef.current?.();
     cleanupRef.current = null;
     elRef.current = el;
@@ -73,7 +80,7 @@ export function useChartScrub(xs: number[], viewBoxWidth: number) {
     // recognition path — this second, independent check doesn't have that
     // failure mode, since Shell reads the touch's target directly.)
     el.dataset.ownGesture = "true";
-    const stop = (e: TouchEvent) => e.stopPropagation();
+    const stop = (e: Event) => e.stopPropagation();
     el.addEventListener("touchstart", stop, { passive: true });
     el.addEventListener("touchmove", stop, { passive: true });
     el.addEventListener("touchend", stop, { passive: true });
