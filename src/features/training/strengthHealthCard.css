@@ -299,6 +299,13 @@
   text-shadow: var(--gold-glow);
 }
 
+/* Trophy + count wrap as one unit — a 🏆 stranded at a line end reads as
+   detached from its clause. The " · " separator stays OUTSIDE the nowrap
+   span so the line can still break before the whole clause. */
+.ov-th-pr-nowrap {
+  white-space: nowrap;
+}
+
 /* ═══ §7  Muscle grid + cells ══════════════════════════════════════════════ */
 .ov-thg-grid {
   display: grid;

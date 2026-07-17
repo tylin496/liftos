@@ -331,7 +331,7 @@ export function StrengthHealthCard({
     <span className="ov-th-ret-count">
       {onTrack} of {strength.total} tracked lifts on track{trendSuffix(trend)}
       {variant === "full" && recentPRCount > 0 && (
-        <span className="ov-th-pr-clause"> · 🏆 {recentPRCount} PR{recentPRCount === 1 ? "" : "s"} in 30d</span>
+        <span className="ov-th-pr-clause"> · <span className="ov-th-pr-nowrap">🏆 {recentPRCount} PR{recentPRCount === 1 ? "" : "s"} in 30d</span></span>
       )}
     </span>
   );
@@ -366,7 +366,7 @@ export function StrengthHealthCard({
     const steadyCount = strength.total - flagged.length;
     const prsThisWeek = strength.exercises.filter((ex) => liftStatus(ex, nowMs) === "pr").length;
     const prClause = prsThisWeek > 0 && (
-      <span className="ov-th-pr-clause"> · 🏆 {prsThisWeek} {prsThisWeek === 1 ? "PR" : "PRs"} this week</span>
+      <span className="ov-th-pr-clause"> · <span className="ov-th-pr-nowrap">🏆 {prsThisWeek} {prsThisWeek === 1 ? "PR" : "PRs"} this week</span></span>
     );
 
     return (
