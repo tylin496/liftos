@@ -1165,10 +1165,7 @@
 }
 .nt-track-gap {
   position: absolute;
-  top: 0;
-  right: 0;
-  height: 100%;
-  transform-origin: right; /* grows right→left from the goal edge, opposite the fill */
+  inset: 0; /* static full-track underlay — the fill sweeping over it is what shrinks the deficit */
   background: var(--warn); /* 🟠 protein short of floor */
 }
 
