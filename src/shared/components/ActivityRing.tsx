@@ -183,7 +183,9 @@ export function OverflowRing({
   // rings. One-sided, it can run at full strength from the first overlap
   // without the floating look, and it can never reach back to darken the
   // 12-o'clock start cap.
-  const shR = strokeWidth;
+  // 0.75×stroke keeps the crescent tight: with the rear pinned at the cap's
+  // edge, the shadow reaches only 2·shR − stroke = half a stroke ahead of it.
+  const shR = strokeWidth * 0.75;
   const shOff = shR - strokeWidth / 2;
   const shX = tailX + -Math.sin(tailAngle) * shOff;
   const shY = tailY + Math.cos(tailAngle) * shOff;
