@@ -584,26 +584,34 @@ function weekExerciseRows(
 // average still describes the *current* program.
 const WINDOW_WEEKS = 4;
 
-/** Trailing / previous averaging windows as week-start dates, newest-first.
- *  `window` = the last ≤WINDOW_WEEKS completed Mon–Sun weeks; `prev` = the
- *  ≤WINDOW_WEEKS before those (the delta baseline). Both are clipped to
- *  history: weeks before the user's first log carry no signal and would only
- *  dilute the averages. */
-/** Monday of the week holding the user's earliest log — history's left edge;
- *  weeks before it carry no signal. `fallback` when there are no logs at all. */
-function firstLogWeek(logs: Record<string, TrainingLog[]>, fallback: string): string {
+/** Monday of the week holding the roster's earliest log — history's left
+ *  edge; weeks before it carry no signal. Scoped to the roster (not every
+ *  slug in `logs`): an archived exercise's ancient logs must not stretch the
+ *  windows over weeks the current program has no state for, which would read
+ *  as dilution. `fallback` when the roster has no logs at all. */
+function firstLogWeek(
+  logs: Record<string, TrainingLog[]>,
+  roster: WeeklyVolumeExercise[],
+  fallback: string,
+): string {
   let firstDate: string | null = null;
-  for (const arr of Object.values(logs))
-    for (const l of arr)
+  for (const ex of roster)
+    for (const l of logs[ex.slug] ?? [])
       if (l.log_date && (firstDate === null || l.log_date < firstDate)) firstDate = l.log_date;
   return firstDate ? weekStartMonday(firstDate) : fallback;
 }
 
+/** Trailing / previous averaging windows as week-start dates, newest-first.
+ *  `window` = the last ≤WINDOW_WEEKS completed Mon–Sun weeks; `prev` = the
+ *  ≤WINDOW_WEEKS before those (the delta baseline). Both are clipped to
+ *  history: weeks before the roster's first log carry no signal and would
+ *  only dilute the averages. */
 function trailingWindows(
   logs: Record<string, TrainingLog[]>,
+  roster: WeeklyVolumeExercise[],
   thisWeekStart: string,
 ): { window: string[]; prev: string[] } {
-  const firstWeek = firstLogWeek(logs, thisWeekStart);
+  const firstWeek = firstLogWeek(logs, roster, thisWeekStart);
 
   const window: string[] = [];
   const prev: string[] = [];
@@ -697,7 +705,7 @@ export function computeWeeklyVolume(
   const thisWeekKg = sumKg(thisWeekSessions);
   const lastWeekKg = sumKg(lastWeekSessions);
 
-  const { window, prev } = trailingWindows(logs, thisWeekStart);
+  const { window, prev } = trailingWindows(logs, roster, thisWeekStart);
   // Averages run on *maintained* weeks (unlogged split-weeks inherit the
   // split's last logged week — 沒記就是維持), while the disclosure's this/last
   // week rows above stay strictly what was logged.
@@ -764,7 +772,7 @@ export function computeMuscleWeeklyVolume(
   muscleOf: (ex: WeeklyVolumeExercise) => string,
 ): MuscleVolumeStat[] {
   const thisWeekStart = weekStartMonday(today);
-  const { window, prev } = trailingWindows(logs, thisWeekStart);
+  const { window, prev } = trailingWindows(logs, roster, thisWeekStart);
   // First-week fallback mirrors avgWeekKg's: no completed week yet → the
   // in-progress week is the best available picture.
   const winWeeks = window.length > 0 ? window : [thisWeekStart];
@@ -824,7 +832,7 @@ export function computeWeeklyVolumeTrend(
   weeks = 12,
 ): WeeklyVolumeTrendPoint[] {
   const thisWeekStart = weekStartMonday(today);
-  const firstWeek = firstLogWeek(logs, thisWeekStart);
+  const firstWeek = firstLogWeek(logs, roster, thisWeekStart);
   const rowsCache = new Map<string, WeekRow[]>();
   const out: WeeklyVolumeTrendPoint[] = [];
   for (let i = weeks; i >= 1; i--) {

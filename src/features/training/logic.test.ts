@@ -178,6 +178,20 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     expect(stat.deltaPct).toBeNull();
   });
 
+  it("clips windows to the ROSTER's history — archived slugs don't stretch them", () => {
+    // "old" has an ancient log but isn't on the roster; without roster-scoped
+    // clipping it would drag the window back to January, padding the average
+    // with weeks the current program has no state for (2200/4 instead of /2).
+    const logs = {
+      row: [vlog("2026-06-29", "120*10"), vlog("2026-06-22", "100*10")],
+      curl: [],
+      old: [vlog("2026-01-05", "999*10")],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.weeksCounted).toBe(2);
+    expect(stat.avgWeekKg).toBe(1100);
+  });
+
   it("judges the trailing-window average against the previous window's", () => {
     // Five completed weeks: 6/29 lifts 1200, the rest 1000 each. Trailing
     // window = 6/8..6/29 → avg 1050; previous window clips to [6/1] → 1000.
