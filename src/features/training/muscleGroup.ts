@@ -31,18 +31,19 @@ export function asMuscleGroup(s: string | null | undefined): Exclude<MuscleGroup
 // generic keyword that would otherwise swallow them. The ordering IS the logic:
 //  • "Leg Press/Extension/Curl" resolve to legs before the bare press/extension/
 //    curl keywords claim them for chest/triceps/biceps.
-//  • Rear-delt / reverse fly resolves to shoulders before the bare "fly" → chest.
+//  • Rear-delt / reverse fly/pec resolves to shoulders before the bare "fly"/"pec" → chest.
 //  • Shoulder/overhead press resolves to shoulders before the bare "press" → chest.
-//  • "lateral" (shoulders) is a whole word, so it never fires on "lat pulldown".
+//  • "\blateral" (shoulders) is start-anchored: "laterals" fires, "unilateral" doesn't.
 const RULES: { re: RegExp; group: Exclude<MuscleGroup, "unknown"> }[] = [
   // ── legs disambiguations (must precede press/extension/curl) ──
   { re: /leg[-\s]?press/, group: "quads" },
   { re: /leg[-\s]?extension/, group: "quads" },
-  { re: /(leg[-\s]?curl|nordic)/, group: "hamstrings" },
-  // ── shoulders (rear delt / reverse fly before chest "fly"; press before chest) ──
-  { re: /(rear[-\s]?delt|reverse.*fl(y|ies|yes))/, group: "shoulders" },
-  { re: /(shoulder|overhead)[-\s]?press|\bohp\b/, group: "shoulders" },
-  { re: /(lateral|side[-\s]?raise)/, group: "shoulders" },
+  // "glute ham raise" is a hamstring lift — must precede the glute keyword below.
+  { re: /((leg|ham)[-\s]?curl|hamstring|nordic|glute[-\s]?ham)/, group: "hamstrings" },
+  // ── shoulders (rear delt / reverse fly/pec before chest; press before chest) ──
+  { re: /(rear[-\s]?delt|face[-\s]?pull|reverse.*(fl(y|ies|yes)|pec))/, group: "shoulders" },
+  { re: /(shoulder|overhead|arnold|military)[-\s]?press|\bohp\b/, group: "shoulders" },
+  { re: /(\blateral|(side|front)[-\s]?raise)/, group: "shoulders" },
   // Upright row is a delt movement — must precede the back \brow\b below, which
   // would otherwise swallow it.
   { re: /upright[-\s]?row/, group: "shoulders" },
@@ -51,12 +52,13 @@ const RULES: { re: RegExp; group: Exclude<MuscleGroup, "unknown"> }[] = [
   // ── calves / abs / glutes (specific compounds before their generic parts) ──
   { re: /(calf|calves)/, group: "calves" },
   { re: /(leg[-\s]?raise|crunch|plank|sit[-\s]?up|ab[-\s]?wheel)/, group: "abs" },
-  { re: /(hip[-\s]?thrust|glute|kickback|abduction|bridge)/, group: "glutes" },
+  { re: /(hip[-\s]?thrust|glute|kickback|abduct|bridge)/, group: "glutes" },
   // ── hamstrings hip-hinges / quads squats ──
-  // All hip-hinges tag hamstrings (coarse, overridable) — deadlift included, so
-  // a bare "Deadlift" with no split isn't dropped to "unknown". "Romanian
-  // deadlift" still matches `romanian` first (same group).
-  { re: /(rdl|romanian|good[-\s]?morning|stiff[-\s]?leg|deadlift)/, group: "hamstrings" },
+  // All hip-hinges tag hamstrings (coarse, overridable) — deadlift and back
+  // extension included, so a bare "Deadlift" with no split isn't dropped to
+  // "unknown" and "Back Extension" isn't swallowed by the generic extension →
+  // triceps fallback. \brdl\b so "hurdle" can't fire it.
+  { re: /(\brdl\b|romanian|good[-\s]?morning|stiff[-\s]?leg|deadlift|back[-\s]?extension|hyperextension)/, group: "hamstrings" },
   { re: /(squat|hack)/, group: "quads" },
   // ── back pulls ──
   { re: /(pulldown|pull[-\s]?up|pullup|pull[-\s]?around|pullover|chin[-\s]?up|\brow\b)/, group: "back" },

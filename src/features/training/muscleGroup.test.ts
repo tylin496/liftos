@@ -38,10 +38,22 @@ describe("inferMuscleGroup — rule disambiguations (future exercises)", () => {
     ["Bulgarian Split Squat", "split-squat", "quads"],
     ["Nordic Curl", "nordic-curl", "hamstrings"],
     ["Good Morning", "good-morning", "hamstrings"],
+    // hamstring names must beat the bare "curl" (biceps) / "glute" (glutes)
+    ["Hamstring Curl", "hamstring-curl", "hamstrings"],
+    ["Seated Ham Curl", "seated-ham-curl", "hamstrings"],
+    ["Glute Ham Raise", "glute-ham-raise", "hamstrings"],
+    // hip-hinge extensions must beat the generic "extension" → triceps
+    ["Back Extension", "back-extension", "hamstrings"],
+    ["Reverse Hyperextension", "reverse-hyperextension", "hamstrings"],
     // shoulders: rear delt & overhead press before chest fly/press
     ["Rear Delt Fly", "rear-delt-fly", "shoulders"],
+    ["Reverse Pec Deck", "reverse-pec-deck", "shoulders"],
+    ["Face Pull", "face-pull", "shoulders"],
     ["Overhead Press", "overhead-press", "shoulders"],
+    ["Arnold Press", "arnold-press", "shoulders"],
+    ["Military Press", "military-press", "shoulders"],
     ["Lateral Raise", "lateral-raise", "shoulders"],
+    ["Front Raise", "front-raise", "shoulders"],
     // triceps before generic extension; dip → triceps
     ["Tricep Pushdown", "tricep-pushdown", "triceps"],
     ["Skull Crusher", "skull-crusher", "triceps"],
@@ -51,6 +63,7 @@ describe("inferMuscleGroup — rule disambiguations (future exercises)", () => {
     // glutes / calves / abs
     ["Hip Thrust", "hip-thrust", "glutes"],
     ["Glute Kickback", "glute-kickback", "glutes"],
+    ["Hip Abductor Machine", "hip-abductor-machine", "glutes"],
     ["Standing Calf Raise", "calf-raise", "calves"],
     ["Cable Crunch", "cable-crunch", "abs"],
     ["Hanging Leg Raise", "leg-raise", "abs"],
@@ -59,6 +72,8 @@ describe("inferMuscleGroup — rule disambiguations (future exercises)", () => {
     ["Pullover", "pullover", "back"],
     // "lat" in a pulldown must NOT read as "lateral" (shoulders)
     ["Lat Pulldown", "lat-pulldown", "back"],
+    // "\blateral" is start-anchored: "unilateral" must NOT fire it
+    ["Unilateral Row", "unilateral-row", "back"],
     // upright row is a delt movement — must NOT be swallowed by the back \brow\b
     ["Upright Row", "upright-row", "shoulders"],
     // deadlift is a hip-hinge → hamstrings (not dropped to unknown without a split)
@@ -80,6 +95,9 @@ describe("inferMuscleGroup — fallbacks", () => {
   });
   it("returns 'unknown' when nothing matches and there's no split", () => {
     expect(inferMuscleGroup("Mystery Move", "mystery-move")).toBe("unknown");
+  });
+  it("\\brdl\\b is word-bounded: 'hurdle' must not read as RDL", () => {
+    expect(inferMuscleGroup("Hurdle Hops", "hurdle-hops")).toBe("unknown");
   });
 });
 
