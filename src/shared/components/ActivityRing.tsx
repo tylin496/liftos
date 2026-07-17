@@ -183,13 +183,15 @@ export function OverflowRing({
   // rings. One-sided, it can run at full strength from the first overlap
   // without the floating look, and it can never reach back to darken the
   // 12-o'clock start cap.
-  // 0.75×stroke radius, centred ½ stroke ahead of the tip — the gradient's core
-  // sits exactly on the cap's front edge: darkest right at the contact line,
-  // fading out over the ¾ stroke beyond it; the rear stays hidden under the
-  // cap. (Tuned by eye across several rounds: the same radius rear-pinned read
-  // as a diffuse glow patch, smaller radii as a barely-there sliver.)
-  const shR = strokeWidth * 0.75;
-  const shOff = strokeWidth * 0.5;
+  // The shadow is a near-copy of the rounded cap itself (diameter ≈ 1×stroke,
+  // so it spans the stroke's full cross-section) nudged a quarter-stroke ahead:
+  // the visible part is a thin crescent hugging the cap's whole front contour,
+  // full stroke-width tall but reaching only ~0.3 stroke past the cap. The rear
+  // stays under the cap at every lateral offset — no clip needed. (Tuned by
+  // eye: a small forward blob read as a dot in the middle of the stroke; a big
+  // forward blob as a glow patch.)
+  const shR = strokeWidth * 0.55;
+  const shOff = strokeWidth * 0.25;
   const shX = tailX + -Math.sin(tailAngle) * shOff;
   const shY = tailY + Math.cos(tailAngle) * shOff;
   // Base lap + ribbon are ONE continuous comet that brightens ALONG the stroke
