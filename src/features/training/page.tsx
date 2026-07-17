@@ -995,9 +995,15 @@ function TrainingPageInner() {
   );
 
   const weeklyVolume = useMemo(() => {
-    const roster = (exercises ?? [])
-      .filter((e) => !e.archived)
-      .map((e) => ({ slug: e.slug, split: e.split, setCount: defaultSetCount(e), assistedMode: !!e.assisted_mode }));
+    // Archived lifts stay on the roster with activeUntil = their final log:
+    // history up to that date still counts (archiving never rewrites what was
+    // lifted), but nothing carries them forward past it.
+    const roster = (exercises ?? []).flatMap((e) => {
+      const base = { slug: e.slug, split: e.split, setCount: defaultSetCount(e), assistedMode: !!e.assisted_mode };
+      if (!e.archived) return [base];
+      const lastLog = logs[e.slug]?.find((l) => l.log_date)?.log_date;
+      return lastLog ? [{ ...base, activeUntil: lastLog }] : [];
+    });
     const namesBySlug = Object.fromEntries((exercises ?? []).map((e) => [e.slug, e.name]));
     const today = localDateStr();
     return {

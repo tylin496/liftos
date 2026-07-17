@@ -192,6 +192,24 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     expect(stat.avgWeekKg).toBe(1100);
   });
 
+  it("archived lift: history counts through its last log, then stops carrying", () => {
+    // "oldx" is archived (activeUntil = its last log, 6/22). Week 6/22 keeps
+    // its 500 kg — history is a record. Week 6/29's session must NOT carry it
+    // forward, and the maintained average must not resurrect it either.
+    const roster = [
+      { slug: "row", split: "pull", setCount: 1, assistedMode: false },
+      { slug: "oldx", split: "pull", setCount: 1, assistedMode: false, activeUntil: "2026-06-22" },
+    ];
+    const logs = {
+      row: [vlog("2026-06-29", "120*10"), vlog("2026-06-22", "100*10")],
+      oldx: [vlog("2026-06-22", "50*10")],
+    };
+    const stat = computeWeeklyVolume(logs, roster, TODAY);
+    expect(stat.weeksCounted).toBe(2);
+    // 6/22: 1000 + 500 (oldx still active); 6/29: 1200 only (retired).
+    expect(stat.avgWeekKg).toBe((1500 + 1200) / 2);
+  });
+
   it("judges the trailing-window average against the previous window's", () => {
     // Five completed weeks: 6/29 lifts 1200, the rest 1000 each. Trailing
     // window = 6/8..6/29 → avg 1050; previous window clips to [6/1] → 1000.

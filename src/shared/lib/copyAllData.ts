@@ -531,9 +531,14 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   // Volume card's muscle view uses (computeMuscleWeeklyVolume re-buckets
   // computeWeeklyVolume's carry-forward rows), never re-derived here. Sets, not
   // kg: tonnage isn't comparable across muscle groups.
-  const volumeRoster = exercises
-    .filter((e) => !e.archived)
-    .map((e) => ({ slug: e.slug, split: e.split, setCount: defaultSetCount(e), assistedMode: !!e.assisted_mode }));
+  // Archived lifts keep their history (activeUntil = final log) but stop
+  // carrying forward past it — same roster rule as the Training page.
+  const volumeRoster = exercises.flatMap((e) => {
+    const base = { slug: e.slug, split: e.split, setCount: defaultSetCount(e), assistedMode: !!e.assisted_mode };
+    if (!e.archived) return [base];
+    const lastLog = logsBySlug[e.slug]?.find((l) => l.log_date)?.log_date;
+    return lastLog ? [{ ...base, activeUntil: lastLog }] : [];
+  });
   // Window averages divide by 3s and 4s — round at the export boundary like
   // roundRecovery does, so the JSON doesn't carry float noise.
   const round1 = (v: number) => +v.toFixed(1);

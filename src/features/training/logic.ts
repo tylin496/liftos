@@ -461,6 +461,13 @@ export interface WeeklyVolumeExercise {
   setCount: number;
   /** The exercise's assisted_mode — fixes the score axis unit (see scoreWeight). */
   assistedMode: boolean;
+  /** Last date the lift was part of the program — callers set it to an
+   *  archived lift's final log date. History up to it still counts (archiving
+   *  must never rewrite what was actually lifted), but sessions after it stop
+   *  carrying the lift forward: archiving is an *explicit* stop, so the
+   *  no-log-means-maintained rule doesn't apply past this date. Omitted =
+   *  active, maintained indefinitely. */
+  activeUntil?: string;
 }
 
 /** One trained session (a split × date pair) and its carry-forward volume. */
@@ -571,6 +578,9 @@ function weekExerciseRows(
     const rosterForSplit = bySplit.get(split) ?? [];
     for (const date of dates) {
       for (const ex of rosterForSplit) {
+        // A retired lift doesn't ride along on sessions after its last log —
+        // its history ends where its records end.
+        if (ex.activeUntil && date > ex.activeUntil) continue;
         const src = latestUpTo(ex.slug, date);
         if (src) rows.push({ date, split, ex, volumeKg: logVolume(src, ex.setCount, ex.assistedMode) });
       }
@@ -658,7 +668,17 @@ function maintainedWeekRows(
         if (w <= weekStart && (effective === null || w > effective)) effective = w;
       }
     }
-    if (effective !== null) out.push(...rowsAt(effective).filter((r) => r.split === split));
+    if (effective !== null)
+      out.push(
+        ...rowsAt(effective).filter(
+          (r) =>
+            r.split === split &&
+            // Inheritance carries a week's shape forward, but never a retired
+            // lift past its archival: keep it only while the target week still
+            // overlaps its active life.
+            (!r.ex.activeUntil || weekStart <= r.ex.activeUntil),
+        ),
+      );
   }
   return out;
 }
