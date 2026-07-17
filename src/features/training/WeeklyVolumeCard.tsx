@@ -69,7 +69,10 @@ export function WeeklyVolumeCard({
   const head = (
     <>
       <div className="wv-top">
-        <span className="page-eyebrow wv-eyebrow">Weekly Volume</span>
+        {/* "4-wk avg" is the basis marker, not a caption — the headline changed
+            meaning from this-week total to trailing average, and read-only
+            viewers can't know that without it. Full basis stays in the export. */}
+        <span className="page-eyebrow wv-eyebrow">Weekly Volume · 4-wk avg</span>
         {!loading && (
           <svg
             className={`wv-chevron${open ? " open" : ""}`}
