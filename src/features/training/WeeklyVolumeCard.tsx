@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { scrollRevealClear } from "@app/layout/revealScroll";
-import { MetricValue, MetricDelta } from "@shared/components/Metric";
+import { MetricValue, MetricDelta, MetricCaption } from "@shared/components/Metric";
 import { HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { ChartGlyph } from "./ExerciseCard";
@@ -98,11 +98,27 @@ export function WeeklyVolumeCard({
     </div>
   );
 
+  /* The headline is a trailing average, so the collapsed face carries the
+     current week's running total — the one number that otherwise only lives
+     inside the disclosure. It collapses away while open: the reveal's
+     "This week" section header repeats it right below. */
+  const thisWeek = (
+    <div className={`wv-thisweek${open ? " open" : ""}`}>
+      <div className="wv-thisweek-inner">
+        <MetricCaption>
+          This week ·{" "}
+          {loading || !stat ? "0,000" : Math.round(stat.thisWeekKg).toLocaleString()} kg
+        </MetricCaption>
+      </div>
+    </div>
+  );
+
   if (loading || !stat) {
     return (
       <div className="page-card wv-card loading-card">
         <div className="wv-top">{eyebrow}</div>
         {valueRow}
+        {thisWeek}
       </div>
     );
   }
@@ -141,6 +157,7 @@ export function WeeklyVolumeCard({
       </div>
       <button type="button" className="wv-head" onClick={toggleOpen} aria-expanded={open}>
         {valueRow}
+        {thisWeek}
       </button>
       <div ref={revealRef} className={`wv-reveal${open ? " open" : ""}`}>
         {/* Single grid child — the 0fr→1fr disclosure needs exactly one. */}

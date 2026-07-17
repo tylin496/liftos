@@ -103,6 +103,38 @@
   margin-top: var(--space-2);
 }
 
+/* Collapsed-face caption: the current week's running total (the headline is a
+   trailing average). Inverse of .wv-reveal — folds away while open, because
+   the reveal's "This week" section header repeats the same number. Base state
+   is the caption entering (disclosure closing), .open is it exiting. */
+.wv-thisweek {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows var(--dur-enter) var(--ease-enter),
+    opacity var(--dur-enter) var(--ease-enter);
+}
+
+.wv-thisweek.open {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--dur-exit) var(--ease-move),
+    opacity var(--dur-exit) var(--ease-move);
+}
+
+.wv-thisweek-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Breath sits on the caption itself, inside the clip, so the folded state
+   collapses to a true zero height. */
+.wv-thisweek .metric-caption {
+  display: block;
+  margin-top: var(--space-1);
+}
+
 /* ── Disclosure ── */
 
 .wv-reveal {
@@ -220,7 +252,8 @@
 
 /* ── Loading skeleton: same DOM, value shimmers in place (see skeleton-design). */
 
-.wv-card.loading-card .metric-val {
+.wv-card.loading-card .metric-val,
+.wv-card.loading-card .metric-caption {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   background: linear-gradient(
