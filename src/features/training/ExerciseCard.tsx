@@ -327,15 +327,17 @@ function ExerciseCardImpl({
     : !!exercise.assisted_mode;
 
 
-  async function handleAdd(raw: string, date: string, note: string) {
-    if (submitting) return;
+  /** Resolves true only when the log persisted — the add form clears on true
+   *  and retains the typed set on false (see AddEntryForm.onAdd). */
+  async function handleAdd(raw: string, date: string, note: string): Promise<boolean> {
+    if (submitting) return false;
     // One entry per exercise per day — every set for the day lives in a single
     // drop-set entry, so a second same-day log is always a mistake. Point the
     // user at the existing entry instead of silently creating a duplicate.
     if (effectiveLogs.some((l) => l.log_date === date)) {
       haptic("error");
       toast("Already logged for that day — edit that entry instead", "error");
-      return;
+      return false;
     }
     setSubmitting(true);
     const oldBest = stats.best;
@@ -417,9 +419,11 @@ function ExerciseCardImpl({
       // Insert the row Supabase already returned instead of a full-table
       // refetch — the log-a-set loop stays fast on a flaky connection.
       onLogAdded(newLog);
+      return true;
     } catch (err) {
       haptic("error");
       toast(String((err as Error)?.message ?? err), "error");
+      return false;
     } finally {
       setSubmitting(false);
     }

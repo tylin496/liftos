@@ -317,7 +317,10 @@ export function AddEntryForm({
 }: {
   setCount: number;
   lastRaw: string;
-  onAdd: (raw: string, date: string, note: string) => void;
+  /** Resolves true only when the log actually persisted — the form clears on
+   *  true and RETAINS the typed set on false (network drop, duplicate day), so
+   *  an error toast never costs the user their input. */
+  onAdd: (raw: string, date: string, note: string) => Promise<boolean>;
   onCancel: () => void;
   submitting?: boolean;
 }) {
@@ -347,10 +350,11 @@ export function AddEntryForm({
     preview?.weight,
   );
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValid || submitting) return;
-    onAdd(raw, date, note.trim());
+    const saved = await onAdd(raw, date, note.trim());
+    if (!saved) return; // keep the typed set for a retry
     setWeightExpr("");
     setRepValues(emptyRepValues(n));
     setNote("");
@@ -414,7 +418,9 @@ export function AddAssistedForm({
 }: {
   setCount: number;
   lastLog: TrainingLog | null;
-  onAdd: (raw: string, date: string, note: string) => void;
+  /** Same contract as AddEntryForm.onAdd: true = persisted (clear the form),
+   *  false = failed/bounced (retain the typed set). */
+  onAdd: (raw: string, date: string, note: string) => Promise<boolean>;
   onCancel: () => void;
   submitting?: boolean;
 }) {
@@ -463,12 +469,13 @@ export function AddAssistedForm({
   const isValid = effectiveLoad !== null && effectiveLoad > 0 && reps.length > 0;
   const { assistRef, adjustAssist } = useAssistAdjuster(setAssistance, parsedAssist);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValid || effectiveLoad === null || submitting) return;
     localStorage.setItem(LAST_BW_KEY, String(parsedBw));
     const raw = normalize(`${parsedBw}-(${parsedAssist}) *${reps}`);
-    onAdd(raw, date, note.trim());
+    const saved = await onAdd(raw, date, note.trim());
+    if (!saved) return; // keep the typed set for a retry
     setAssistance("");
     setRepValues(emptyRepValues(n));
     setNote("");

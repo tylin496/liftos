@@ -705,6 +705,9 @@ function TrainingPageInner() {
       const pending = pendingDeleteSlugsRef.current;
       setExercises(pending.size ? ex.filter((e) => !pending.has(e.slug)) : ex);
       setLogs(lg);
+      // A successful reload clears any earlier transient failure — without
+      // this, a stale error banner outlives the recovery.
+      setError(null);
     } catch (e) {
       setError(String((e as Error)?.message ?? e));
     }
@@ -1090,7 +1093,7 @@ function TrainingPageInner() {
         />
       </div>
 
-      {error && <ErrorState message={error} />}
+      {error && <ErrorState message={error} onRetry={reloadAll} />}
 
       {!exercises && !error && (
         <>
