@@ -33,8 +33,23 @@ export interface NutritionDecision {
   priority: number;
 }
 
-const CUT_STEP = 150;
-const RAISE_STEP = 150;
+// Proposal step sized to the evidence, not a flat notch: the kcal/day
+// equivalent of the distance to the nearest band edge (1 kg/wk ≈ 7700/7
+// kcal/day), rounded to 10s and clamped to [50, 150]. The old flat 150
+// over-corrected exactly when the miss was smallest — a 0.04 kg/wk shortfall
+// (~44 kcal/day) got the same full-step cut as a genuine stall.
+const STEP_MIN_KCAL = 50;
+const STEP_MAX_KCAL = 150;
+
+function proposalStep(evaluation: NutritionEvaluation): number {
+  // Progress along the phase's direction, NOT |rate|: losing 0.05 during a bulk
+  // is a 0.15 shortfall from a 0.1 floor, not a 0.05 one.
+  const speed = (evaluation.observedRate ?? 0) * phaseDirection(evaluation.phaseKind);
+  const { min, max } = evaluation.targetRange;
+  const gap = evaluation.status === "below_target" ? min - speed : speed - max;
+  const kcal = (Math.max(0, gap) * 7700) / 7;
+  return Math.min(STEP_MAX_KCAL, Math.max(STEP_MIN_KCAL, Math.round(kcal / 10) * 10));
+}
 
 function maintain(
   target: number,
@@ -121,6 +136,7 @@ export function nutritionDecision(
 
   // High confidence → propose an actual adjustment. The lever mirrors with the
   // phase: a slow cut cuts calories, a slow bulk adds them — and vice versa.
+  const step = proposalStep(evaluation);
   if (tooSlow) {
     return bulk
       ? {
@@ -130,7 +146,7 @@ export function nutritionDecision(
           actionHeadline: "Increase calorie target",
           reason: "Gaining slower than planned — a small increase should restart it.",
           currentTarget: target,
-          proposedTarget: target + RAISE_STEP,
+          proposedTarget: target + step,
           priority: 72,
         }
       : {
@@ -140,7 +156,7 @@ export function nutritionDecision(
           actionHeadline: "Reduce calorie target",
           reason: "Weight loss has been slower than planned — a small cut should restart it.",
           currentTarget: target,
-          proposedTarget: Math.max(0, target - CUT_STEP),
+          proposedTarget: Math.max(0, target - step),
           priority: 72,
         };
   }
@@ -152,7 +168,7 @@ export function nutritionDecision(
         actionHeadline: "Reduce calorie target",
         reason: "You're gaining faster than planned — trim the surplus to keep the gain lean.",
         currentTarget: target,
-        proposedTarget: Math.max(0, target - CUT_STEP),
+        proposedTarget: Math.max(0, target - step),
         priority: 70,
       }
     : {
@@ -162,7 +178,7 @@ export function nutritionDecision(
         actionHeadline: "Increase calorie target",
         reason: "You're losing faster than planned — ease the deficit to protect muscle.",
         currentTarget: target,
-        proposedTarget: target + RAISE_STEP,
+        proposedTarget: target + step,
         priority: 70,
       };
 }

@@ -33,7 +33,8 @@ describe("nutritionDecision", () => {
     const { evaluation, diagnostics } = make("below_target", "high");
     const d = nutritionDecision(evaluation, diagnostics);
     expect(d.action).toBe("reduce");
-    expect(d.proposedTarget).toBe(1995); // 2145 − CUT_STEP(150)
+    // Shortfall 0.4−0.07 = 0.33 kg/wk ≈ 363 kcal/day → step clamps at 150.
+    expect(d.proposedTarget).toBe(1995);
     expect(d.actionHeadline).toBe("Reduce calorie target");
     expect(d.eventType).toBe("Review calorie target");
     expect(d.actionLine).toBe("Weight loss has slowed");
@@ -61,9 +62,19 @@ describe("nutritionDecision", () => {
 
   it("proposes an increase when losing too fast at high confidence", () => {
     const { evaluation, diagnostics } = make("above_target", "high");
+    evaluation.observedRate = -0.85; // 0.15 over the 0.7 ceiling ≈ 165 kcal → clamps at 150
     const d = nutritionDecision(evaluation, diagnostics);
     expect(d.action).toBe("increase");
     expect(d.proposedTarget).toBe(2295);
+  });
+
+  it("sizes the step to the gap — a hair-thin shortfall proposes the 50 floor, not 150", () => {
+    const { evaluation, diagnostics } = make("below_target", "high");
+    evaluation.observedRate = -0.56; // 0.04 under a 0.6 floor ≈ 44 kcal/day
+    evaluation.targetRange = { min: 0.6, max: 0.9 };
+    const d = nutritionDecision(evaluation, diagnostics);
+    expect(d.action).toBe("reduce");
+    expect(d.proposedTarget).toBe(2095); // 2145 − 50
   });
 
   describe("lean bulk — the levers mirror", () => {
@@ -78,18 +89,28 @@ describe("nutritionDecision", () => {
 
     it("proposes an INCREASE when gaining too slowly (below_target)", () => {
       const { evaluation, diagnostics } = bulk("below_target", "high");
+      evaluation.observedRate = 0.05; // 0.05 under the 0.1 floor ≈ 55 kcal → step 60
       const d = nutritionDecision(evaluation, diagnostics);
       expect(d.action).toBe("increase");
-      expect(d.proposedTarget).toBe(3105); // 2955 + 150
+      expect(d.proposedTarget).toBe(3015); // 2955 + 60
       expect(d.actionLine).toBe("Weight gain has stalled");
     });
 
     it("proposes a REDUCE when gaining too fast (above_target)", () => {
       const { evaluation, diagnostics } = bulk("above_target", "high");
+      evaluation.observedRate = 0.44; // 0.14 over the 0.3 ceiling ≈ 154 kcal → clamps at 150
       const d = nutritionDecision(evaluation, diagnostics);
       expect(d.action).toBe("reduce");
       expect(d.proposedTarget).toBe(2805); // 2955 − 150
       expect(d.reason).toMatch(/keep the gain lean/i);
+    });
+
+    it("LOSING during a bulk measures the shortfall from the floor, not |rate|", () => {
+      const { evaluation, diagnostics } = bulk("below_target", "high");
+      evaluation.observedRate = -0.05; // 0.15 under the 0.1 floor ≈ 165 kcal → clamps at 150
+      const d = nutritionDecision(evaluation, diagnostics);
+      expect(d.action).toBe("increase");
+      expect(d.proposedTarget).toBe(3105); // 2955 + 150
     });
 
     it("on_target reads as gain on plan", () => {
