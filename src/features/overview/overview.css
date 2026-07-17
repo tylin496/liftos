@@ -573,8 +573,11 @@
    .page-card, so this banner reads as the same surface as every other Overview
    card. Here we only add the two-zone flex layout: a full-bleed body + a ✕ that
    flanks it, so padding is zeroed (page-card's --space-5 would inset the row and
-   break the edge-to-edge dismiss zone) and each child owns its own edge padding. */
-.ov-system-banner {
+   break the edge-to-edge dismiss zone) and each child owns its own edge padding.
+   Compound selector (.page-card.ov-system-banner): overview.css is bundled BEFORE
+   layout.css (Shell imports OverviewPage first), so a bare single-class selector
+   ties on specificity and loses the padding:0 to .page-card's --space-5. */
+.page-card.ov-system-banner {
   display: flex;
   align-items: stretch;
   width: 100%;
