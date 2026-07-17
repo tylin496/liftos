@@ -1055,6 +1055,15 @@ export function HealthPage() {
     setTrendOpen(true);
   };
 
+  // One TDEE sheet opener shared by the collapsed header summary and the
+  // expanded model item — both must open the exact same sheet. Undefined until
+  // there are ≥2 buckets to draw a line through, which also gates whether the
+  // header summary renders at all.
+  const openTdeeTrend =
+    tdeeFull.length >= 2
+      ? () => openTrend({ label: "TDEE", unit: " kcal", decimals: 0, color: "var(--accent)", points: tdeeFull, higherIsBetter: true, judgeDelta: false, celebrateExtreme: false, bucketDays: ENERGY_BUCKET })
+      : undefined;
+
   // The Weight trend sheet's config, lifted out of the card map so both the
   // card tap AND the deep-link auto-open (below) draw the same sheet from one
   // definition. Null until there are ≥2 real points. No target-pace corridor
@@ -1255,37 +1264,58 @@ export function HealthPage() {
         id="health-energy-card"
         className={`page-card health-energy${!data ? " loading-card" : ""}`}
       >
-        {/* The header row is the toggle — a real <button> — so the ActivityBars
-            and Resting/TDEE buttons below are no longer nested inside a
-            button-role section (invalid a11y). A native button gives Enter/Space
-            for free, so the hand-rolled onKeyDown is gone. */}
+        {/* Split header: eyebrow + chevron form the expand toggle (a real
+            <button>, Enter/Space for free), and the collapsed-state TDEE
+            summary is a SIBLING button — never nested inside the toggle, so
+            both stay valid interactive elements. The summary leaks the model's
+            headline number while Resting/TDEE are folded away and jumps
+            straight to the TDEE trend sheet; on expand it fades out (the model
+            row takes over) but keeps its slot so the freshness tag doesn't
+            shift. Only rendered once the trend has enough history — before
+            that the expand toggle is the sole way in, same as today. */}
         {data && tdee?.tdee != null ? (
-          <button
-            type="button"
-            className="health-tdee-head health-tdee-head--toggle"
-            aria-expanded={energyExpanded}
-            // A user tap opts into the scroll-to-bottom settle (reveal the model
-            // below the fold); a deep-link expand does not (see the settle
-            // effect). Ref, not state — it only gates the effect, never renders.
-            onClick={() => {
-              settleToBottomRef.current = true;
-              setEnergyExpanded((v) => !v);
-            }}
-          >
-            <span className="health-card-eyebrow">Active</span>
-            <span className="health-tdee-head-right">
-              <FreshnessTag
-                date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null}
-                kind="sync"
-                updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
-              />
+          <div className="health-tdee-head">
+            <button
+              type="button"
+              className="health-tdee-toggle"
+              aria-expanded={energyExpanded}
+              // A user tap opts into the scroll-to-bottom settle (reveal the
+              // model below the fold); a deep-link expand does not (see the
+              // settle effect). Ref, not state — it only gates the effect,
+              // never renders.
+              onClick={() => {
+                settleToBottomRef.current = true;
+                setEnergyExpanded((v) => !v);
+              }}
+            >
+              <span className="health-card-eyebrow">Active</span>
               <span className={`health-energy-chevron${energyExpanded ? " is-open" : ""}`} aria-hidden>
                 <svg width="13" height="8" viewBox="0 0 12 7" fill="none">
                   <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </span>
+            </button>
+            <span className="health-tdee-head-right">
+              {openTdeeTrend && (
+                <button
+                  type="button"
+                  className={`health-tdee-summary${energyExpanded ? " is-hidden" : ""}`}
+                  aria-label="View TDEE trend"
+                  onClick={openTdeeTrend}
+                >
+                  <span className="health-tdee-summary-label">TDEE</span>
+                  <MetricValue size="sm" unit="kcal">
+                    <AnimatedMetric value={tdee.tdee} decimals={0} />
+                  </MetricValue>
+                </button>
+              )}
+              <FreshnessTag
+                date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null}
+                kind="sync"
+                updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
+              />
             </span>
-          </button>
+          </div>
         ) : (
           <div className="health-tdee-head">
             <span className="health-card-eyebrow">Active</span>
@@ -1373,11 +1403,7 @@ export function HealthPage() {
                   label="TDEE"
                   value={tdee.tdee}
                   window="resting + active"
-                  onOpen={
-                    tdeeFull.length >= 2
-                      ? () => openTrend({ label: "TDEE", unit: " kcal", decimals: 0, color: "var(--accent)", points: tdeeFull, higherIsBetter: true, judgeDelta: false, celebrateExtreme: false, bucketDays: ENERGY_BUCKET })
-                      : undefined
-                  }
+                  onOpen={openTdeeTrend}
                 />
               </div>
             </div>

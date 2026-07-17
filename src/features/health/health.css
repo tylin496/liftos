@@ -62,11 +62,16 @@
   gap: var(--space-4);
 }
 
-/* Toggle variant — the header is the expand control. Reset the native button
-   chrome so it looks identical to the div header; the chevron is the cue. */
-.health-tdee-head--toggle {
+/* Expand toggle — eyebrow + chevron, a real button reset to look like plain
+   header text. It's a SIBLING of the TDEE summary button (never its parent),
+   and flex:1 stretches it across the row's free middle so most of the header
+   still toggles; only the summary + freshness cluster on the right doesn't. */
+.health-tdee-toggle {
   position: relative;
-  width: 100%;
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
   padding: 0;
   border: none;
@@ -79,22 +84,65 @@
   transition: opacity var(--dur-press) var(--ease-press);
 }
 /* Press feedback, matching the sibling reveal controls (.health-trend-open). */
-.health-tdee-head--toggle:active { opacity: 0.7; }
+.health-tdee-toggle:active { opacity: 0.7; }
 
-/* The header row is only ~20px tall but it's the sole control that reveals
-   Resting/TDEE — extend the hit area vertically to ≥44px without shifting the
-   layout (width is already full, so slop is vertical only). */
-.health-tdee-head--toggle::before {
+/* The header row is only ~20px tall but the toggle is the sole control that
+   reveals Resting/TDEE — extend the hit area vertically to ≥44px without
+   shifting the layout (flex:1 already covers the width; slop is vertical
+   only, so it can't creep under the TDEE summary's own tap slop). */
+.health-tdee-toggle::before {
   content: "";
   position: absolute;
   inset: -12px 0;
 }
 
-/* Right cluster: freshness tag sits just left of the expand chevron. */
+/* Right cluster: TDEE summary (collapsed only) sits just left of the
+   freshness tag. */
 .health-tdee-head-right {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
+}
+
+/* Collapsed-state TDEE summary — surfaces the model's headline number while
+   Resting/TDEE are folded away, and opens the same TDEE trend sheet as the
+   model item below. Same stripped-button treatment + tap-slop pair as
+   .health-energy-model-item--tappable. */
+.health-tdee-summary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  margin: -6px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  transition:
+    opacity var(--dur-enter) var(--ease-enter),
+    background var(--dur-press) var(--ease-press);
+}
+
+.health-tdee-summary:active { background: var(--bg-soft); }
+
+/* On expand the model row takes over, so the summary fades out on the exit
+   role — but keeps its slot (visibility, not display) so the freshness tag
+   doesn't shift, and drops out of focus order / the a11y tree once hidden. */
+.health-tdee-summary.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-exit) var(--ease-move),
+    visibility 0s var(--dur-exit);
+}
+
+.health-tdee-summary-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
 }
 
 /* ── Trend cards (Weight / Body Fat / Lean Mass) ─────────────────────── */
@@ -323,8 +371,8 @@
   margin-top: var(--vr-loose);
 }
 
-/* The whole card is the tap target (role="button" in JSX) — the chevron is
-   just the affordance, not a separate hit area. A down-chevron reads as
+/* The header's eyebrow+chevron button is the expand control — the chevron is
+   the affordance, riding inline right after "Active". A down-chevron reads as
    "expand in place", distinct from Overview's "›" which means "go to a
    different screen" — don't reuse that glyph/direction here. */
 .health-energy {
