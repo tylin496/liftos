@@ -526,6 +526,10 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     group: m.group,
     thisWeekKg: Math.round(m.thisWeekKg),
     lastWeekKg: Math.round(m.lastWeekKg),
+    // deltaPct's actual baseline — last week UP TO today's weekday, not the full
+    // lastWeekKg. Without it exported, every reader recomputes this/last and
+    // concludes deltaPct is wrong.
+    lastWeekKgToDate: Math.round(m.lastWeekKgToDate),
     deltaPct: m.deltaPct != null ? +m.deltaPct.toFixed(1) : null,
   }));
 
