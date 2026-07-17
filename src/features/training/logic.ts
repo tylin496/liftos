@@ -473,8 +473,10 @@ export interface WeeklyVolumeSession {
 export interface WeeklyVolumeStat {
   /** Average kg per week over the trailing window — the last ≤4 *completed*
    *  Mon–Sun weeks (the in-progress week would dilute any average it joined).
-   *  Falls back to this week's total when the user's very first week is still
-   *  in progress. */
+   *  Weeks are *maintained*: a split with no logs in a week inherits its last
+   *  logged week (沒記就是維持, see maintainedWeekRows) — an unlogged week is
+   *  never a zero. Falls back to this week's total when the user's very first
+   *  week is still in progress. */
   avgWeekKg: number;
   /** Completed weeks actually averaged (≤4, clipped to history; 0 → the
    *  first-week fallback above). */
@@ -527,11 +529,13 @@ function logVolume(log: TrainingLog, setCount: number, assistedMode: boolean): n
  *  these per session, computeMuscleWeeklyVolume re-buckets the same rows per
  *  muscle group, so the two views can never disagree on what a session was
  *  worth. */
+type WeekRow = { date: string; split: string; ex: WeeklyVolumeExercise; volumeKg: number };
+
 function weekExerciseRows(
   logs: Record<string, TrainingLog[]>,
   roster: WeeklyVolumeExercise[],
   weekStart: string,
-): { date: string; split: string; ex: WeeklyVolumeExercise; volumeKg: number }[] {
+): WeekRow[] {
   const bySplit = new Map<string, WeeklyVolumeExercise[]>();
   for (const ex of roster) {
     const arr = bySplit.get(ex.split) ?? [];
@@ -562,7 +566,7 @@ function weekExerciseRows(
     }
   }
 
-  const rows: { date: string; split: string; ex: WeeklyVolumeExercise; volumeKg: number }[] = [];
+  const rows: WeekRow[] = [];
   for (const [split, dates] of trained) {
     const rosterForSplit = bySplit.get(split) ?? [];
     for (const date of dates) {
@@ -603,6 +607,46 @@ function trailingWindows(
     (i <= WINDOW_WEEKS ? window : prev).push(w);
   }
   return { window, prev };
+}
+
+/** 沒記就是維持 — no log means maintained. A week with no logged session of a
+ *  split inherits that split's most recent *logged* week wholesale (same
+ *  sessions, volumes, sets): the user logs sparsely, so an unlogged week reads
+ *  "same as last time", never zero. This is the exercise-level carry-forward
+ *  applied one level up — without it the averaging windows read logging gaps
+ *  as volume crashes and the delta narrates logging cadence, not training.
+ *  A split with no log on or before `weekStart` contributes nothing (there is
+ *  no state to maintain yet). */
+function maintainedWeekRows(
+  logs: Record<string, TrainingLog[]>,
+  roster: WeeklyVolumeExercise[],
+  weekStart: string,
+  rowsCache: Map<string, WeekRow[]>,
+): WeekRow[] {
+  const rowsAt = (w: string): WeekRow[] => {
+    let r = rowsCache.get(w);
+    if (!r) {
+      r = weekExerciseRows(logs, roster, w);
+      rowsCache.set(w, r);
+    }
+    return r;
+  };
+  const out: WeekRow[] = [];
+  for (const split of new Set(roster.map((ex) => ex.split))) {
+    // The split's most recent logged week on or before `weekStart` — the week
+    // whose shape this week maintains.
+    let effective: string | null = null;
+    for (const ex of roster) {
+      if (ex.split !== split) continue;
+      for (const l of logs[ex.slug] ?? []) {
+        if (!l.log_date) continue;
+        const w = weekStartMonday(l.log_date);
+        if (w <= weekStart && (effective === null || w > effective)) effective = w;
+      }
+    }
+    if (effective !== null) out.push(...rowsAt(effective).filter((r) => r.split === split));
+  }
+  return out;
 }
 
 /**
@@ -648,8 +692,14 @@ export function computeWeeklyVolume(
   const lastWeekKg = sumKg(lastWeekSessions);
 
   const { window, prev } = trailingWindows(logs, thisWeekStart);
+  // Averages run on *maintained* weeks (unlogged split-weeks inherit the
+  // split's last logged week — 沒記就是維持), while the disclosure's this/last
+  // week rows above stay strictly what was logged.
+  const rowsCache = new Map<string, WeekRow[]>();
+  const maintainedKg = (w: string) =>
+    maintainedWeekRows(logs, roster, w, rowsCache).reduce((s, r) => s + r.volumeKg, 0);
   const avgOf = (weeks: string[]) =>
-    weeks.reduce((s, w) => s + sumKg(weekSessions(w)), 0) / weeks.length;
+    weeks.reduce((s, w) => s + maintainedKg(w), 0) / weeks.length;
   // No completed week yet (user's first week): the in-progress week is the
   // best available picture of "a week".
   const avgWeekKg = window.length > 0 ? avgOf(window) : thisWeekKg;
@@ -696,9 +746,10 @@ export interface MuscleVolumeStat {
  * speaks. Sets also credit zero-tonnage rows (bodyweight / unparseable logs)
  * that the kg view can't see. `muscleOf` maps a roster exercise to its group
  * (callers build it from inferMuscleGroup — no schema, inference only).
- * Groups sorted by trailing average; a group trained in the previous window
- * but absent from the trailing one still returns (avg 0 + negative delta —
- * exactly the dropped-muscle signal this view exists to surface).
+ * Groups sorted by trailing average. Weeks run through maintainedWeekRows
+ * (沒記就是維持): a split-week without logs inherits the split's last logged
+ * week, so a muscle only reads lower when a *logged* week actually shrank —
+ * never because logging paused.
  */
 export function computeMuscleWeeklyVolume(
   logs: Record<string, TrainingLog[]>,
@@ -718,14 +769,15 @@ export function computeMuscleWeeklyVolume(
     groups.set(group, g);
     return g;
   };
+  const rowsCache = new Map<string, WeekRow[]>();
   for (const w of winWeeks)
-    for (const r of weekExerciseRows(logs, roster, w)) {
+    for (const r of maintainedWeekRows(logs, roster, w, rowsCache)) {
       const g = bucket(muscleOf(r.ex));
       g.winSets += r.ex.setCount;
       g.slugs.add(r.ex.slug);
     }
   for (const w of prev)
-    for (const r of weekExerciseRows(logs, roster, w))
+    for (const r of maintainedWeekRows(logs, roster, w, rowsCache))
       bucket(muscleOf(r.ex)).prevSets += r.ex.setCount;
 
   return [...groups.entries()]

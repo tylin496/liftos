@@ -164,6 +164,20 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     expect(stat.deltaPct).toBeNull(); // both weeks fit the trailing window
   });
 
+  it("沒記就是維持: an unlogged week inherits the split's last logged week", () => {
+    // Weeks 6/15 (1000) and 6/29 (1200) logged; week 6/22 has no logs at all.
+    // Silence = maintained → 6/22 counts as 1000 (the 6/15 shape), so the
+    // average reads (1200+1000+1000)/3, not (1200+0+1000)/3.
+    const logs = {
+      row: [vlog("2026-06-29", "120*10"), vlog("2026-06-15", "100*10")],
+      curl: [],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.weeksCounted).toBe(3);
+    expect(stat.avgWeekKg).toBeCloseTo(3200 / 3, 5);
+    expect(stat.deltaPct).toBeNull();
+  });
+
   it("judges the trailing-window average against the previous window's", () => {
     // Five completed weeks: 6/29 lifts 1200, the rest 1000 each. Trailing
     // window = 6/8..6/29 → avg 1050; previous window clips to [6/1] → 1000.
@@ -251,10 +265,10 @@ describe("computeMuscleWeeklyVolume — same rows, muscle buckets, avg sets/week
     expect(muscle[0].deltaSets).toBeNull(); // no prior window → no baseline
   });
 
-  it("keeps a group whose split vanished from the trailing window — avg 0, negative delta", () => {
-    // Curl lives on its own split, trained only in the previous window (6/1).
-    // No arms session in the trailing window → no carry-forward rows for it,
-    // so biceps drops to 0 — and the dropped muscle must still surface.
+  it("沒記就是維持: a split with no logs in a week inherits its last logged week", () => {
+    // Curl lives on its own split, last logged 6/1 (previous window). The
+    // trailing window has no arms logs — but silence means maintained, so
+    // biceps holds at 1 set/wk with a flat delta, never dropping to 0.
     const roster = [
       { slug: "row", split: "pull", setCount: 1, assistedMode: false },
       { slug: "curl", split: "arms", setCount: 1, assistedMode: false },
@@ -271,9 +285,9 @@ describe("computeMuscleWeeklyVolume — same rows, muscle buckets, avg sets/week
     const biceps = computeMuscleWeeklyVolume(logs, roster, TODAY, muscleOf).find(
       (m) => m.group === "biceps",
     )!;
-    expect(biceps.avgWeekSets).toBe(0);
+    expect(biceps.avgWeekSets).toBe(1);
     expect(biceps.prevAvgWeekSets).toBe(1);
-    expect(biceps.deltaSets).toBe(-1);
+    expect(biceps.deltaSets).toBe(0);
   });
 });
 

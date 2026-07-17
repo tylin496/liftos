@@ -548,10 +548,13 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     group: m.group,
     // Basis: average working sets per week over the trailing ≤4 *completed*
     // Mon–Sun weeks (clipped to history; the in-progress week is excluded so a
-    // partial week never dilutes the average). deltaSets = avgWeekSets −
-    // prevAvgWeekSets (the ≤4 completed weeks before those); prevAvgWeekSets
-    // null = no prior window yet. Without the baseline exported, every reader
-    // recomputes a single week and concludes deltaSets is wrong.
+    // partial week never dilutes the average). Unlogged split-weeks inherit
+    // the split's last logged week (no log = maintained, never zero) — so a
+    // low muscle means a logged week actually shrank, not that logging paused.
+    // deltaSets = avgWeekSets − prevAvgWeekSets (the ≤4 completed weeks before
+    // those); prevAvgWeekSets null = no prior window yet. Without the baseline
+    // exported, every reader recomputes a single week and concludes deltaSets
+    // is wrong.
     avgWeekSets: round1(m.avgWeekSets),
     prevAvgWeekSets: m.prevAvgWeekSets === null ? null : round1(m.prevAvgWeekSets),
     deltaSets: m.deltaSets === null ? null : round1(m.deltaSets),
