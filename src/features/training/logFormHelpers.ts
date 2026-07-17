@@ -48,6 +48,14 @@ export function normalizeTarget(raw: string): string {
   return lo + (hi ? `-${hi}` : "") + (sets ? ` × ${sets}` : "");
 }
 
+/** Assisted mode is derived from the exercise NAME, not a stored toggle: a lift
+ *  is assisted iff its name says so ("Assisted Pull-up", "輔助引體"). Both the
+ *  add and edit forms persist this into `assisted_mode` on save, so renaming an
+ *  exercise is the one way to flip its score axis (%BW vs kg — see scoreWeight). */
+export function inferAssisted(name: string): boolean {
+  return /assist|輔助/i.test(name);
+}
+
 export function emptyRepValues(n: number) {
   return Array.from({ length: n }, () => "");
 }

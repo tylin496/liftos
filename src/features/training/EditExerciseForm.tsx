@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { ImageWell } from "./ImageWell";
-import { normalizeTarget, useScrollAboveKeyboard } from "./logFormHelpers";
+import { inferAssisted, normalizeTarget, useScrollAboveKeyboard } from "./logFormHelpers";
 import { asMuscleGroup, inferMuscleGroup, MUSCLE_GROUPS } from "./muscleGroup";
 import type { Exercise } from "./api";
 
@@ -35,7 +35,6 @@ export function EditExerciseForm({
   const [name, setName] = useState(exercise.name);
   const [target, setTarget] = useState(exercise.target ?? "");
   const [note, setNote] = useState(exercise.note ?? "");
-  const [assisted, setAssisted] = useState(!!exercise.assisted_mode);
   const [compound, setCompound] = useState(exercise.compound);
   // "" = trust inference (stored as null); a group name pins the muscle.
   // Tolerant read: rows fetched before migration 0018 have no override field.
@@ -57,7 +56,7 @@ export function EditExerciseForm({
         name: name.trim(),
         target: normalizeTarget(target) || null,
         note: note.trim() || null,
-        assisted_mode: assisted,
+        assisted_mode: inferAssisted(name),
         compound,
         // Only sent when actually changed: an update naming a column that
         // doesn't exist yet errors in PostgREST, so an untouched select must
@@ -126,17 +125,6 @@ export function EditExerciseForm({
           />
         </div>
 
-        {/* Assisted mode fixes the lift's score axis to %BW (counterweight
-            machines — see scoreWeight) and picks the assisted log form for a
-            lift with no entries yet. */}
-        <label className="add-ex-opt">
-          <input
-            type="checkbox"
-            checked={assisted}
-            onChange={(e) => setAssisted(e.target.checked)}
-          />
-          Assisted mode
-        </label>
         {/* Compound lifts get round-weight Milestone celebrations (see
             milestone.ts); machine isolations don't. */}
         <label className="add-ex-opt">

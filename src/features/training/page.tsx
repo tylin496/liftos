@@ -28,7 +28,7 @@ import { inferMuscleGroup, resolveMuscleBySlug } from "./muscleGroup";
 import { StrengthHealthCard } from "./StrengthHealthCard";
 import { WeeklyVolumeCard } from "./WeeklyVolumeCard";
 import { computeStrengthSummary } from "@features/overview/api";
-import { defaultSetCount, normalizeTarget, useScrollAboveKeyboard } from "./logFormHelpers";
+import { defaultSetCount, inferAssisted, normalizeTarget, useScrollAboveKeyboard } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
 import { fmtWeightNum } from "./ExprDisplay";
 import type { TimeFilter } from "./logic";
@@ -358,7 +358,6 @@ function AddExerciseForm({
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [note, setNote] = useState("");
-  const [assisted, setAssisted] = useState(false);
   const [compound, setCompound] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -371,7 +370,7 @@ function AddExerciseForm({
     if (!name.trim() || submitting) return;
     // Don't clear the fields here: on success the parent unmounts this form, on
     // error it stays open — resetting would wipe the user's input on failure.
-    onAdd(name.trim(), normalizeTarget(target), note.trim(), assisted, compound);
+    onAdd(name.trim(), normalizeTarget(target), note.trim(), inferAssisted(name), compound);
   }
 
   return (
@@ -413,14 +412,6 @@ function AddExerciseForm({
           </div>
         </div>
         <div className="add-ex-foot" style={{ marginTop: "var(--space-3)", display: "flex", gap: "var(--space-3)", alignItems: "center" }}>
-          <label className="add-ex-opt">
-            <input
-              type="checkbox"
-              checked={assisted}
-              onChange={(e) => setAssisted(e.target.checked)}
-            />
-            Assisted mode
-          </label>
           <label className="add-ex-opt">
             <input
               type="checkbox"
