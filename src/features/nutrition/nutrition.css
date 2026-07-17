@@ -1160,15 +1160,12 @@
   top: 0;
   left: 0;
   height: 100%;
-  transform-origin: left; /* grows left→right */
-  background: var(--ink-3); /* neutral — the consumed portion isn't a signal */
+  transform-origin: left; /* grows left→right, covering the deficit underlay */
+  background: var(--ink-3); /* neutral — the consumed portion isn't a signal; opaque, occludes the gap */
 }
 .nt-track-gap {
   position: absolute;
-  top: 0;
-  right: 0;
-  height: 100%;
-  transform-origin: right; /* grows right→middle, opposite the fill */
+  inset: 0; /* static full-track underlay — the fill sweeping over it is what shrinks the deficit */
   background: var(--warn); /* 🟠 protein short of floor */
 }
 
