@@ -238,11 +238,11 @@ function shiftDate(date: string, days: number): string {
    snapping to full. Same pattern as Overview's GoalBarFill: sit at 0 until the
    flat --enter-wait beat (shared by the HeadlineCountUp above it), then grow to
    width over COUNT_UP_MS on the ease-out-quad mirror so the fill rides the
-   digits. The protein shortfall (gap) is a static full-track underlay, so the
-   deficit starts at 100% and is progressively covered by the grey sweep — the
-   orange only ever shrinks (a deficit that "grows in" read as progress).
-   Leaf component: the per-frame width change stays scoped here, not the whole
-   card. Editing intake later re-transitions to the new width for free. */
+   digits. The protein shortfall (gap) animates at the same time but in the
+   opposite direction — right→left from the goal edge — so the two segments
+   close in on the boundary together. Leaf component: the per-frame width
+   change stays scoped here, not the whole card. Editing intake later
+   re-transitions to the new width for free. */
 function IntakeRailFill({ pct, short }: { pct: number; short?: boolean }) {
   const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
   const [shown, setShown] = useState(false);
@@ -253,16 +253,18 @@ function IntakeRailFill({ pct, short }: { pct: number; short?: boolean }) {
     }, delayMs);
     return () => clearTimeout(timer);
   }, [delayMs]);
-  // The gap underlay is static and painted first; the grey fill scales over it
-  // (origin left), so the visible orange recedes toward the goal edge in step
-  // with the sweep. Width is in the transition too so later edits ride the
-  // same ramp instead of snapping.
+  // Both segments hold their final width; only scaleX animates — grey grows
+  // left→right (origin left) while the orange gap grows right→left from the
+  // goal edge (origin right), the two meeting at the boundary as one motion.
+  // Width is in the transition too so later edits ride the same ramp.
   const ramp = `transform ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1), width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`;
   const grow = (on: boolean) => (on ? "scaleX(1)" : "scaleX(0)");
   return (
     <div ref={ref} className="nt-track" aria-hidden="true">
-      {short && <div className="nt-track-gap" />}
       <div className="nt-track-fill" style={{ width: `${pct}%`, transform: grow(shown), transition: ramp }} />
+      {short && (
+        <div className="nt-track-gap" style={{ width: `${100 - pct}%`, transform: grow(shown), transition: ramp }} />
+      )}
     </div>
   );
 }
