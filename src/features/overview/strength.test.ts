@@ -226,9 +226,30 @@ describe("computeStrengthSummary — needs-attention gating (recent-PR grace)", 
     expect(s.attention).toBe(0);
   });
 
-  it("a single up-tick after a slide does NOT count as recovery (needs two steps)", () => {
-    // 90→75→85×8: the latest rebounds but the step before it fell — one bounce,
-    // not a climb. Stays flagged so noise can't clear a genuinely stuck lift.
+  it("a light-day dip mid-run does NOT break recovery (waved loads, the Squat case)", () => {
+    // 70→60→80×8 after a 100×8 PR: the 60 is an interleaved light day, and the
+    // latest clears BOTH earlier sessions. The old strict two-step gate
+    // (prior ≤ mid < latest) could never fire for heavy/light waving — the
+    // light day broke the monotone run forever.
+    const s = computeStrengthSummary({
+      squat: [
+        log("2026-01-01", "100*8"), // PR on both axes → stall clock starts here
+        log("2026-01-20", "70*8"),
+        log("2026-02-01", "60*8"), // light day
+        log("2026-02-15", "80*8"), // the run's high — climbing through the wave
+      ],
+    });
+    const squat = s.exercises.find((e) => e.slug === "squat")!;
+    expect(squat.status).toBe("watch"); // still ~80% of PR
+    expect(squat.recovering).toBe(true);
+    expect(squat.needsAttention).toBe(false); // → rescued from the red list
+    expect(squat.trajectory.direction).toBe("recovering");
+  });
+
+  it("a bounce that doesn't clear the recent high does NOT count as recovery", () => {
+    // 90→75→85×8: the latest rebounds off the trough but is still below the 90
+    // it fell from — one partial bounce, not a climb back. Stays flagged so
+    // noise can't clear a genuinely stuck lift.
     const s = computeStrengthSummary({
       row: [
         log("2026-01-01", "100*8"), // PR

@@ -67,17 +67,22 @@ const ATTENTION_STALL_WEEKS = 3;
 const RECOVERY_MIN_RATIO = 1.02;
 
 /** Is the lift climbing back? Uses the last three LOGGED session bests (ascending):
- *  a two-step climb into the most recent session (prior ≤ mid < latest) that clears
- *  RECOVERY_MIN_RATIO off the recent trough. Trajectory is read ONLY in the benign
- *  (upward) direction — the asymmetric log biases toward drop-days, so a down-slope
- *  is untrustworthy, but a climb seen *despite* that bias is a strong signal. So
- *  this only ever rescues a lift from Needs Attention; it never flags one. */
+ *  the most recent session must be the run's high (above BOTH earlier sessions)
+ *  and clear RECOVERY_MIN_RATIO off the recent trough. A strict two-step climb
+ *  (prior ≤ mid < latest) was the original gate, but it never fires for lifters
+ *  who wave loads — an interleaved light day (60→70→60→80) breaks the monotone
+ *  run forever — so a light-day dip in the middle is tolerated. Trajectory is
+ *  read ONLY in the benign (upward) direction — the asymmetric log biases toward
+ *  drop-days, so a down-slope is untrustworthy, but a climb seen *despite* that
+ *  bias is a strong signal. So this only ever rescues a lift from Needs
+ *  Attention; it never flags one, and a single good day that flips it is
+ *  self-correcting next session. */
 function isRecovering(sessionBests: number[]): boolean {
   if (sessionBests.length < 3) return false;
   const [prior, mid, latest] = sessionBests.slice(-3);
-  const twoStepClimb = latest > mid && mid >= prior;
+  const climbToHigh = latest > mid && latest > prior;
   const meaningful = latest / Math.min(prior, mid) >= RECOVERY_MIN_RATIO;
-  return twoStepClimb && meaningful;
+  return climbToHigh && meaningful;
 }
 
 /** Mirror of RECOVERY_MIN_RATIO for the down direction: the latest session must be
