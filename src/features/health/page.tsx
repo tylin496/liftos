@@ -774,25 +774,37 @@ function TrendCard({
   corridor?: { minPerWeek: number; maxPerWeek: number } | null;
   /** Maintenance zone behind the sparkline (see Sparkline). */
   band?: { halfWidth: number } | null;
-  /** Tapping the sparkline (only) opens the big scrubbable trend sheet. */
+  /** Opens the big scrubbable trend sheet. The whole card is the tap target
+   *  (no other card-level action exists); the chevron + sparkline buttons
+   *  remain as the discoverable/accessible controls. */
   onOpenTrend?: () => void;
 }) {
+  const tappable = !loading && !!onOpenTrend;
   return (
-    <section id={id} className={`page-card health-trend${loading ? " loading-card" : ""}`}>
+    <section
+      id={id}
+      className={`page-card health-trend${loading ? " loading-card" : ""}${tappable ? " health-trend--tappable" : ""}`}
+      // Pointer convenience only — keyboard/AT users get the chevron button.
+      onClick={tappable ? onOpenTrend : undefined}
+    >
       <div className="health-card-top">
         <span className="health-card-eyebrow">{label}</span>
         {!loading && (
           <div className="health-card-top-right">
             <FreshnessTag date={syncDate} kind={freshnessKind} updatedAt={updatedAt} />
             {onOpenTrend && (
-              // Explicit disclosure affordance — the sparkline is tappable too, but
-              // this right-chevron in the corner is the discoverable "open the full
-              // trend sheet" signal. Only shown when there's actually a sheet to open.
+              // Explicit disclosure affordance — the whole card taps through to
+              // the sheet, but this right-chevron in the corner is the discoverable
+              // "open the full trend sheet" signal and the accessible control.
+              // Only shown when there's actually a sheet to open.
               <button
                 type="button"
                 className="health-trend-open"
                 aria-label={`View ${label} trend`}
-                onClick={onOpenTrend}
+                onClick={(e: ReactMouseEvent) => {
+                  e.stopPropagation();
+                  onOpenTrend();
+                }}
               >
                 <svg width="7" height="12" viewBox="0 0 7 12" fill="none" aria-hidden>
                   <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

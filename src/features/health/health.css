@@ -142,6 +142,18 @@
 }
 
 /* ── Trend cards (Weight / Body Fat / Lean Mass) ─────────────────────── */
+/* The whole card is one tap target for the trend sheet — it has no other
+   card-level action. The corner chevron and sparkline stay as buttons inside
+   (discoverability + the accessible/keyboard control); the section tap is a
+   pointer convenience layered on top. Press dims like the navblock pattern. */
+.health-trend--tappable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--dur-press) var(--ease-press);
+}
+
+.health-trend--tappable:active { opacity: 0.7; }
+
 .health-trend-head {
   display: flex;
   align-items: center;
