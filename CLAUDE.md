@@ -26,6 +26,7 @@ React / Vite / TypeScript + Supabase (Postgres + RLS + Auth)。4 tabs = 4 個獨
 - **>600 行的檔案不要整檔讀**：`overview/page.tsx`(1666)、`health/page.tsx`(1376)、`training/page.tsx`(1186)、`ExerciseCard.tsx`(1099)、`copyAllData.ts`(1063)、`Shell.tsx`(924)、`today.tsx`(742)、`LogForms.tsx`(688)、`training.css`(2427)、`nutrition.css`(1457)、`overview.css`(1326)、`layout.css`(1092)、`health.css`(782)。先 `grep -n` 定位符號，再用 Read 的 offset/limit 讀該區段。
 - 大 CSS 檔先讀前 ~30 行的 TOC，直接跳行號。
 - `database.types.ts` 是生成檔：grep table 名即可，永遠不要整檔讀。
+- 部分 src 檔含 UTF-8 分隔符（`─`/`✓`），會被 grep/file 誤判成 binary 而靜默跳過：`grep` 一律加 `-a`。
 - `docs/*.md` 只在任務直接相關時讀（如動 Decision Engine 才讀 DECISION-ENGINE.md）。
 - 驗證 build：`npx tsc --noEmit` + `npm run lint:css`，輸出用 tail 截尾；UI/視覺改動不用 preview 驗證（tsc/lint 過了就交給使用者看）。
 | 動畫 / 過場 / count-up | **先載入 `motion` skill**；只用 `--dur-*` / `--ease-*` role token |

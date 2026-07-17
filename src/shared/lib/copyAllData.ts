@@ -48,6 +48,16 @@ function strengthReason(se: StrengthExercise | undefined) {
   return { code: "at_peak" as const }; // status === "improving": at / new PR
 }
 
+/** Trajectory for export. `velocity` internally is a bare fraction (latest ÷
+ *  anchor − 1) — shipped raw, a reader can't tell −0.08 from "−0.08 kg" or
+ *  "per week". Emit it as `velocityPct` so the unit lives in the name; the
+ *  window/anchor definition ships once in insights.training.note. */
+function exportTrajectory(se: StrengthExercise | undefined) {
+  if (!se?.trajectory) return null;
+  const { direction, velocity, confidence } = se.trajectory;
+  return { direction, velocityPct: +(velocity * 100).toFixed(1), confidence };
+}
+
 type MetricKey =
   | "weight_kg" | "body_fat_pct" | "active_energy_kcal" | "resting_energy_kcal"
   | "exercise_minutes" | "sleep_seconds" | "resting_heart_rate" | "hrv_sdnn_ms";
@@ -230,6 +240,10 @@ function buildHealthSummary(metrics: BodyMetric[], periodDays: number) {
       latest: +latest.value.toFixed(spec.decimals),
       latestDate: latest.date,
       changeFromStart: +(latest.value - pts[0].value).toFixed(spec.decimals),
+      // The span changeFromStart actually covers: first READING → latest. On a
+      // sparse metric the first reading can sit far inside the window, so
+      // periodDays alone over-states the change's timespan.
+      changeSpanDays: Math.round((Date.parse(latest.date) - Date.parse(pts[0].date)) / 86_400_000),
       avg: +avg.toFixed(spec.decimals),
       periodDays,
       dataPoints: pts.length,
@@ -392,11 +406,15 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           windowDays: SHORT_WINDOW_DAYS, // deficit is derived from the 30d avg
           // 7700 kcal ≈ 1 kg fat; project over 30 days to get kg/month
           estimatedFatLoss: +((deficitDaily * 30) / 7700).toFixed(2),
+          // `basis` covers daily/estimatedFatLoss ONLY — the trend* figures
+          // below have their own trendBasis. A single object-level basis was
+          // read as covering all four numbers.
           basis: "logged-intake",
           ...(trendDeficitDaily != null
             ? {
                 trendDaily: trendDeficitDaily,
                 trendFatLoss: +((trendDeficitDaily * 30) / 7700).toFixed(2),
+                trendBasis: "weight-trend (observedRate × 7700/7)",
               }
             : {}),
         }
@@ -546,6 +564,10 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       distribution: nutritionAdherence.distribution,
     },
     training: {
+      // Definitions a reader of THIS block needs (they otherwise live only in
+      // distant docstrings): retentionPct here and in training[].performance is
+      // the same current ÷ peak on the lift's scoring axis.
+      note: "retentionPct = current ÷ peak on the lift's scoring axis (compound: e1RM; isolation: best-set tonnage; assisted: %bodyweight). trajectory.velocityPct = % change of the recent session-best vs its anchor session (recovering: window min, declining: window max) over the recent-sessions window — not kg, not per-week.",
       exercisesTracked: improvingCount + trainingAttention.length,
       improvingCount,
       needsAttentionCount: trainingAttention.length,
@@ -621,7 +643,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           // recent window reads (separate from retention). (schema 3.1)
           status: se ? se.status : null,
           reason: strengthReason(se),
-          trajectory: se ? se.trajectory : null,
+          trajectory: exportTrajectory(se),
           sessions: sessionDates.length,
           lastSession,
           // The PR number equals stats.best, so pr carries only what's unique: the
@@ -1067,7 +1089,7 @@ export async function buildTrainingJson(): Promise<string> {
         },
         status: se ? se.status : null,
         reason: strengthReason(se),
-        trajectory: se ? se.trajectory : null,
+        trajectory: exportTrajectory(se),
         sessions: sessionDates.length,
         lastSession: sessionDates.at(-1) ?? null,
         // PR number equals stats.best; pr carries only what's unique: date + set.
