@@ -183,10 +183,12 @@ export function OverflowRing({
   // rings. One-sided, it can run at full strength from the first overlap
   // without the floating look, and it can never reach back to darken the
   // 12-o'clock start cap.
-  // 0.75×stroke keeps the crescent tight: with the rear pinned at the cap's
-  // edge, the shadow reaches only 2·shR − stroke = half a stroke ahead of it.
-  const shR = strokeWidth * 0.75;
-  const shOff = shR - strokeWidth / 2;
+  // 0.5×stroke radius, centred a quarter-stroke ahead: the rear edge (¼ stroke
+  // behind the tip) stays hidden under the cap (½ stroke), and the crescent
+  // reaches only a quarter-stroke past the cap's front edge — the tightest
+  // sliver that still reads as contact.
+  const shR = strokeWidth * 0.5;
+  const shOff = strokeWidth * 0.25;
   const shX = tailX + -Math.sin(tailAngle) * shOff;
   const shY = tailY + Math.cos(tailAngle) * shOff;
   // Base lap + ribbon are ONE continuous comet that brightens ALONG the stroke
