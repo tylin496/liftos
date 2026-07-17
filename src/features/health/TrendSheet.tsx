@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { createPortal } from "react-dom";
+import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
@@ -54,10 +55,28 @@ export interface HealthTrendConfig {
       ink; it's context, not a verdict. Small and symmetric, so it folds into
       the y-domain to stay in view. */
   band?: { halfWidth: number } | null;
+  /** true → the sheet draws 0-based bars instead of the line+area, keeping the
+      same mark as the card visual that opened it (Active's daily ActivityBars).
+      A bar's length IS the bucket's average output, so the y-domain is 0-based
+      and minSpan/band/best-dot (line-chart framing devices) don't apply. */
+  bars?: boolean;
 }
 
 const fmt = (v: number, d: number) =>
   v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+
+/* Scrub-pill date text. Bucketed points (bucketDays > 1) are multi-day
+   averages, not single readings — show the day span the average covers, not
+   just its representative middle date. */
+function scrubDateLabel(p: HealthTrendPoint, bucketDays: number) {
+  if (p.dateStart && p.dateEnd && bucketDays > 1) {
+    const s = timelineDate(p.dateStart);
+    const e = timelineDate(p.dateEnd);
+    return `${s.mon} ${s.day}–${e.mon === s.mon ? "" : `${e.mon} `}${e.day}`;
+  }
+  const d = timelineDate(p.date);
+  return `${d.mon} ${d.day}`;
+}
 
 /* Daily-reading progression line. Same shape as Training's exercise trend
    chart (measured getTotalLength() draw-in, press-drag scrub anywhere) —
@@ -106,14 +125,6 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateEx
 
   const scrubCoord = scrubIndex != null ? coords[scrubIndex] : null;
   const scrubPoint = scrubIndex != null ? points[scrubIndex] : null;
-  // Bucketed points (bucketDays > 1) are multi-day averages, not single
-  // readings — the tooltip shows the day span the average covers, not just
-  // its representative middle date.
-  const scrubDate = scrubPoint ? timelineDate(scrubPoint.date) : null;
-  const scrubDateStart =
-    scrubPoint?.dateStart && bucketDays > 1 ? timelineDate(scrubPoint.dateStart) : null;
-  const scrubDateEnd =
-    scrubPoint?.dateEnd && bucketDays > 1 ? timelineDate(scrubPoint.dateEnd) : null;
 
   return (
     <div className="health-trend-sheet-chart-wrap">
@@ -209,7 +220,7 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateEx
           }}
         />
       )}
-      {scrubPoint && scrubCoord && scrubDate && (() => {
+      {scrubPoint && scrubCoord && (() => {
         // Anchor by edge near either end of the chart so a wide pill can't
         // overhang the sheet — centered anchor only in the safe middle range.
         const pct = (scrubCoord.x / W) * 100;
@@ -219,11 +230,56 @@ function TrendChart({ points, color, unit, decimals, higherIsBetter, celebrateEx
             className={`health-trend-sheet-tooltip health-trend-sheet-tooltip--${anchor}`}
             style={{ left: `${pct}%` }}
           >
-            <span className="health-trend-sheet-tooltip-date">
-              {scrubDateStart && scrubDateEnd
-                ? `${scrubDateStart.mon} ${scrubDateStart.day}–${scrubDateEnd.mon === scrubDateStart.mon ? "" : `${scrubDateEnd.mon} `}${scrubDateEnd.day}`
-                : `${scrubDate.mon} ${scrubDate.day}`}
-            </span>
+            <span className="health-trend-sheet-tooltip-date">{scrubDateLabel(scrubPoint, bucketDays)}</span>
+            <span className="mono">{fmt(scrubPoint.value, decimals)}{unit}</span>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+/* Bar variant of the sheet chart — used when the card visual that opened the
+   sheet is itself bars (Active's daily ActivityBars), so the big graph keeps
+   the same mark instead of switching to a line. Same press-drag scrub gesture
+   and tooltip pill; the held bar keeps full strength and the rest step back.
+   No best/last dots or band — the stat row below carries Peak/Latest. */
+function TrendBars({ points, color, unit, decimals, bucketDays }: { points: HealthTrendPoint[]; color: string; unit: string; decimals: number; bucketDays: number }) {
+  const { svgRef: barsRef, index: scrubIndex, ...scrubHandlers } = useChartScrub<HTMLDivElement>(
+    points.map((_, i) => i + 0.5),
+    points.length,
+  );
+  const max = Math.max(...points.map((p) => p.value), 1);
+  const latest = points[points.length - 1];
+  const scrubPoint = scrubIndex != null ? points[scrubIndex] : null;
+
+  return (
+    <div className="health-trend-sheet-chart-wrap">
+      <div
+        ref={barsRef}
+        className={`health-trend-sheet-bars${scrubIndex != null ? " is-scrubbing" : ""}`}
+        style={{ color }}
+        role="img"
+        aria-label={`${unit.trim() || "value"} over time, ${fmt(latest.value, decimals)}${unit} most recently`}
+        {...scrubHandlers}
+      >
+        {points.map((p, i) => (
+          <div
+            key={p.date}
+            className={`health-trend-sheet-bar${i === scrubIndex ? " is-scrubbed" : ""}`}
+            style={{ height: `${Math.max((p.value / max) * 100, 1.5)}%` }}
+          />
+        ))}
+      </div>
+      {scrubPoint && scrubIndex != null && (() => {
+        const pct = ((scrubIndex + 0.5) / points.length) * 100;
+        const anchor = pct < 20 ? "start" : pct > 80 ? "end" : "center";
+        return (
+          <div
+            className={`health-trend-sheet-tooltip health-trend-sheet-tooltip--${anchor}`}
+            style={{ left: `${pct}%` }}
+          >
+            <span className="health-trend-sheet-tooltip-date">{scrubDateLabel(scrubPoint, bucketDays)}</span>
             <span className="mono">{fmt(scrubPoint.value, decimals)}{unit}</span>
           </div>
         );
@@ -327,7 +383,11 @@ function SheetInner({
                 </span>
               </div>
 
-              <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} celebrateExtreme={celebrateExtreme} bucketDays={bucketDays} minSpan={minSpan} band={band} />
+              {config.bars ? (
+                <TrendBars points={points} color={color} unit={unit} decimals={decimals} bucketDays={bucketDays} />
+              ) : (
+                <TrendChart points={points} color={color} unit={unit} decimals={decimals} higherIsBetter={higherIsBetter} celebrateExtreme={celebrateExtreme} bucketDays={bucketDays} minSpan={minSpan} band={band} />
+              )}
 
               <div className="health-trend-sheet-stats">
                 <div className="health-trend-sheet-stat">

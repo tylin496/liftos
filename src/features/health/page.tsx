@@ -1335,7 +1335,7 @@ export function HealthPage() {
                 target={data.activeTarget?.activeTargetPerDay ?? null}
                 onOpen={
                   energyFull.length >= 2
-                    ? () => openTrend({ label: "Active", unit: " kcal", decimals: 0, color: "var(--accent)", points: energyFull, higherIsBetter: true, bucketDays: ENERGY_BUCKET })
+                    ? () => openTrend({ label: "Active", unit: " kcal", decimals: 0, color: "var(--accent)", points: energyFull, higherIsBetter: true, bucketDays: ENERGY_BUCKET, bars: true })
                     : undefined
                 }
               />

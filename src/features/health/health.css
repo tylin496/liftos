@@ -593,6 +593,37 @@
   cursor: grabbing;
 }
 
+/* Bar variant (config.bars — Active): same plot height and scrub affordances
+   as the line chart; bar colour rides currentColor (set inline from the
+   metric's config colour). */
+.health-trend-sheet-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  height: 130px;
+  border-bottom: 1px solid var(--rule-strong);
+  /* Press-drag scrubs (useChartScrub) — the touch must never start a scroll. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.health-trend-sheet-bars:active {
+  cursor: grabbing;
+}
+
+.health-trend-sheet-bar {
+  flex: 1;
+  background: currentColor;
+  border-radius: 3px 3px 0 0; /* ≤4px graphic detail */
+}
+
+/* While scrubbing, the held bucket keeps full strength and the rest step back
+   so the tooltip's subject is unambiguous. No transition — scrub tracks the
+   finger frame-by-frame, like the line chart's guide/dot. */
+.health-trend-sheet-bars.is-scrubbing .health-trend-sheet-bar:not(.is-scrubbed) {
+  opacity: 0.45;
+}
+
 /* Draw the line in once on open, left→right; the fill fades up behind it.
    Length is measured in JS (getTotalLength) and applied inline — see
    TrendSheet.tsx for why (a normalized pathLength clips the final segment). */
