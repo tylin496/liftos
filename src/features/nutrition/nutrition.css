@@ -1168,7 +1168,8 @@
   top: 0;
   right: 0;
   height: 100%;
-  transform-origin: right; /* grows right→left from the goal edge, opposite the fill */
+  /* No transform: the shortfall is an annotation that fades in in place
+     (today.tsx drives opacity) — it never travels or grows. */
   background: var(--warn); /* 🟠 protein short of floor */
 }
 

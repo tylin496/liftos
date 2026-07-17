@@ -238,11 +238,13 @@ function shiftDate(date: string, days: number): string {
    snapping to full. Same pattern as Overview's GoalBarFill: sit at 0 until the
    flat --enter-wait beat (shared by the HeadlineCountUp above it), then grow to
    width over COUNT_UP_MS on the ease-out-quad mirror so the fill rides the
-   digits. The protein shortfall (gap) animates at the same time but in the
-   opposite direction — right→left from the goal edge — so the two segments
-   close in on the boundary together. Leaf component: the per-frame width
-   change stays scoped here, not the whole card. Editing intake later
-   re-transitions to the new width for free. */
+   digits — the rail's ONLY directional motion. The protein shortfall (gap) is
+   an annotation, not a shape in motion: growing it (either direction) read as
+   accrual, and painting it as a full-track underlay flashed an all-orange
+   false state, so it holds its final width at the goal edge and fades in on
+   the standard entrance clock, like the "to go" note it mirrors. Leaf
+   component: the per-frame width change stays scoped here, not the whole
+   card. Editing intake later re-transitions to the new width for free. */
 function IntakeRailFill({ pct, short }: { pct: number; short?: boolean }) {
   const { ref, delayMs } = useBottomUpDelay<HTMLDivElement>();
   const [shown, setShown] = useState(false);
@@ -253,17 +255,22 @@ function IntakeRailFill({ pct, short }: { pct: number; short?: boolean }) {
     }, delayMs);
     return () => clearTimeout(timer);
   }, [delayMs]);
-  // Both segments hold their final width; only scaleX animates — grey grows
-  // left→right (origin left) while the orange gap grows right→left from the
-  // goal edge (origin right), the two meeting at the boundary as one motion.
-  // Width is in the transition too so later edits ride the same ramp.
-  const ramp = `transform ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1), width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`;
-  const grow = (on: boolean) => (on ? "scaleX(1)" : "scaleX(0)");
+  // Fill holds its final width and sweeps in via scaleX (origin left); the gap
+  // never moves — opacity only. Width rides the same ramp so later edits
+  // re-transition instead of snapping; both start on the shared entrance beat.
+  const sweep = `transform ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1), width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`;
+  const fade = `opacity var(--dur-enter) var(--ease-enter), width ${COUNT_UP_MS}ms cubic-bezier(0.5, 1, 0.89, 1)`;
   return (
     <div ref={ref} className="nt-track" aria-hidden="true">
-      <div className="nt-track-fill" style={{ width: `${pct}%`, transform: grow(shown), transition: ramp }} />
+      <div
+        className="nt-track-fill"
+        style={{ width: `${pct}%`, transform: shown ? "scaleX(1)" : "scaleX(0)", transition: sweep }}
+      />
       {short && (
-        <div className="nt-track-gap" style={{ width: `${100 - pct}%`, transform: grow(shown), transition: ramp }} />
+        <div
+          className="nt-track-gap"
+          style={{ width: `${100 - pct}%`, opacity: shown ? 1 : 0, transition: fade }}
+        />
       )}
     </div>
   );
