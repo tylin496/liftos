@@ -8,8 +8,12 @@
 //   - Weight-loss pace — Observed (21d regression) paired against Target
 //     (fixed band from cut mode) side by side: this is the one comparison
 //     that actually drives the decision.
-//   - Est. intake — the same 21d regression's implied intake, on its own row:
-//     the *why* behind the pace reading.
+//   - Apple Health vs log — how far the two energy accountings disagree
+//     (intakeGap), on its own row: the drift alarm behind the confidence cap.
+//     Deliberately NOT the old "Est. intake" (estimatedIntake): that number is
+//     conditional on the Apple Health TDEE and reads as a measurement of what
+//     you actually ate, which it isn't — only the gap carries information, and
+//     which side is wrong is unknowable from this data.
 //   - Confidence — a composite of trend quality (21d) and target tenure
 //     (daysOnTarget), sunk to the bottom as a closing stamp rather than a
 //     fourth parallel number, since it's meta (about the read) not a measurement.
@@ -33,7 +37,7 @@ import "./nutrition.css";
 const CONFIDENCE_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
 
 // Reading-order weight, not layout: the four cells are analysis (Observed →
-// Est. intake → Confidence) plus one constant (Target pace), so the constant
+// cross-check → Confidence) plus one constant (Target pace), so the constant
 // is the only one dropped a tier below the shared default.
 function EvidenceCell({
   label,
@@ -438,12 +442,16 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
           )}
         </div>
 
-        {/* Why the pace reads the way it does — the reason, on its own row. */}
+        {/* How far the two energy accountings disagree — the drift alarm. Same
+            number the intakeDivergence confidence cap reads: (Apple-Health-implied
+            intake) − (logged intake) over the same 21d window. + = Apple Health's
+            accounting runs above the food log. Neutral ink: the gap can't be
+            attributed to either side, so it's context, never a verdict. */}
         <EvidenceCell
-          label="Est. intake 21d"
+          label="Apple Health vs log 21d"
           value={
-            !noData && !loading && hasTrend
-              ? `≈${d!.estimatedIntake.toLocaleString()} kcal/day`
+            !noData && !loading && hasTrend && d!.intakeGap != null
+              ? `${d!.intakeGap < 0 ? "−" : "+"}${Math.abs(d!.intakeGap).toLocaleString()} kcal/day`
               : "—"
           }
           full
