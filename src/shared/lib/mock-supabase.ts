@@ -71,6 +71,7 @@ const DEV_BULK_PHASE = false;
 
 const NUTRITION_CONFIG = {
   user_id: DEV_USER_ID,
+  assume_complete_logging: false,
   tdee: 2800,
   protein_target: 175,
   phase_deficits: [805, 655, 455, 150, 1],

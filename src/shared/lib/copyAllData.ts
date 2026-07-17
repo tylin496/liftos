@@ -321,6 +321,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           weightTrustworthy:
             nutritionStateFull.diagnostics.weightDataPoints >= MIN_TREND_POINTS &&
             nutritionStateFull.evaluation.confidence !== "low",
+          assumeCompleteLogging: nutritionConfig.assume_complete_logging,
         })
       : null;
   const nutritionWeightSeries = metrics
@@ -936,6 +937,7 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
           weightTrustworthy:
             state.diagnostics.weightDataPoints >= MIN_TREND_POINTS &&
             state.evaluation.confidence !== "low",
+          assumeCompleteLogging: config.assume_complete_logging,
         })
       : null;
 

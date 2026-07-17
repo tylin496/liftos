@@ -320,6 +320,38 @@ describe("tdeeCalibration — inform-only cross-check", () => {
     expect(c.delta).toBe(0);
     expect(c.measuredLogTdee).toBe(2464);
     expect(c.likelyCause).toBe("under-logging");
+    expect(c.possibleCauses).toBeNull();
+  });
+
+  it("assumeCompleteLogging vetoes the under-logging attribution — unattributed + possibleCauses", () => {
+    // Same numbers as the real-user case, but the user vouches for the log: the
+    // "self-report is under-counted" prior is gone, so the sensor-vs-log conflict
+    // is handed to the reader instead of pinned on logging.
+    const c = tdeeCalibration({
+      assumedTdee: 2800,
+      estimatedTdee: 2800,
+      healthTdeeMeasured: true,
+      loggedIntake: 1812,
+      observedRate: -0.592308,
+      weightTrustworthy: true,
+      assumeCompleteLogging: true,
+    })!;
+    expect(c.status).toBe("unclear");
+    expect(c.likelyCause).toBeNull();
+    expect(c.possibleCauses).toEqual([
+      "tdee-overestimated",
+      "water-weight-fluctuation-masking-trend",
+      "food-logging-error",
+    ]);
+  });
+
+  it("assumeCompleteLogging does NOT touch a corroborated TDEE miscalibration", () => {
+    // Both sources clear and agree → the sensor itself flags the TDEE; the flag
+    // only governs the lone-log-divergence branch.
+    const c = tdeeCalibration({ ...base, assumeCompleteLogging: true })!;
+    expect(c.status).toBe("under");
+    expect(c.likelyCause).toBe("tdee");
+    expect(c.possibleCauses).toBeNull();
   });
 
   it("does NOT blame logging when there's no measured burn to back the target", () => {

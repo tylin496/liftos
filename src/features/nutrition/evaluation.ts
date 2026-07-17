@@ -349,8 +349,13 @@ export interface TdeeCalibration {
    *  culprit. "under-logging"/"over-logging" = the measured HealthKit burn backs the
    *  assumed TDEE and only the log-implied number diverges → the gap rides on the soft
    *  log, so the log is the suspect, NOT the TDEE (the common case: habitual
-   *  under-reporting). null = aligned, or no measured burn to attribute against. */
+   *  under-reporting). null = aligned, no measured burn to attribute against, or the
+   *  user asserted complete logging (see possibleCauses). */
   likelyCause: "tdee" | "under-logging" | "over-logging" | null;
+  /** Populated ONLY when a lone log divergence was left unattributed because the user
+   *  asserted complete logging (assume_complete_logging): the candidate explanations,
+   *  ordered by nothing — the reader weighs them, LiftOS makes no pick. */
+  possibleCauses: string[] | null;
 }
 
 /** kcal/day a MEASURED TDEE must exceed the target's assumed TDEE before we'll
@@ -372,6 +377,12 @@ const TDEE_MISCALIBRATION_KCAL = 250;
  *  diverges, the log is the suspect, not the TDEE. Doubting the TDEE is warranted only
  *  when the sensor itself corroborates it (status under/over).
  *
+ *  Caveat on "independent": NutritionConfigContext auto-syncs config.tdee to the
+ *  HealthKit estimate on app open, so whenever HealthKit data exists dHealth ≈ 0 by
+ *  construction — the sensor "backing" the assumption is largely the same number, and
+ *  in practice the calibration reduces to sensor-vs-log with the sensor hard-trusted.
+ *  assumeCompleteLogging exists precisely so the user can veto that trust ordering.
+ *
  *  Inform-only: never proposes a calorie change — it hands the numbers to the reader
  *  (the AI export's audit). Returns null when there isn't enough to judge: no trusted
  *  weight trend, or no food-log signal. */
@@ -388,6 +399,10 @@ export function tdeeCalibration(input: {
   /** Weight trend is dense/clean enough to imply a TDEE (else the log-implied number
    *  is noise). Caller passes weightDataPoints ≥ MIN_TREND_POINTS && confidence != low. */
   weightTrustworthy: boolean;
+  /** User assertion (config.assume_complete_logging): the food log is complete.
+   *  Removes the "self-report is under-counted" prior — a lone log divergence then
+   *  yields possibleCauses instead of an under-/over-logging attribution. */
+  assumeCompleteLogging?: boolean;
 }): TdeeCalibration | null {
   const { assumedTdee, estimatedTdee, healthTdeeMeasured, loggedIntake, observedRate, weightTrustworthy } =
     input;
@@ -422,10 +437,23 @@ export function tdeeCalibration(input: {
   // TDEE (dHealth small) and only the soft log-implied number diverges, the log is the
   // likely culprit — habitual under-reporting, not a wrong TDEE.
   let likelyCause: TdeeCalibration["likelyCause"] = null;
+  let possibleCauses: string[] | null = null;
   if (status === "under" || status === "over") {
     likelyCause = "tdee";
   } else if (healthTdeeMeasured && !healthClears && logClears) {
-    likelyCause = dLog < 0 ? "under-logging" : "over-logging";
+    if (input.assumeCompleteLogging) {
+      // The user vouches for the log, which removes the prior that let a lone log
+      // divergence be pinned on logging. What remains is a sensor-vs-log conflict
+      // this function has no third source to arbitrate — name the candidates and
+      // let the reader weigh them.
+      possibleCauses = [
+        dLog < 0 ? "tdee-overestimated" : "tdee-underestimated",
+        "water-weight-fluctuation-masking-trend",
+        "food-logging-error",
+      ];
+    } else {
+      likelyCause = dLog < 0 ? "under-logging" : "over-logging";
+    }
   }
 
   return {
@@ -435,6 +463,7 @@ export function tdeeCalibration(input: {
     delta: Math.round(delta),
     status,
     likelyCause,
+    possibleCauses,
   };
 }
 
