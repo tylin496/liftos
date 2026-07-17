@@ -62,85 +62,6 @@
   gap: var(--space-4);
 }
 
-/* Expand toggle — the down-chevron riding right of the freshness tag, the
-   same corner slot as the trend cards' "›" (.health-trend-open). A real
-   button, kept a SIBLING of the TDEE summary button (never its parent) so
-   both stay valid interactive elements. */
-.health-tdee-toggle {
-  display: flex;
-  align-items: center;
-  position: relative;
-  border: none;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: opacity var(--dur-press) var(--ease-press);
-}
-/* Press feedback, matching .health-trend-open. */
-.health-tdee-toggle:active { opacity: 0.7; }
-
-/* The 13×8 chevron is the sole control that reveals Resting/TDEE — overflow
-   its hit area to ~44px, same slop shape as .health-trend-open. The
-   freshness tag it reaches under on the left isn't tappable, so the overlap
-   costs nothing. */
-.health-tdee-toggle::before {
-  content: "";
-  position: absolute;
-  top: -16px;
-  bottom: -16px;
-  left: -10px;
-  right: -8px;
-}
-
-/* Right cluster: TDEE summary (collapsed only) · freshness tag · ⌄ toggle. */
-.health-tdee-head-right {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-/* Collapsed-state TDEE summary — surfaces the model's headline number while
-   Resting/TDEE are folded away, and opens the same TDEE trend sheet as the
-   model item below. Same stripped-button treatment + tap-slop pair as
-   .health-energy-model-item--tappable. */
-.health-tdee-summary {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  border: none;
-  background: none;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  margin: -6px;
-  padding: 6px;
-  border-radius: var(--radius-sm);
-  transition:
-    opacity var(--dur-enter) var(--ease-enter),
-    background var(--dur-press) var(--ease-press);
-}
-
-.health-tdee-summary:active { background: var(--bg-soft); }
-
-/* On expand the model row takes over, so the summary fades out on the exit
-   role — but keeps its slot (visibility, not display) so the freshness tag
-   doesn't shift, and drops out of focus order / the a11y tree once hidden. */
-.health-tdee-summary.is-hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition:
-    opacity var(--dur-exit) var(--ease-move),
-    visibility 0s var(--dur-exit);
-}
-
-.health-tdee-summary-label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-3);
-}
-
 /* ── Trend cards (Weight / Body Fat / Lean Mass) ─────────────────────── */
 /* The whole card is one tap target for the trend sheet — it has no other
    card-level action. The corner chevron and sparkline stay as buttons inside
@@ -371,25 +292,23 @@
 }
 
 /* ── Energy card ───────────────────────────────────────────────────────────
-   Active leads with a sparkline (behaviour-driven, trend-worthy). The eyebrow +
-   chevron get their own row (.health-tdee-head); the number + sparkline share
-   the row below, bottom-aligned like the mock — no absolute positioning. */
+   Active leads with its daily bars (behaviour-driven, trend-worthy); the
+   Resting + TDEE model row sits below in plain sight — no collapse, no
+   chevron. The header is the same eyebrow + freshness grammar as every other
+   card. The number + bars share the row below, bottom-aligned like the mock —
+   no absolute positioning. */
 .health-energy .health-trend-head {
   align-items: flex-end;
   margin-top: var(--vr-loose);
 }
 
-/* The header's eyebrow+chevron button is the expand control — the chevron is
-   the affordance, riding inline right after "Active". A down-chevron reads as
-   "expand in place", distinct from Overview's "›" which means "go to a
-   different screen" — don't reuse that glyph/direction here. */
 .health-energy {
   /* Deep-link target (Overview → Health): land with a breath, not jammed to
      the edge. Shell owns the scroll; this just sets where it settles.
      It's the last card in a short page, so a plain "start" alignment can't
      reach the top (not enough content below to scroll that far) — Shell
      docks it to the panel's bottom instead (block:"end", see startAlign in
-     Shell.tsx), which is also where it auto-expands to on arrival.
+     Shell.tsx).
      scroll-margin-bottom must clear the floating tab bar itself (the panel's
      own bottom padding only reserves scroll room past it — "end" alignment
      lands flush with the padding box's edge, i.e. behind the bar, unless the
@@ -400,40 +319,9 @@
   scroll-margin-bottom: var(--dock-bottom-clearance);
 }
 
-.health-energy-chevron {
-  display: flex;
-  flex-shrink: 0;
-  color: var(--ink-3);
-  transition: transform var(--dur-move) var(--ease-move);
-}
-
-.health-energy-chevron.is-open {
-  transform: rotate(180deg);
-}
-
-/* Resting + TDEE — the model behind the ring, revealed on tapping the card.
-   Height-animated via grid-rows (0fr → 1fr) instead of a measured max-height,
-   so Resting/TDEE content can change without a hardcoded height to keep in
-   sync. The inner wrap needs min-height:0 for the row track to actually
-   collapse to zero instead of clamping at content height. */
-.health-energy-model-wrap {
-  display: grid;
-  grid-template-rows: 0fr;
-  /* Standard disclosure: appears on --dur-enter/--ease-enter (see .is-open),
-     collapses faster on --dur-exit/--ease-move — the exit transition lives on
-     the base state, the enter one on .is-open, so each direction gets its own
-     role timing from one grid-rows toggle. */
-  transition: grid-template-rows var(--dur-exit) var(--ease-move);
-}
-
-.health-energy-model-wrap.is-open {
-  grid-template-rows: 1fr;
-  transition: grid-template-rows var(--dur-enter) var(--ease-enter);
-}
-
+/* Resting + TDEE — the model behind the ring, always visible so
+   Resting + Active = TDEE adds up at a glance. */
 .health-energy-model {
-  min-height: 0;
-  overflow: hidden;
   display: flex;
   gap: var(--space-8);
   margin-top: var(--vr-section);

@@ -1895,7 +1895,9 @@ export function OverviewPage() {
         currentTdee={data?.currentTdee ?? null}
         syncAt={data ? latestUpdatedAt(data.metrics, "active_energy_kcal") : null}
         metrics={data?.metrics ?? []}
-        onNav={() => nav("health", { scrollTo: "health-energy-card", expand: true })}
+        // No expand signal: the Energy card's Resting/TDEE model row is always
+        // visible now, so the deep-link only needs the scroll.
+        onNav={() => nav("health", { scrollTo: "health-energy-card" })}
       />
 
       {/* Journey slot — one card, phase-picked. A bulk phase swaps in the Bulk

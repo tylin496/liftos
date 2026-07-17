@@ -26,7 +26,6 @@ import { PageTopBar } from "@shared/components/PageTopBar";
 import { buildHealthJson } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNavExpand } from "@app/layout/NavContext";
-import { scrollRevealClear } from "@app/layout/revealScroll";
 import { HealthTrendSheet, type HealthTrendConfig } from "./TrendSheet";
 import { getNutritionState } from "@features/nutrition/evaluationApi";
 import { weightMetricDirection } from "@features/nutrition/logic";
@@ -434,8 +433,7 @@ function ActivityBars({
 
 /* One column of the Energy card's Resting + TDEE model row. Renders as a button
    when a trend is available (tap opens the big scrubbable sheet, same as the
-   Active sparkline), else an inert div. stopPropagation keeps the tap from also
-   toggling the card's expand/collapse. */
+   Active sparkline), else an inert div. */
 function EnergyModelItem({
   label,
   value,
@@ -466,10 +464,7 @@ function EnergyModelItem({
       type="button"
       className="health-energy-model-item health-energy-model-item--tappable"
       aria-label={`View ${label} trend`}
-      onClick={(e: ReactMouseEvent) => {
-        e.stopPropagation();
-        onOpen();
-      }}
+      onClick={onOpen}
     >
       {inner}
     </button>
@@ -847,40 +842,7 @@ function TrendCard({
 export function HealthPage() {
   const [data, setData] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [energyExpanded, setEnergyExpanded] = useState(false);
-  const energyCardRef = useRef<HTMLElement | null>(null);
   const activity = useTabActivity();
-  // True only for a user-initiated expand (tapping the card) — gates the
-  // scroll-to-bottom settle below. A deep-link expand leaves this false so
-  // Shell's startAlign keeps the card TOP-aligned (block:start); pulling to the
-  // bottom here would fight that and land the card at the bottom again.
-  const settleToBottomRef = useRef(false);
-
-  // A deep-link from Overview's Active Target card asks Active to open on
-  // arrival (see the `expand: true` nav call) — it's the only way to reveal the
-  // Resting/TDEE breakdown behind it. Shell top-aligns the card as it grows, so
-  // this expand must NOT trigger the manual scroll-to-bottom settle.
-  const isNavTarget = useNavExpand() === "health-energy-card";
-  useEffect(() => {
-    if (isNavTarget) {
-      settleToBottomRef.current = false;
-      setEnergyExpanded(true);
-    }
-  }, [isNavTarget]);
-
-  // Manual expand only: Active is the last card, so when the user taps it open
-  // the revealed Resting/TDEE rows land below the fold, behind the floating tab
-  // bar. Shared disclosure-scroll keeps the model clear of the bar as it unfolds.
-  // A deep-link expand skips this (settleToBottomRef false) — Shell owns that
-  // position, top-aligned. The wrap can be absent on the nav path (energyExpanded
-  // flips before `data` loads, while the skeleton branch renders); scrollRevealClear
-  // no-ops on null and this re-runs once it mounts.
-  useEffect(() => {
-    if (!energyExpanded) return;
-    if (!settleToBottomRef.current) return;
-    const wrap = energyCardRef.current?.querySelector<HTMLElement>(".health-energy-model-wrap");
-    scrollRevealClear(wrap ?? null);
-  }, [energyExpanded]);
 
   // Weight-metric polarity follows the phase from the persisted nutrition
   // evaluation (the same snapshot every Overview read uses). Null-safe: no row
@@ -1066,15 +1028,6 @@ export function HealthPage() {
     setTrendConfig(config);
     setTrendOpen(true);
   };
-
-  // One TDEE sheet opener shared by the collapsed header summary and the
-  // expanded model item — both must open the exact same sheet. Undefined until
-  // there are ≥2 buckets to draw a line through, which also gates whether the
-  // header summary renders at all.
-  const openTdeeTrend =
-    tdeeFull.length >= 2
-      ? () => openTrend({ label: "TDEE", unit: " kcal", decimals: 0, color: "var(--accent)", points: tdeeFull, higherIsBetter: true, judgeDelta: false, celebrateExtreme: false, bucketDays: ENERGY_BUCKET })
-      : undefined;
 
   // The Weight trend sheet's config, lifted out of the card map so both the
   // card tap AND the deep-link auto-open (below) draw the same sheet from one
@@ -1269,81 +1222,26 @@ export function HealthPage() {
       />
 
       {/* 4. Energy — the metabolic model behind the ring. Active leads with its
-          daily distribution (behaviour-driven); Resting + TDEE ride below as
-          context so Resting + Active = TDEE still adds up. */}
+          daily distribution (behaviour-driven); Resting + TDEE sit below in
+          plain sight so Resting + Active = TDEE visibly adds up. No collapse:
+          the fold saved ~one small row on the LAST card of the page while
+          hiding both trend entry points behind an extra tap — removed 2026-07. */}
       <section
-        ref={energyCardRef}
         id="health-energy-card"
         className={`page-card health-energy${!data ? " loading-card" : ""}`}
       >
-        {/* Header: plain eyebrow on the left; the right cluster is
-            [TDEE summary · freshness tag · ⌄ toggle], matching the trend
-            cards' "time + chevron in the corner" affordance. The toggle and
-            the summary are SIBLING buttons — never nested — so both stay
-            valid interactive elements. The summary leaks the model's headline
-            number while Resting/TDEE are folded away and jumps straight to
-            the TDEE trend sheet; on expand it fades out (the model row takes
-            over) but keeps its slot so the tag + chevron don't shift. Only
-            rendered once the trend has enough history — before that the
-            expand toggle is the sole way in, same as today. */}
-        {data && tdee?.tdee != null ? (
-          <div className="health-tdee-head">
-            <span className="health-card-eyebrow">Active</span>
-            <span className="health-tdee-head-right">
-              {openTdeeTrend && (
-                <button
-                  type="button"
-                  className={`health-tdee-summary${energyExpanded ? " is-hidden" : ""}`}
-                  aria-label="View TDEE trend"
-                  onClick={openTdeeTrend}
-                >
-                  <span className="health-tdee-summary-label">TDEE</span>
-                  <MetricValue size="sm" unit="kcal">
-                    <AnimatedMetric value={tdee.tdee} decimals={0} />
-                  </MetricValue>
-                </button>
-              )}
-              <FreshnessTag
-                date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null}
-                kind="sync"
-                updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
-              />
-              <button
-                type="button"
-                className="health-tdee-toggle"
-                aria-expanded={energyExpanded}
-                aria-label="Show Resting and TDEE"
-                // A user tap opts into the scroll-to-bottom settle (reveal the
-                // model below the fold); a deep-link expand does not (see the
-                // settle effect). Ref, not state — it only gates the effect,
-                // never renders.
-                onClick={() => {
-                  settleToBottomRef.current = true;
-                  setEnergyExpanded((v) => !v);
-                }}
-              >
-                <span className={`health-energy-chevron${energyExpanded ? " is-open" : ""}`} aria-hidden>
-                  <svg width="13" height="8" viewBox="0 0 12 7" fill="none">
-                    <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              </button>
-            </span>
-          </div>
-        ) : (
-          <div className="health-tdee-head">
-            <span className="health-card-eyebrow">Active</span>
-            <span className="health-tdee-head-right">
-              {data && (
-                <FreshnessTag
-                  date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null}
-                  kind="sync"
-                  updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
-                />
-              )}
-            </span>
-          </div>
-        )}
+        {/* Same header grammar as every other card: eyebrow + freshness tag in
+            the corner, nothing else. */}
+        <div className="health-tdee-head">
+          <span className="health-card-eyebrow">Active</span>
+          {data && (
+            <FreshnessTag
+              date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null}
+              kind="sync"
+              updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
+            />
+          )}
+        </div>
         {!data ? (
           <>
             <div className="health-trend-head">
@@ -1393,33 +1291,35 @@ export function HealthPage() {
               <div className="health-trend-range">Last {ENERGY_BUCKET} days</div>
             </div>
 
-            {/* Resting + TDEE — the model behind the ring, revealed on tapping the
-                card, so Resting + Active = TDEE still visibly adds up. Always
-                mounted (not conditionally rendered) so the grid-rows collapse
-                can animate instead of the content just vanishing. */}
-            <div className={`health-energy-model-wrap${energyExpanded ? " is-open" : ""}`}>
-              <div className="health-energy-model">
-                <EnergyModelItem
-                  label="Resting"
-                  value={tdee.avgResting}
-                  window="30-day average"
-                  // 30-day average of resting energy — a slow metabolic drift,
-                  // no objective good direction (down = expected adaptation on a
-                  // cut), so the trend delta reads neutral. Only tappable once
-                  // there's enough history for a line.
-                  onOpen={
-                    restingFull.length >= 2
-                      ? () => openTrend({ label: "Resting", unit: " kcal", decimals: 0, color: "var(--accent)", points: restingFull, higherIsBetter: false, judgeDelta: false, celebrateExtreme: false, bucketDays: RESTING_BUCKET })
-                      : undefined
-                  }
-                />
-                <EnergyModelItem
-                  label="TDEE"
-                  value={tdee.tdee}
-                  window="resting + active"
-                  onOpen={openTdeeTrend}
-                />
-              </div>
+            {/* Resting + TDEE — the model behind the ring, in plain sight so
+                Resting + Active = TDEE adds up at a glance. Each item is its
+                own trend-sheet entry point, same "content is the tap target"
+                convention as the Active bars. */}
+            <div className="health-energy-model">
+              <EnergyModelItem
+                label="Resting"
+                value={tdee.avgResting}
+                window="30-day average"
+                // 30-day average of resting energy — a slow metabolic drift,
+                // no objective good direction (down = expected adaptation on a
+                // cut), so the trend delta reads neutral. Only tappable once
+                // there's enough history for a line.
+                onOpen={
+                  restingFull.length >= 2
+                    ? () => openTrend({ label: "Resting", unit: " kcal", decimals: 0, color: "var(--accent)", points: restingFull, higherIsBetter: false, judgeDelta: false, celebrateExtreme: false, bucketDays: RESTING_BUCKET })
+                    : undefined
+                }
+              />
+              <EnergyModelItem
+                label="TDEE"
+                value={tdee.tdee}
+                window="resting + active"
+                onOpen={
+                  tdeeFull.length >= 2
+                    ? () => openTrend({ label: "TDEE", unit: " kcal", decimals: 0, color: "var(--accent)", points: tdeeFull, higherIsBetter: true, judgeDelta: false, celebrateExtreme: false, bucketDays: ENERGY_BUCKET })
+                    : undefined
+                }
+              />
             </div>
           </>
         ) : (
