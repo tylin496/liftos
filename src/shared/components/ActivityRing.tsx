@@ -174,21 +174,19 @@ export function OverflowRing({
       `M ${c - rIn} ${c} a ${rIn} ${rIn} 0 1 0 ${rIn * 2} 0 a ${rIn} ${rIn} 0 1 0 ${-rIn * 2} 0 Z`,
     [c, rOut, rIn],
   );
-  // Contact-shadow radius. Clamped to the chord back to the lap's 12-o'clock
-  // start so a tiny overflow can't let the blob also darken the START cap
-  // ("two shadows" bug). Floor at 0.85×stroke — the ribbon's own rounded cap
-  // (radius stroke/2, same centre) would otherwise hide the shadow entirely.
-  const startX = c;
-  const startY = c - r;
-  const chord = Math.hypot(tailX - startX, tailY - startY);
-  const shR = Math.max(strokeWidth * 0.85, Math.min(strokeWidth * 1.05, chord * 0.6));
-  // Contact-shadow strength vs overflow amount. Two failure modes bracket this:
-  // full strength just past 100% reads as the tiny start pill floating detached
-  // above the ring (dark-mode "gap" bug), but fading from ZERO leaves the tip's
-  // overlap at 100–105% with no shadow at all, so the lap doesn't read as
-  // sitting on top. Floor at half strength the moment the ribbon exists, then
-  // ramp the rest in by ~6% over.
-  const shadowStrength = 0.5 + 0.5 * Math.min(1, overflowFrac / 0.06);
+  // Contact shadow: single-sided, cast AHEAD of the tip only. A blob centred on
+  // the tip rings the rounded cap with shadow on every side, which reads as a
+  // ball floating above the ring; instead the blob's centre is pushed forward
+  // along the direction of travel exactly far enough that the cap (radius
+  // stroke/2) hides everything behind it — what remains is a crescent on the
+  // base lap in front of the tip, like the cast shadow on Apple's activity
+  // rings. One-sided, it can run at full strength from the first overlap
+  // without the floating look, and it can never reach back to darken the
+  // 12-o'clock start cap.
+  const shR = strokeWidth;
+  const shOff = shR - strokeWidth / 2;
+  const shX = tailX + -Math.sin(tailAngle) * shOff;
+  const shY = tailY + Math.cos(tailAngle) * shOff;
   // Base lap + ribbon are ONE continuous comet that brightens ALONG the stroke
   // toward the leading tip (not a symmetric top/bottom sheen, which reads as a
   // vertical gradient). Think of a single spiral of length `spiralDeg`, dark at
@@ -274,9 +272,9 @@ export function OverflowRing({
           </mask>
           {/* Centred radial contact shadow (dark core → transparent). No SVG
              blur filter — iOS Safari drops those; the gradient IS the softness. */}
-          <radialGradient id={shadowGradId} gradientUnits="userSpaceOnUse" cx={tailX} cy={tailY} r={shR}>
-            <stop offset="0%" stopColor="#000" stopOpacity={0.82 * shadowStrength} />
-            <stop offset="60%" stopColor="#000" stopOpacity={0.52 * shadowStrength} />
+          <radialGradient id={shadowGradId} gradientUnits="userSpaceOnUse" cx={shX} cy={shY} r={shR}>
+            <stop offset="0%" stopColor="#000" stopOpacity={0.82} />
+            <stop offset="60%" stopColor="#000" stopOpacity={0.52} />
             <stop offset="100%" stopColor="#000" stopOpacity={0} />
           </radialGradient>
         </defs>
@@ -288,7 +286,7 @@ export function OverflowRing({
         {overflowFrac > 0.0006 && (
           <>
             <g mask={`url(#${bandClipId})`}>
-              <circle cx={tailX} cy={tailY} r={shR} fill={`url(#${shadowGradId})`} />
+              <circle cx={shX} cy={shY} r={shR} fill={`url(#${shadowGradId})`} />
             </g>
             <foreignObject x={0} y={0} width={size} height={size} mask={`url(#${ribbonMaskId})`}>
               <div style={{ width: "100%", height: "100%", background: ribbonFill }} />
