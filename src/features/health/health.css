@@ -62,42 +62,38 @@
   gap: var(--space-4);
 }
 
-/* Expand toggle — eyebrow + chevron, a real button reset to look like plain
-   header text. It's a SIBLING of the TDEE summary button (never its parent),
-   and flex:1 stretches it across the row's free middle so most of the header
-   still toggles; only the summary + freshness cluster on the right doesn't. */
+/* Expand toggle — the down-chevron riding right of the freshness tag, the
+   same corner slot as the trend cards' "›" (.health-trend-open). A real
+   button, kept a SIBLING of the TDEE summary button (never its parent) so
+   both stay valid interactive elements. */
 .health-tdee-toggle {
-  position: relative;
-  flex: 1;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
+  position: relative;
   border: none;
   background: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
+  padding: 0;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: opacity var(--dur-press) var(--ease-press);
 }
-/* Press feedback, matching the sibling reveal controls (.health-trend-open). */
+/* Press feedback, matching .health-trend-open. */
 .health-tdee-toggle:active { opacity: 0.7; }
 
-/* The header row is only ~20px tall but the toggle is the sole control that
-   reveals Resting/TDEE — extend the hit area vertically to ≥44px without
-   shifting the layout (flex:1 already covers the width; slop is vertical
-   only, so it can't creep under the TDEE summary's own tap slop). */
+/* The 13×8 chevron is the sole control that reveals Resting/TDEE — overflow
+   its hit area to ~44px, same slop shape as .health-trend-open. The
+   freshness tag it reaches under on the left isn't tappable, so the overlap
+   costs nothing. */
 .health-tdee-toggle::before {
   content: "";
   position: absolute;
-  inset: -12px 0;
+  top: -16px;
+  bottom: -16px;
+  left: -10px;
+  right: -8px;
 }
 
-/* Right cluster: TDEE summary (collapsed only) sits just left of the
-   freshness tag. */
+/* Right cluster: TDEE summary (collapsed only) · freshness tag · ⌄ toggle. */
 .health-tdee-head-right {
   display: inline-flex;
   align-items: center;

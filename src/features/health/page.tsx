@@ -1264,37 +1264,19 @@ export function HealthPage() {
         id="health-energy-card"
         className={`page-card health-energy${!data ? " loading-card" : ""}`}
       >
-        {/* Split header: eyebrow + chevron form the expand toggle (a real
-            <button>, Enter/Space for free), and the collapsed-state TDEE
-            summary is a SIBLING button — never nested inside the toggle, so
-            both stay valid interactive elements. The summary leaks the model's
-            headline number while Resting/TDEE are folded away and jumps
-            straight to the TDEE trend sheet; on expand it fades out (the model
-            row takes over) but keeps its slot so the freshness tag doesn't
-            shift. Only rendered once the trend has enough history — before
-            that the expand toggle is the sole way in, same as today. */}
+        {/* Header: plain eyebrow on the left; the right cluster is
+            [TDEE summary · freshness tag · ⌄ toggle], matching the trend
+            cards' "time + chevron in the corner" affordance. The toggle and
+            the summary are SIBLING buttons — never nested — so both stay
+            valid interactive elements. The summary leaks the model's headline
+            number while Resting/TDEE are folded away and jumps straight to
+            the TDEE trend sheet; on expand it fades out (the model row takes
+            over) but keeps its slot so the tag + chevron don't shift. Only
+            rendered once the trend has enough history — before that the
+            expand toggle is the sole way in, same as today. */}
         {data && tdee?.tdee != null ? (
           <div className="health-tdee-head">
-            <button
-              type="button"
-              className="health-tdee-toggle"
-              aria-expanded={energyExpanded}
-              // A user tap opts into the scroll-to-bottom settle (reveal the
-              // model below the fold); a deep-link expand does not (see the
-              // settle effect). Ref, not state — it only gates the effect,
-              // never renders.
-              onClick={() => {
-                settleToBottomRef.current = true;
-                setEnergyExpanded((v) => !v);
-              }}
-            >
-              <span className="health-card-eyebrow">Active</span>
-              <span className={`health-energy-chevron${energyExpanded ? " is-open" : ""}`} aria-hidden>
-                <svg width="13" height="8" viewBox="0 0 12 7" fill="none">
-                  <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-            </button>
+            <span className="health-card-eyebrow">Active</span>
             <span className="health-tdee-head-right">
               {openTdeeTrend && (
                 <button
@@ -1314,6 +1296,26 @@ export function HealthPage() {
                 kind="sync"
                 updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
               />
+              <button
+                type="button"
+                className="health-tdee-toggle"
+                aria-expanded={energyExpanded}
+                aria-label="Show Resting and TDEE"
+                // A user tap opts into the scroll-to-bottom settle (reveal the
+                // model below the fold); a deep-link expand does not (see the
+                // settle effect). Ref, not state — it only gates the effect,
+                // never renders.
+                onClick={() => {
+                  settleToBottomRef.current = true;
+                  setEnergyExpanded((v) => !v);
+                }}
+              >
+                <span className={`health-energy-chevron${energyExpanded ? " is-open" : ""}`} aria-hidden>
+                  <svg width="13" height="8" viewBox="0 0 12 7" fill="none">
+                    <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </button>
             </span>
           </div>
         ) : (
