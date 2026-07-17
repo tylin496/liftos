@@ -182,10 +182,13 @@ export function OverflowRing({
   const startY = c - r;
   const chord = Math.hypot(tailX - startX, tailY - startY);
   const shR = Math.max(strokeWidth * 0.85, Math.min(strokeWidth * 1.05, chord * 0.6));
-  // Fade the contact shadow IN with the overflow amount. Just past 100% the lap
-  // has barely lapped, so a full-strength shadow reads as the tiny start pill
-  // floating detached above the ring; ramp to full by ~6% over.
-  const shadowStrength = Math.min(1, overflowFrac / 0.06);
+  // Contact-shadow strength vs overflow amount. Two failure modes bracket this:
+  // full strength just past 100% reads as the tiny start pill floating detached
+  // above the ring (dark-mode "gap" bug), but fading from ZERO leaves the tip's
+  // overlap at 100–105% with no shadow at all, so the lap doesn't read as
+  // sitting on top. Floor at half strength the moment the ribbon exists, then
+  // ramp the rest in by ~6% over.
+  const shadowStrength = 0.5 + 0.5 * Math.min(1, overflowFrac / 0.06);
   // Base lap + ribbon are ONE continuous comet that brightens ALONG the stroke
   // toward the leading tip (not a symmetric top/bottom sheen, which reads as a
   // vertical gradient). Think of a single spiral of length `spiralDeg`, dark at
