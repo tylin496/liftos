@@ -3,7 +3,9 @@ import { scrollRevealClear } from "@app/layout/revealScroll";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
-import type { MuscleVolumeStat, WeeklyVolumeSession, WeeklyVolumeStat } from "./logic";
+import { ChartGlyph } from "./ExerciseCard";
+import { WeeklyVolumeTrendSheet } from "./WeeklyVolumeTrendSheet";
+import type { MuscleVolumeStat, WeeklyVolumeSession, WeeklyVolumeStat, WeeklyVolumeTrendPoint } from "./logic";
 import { SPLITS } from "./seed";
 import "./weeklyVolumeCard.css";
 
@@ -52,67 +54,93 @@ function SessionRow({ s }: { s: WeeklyVolumeSession }) {
 export function WeeklyVolumeCard({
   stat,
   muscle,
+  trend,
   nameBySlug,
   loading,
 }: {
   stat?: WeeklyVolumeStat;
   muscle?: MuscleVolumeStat[];
+  /** Maintained weekly totals for the trend sheet (computeWeeklyVolumeTrend). */
+  trend?: WeeklyVolumeTrendPoint[];
   /** slug → display name, for the muscle rows' contributing-lifts caption. */
   nameBySlug?: Map<string, string>;
   loading?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [trendOpen, setTrendOpen] = useState(false);
   const [view, setView] = useState<"split" | "muscle">("split");
   // Expanding can push the session breakdown behind the floating tabbar;
   // scrollRevealClear scrolls it clear in the same motion as the expand, only
   // when occluded. Opening only; called while still collapsed to measure the grow.
   const revealRef = useRef<HTMLDivElement>(null);
   const kg = stat?.avgWeekKg ?? 0;
+  const toggleOpen = () =>
+    setOpen((o) => { if (!o) scrollRevealClear(revealRef.current); return !o; });
 
-  const head = (
-    <>
+  /* "4-wk avg" in the eyebrow is the basis marker, not a caption — the
+     headline changed meaning from this-week total to trailing average, and
+     read-only viewers can't know that without it. Full basis stays in the
+     export. */
+  const eyebrow = <span className="page-eyebrow wv-eyebrow">Weekly Volume · 4-wk avg</span>;
+
+  const valueRow = (
+    <div className="wv-row">
+      <MetricValue size="lg" unit="kg/wk">
+        {loading ? (
+          "00,000"
+        ) : (
+          <HeadlineCountUp value={Math.round(kg)} format={(n) => n.toLocaleString()} />
+        )}
+      </MetricValue>
+      {!loading && (
+        <MetricDelta value={stat?.deltaPct} direction="up-good" unit="%" decimals={0} />
+      )}
+    </div>
+  );
+
+  if (loading || !stat) {
+    return (
+      <div className="page-card wv-card loading-card">
+        <div className="wv-top">{eyebrow}</div>
+        {valueRow}
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-card wv-card">
       <div className="wv-top">
-        {/* "4-wk avg" is the basis marker, not a caption — the headline changed
-            meaning from this-week total to trailing average, and read-only
-            viewers can't know that without it. Full basis stays in the export. */}
-        <span className="page-eyebrow wv-eyebrow">Weekly Volume · 4-wk avg</span>
-        {!loading && (
+        {/* Same affordance language as the exercise cards: title + chart glyph
+            opens the trend, so the two tap targets (trend vs disclosure) stay
+            siblings instead of nesting buttons. */}
+        <button
+          type="button"
+          className="wv-eyebrow-btn"
+          onClick={() => setTrendOpen(true)}
+          aria-label="Weekly volume — view trend"
+        >
+          {eyebrow}
+          <ChartGlyph className="wv-trend-glyph" />
+        </button>
+        {/* Pointer duplicate of the value-row toggle below (which carries the
+            accessible expanded state) — keeps the chevron corner tappable. */}
+        <button
+          type="button"
+          className="wv-chevron-btn"
+          onClick={toggleOpen}
+          tabIndex={-1}
+          aria-hidden="true"
+        >
           <svg
             className={`wv-chevron${open ? " open" : ""}`}
             width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"
           >
             <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-        )}
+        </button>
       </div>
-      <div className="wv-row">
-        <MetricValue size="lg" unit="kg/wk">
-          {loading ? (
-            "00,000"
-          ) : (
-            <HeadlineCountUp value={Math.round(kg)} format={(n) => n.toLocaleString()} />
-          )}
-        </MetricValue>
-        {!loading && (
-          <MetricDelta value={stat?.deltaPct} direction="up-good" unit="%" decimals={0} />
-        )}
-      </div>
-    </>
-  );
-
-  if (loading || !stat) {
-    return <div className="page-card wv-card loading-card">{head}</div>;
-  }
-
-  return (
-    <div className="page-card wv-card">
-      <button
-        type="button"
-        className="wv-head"
-        onClick={() => setOpen((o) => { if (!o) scrollRevealClear(revealRef.current); return !o; })}
-        aria-expanded={open}
-      >
-        {head}
+      <button type="button" className="wv-head" onClick={toggleOpen} aria-expanded={open}>
+        {valueRow}
       </button>
       <div ref={revealRef} className={`wv-reveal${open ? " open" : ""}`}>
         {/* Single grid child — the 0fr→1fr disclosure needs exactly one. */}
@@ -189,6 +217,14 @@ export function WeeklyVolumeCard({
         )}
         </div>
       </div>
+      {trend && (
+        <WeeklyVolumeTrendSheet
+          points={trend}
+          avgWeekKg={stat.avgWeekKg}
+          open={trendOpen}
+          onClose={() => setTrendOpen(false)}
+        />
+      )}
     </div>
   );
 }

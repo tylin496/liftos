@@ -23,7 +23,7 @@ import {
   ExerciseCard,
   useToast,
 } from "./ExerciseCard";
-import { computeStats, computeWeeklyVolume, computeMuscleWeeklyVolume } from "./logic";
+import { computeStats, computeWeeklyVolume, computeMuscleWeeklyVolume, computeWeeklyVolumeTrend } from "./logic";
 import { inferMuscleGroup, resolveMuscleBySlug } from "./muscleGroup";
 import { StrengthHealthCard } from "./StrengthHealthCard";
 import { WeeklyVolumeCard } from "./WeeklyVolumeCard";
@@ -1006,6 +1006,7 @@ function TrainingPageInner() {
         muscleBySlug.get(ex.slug) ??
         inferMuscleGroup(namesBySlug[ex.slug] ?? ex.slug, ex.slug, ex.split),
       ),
+      trend: computeWeeklyVolumeTrend(logs, roster, today),
     };
   }, [logs, exercises, muscleBySlug]);
 
@@ -1229,6 +1230,7 @@ function TrainingPageInner() {
       <WeeklyVolumeCard
         stat={exercises ? weeklyVolume.stat : undefined}
         muscle={exercises ? weeklyVolume.muscle : undefined}
+        trend={exercises ? weeklyVolume.trend : undefined}
         nameBySlug={nameBySlug}
         loading={!exercises}
       />

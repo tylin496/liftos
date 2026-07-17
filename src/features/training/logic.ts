@@ -589,15 +589,21 @@ const WINDOW_WEEKS = 4;
  *  ≤WINDOW_WEEKS before those (the delta baseline). Both are clipped to
  *  history: weeks before the user's first log carry no signal and would only
  *  dilute the averages. */
-function trailingWindows(
-  logs: Record<string, TrainingLog[]>,
-  thisWeekStart: string,
-): { window: string[]; prev: string[] } {
+/** Monday of the week holding the user's earliest log — history's left edge;
+ *  weeks before it carry no signal. `fallback` when there are no logs at all. */
+function firstLogWeek(logs: Record<string, TrainingLog[]>, fallback: string): string {
   let firstDate: string | null = null;
   for (const arr of Object.values(logs))
     for (const l of arr)
       if (l.log_date && (firstDate === null || l.log_date < firstDate)) firstDate = l.log_date;
-  const firstWeek = firstDate ? weekStartMonday(firstDate) : thisWeekStart;
+  return firstDate ? weekStartMonday(firstDate) : fallback;
+}
+
+function trailingWindows(
+  logs: Record<string, TrainingLog[]>,
+  thisWeekStart: string,
+): { window: string[]; prev: string[] } {
+  const firstWeek = firstLogWeek(logs, thisWeekStart);
 
   const window: string[] = [];
   const prev: string[] = [];
@@ -793,4 +799,42 @@ export function computeMuscleWeeklyVolume(
       };
     })
     .sort((a, b) => b.avgWeekSets - a.avgWeekSets || a.group.localeCompare(b.group));
+}
+
+/** One bar of the Weekly Volume trend sheet. */
+export interface WeeklyVolumeTrendPoint {
+  weekStart: string; // Monday, YYYY-MM-DD
+  /** Maintained weekly total — the same 沒記就是維持 basis as avgWeekKg. */
+  kg: number;
+  /** ≥1 actual log that week. false = the whole week is carried forward —
+   *  maintained is honest, but it isn't a record, so the chart dims it. */
+  logged: boolean;
+}
+
+/**
+ * The last ≤`weeks` completed Mon–Sun weeks of maintained weekly volume,
+ * oldest-first — the trend sheet's series. Clipped to history like the
+ * averaging windows; the in-progress week is excluded for the same reason it
+ * stays out of avgWeekKg (a partial bar reads as a crash).
+ */
+export function computeWeeklyVolumeTrend(
+  logs: Record<string, TrainingLog[]>,
+  roster: WeeklyVolumeExercise[],
+  today: string,
+  weeks = 12,
+): WeeklyVolumeTrendPoint[] {
+  const thisWeekStart = weekStartMonday(today);
+  const firstWeek = firstLogWeek(logs, thisWeekStart);
+  const rowsCache = new Map<string, WeekRow[]>();
+  const out: WeeklyVolumeTrendPoint[] = [];
+  for (let i = weeks; i >= 1; i--) {
+    const w = addDays(thisWeekStart, -7 * i);
+    if (w < firstWeek) continue;
+    out.push({
+      weekStart: w,
+      kg: maintainedWeekRows(logs, roster, w, rowsCache).reduce((s, r) => s + r.volumeKg, 0),
+      logged: weekExerciseRows(logs, roster, w).length > 0,
+    });
+  }
+  return out;
 }

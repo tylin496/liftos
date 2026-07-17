@@ -81,7 +81,7 @@ describe("classifyPR — score mode", () => {
 
 // ─── computeWeeklyVolume ─────────────────────────────────────────────────────
 
-import { computeWeeklyVolume, computeMuscleWeeklyVolume } from "./logic";
+import { computeWeeklyVolume, computeMuscleWeeklyVolume, computeWeeklyVolumeTrend } from "./logic";
 import type { TrainingLog } from "./api";
 
 // Minimal log builder — computeWeeklyVolume only reads log_date + raw (via
@@ -204,6 +204,26 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     expect(stat.avgWeekKg).toBe(1000); // = thisWeekKg
     expect(stat.deltaPct).toBeNull();
     expect(stat.lastWeekSessions).toEqual([]);
+  });
+});
+
+describe("computeWeeklyVolumeTrend — maintained weekly bars", () => {
+  it("carries unlogged weeks at the last logged shape, flagged as not logged", () => {
+    const logs = {
+      row: [vlog("2026-06-29", "120*10"), vlog("2026-06-15", "100*10")],
+      curl: [],
+    };
+    const trend = computeWeeklyVolumeTrend(logs, pullRoster, TODAY);
+    // Clipped to history: series starts at the first logged week.
+    expect(trend.map((p) => p.weekStart)).toEqual(["2026-06-15", "2026-06-22", "2026-06-29"]);
+    expect(trend.map((p) => p.kg)).toEqual([1000, 1000, 1200]); // 6/22 maintained
+    expect(trend.map((p) => p.logged)).toEqual([true, false, true]);
+  });
+
+  it("excludes the in-progress week", () => {
+    const logs = { row: [vlog("2026-07-08", "100*10"), vlog("2026-06-29", "90*10")], curl: [] };
+    const trend = computeWeeklyVolumeTrend(logs, pullRoster, TODAY); // week of 7/6 in progress
+    expect(trend.map((p) => p.weekStart)).toEqual(["2026-06-29"]);
   });
 });
 

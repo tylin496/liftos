@@ -57,8 +57,9 @@ function AnimatedWeight({ value }: { value: number }) {
 
 
 /* Tiny rising-bars glyph next to the exercise name — signals the title opens a
-   trend chart without spending a full row on the affordance. */
-function ChartGlyph({ className }: { className?: string }) {
+   trend chart without spending a full row on the affordance. (Exported: the
+   Weekly Volume card reuses it as the same open-a-trend cue.) */
+export function ChartGlyph({ className }: { className?: string }) {
   return (
     <svg className={className} width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden focusable="false">
       <path d="M1.5 11.5V7.5M5 11.5V4M8.5 11.5V6M12 11.5V2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />

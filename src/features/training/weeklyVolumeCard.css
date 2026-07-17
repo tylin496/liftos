@@ -34,6 +34,57 @@
   margin-bottom: 0;
 }
 
+/* Eyebrow + chart glyph = the trend affordance, same language as the exercise
+   cards' name button (bare button, glyph is the visible cue, ::before grows
+   the hit area without changing the visible row). */
+.wv-eyebrow-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wv-eyebrow-btn::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  bottom: -10px;
+  left: -8px;
+  right: 0;
+}
+
+.wv-eyebrow-btn:active .wv-eyebrow,
+.wv-eyebrow-btn:active .wv-trend-glyph {
+  opacity: 0.6;
+}
+
+.wv-trend-glyph {
+  flex-shrink: 0;
+  color: var(--accent);
+  transition: opacity var(--dur-press) ease;
+}
+
+/* Chevron corner stays tappable as a pointer-duplicate of the head toggle. */
+.wv-chevron-btn {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: var(--space-1);
+  border: none;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .wv-chevron {
   color: var(--ink-4);
   flex-shrink: 0;
@@ -185,4 +236,60 @@
 
 .wv-card.loading-card .metric-unit {
   visibility: hidden;
+}
+
+/* ── Trend sheet: weekly bars ─────────────────────────────────────────────────
+   Maintained weekly totals (same basis as the card's average). Sheet chrome +
+   stat row reuse the settings-sheet / trend-* classes in training.css; only
+   the bar chart itself lives here. */
+
+.wvt-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  /* Same fixed chart height as .trend-chart — the sheet's one shared magic
+     number for plot area. */
+  height: 130px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.wvt-bar {
+  flex: 1;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0; /* ≤4px graphic detail */
+}
+
+/* Fully carried-forward weeks (no log at all): maintained, not recorded —
+   same mark, faded back, so gaps never read as crashes OR as evidence. */
+.wvt-bar--carried {
+  opacity: 0.35;
+}
+
+.wvt-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+}
+
+.wvt-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-2);
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
+}
+
+.wvt-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px; /* ≤4px graphic detail */
+  background: var(--accent);
+}
+
+.wvt-legend-swatch--carried {
+  opacity: 0.35;
 }
