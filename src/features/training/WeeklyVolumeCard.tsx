@@ -45,9 +45,10 @@ function SessionRow({ s, ahead }: { s: WeeklyVolumeSession; ahead?: boolean }) {
    completing each trained split's roster via carry-forward (see
    computeWeeklyVolume). More volume is the goal, so the delta is up-good.
    Tapping the card discloses the breakdown with a Split ⇄ Muscle toggle:
-   per-session rows (date · split · kg) or per-muscle-group totals with their
-   own pace-matched deltas — the same rows re-bucketed (computeMuscleWeeklyVolume),
-   so the two views always sum to the same week. */
+   per-session rows (date · split · kg) or per-muscle-group weekly SET counts
+   with their own pace-matched ±set deltas — the same carry-forward rows
+   re-bucketed (computeMuscleWeeklyVolume), but counted in sets because kg
+   isn't comparable across muscle groups. */
 export function WeeklyVolumeCard({
   stat,
   muscle,
@@ -127,10 +128,14 @@ export function WeeklyVolumeCard({
             {muscle.map((m) => (
               <div className="wv-srow" key={m.group}>
                 <span className="wv-srow-split">{muscleLabel(m.group)}</span>
-                {/* Same pace-matched, up-good delta language as the card head —
-                    null (no last-week baseline) renders nothing. */}
-                <MetricDelta value={m.deltaPct} direction="up-good" unit="%" decimals={0} />
-                <span className="wv-srow-vol">{Math.round(m.thisWeekKg).toLocaleString()}</span>
+                {/* Pace-matched and up-good like the card head, but in absolute
+                    ±sets (counts are small — % amplifies ±1-set noise). null
+                    (no last-week baseline) renders nothing. */}
+                <MetricDelta value={m.deltaSets} direction="up-good" />
+                <span className="wv-srow-vol">
+                  {m.thisWeekSets}
+                  <span className="wv-srow-unit">{m.thisWeekSets === 1 ? " set" : " sets"}</span>
+                </span>
               </div>
             ))}
           </div>

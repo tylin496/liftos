@@ -166,47 +166,60 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
   });
 });
 
-describe("computeMuscleWeeklyVolume — same rows, muscle buckets", () => {
+describe("computeMuscleWeeklyVolume — same rows, muscle buckets, counted in sets", () => {
   const muscleOf = (ex: { slug: string }) => (ex.slug === "row" ? "back" : "biceps");
 
-  it("re-buckets the split view's rows so the totals reconcile", () => {
+  it("credits the configured set count per trained session, carry-forward included", () => {
+    const roster = [
+      { slug: "row", split: "pull", setCount: 3, assistedMode: false },
+      { slug: "curl", split: "pull", setCount: 2, assistedMode: false },
+    ];
     const logs = {
+      // Last week (Tue 6/30): both logged. This week (Wed 7/8): only row —
+      // curl carries forward and still counts its configured 2 sets.
       row: [vlog("2026-07-08", "110*10"), vlog("2026-06-30", "100*10")],
       curl: [vlog("2026-06-30", "50*10")],
     };
-    const split = computeWeeklyVolume(logs, pullRoster, TODAY);
-    const muscle = computeMuscleWeeklyVolume(logs, pullRoster, TODAY, muscleOf);
-    // Sorted by this-week volume, and the group totals sum to the split total.
-    expect(muscle.map((m) => m.group)).toEqual(["back", "biceps"]);
-    expect(muscle.reduce((s, m) => s + m.thisWeekKg, 0)).toBe(split.thisWeekKg);
+    const muscle = computeMuscleWeeklyVolume(logs, roster, TODAY, muscleOf);
+    expect(muscle.map((m) => m.group)).toEqual(["back", "biceps"]); // sorted by this-week sets
     const back = muscle.find((m) => m.group === "back")!;
-    expect(back.thisWeekKg).toBe(1100); // logged row
-    expect(back.lastWeekKg).toBe(1000);
+    expect(back.thisWeekSets).toBe(3);
+    expect(back.lastWeekSets).toBe(3);
     expect(back.slugs).toEqual(["row"]);
-    // Carried-forward curl still credits biceps this week.
-    expect(muscle.find((m) => m.group === "biceps")!.thisWeekKg).toBe(500);
+    const biceps = muscle.find((m) => m.group === "biceps")!;
+    expect(biceps.thisWeekSets).toBe(2); // carried curl still credits biceps
+    expect(biceps.slugs).toEqual(["curl"]);
   });
 
-  it("pace-matches each group's delta like the split view", () => {
-    // today Mon 7/13: last week trained Mon 7/6 + Wed 7/8 — only Monday counts.
+  it("pace-matches each group's delta in absolute sets", () => {
+    // today Fri 7/10: this week trained Mon 7/6 + Wed 7/8 (2 sets at setCount 1).
+    // Last week trained Mon 6/29 + Sat 7/4; the weekday cutoff (Fri 7/3) only
+    // reaches 6/29, so the baseline is 1 set → delta +1, not 0.
     const logs = {
-      row: [vlog("2026-07-13", "100*10"), vlog("2026-07-08", "90*10"), vlog("2026-07-06", "80*10")],
-      curl: [vlog("2026-07-13", "50*10"), vlog("2026-07-06", "40*10")],
+      row: [
+        vlog("2026-07-08", "100*10"),
+        vlog("2026-07-06", "100*10"),
+        vlog("2026-07-04", "90*10"),
+        vlog("2026-06-29", "90*10"),
+      ],
+      curl: [],
     };
-    const back = computeMuscleWeeklyVolume(logs, pullRoster, "2026-07-13", muscleOf).find(
+    const back = computeMuscleWeeklyVolume(logs, pullRoster, TODAY, muscleOf).find(
       (m) => m.group === "back",
     )!;
-    expect(back.thisWeekKg).toBe(1000);
-    expect(back.lastWeekKg).toBe(800 + 900); // both sessions
-    expect(back.lastWeekKgToDate).toBe(800); // through Monday only
-    expect(back.deltaPct).toBeCloseTo(((1000 - 800) / 800) * 100, 5);
+    expect(back.thisWeekSets).toBe(2);
+    expect(back.lastWeekSets).toBe(2); // both sessions
+    expect(back.lastWeekSetsToDate).toBe(1); // through Fri 7/3 → 6/29 only
+    expect(back.deltaSets).toBe(1);
   });
 
-  it("omits groups with no volume in either week and reports null deltas", () => {
-    const logs = { row: [vlog("2026-07-08", "100*10")], curl: [] };
+  it("counts sets for zero-tonnage logs the kg view can't see, omits absent groups", () => {
+    // Unparseable raw → volumeKg 0, but the session happened → sets count.
+    const logs = { row: [vlog("2026-07-08", "felt strong")], curl: [] };
     const muscle = computeMuscleWeeklyVolume(logs, pullRoster, TODAY, muscleOf);
     expect(muscle.map((m) => m.group)).toEqual(["back"]); // curl never logged → no biceps
-    expect(muscle[0].deltaPct).toBeNull();
+    expect(muscle[0].thisWeekSets).toBe(1);
+    expect(muscle[0].deltaSets).toBeNull(); // no last-week presence → no baseline
   });
 });
 

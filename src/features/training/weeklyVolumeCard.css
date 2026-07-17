@@ -125,6 +125,12 @@
   color: var(--ink);
 }
 
+/* Muscle-view rows count sets while the card head speaks kg — the per-row
+   unit is what disambiguates, so it stays attached but recedes. */
+.wv-srow-unit {
+  color: var(--ink-4);
+}
+
 /* Last-week header carries the section's total so it stands beside the label
    the delta is comparing against. */
 .wv-sect {

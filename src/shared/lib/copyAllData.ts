@@ -527,9 +527,10 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     };
   });
 
-  // Per-muscle weekly tonnage — the SAME derivation the Weekly Volume card's
-  // muscle view uses (computeMuscleWeeklyVolume re-buckets computeWeeklyVolume's
-  // carry-forward rows), never re-derived here. Pace-matched deltas included.
+  // Per-muscle weekly working sets — the SAME derivation the Weekly Volume
+  // card's muscle view uses (computeMuscleWeeklyVolume re-buckets
+  // computeWeeklyVolume's carry-forward rows), never re-derived here. Sets, not
+  // kg: tonnage isn't comparable across muscle groups. Pace-matched deltas.
   const volumeRoster = exercises
     .filter((e) => !e.archived)
     .map((e) => ({ slug: e.slug, split: e.split, setCount: defaultSetCount(e), assistedMode: !!e.assisted_mode }));
@@ -542,13 +543,13 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       inferMuscleGroup(nameBySlug.get(ex.slug) ?? ex.slug, ex.slug, ex.split),
   ).map((m) => ({
     group: m.group,
-    thisWeekKg: Math.round(m.thisWeekKg),
-    lastWeekKg: Math.round(m.lastWeekKg),
-    // deltaPct's actual baseline — last week UP TO today's weekday, not the full
-    // lastWeekKg. Without it exported, every reader recomputes this/last and
-    // concludes deltaPct is wrong.
-    lastWeekKgToDate: Math.round(m.lastWeekKgToDate),
-    deltaPct: m.deltaPct != null ? +m.deltaPct.toFixed(1) : null,
+    thisWeekSets: m.thisWeekSets,
+    lastWeekSets: m.lastWeekSets,
+    // deltaSets' actual baseline — last week UP TO today's weekday, not the full
+    // lastWeekSets. Without it exported, every reader recomputes this/last and
+    // concludes deltaSets is wrong.
+    lastWeekSetsToDate: m.lastWeekSetsToDate,
+    deltaSets: m.deltaSets,
   }));
 
   const insights = {
@@ -576,8 +577,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       muscleSummary,
       // Muscle-level fatigue clusters (systemic only) — empty when nothing lines up.
       muscleFatigue,
-      // This calendar week's tonnage per muscle group (Mon-anchored, carry-forward,
-      // pace-matched delta) — the progression-input read a bulk is steered by.
+      // This calendar week's working sets per muscle group (Mon-anchored,
+      // carry-forward, pace-matched ±set delta) — the progression-input read a
+      // bulk is steered by.
       muscleWeeklyVolume,
     },
   };

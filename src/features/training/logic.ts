@@ -638,27 +638,32 @@ export function computeWeeklyVolume(
   };
 }
 
-/** Weekly volume re-bucketed by muscle group instead of split. */
+/** Weekly working sets re-bucketed by muscle group instead of split. */
 export interface MuscleVolumeStat {
   /** Muscle group name (inferMuscleGroup output via the caller's muscleOf). */
   group: string;
-  thisWeekKg: number;
+  thisWeekSets: number;
   /** Pace-matched baseline (same weekday cutoff as WeeklyVolumeStat). */
-  lastWeekKgToDate: number;
-  lastWeekKg: number;
-  /** % change, pace-matched; null when last week has no comparable baseline. */
-  deltaPct: number | null;
-  /** Distinct slugs contributing volume this week — the drill-down evidence. */
+  lastWeekSetsToDate: number;
+  lastWeekSets: number;
+  /** Set change vs the pace-matched baseline — absolute, not %: the counts are
+   *  small, so % would just amplify ±1-set noise. null when the group has no
+   *  last-week sets at all (nothing to compare against). */
+  deltaSets: number | null;
+  /** Distinct slugs contributing sets this week — the drill-down evidence. */
   slugs: string[];
 }
 
 /**
- * Weekly training volume PER MUSCLE GROUP — the same sessions, carry-forward
- * and pace-matched comparison as computeWeeklyVolume (it literally re-buckets
- * the same per-exercise rows), so the muscle view's total always equals the
- * split view's. `muscleOf` maps a roster exercise to its group (callers build
- * it from inferMuscleGroup — no schema, inference only). Groups are returned
- * sorted by this week's volume, groups with zero volume in BOTH weeks omitted.
+ * Weekly working SETS per muscle group — the same sessions, carry-forward and
+ * pace-matched comparison as computeWeeklyVolume (it re-buckets the same
+ * per-exercise rows), but counted in sets, not kg: tonnage isn't comparable
+ * across muscle groups (leg loads dwarf arm loads regardless of effort), while
+ * sets-per-muscle-per-week is the unit programming actually speaks. Sets also
+ * credit zero-tonnage rows (bodyweight / unparseable logs) that the kg view
+ * can't see. `muscleOf` maps a roster exercise to its group (callers build it
+ * from inferMuscleGroup — no schema, inference only). Groups are returned
+ * sorted by this week's sets, groups with zero sets in BOTH weeks omitted.
  */
 export function computeMuscleWeeklyVolume(
   logs: Record<string, TrainingLog[]>,
@@ -673,34 +678,33 @@ export function computeMuscleWeeklyVolume(
 
   const groups = new Map<
     string,
-    { thisWeekKg: number; lastWeekKg: number; lastWeekKgToDate: number; slugs: Set<string> }
+    { thisWeekSets: number; lastWeekSets: number; lastWeekSetsToDate: number; slugs: Set<string> }
   >();
   const bucket = (group: string) => {
-    const g = groups.get(group) ?? { thisWeekKg: 0, lastWeekKg: 0, lastWeekKgToDate: 0, slugs: new Set<string>() };
+    const g = groups.get(group) ?? { thisWeekSets: 0, lastWeekSets: 0, lastWeekSetsToDate: 0, slugs: new Set<string>() };
     groups.set(group, g);
     return g;
   };
   for (const r of weekExerciseRows(logs, roster, thisWeekStart)) {
     const g = bucket(muscleOf(r.ex));
-    g.thisWeekKg += r.volumeKg;
-    if (r.volumeKg > 0) g.slugs.add(r.ex.slug);
+    g.thisWeekSets += r.ex.setCount;
+    g.slugs.add(r.ex.slug);
   }
   for (const r of weekExerciseRows(logs, roster, lastWeekStart)) {
     const g = bucket(muscleOf(r.ex));
-    g.lastWeekKg += r.volumeKg;
-    if (r.date <= lastWeekCutoff) g.lastWeekKgToDate += r.volumeKg;
+    g.lastWeekSets += r.ex.setCount;
+    if (r.date <= lastWeekCutoff) g.lastWeekSetsToDate += r.ex.setCount;
   }
 
   return [...groups.entries()]
-    .filter(([, g]) => g.thisWeekKg > 0 || g.lastWeekKg > 0)
+    .filter(([, g]) => g.thisWeekSets > 0 || g.lastWeekSets > 0)
     .map(([group, g]) => ({
       group,
-      thisWeekKg: g.thisWeekKg,
-      lastWeekKg: g.lastWeekKg,
-      lastWeekKgToDate: g.lastWeekKgToDate,
-      deltaPct:
-        g.lastWeekKgToDate > 0 ? ((g.thisWeekKg - g.lastWeekKgToDate) / g.lastWeekKgToDate) * 100 : null,
+      thisWeekSets: g.thisWeekSets,
+      lastWeekSets: g.lastWeekSets,
+      lastWeekSetsToDate: g.lastWeekSetsToDate,
+      deltaSets: g.lastWeekSets > 0 ? g.thisWeekSets - g.lastWeekSetsToDate : null,
       slugs: [...g.slugs],
     }))
-    .sort((a, b) => b.thisWeekKg - a.thisWeekKg);
+    .sort((a, b) => b.thisWeekSets - a.thisWeekSets || a.group.localeCompare(b.group));
 }
