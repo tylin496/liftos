@@ -17,10 +17,6 @@ function fmtSessionDate(dateStr: string): string {
   return `${wd} ${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-function weekdayShort(dateStr: string): string {
-  return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
-}
-
 // inferMuscleGroup emits lowercase keys ("chest", "unknown") — display-case
 // them here; "unknown" reads as Other (an inference gap, not a muscle).
 function muscleLabel(group: string): string {
@@ -28,12 +24,15 @@ function muscleLabel(group: string): string {
   return group.charAt(0).toUpperCase() + group.slice(1);
 }
 
-// `ahead` marks a last-week session that's later in the week than today — it's
-// listed for context but not yet part of the pace-matched comparison, so it's
-// dimmed to keep the delta's denominator legible.
-function SessionRow({ s, ahead }: { s: WeeklyVolumeSession; ahead?: boolean }) {
+// Whole averages print bare ("6"), fractional ones keep a single decimal
+// ("5.5") — more digits would overstate what a 4-week average can resolve.
+function fmtAvgSets(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+function SessionRow({ s }: { s: WeeklyVolumeSession }) {
   return (
-    <div className={`wv-srow${ahead ? " wv-srow--ahead" : ""}`}>
+    <div className="wv-srow">
       <span className="wv-srow-date">{fmtSessionDate(s.date)}</span>
       <span className="wv-srow-split">{SPLIT_NAME[s.split] ?? s.split}</span>
       <span className="wv-srow-vol">{Math.round(s.volumeKg).toLocaleString()}</span>
@@ -41,14 +40,15 @@ function SessionRow({ s, ahead }: { s: WeeklyVolumeSession; ahead?: boolean }) {
   );
 }
 
-/* Weekly training volume — total kg lifted this calendar week (Mon-anchored),
-   completing each trained split's roster via carry-forward (see
-   computeWeeklyVolume). More volume is the goal, so the delta is up-good.
+/* Weekly training volume — average kg per week over the trailing ≤4 completed
+   Mon–Sun weeks, completing each trained split's roster via carry-forward
+   (see computeWeeklyVolume). The delta judges that average against the
+   previous window's (up-good) — week-vs-week was too noisy to steer by.
    Tapping the card discloses the breakdown with a Split ⇄ Muscle toggle:
-   per-session rows (date · split · kg) or per-muscle-group weekly SET counts
-   with their own pace-matched ±set deltas — the same carry-forward rows
-   re-bucketed (computeMuscleWeeklyVolume), but counted in sets because kg
-   isn't comparable across muscle groups. */
+   this/last week's per-session rows (date · split · kg) or per-muscle-group
+   average weekly SET counts — the same carry-forward rows re-bucketed
+   (computeMuscleWeeklyVolume), but counted in sets because kg isn't
+   comparable across muscle groups. */
 export function WeeklyVolumeCard({
   stat,
   muscle,
@@ -64,7 +64,7 @@ export function WeeklyVolumeCard({
   // scrollRevealClear scrolls it clear in the same motion as the expand, only
   // when occluded. Opening only; called while still collapsed to measure the grow.
   const revealRef = useRef<HTMLDivElement>(null);
-  const kg = stat?.thisWeekKg ?? 0;
+  const kg = stat?.avgWeekKg ?? 0;
 
   const head = (
     <>
@@ -80,7 +80,7 @@ export function WeeklyVolumeCard({
         )}
       </div>
       <div className="wv-row">
-        <MetricValue size="lg" unit="kg">
+        <MetricValue size="lg" unit="kg/wk">
           {loading ? (
             "00,000"
           ) : (
@@ -128,48 +128,48 @@ export function WeeklyVolumeCard({
             {muscle.map((m) => (
               <div className="wv-srow" key={m.group}>
                 <span className="wv-srow-split">{muscleLabel(m.group)}</span>
-                {/* Pace-matched and up-good like the card head, but in absolute
-                    ±sets (counts are small — % amplifies ±1-set noise). null
-                    (no last-week baseline) renders nothing. */}
-                <MetricDelta value={m.deltaSets} direction="up-good" />
+                {/* vs the previous window's average, up-good like the card
+                    head, but in absolute ±sets (counts are small — % amplifies
+                    sub-set noise). null (no prior window) renders nothing. */}
+                <MetricDelta value={m.deltaSets} direction="up-good" decimals={1} />
                 <span className="wv-srow-vol">
-                  {m.thisWeekSets}
-                  <span className="wv-srow-unit">{m.thisWeekSets === 1 ? " set" : " sets"}</span>
+                  {fmtAvgSets(m.avgWeekSets)}
+                  <span className="wv-srow-unit">
+                    {m.avgWeekSets === 1 ? " set/wk" : " sets/wk"}
+                  </span>
                 </span>
               </div>
             ))}
           </div>
         ) : (
           <div className="wv-sessions">
+            {/* The headline is a trailing average, so the current week lives
+                here: labelled section totals, this week then last. */}
+            <div className="wv-sect">
+              <span className="wv-sect-label">This week</span>
+              <span className="wv-sect-total">
+                {Math.round(stat.thisWeekKg).toLocaleString()}
+              </span>
+            </div>
             {stat.thisWeekSessions.length === 0 && (
               <span className="wv-empty">No sessions yet this week</span>
             )}
             {stat.thisWeekSessions.map((s) => (
               <SessionRow key={`${s.split}-${s.date}`} s={s} />
             ))}
-            {stat.lastWeekSessions.length > 0 && (() => {
-              // Part-way through the week the delta compares against last week
-              // *through the same weekday*, so the section total mirrors that
-              // pace-matched baseline (later sessions dimmed below). Once the week
-              // is complete the cutoff covers everything — plain full total.
-              const hasAhead = stat.lastWeekSessions.some((s) => s.date > stat.lastWeekCutoff);
-              const sectTotal = hasAhead ? stat.lastWeekKgToDate : stat.lastWeekKg;
-              return (
-                <>
-                  <div className="wv-sect">
-                    <span className="wv-sect-label">
-                      Last week{hasAhead ? ` · through ${weekdayShort(stat.lastWeekCutoff)}` : ""}
-                    </span>
-                    <span className="wv-sect-total">
-                      {Math.round(sectTotal).toLocaleString()}
-                    </span>
-                  </div>
-                  {stat.lastWeekSessions.map((s) => (
-                    <SessionRow key={`${s.split}-${s.date}`} s={s} ahead={s.date > stat.lastWeekCutoff} />
-                  ))}
-                </>
-              );
-            })()}
+            {stat.lastWeekSessions.length > 0 && (
+              <>
+                <div className="wv-sect">
+                  <span className="wv-sect-label">Last week</span>
+                  <span className="wv-sect-total">
+                    {Math.round(stat.lastWeekKg).toLocaleString()}
+                  </span>
+                </div>
+                {stat.lastWeekSessions.map((s) => (
+                  <SessionRow key={`${s.split}-${s.date}`} s={s} />
+                ))}
+              </>
+            )}
           </div>
         )}
         </div>

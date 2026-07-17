@@ -527,13 +527,16 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     };
   });
 
-  // Per-muscle weekly working sets — the SAME derivation the Weekly Volume
-  // card's muscle view uses (computeMuscleWeeklyVolume re-buckets
+  // Per-muscle average weekly working sets — the SAME derivation the Weekly
+  // Volume card's muscle view uses (computeMuscleWeeklyVolume re-buckets
   // computeWeeklyVolume's carry-forward rows), never re-derived here. Sets, not
-  // kg: tonnage isn't comparable across muscle groups. Pace-matched deltas.
+  // kg: tonnage isn't comparable across muscle groups.
   const volumeRoster = exercises
     .filter((e) => !e.archived)
     .map((e) => ({ slug: e.slug, split: e.split, setCount: defaultSetCount(e), assistedMode: !!e.assisted_mode }));
+  // Window averages divide by 3s and 4s — round at the export boundary like
+  // roundRecovery does, so the JSON doesn't carry float noise.
+  const round1 = (v: number) => +v.toFixed(1);
   const muscleWeeklyVolume = computeMuscleWeeklyVolume(
     logsBySlug,
     volumeRoster,
@@ -543,13 +546,15 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       inferMuscleGroup(nameBySlug.get(ex.slug) ?? ex.slug, ex.slug, ex.split),
   ).map((m) => ({
     group: m.group,
-    thisWeekSets: m.thisWeekSets,
-    lastWeekSets: m.lastWeekSets,
-    // deltaSets' actual baseline — last week UP TO today's weekday, not the full
-    // lastWeekSets. Without it exported, every reader recomputes this/last and
-    // concludes deltaSets is wrong.
-    lastWeekSetsToDate: m.lastWeekSetsToDate,
-    deltaSets: m.deltaSets,
+    // Basis: average working sets per week over the trailing ≤4 *completed*
+    // Mon–Sun weeks (clipped to history; the in-progress week is excluded so a
+    // partial week never dilutes the average). deltaSets = avgWeekSets −
+    // prevAvgWeekSets (the ≤4 completed weeks before those); prevAvgWeekSets
+    // null = no prior window yet. Without the baseline exported, every reader
+    // recomputes a single week and concludes deltaSets is wrong.
+    avgWeekSets: round1(m.avgWeekSets),
+    prevAvgWeekSets: m.prevAvgWeekSets === null ? null : round1(m.prevAvgWeekSets),
+    deltaSets: m.deltaSets === null ? null : round1(m.deltaSets),
   }));
 
   const insights = {
@@ -577,9 +582,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       muscleSummary,
       // Muscle-level fatigue clusters (systemic only) — empty when nothing lines up.
       muscleFatigue,
-      // This calendar week's working sets per muscle group (Mon-anchored,
-      // carry-forward, pace-matched ±set delta) — the progression-input read a
-      // bulk is steered by.
+      // Average working sets per muscle group per week over the trailing ≤4
+      // completed Mon–Sun weeks (carry-forward; delta vs the previous window)
+      // — the progression-input read a bulk is steered by.
       muscleWeeklyVolume,
     },
   };

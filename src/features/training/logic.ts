@@ -471,21 +471,22 @@ export interface WeeklyVolumeSession {
 }
 
 export interface WeeklyVolumeStat {
-  /** Total kg lifted this calendar week (Mon–Sun), with carry-forward. */
-  thisWeekKg: number;
-  /** Last week's full total (Mon–Sun) — the disclosure's "beat this" reference. */
-  lastWeekKg: number;
-  /** Last week's total *through the same weekday as today* — the pace-matched
-   *  baseline the delta actually judges, so a Monday-only week isn't compared
-   *  against last week's full four-session total. */
-  lastWeekKgToDate: number;
-  /** Last date in last week included in `lastWeekKgToDate` (weekday-aligned to
-   *  today). Sessions after it are "ahead of where you are now". */
-  lastWeekCutoff: string;
-  /** % change: this week-to-date vs last week-to-date (pace-matched). null when
-   *  there's no comparable prior-week baseline yet (can't judge against zero) —
-   *  MetricDelta then renders nothing. Converges to full-vs-full by Sunday. */
+  /** Average kg per week over the trailing window — the last ≤4 *completed*
+   *  Mon–Sun weeks (the in-progress week would dilute any average it joined).
+   *  Falls back to this week's total when the user's very first week is still
+   *  in progress. */
+  avgWeekKg: number;
+  /** Completed weeks actually averaged (≤4, clipped to history; 0 → the
+   *  first-week fallback above). */
+  weeksCounted: number;
+  /** % change: trailing-window average vs the previous window's average (the
+   *  ≤4 completed weeks before those). null when the prior window has no
+   *  training to compare against — MetricDelta then renders nothing. */
   deltaPct: number | null;
+  /** This calendar week so far / last week's full total — the disclosure's
+   *  per-week detail, no longer what the headline judges. */
+  thisWeekKg: number;
+  lastWeekKg: number;
   /** Per-session breakdown, newest-first — the disclosure detail rows. */
   thisWeekSessions: WeeklyVolumeSession[];
   lastWeekSessions: WeeklyVolumeSession[];
@@ -574,6 +575,36 @@ function weekExerciseRows(
   return rows;
 }
 
+// Averaging window: 4 completed weeks ≈ one programming mesocycle — long
+// enough to absorb session-to-session scheduling noise, short enough that the
+// average still describes the *current* program.
+const WINDOW_WEEKS = 4;
+
+/** Trailing / previous averaging windows as week-start dates, newest-first.
+ *  `window` = the last ≤WINDOW_WEEKS completed Mon–Sun weeks; `prev` = the
+ *  ≤WINDOW_WEEKS before those (the delta baseline). Both are clipped to
+ *  history: weeks before the user's first log carry no signal and would only
+ *  dilute the averages. */
+function trailingWindows(
+  logs: Record<string, TrainingLog[]>,
+  thisWeekStart: string,
+): { window: string[]; prev: string[] } {
+  let firstDate: string | null = null;
+  for (const arr of Object.values(logs))
+    for (const l of arr)
+      if (l.log_date && (firstDate === null || l.log_date < firstDate)) firstDate = l.log_date;
+  const firstWeek = firstDate ? weekStartMonday(firstDate) : thisWeekStart;
+
+  const window: string[] = [];
+  const prev: string[] = [];
+  for (let i = 1; i <= WINDOW_WEEKS * 2; i++) {
+    const w = addDays(thisWeekStart, -7 * i);
+    if (w < firstWeek) break;
+    (i <= WINDOW_WEEKS ? window : prev).push(w);
+  }
+  return { window, prev };
+}
+
 /**
  * Weekly training volume with split-completion carry-forward.
  *
@@ -583,8 +614,11 @@ function weekExerciseRows(
  * session date) — so a Pull day where you only logged one new set still sums
  * the full Pull-roster volume, instead of collapsing to that single set.
  *
- * `logs` is keyed by slug, each array newest-first (as loaded). Compared this
- * calendar week (Mon-anchored) vs last week; `today` is the reference date.
+ * `logs` is keyed by slug, each array newest-first (as loaded). The headline is
+ * the trailing ≤4-completed-week average (see trailingWindows), judged against
+ * the previous window's average — week-vs-week was too noisy to steer by.
+ * `today` is the reference date; this week and last week are still broken out
+ * for the disclosure rows.
  */
 export function computeWeeklyVolume(
   logs: Record<string, TrainingLog[]>,
@@ -613,57 +647,58 @@ export function computeWeeklyVolume(
   const thisWeekKg = sumKg(thisWeekSessions);
   const lastWeekKg = sumKg(lastWeekSessions);
 
-  // Pace-matched baseline: only count last week up to the same weekday as today,
-  // so week-to-date is judged against week-to-date (not against last week's full
-  // total, which early in the week always reads as a huge, alarming drop). By
-  // Sunday the cutoff covers all of last week, so it converges to full-vs-full.
-  const elapsed = Math.round(daysBetween(thisWeekStart, today)); // 0=Mon … 6=Sun
-  const lastWeekCutoff = addDays(lastWeekStart, elapsed);
-  const lastWeekKgToDate = sumKg(
-    lastWeekSessions.filter((s) => s.date <= lastWeekCutoff),
-  );
-  const deltaPct =
-    lastWeekKgToDate > 0
-      ? ((thisWeekKg - lastWeekKgToDate) / lastWeekKgToDate) * 100
-      : null;
+  const { window, prev } = trailingWindows(logs, thisWeekStart);
+  const avgOf = (weeks: string[]) =>
+    weeks.reduce((s, w) => s + sumKg(weekSessions(w)), 0) / weeks.length;
+  // No completed week yet (user's first week): the in-progress week is the
+  // best available picture of "a week".
+  const avgWeekKg = window.length > 0 ? avgOf(window) : thisWeekKg;
+  const prevAvg = prev.length > 0 ? avgOf(prev) : 0;
+  const deltaPct = prevAvg > 0 ? ((avgWeekKg - prevAvg) / prevAvg) * 100 : null;
 
   return {
+    avgWeekKg,
+    weeksCounted: window.length,
+    deltaPct,
     thisWeekKg,
     lastWeekKg,
-    lastWeekKgToDate,
-    lastWeekCutoff,
-    deltaPct,
     thisWeekSessions,
     lastWeekSessions,
   };
 }
 
-/** Weekly working sets re-bucketed by muscle group instead of split. */
+/** Average weekly working sets re-bucketed by muscle group instead of split. */
 export interface MuscleVolumeStat {
   /** Muscle group name (inferMuscleGroup output via the caller's muscleOf). */
   group: string;
-  thisWeekSets: number;
-  /** Pace-matched baseline (same weekday cutoff as WeeklyVolumeStat). */
-  lastWeekSetsToDate: number;
-  lastWeekSets: number;
-  /** Set change vs the pace-matched baseline — absolute, not %: the counts are
-   *  small, so % would just amplify ±1-set noise. null when the group has no
-   *  last-week sets at all (nothing to compare against). */
+  /** Average working sets per week over the trailing window — the same ≤4
+   *  completed weeks as WeeklyVolumeStat.avgWeekKg, so the two reads share a
+   *  basis. Low rows are the under-volumed muscles. */
+  avgWeekSets: number;
+  /** Previous window's average — deltaSets' baseline. null when there is no
+   *  prior window yet. */
+  prevAvgWeekSets: number | null;
+  /** avgWeekSets − prevAvgWeekSets — absolute, not %: the counts are small,
+   *  so % would just amplify sub-set noise. null when there's no prior window
+   *  to compare against. */
   deltaSets: number | null;
-  /** Distinct slugs contributing sets this week — the drill-down evidence. */
+  /** Distinct slugs contributing sets in the trailing window — the drill-down
+   *  evidence. */
   slugs: string[];
 }
 
 /**
- * Weekly working SETS per muscle group — the same sessions, carry-forward and
- * pace-matched comparison as computeWeeklyVolume (it re-buckets the same
- * per-exercise rows), but counted in sets, not kg: tonnage isn't comparable
- * across muscle groups (leg loads dwarf arm loads regardless of effort), while
- * sets-per-muscle-per-week is the unit programming actually speaks. Sets also
- * credit zero-tonnage rows (bodyweight / unparseable logs) that the kg view
- * can't see. `muscleOf` maps a roster exercise to its group (callers build it
- * from inferMuscleGroup — no schema, inference only). Groups are returned
- * sorted by this week's sets, groups with zero sets in BOTH weeks omitted.
+ * Average weekly working SETS per muscle group — the same sessions, carry-
+ * forward and trailing-window average as computeWeeklyVolume (it re-buckets
+ * the same per-exercise rows), but counted in sets, not kg: tonnage isn't
+ * comparable across muscle groups (leg loads dwarf arm loads regardless of
+ * effort), while sets-per-muscle-per-week is the unit programming actually
+ * speaks. Sets also credit zero-tonnage rows (bodyweight / unparseable logs)
+ * that the kg view can't see. `muscleOf` maps a roster exercise to its group
+ * (callers build it from inferMuscleGroup — no schema, inference only).
+ * Groups sorted by trailing average; a group trained in the previous window
+ * but absent from the trailing one still returns (avg 0 + negative delta —
+ * exactly the dropped-muscle signal this view exists to surface).
  */
 export function computeMuscleWeeklyVolume(
   logs: Record<string, TrainingLog[]>,
@@ -672,39 +707,38 @@ export function computeMuscleWeeklyVolume(
   muscleOf: (ex: WeeklyVolumeExercise) => string,
 ): MuscleVolumeStat[] {
   const thisWeekStart = weekStartMonday(today);
-  const lastWeekStart = addDays(thisWeekStart, -7);
-  const elapsed = Math.round(daysBetween(thisWeekStart, today));
-  const lastWeekCutoff = addDays(lastWeekStart, elapsed);
+  const { window, prev } = trailingWindows(logs, thisWeekStart);
+  // First-week fallback mirrors avgWeekKg's: no completed week yet → the
+  // in-progress week is the best available picture.
+  const winWeeks = window.length > 0 ? window : [thisWeekStart];
 
-  const groups = new Map<
-    string,
-    { thisWeekSets: number; lastWeekSets: number; lastWeekSetsToDate: number; slugs: Set<string> }
-  >();
+  const groups = new Map<string, { winSets: number; prevSets: number; slugs: Set<string> }>();
   const bucket = (group: string) => {
-    const g = groups.get(group) ?? { thisWeekSets: 0, lastWeekSets: 0, lastWeekSetsToDate: 0, slugs: new Set<string>() };
+    const g = groups.get(group) ?? { winSets: 0, prevSets: 0, slugs: new Set<string>() };
     groups.set(group, g);
     return g;
   };
-  for (const r of weekExerciseRows(logs, roster, thisWeekStart)) {
-    const g = bucket(muscleOf(r.ex));
-    g.thisWeekSets += r.ex.setCount;
-    g.slugs.add(r.ex.slug);
-  }
-  for (const r of weekExerciseRows(logs, roster, lastWeekStart)) {
-    const g = bucket(muscleOf(r.ex));
-    g.lastWeekSets += r.ex.setCount;
-    if (r.date <= lastWeekCutoff) g.lastWeekSetsToDate += r.ex.setCount;
-  }
+  for (const w of winWeeks)
+    for (const r of weekExerciseRows(logs, roster, w)) {
+      const g = bucket(muscleOf(r.ex));
+      g.winSets += r.ex.setCount;
+      g.slugs.add(r.ex.slug);
+    }
+  for (const w of prev)
+    for (const r of weekExerciseRows(logs, roster, w))
+      bucket(muscleOf(r.ex)).prevSets += r.ex.setCount;
 
   return [...groups.entries()]
-    .filter(([, g]) => g.thisWeekSets > 0 || g.lastWeekSets > 0)
-    .map(([group, g]) => ({
-      group,
-      thisWeekSets: g.thisWeekSets,
-      lastWeekSets: g.lastWeekSets,
-      lastWeekSetsToDate: g.lastWeekSetsToDate,
-      deltaSets: g.lastWeekSets > 0 ? g.thisWeekSets - g.lastWeekSetsToDate : null,
-      slugs: [...g.slugs],
-    }))
-    .sort((a, b) => b.thisWeekSets - a.thisWeekSets || a.group.localeCompare(b.group));
+    .map(([group, g]) => {
+      const avgWeekSets = g.winSets / winWeeks.length;
+      const prevAvgWeekSets = prev.length > 0 ? g.prevSets / prev.length : null;
+      return {
+        group,
+        avgWeekSets,
+        prevAvgWeekSets,
+        deltaSets: prevAvgWeekSets === null ? null : avgWeekSets - prevAvgWeekSets,
+        slugs: [...g.slugs],
+      };
+    })
+    .sort((a, b) => b.avgWeekSets - a.avgWeekSets || a.group.localeCompare(b.group));
 }

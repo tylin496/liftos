@@ -100,12 +100,6 @@
   margin-top: var(--space-3);
 }
 
-/* Last week's sessions later in the week than today — shown for context but
-   not yet in the pace-matched comparison, so faded back. */
-.wv-srow--ahead {
-  opacity: 0.42;
-}
-
 .wv-srow-date {
   color: var(--ink-4);
   font-variant-numeric: tabular-nums;
@@ -131,8 +125,8 @@
   color: var(--ink-4);
 }
 
-/* Last-week header carries the section's total so it stands beside the label
-   the delta is comparing against. */
+/* Week section headers (This week / Last week) carry their week's total —
+   the headline is a trailing average, so the actual weeks live here. */
 .wv-sect {
   display: flex;
   align-items: baseline;

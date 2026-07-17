@@ -109,7 +109,11 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
     expect(stat.lastWeekKg).toBe(1500);
     expect(stat.thisWeekKg).toBe(1100 + 500); // logged row + carried curl
-    expect(stat.deltaPct).toBeCloseTo(((1600 - 1500) / 1500) * 100, 5);
+    // Trailing window clips to history: last week is the only completed week,
+    // so the average IS last week; no prior window → no delta.
+    expect(stat.avgWeekKg).toBe(1500);
+    expect(stat.weeksCounted).toBe(1);
+    expect(stat.deltaPct).toBeNull();
     expect(stat.thisWeekSessions).toEqual([
       { date: "2026-07-08", split: "pull", volumeKg: 1600 },
     ]);
@@ -142,31 +146,54 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     expect(stat.thisWeekKg).toBe(3000);
   });
 
-  it("pace-matches the delta: week-to-date vs last week through the same weekday", () => {
-    // today = Mon 2026-07-13 (week just started). Last week trained Mon 7/6 AND
-    // Wed 7/8; the delta must judge this Monday against last Monday only, not
-    // against last week's two-session total (which would read as a big drop).
+  it("averages the trailing completed weeks — the in-progress week never dilutes", () => {
+    // Two completed weeks (Mon 6/29: 1200; Mon 6/22: 1000) plus a big session
+    // this week (7/8) that must stay out of the average.
     const logs = {
-      row: [vlog("2026-07-13", "100*10"), vlog("2026-07-08", "90*10"), vlog("2026-07-06", "80*10")],
-      curl: [vlog("2026-07-13", "50*10"), vlog("2026-07-06", "40*10")],
+      row: [
+        vlog("2026-07-08", "200*10"),
+        vlog("2026-06-29", "120*10"),
+        vlog("2026-06-22", "100*10"),
+      ],
+      curl: [],
     };
-    const stat = computeWeeklyVolume(logs, pullRoster, "2026-07-13");
-    expect(stat.thisWeekKg).toBe(1500); // 1000 + 500
-    expect(stat.lastWeekKg).toBe(2500); // full week: 1200 (Mon) + 1300 (Wed)
-    expect(stat.lastWeekKgToDate).toBe(1200); // through Mon only
-    expect(stat.lastWeekCutoff).toBe("2026-07-06");
-    expect(stat.deltaPct).toBeCloseTo(((1500 - 1200) / 1200) * 100, 5); // +25%, not −40%
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.weeksCounted).toBe(2);
+    expect(stat.avgWeekKg).toBe(1100); // (1200 + 1000) / 2
+    expect(stat.thisWeekKg).toBe(2000); // disclosure detail only
+    expect(stat.deltaPct).toBeNull(); // both weeks fit the trailing window
   });
 
-  it("reports no delta without a prior-week baseline", () => {
+  it("judges the trailing-window average against the previous window's", () => {
+    // Five completed weeks: 6/29 lifts 1200, the rest 1000 each. Trailing
+    // window = 6/8..6/29 → avg 1050; previous window clips to [6/1] → 1000.
+    const logs = {
+      row: [
+        vlog("2026-06-29", "120*10"),
+        vlog("2026-06-22", "100*10"),
+        vlog("2026-06-15", "100*10"),
+        vlog("2026-06-08", "100*10"),
+        vlog("2026-06-01", "100*10"),
+      ],
+      curl: [],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.weeksCounted).toBe(4);
+    expect(stat.avgWeekKg).toBe(1050);
+    expect(stat.deltaPct).toBeCloseTo(((1050 - 1000) / 1000) * 100, 5);
+  });
+
+  it("falls back to the in-progress week when it's the user's first", () => {
     const logs = { row: [vlog("2026-07-08", "100*10")], curl: [] };
     const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.weeksCounted).toBe(0);
+    expect(stat.avgWeekKg).toBe(1000); // = thisWeekKg
     expect(stat.deltaPct).toBeNull();
     expect(stat.lastWeekSessions).toEqual([]);
   });
 });
 
-describe("computeMuscleWeeklyVolume — same rows, muscle buckets, counted in sets", () => {
+describe("computeMuscleWeeklyVolume — same rows, muscle buckets, avg sets/week", () => {
   const muscleOf = (ex: { slug: string }) => (ex.slug === "row" ? "back" : "biceps");
 
   it("credits the configured set count per trained session, carry-forward included", () => {
@@ -175,51 +202,78 @@ describe("computeMuscleWeeklyVolume — same rows, muscle buckets, counted in se
       { slug: "curl", split: "pull", setCount: 2, assistedMode: false },
     ];
     const logs = {
-      // Last week (Tue 6/30): both logged. This week (Wed 7/8): only row —
-      // curl carries forward and still counts its configured 2 sets.
+      // Trailing window clips to the one completed week (Mon 6/29). Tue 6/30:
+      // only row logged — curl carries forward into that session and still
+      // counts its configured 2 sets. This week's 7/8 session stays out.
       row: [vlog("2026-07-08", "110*10"), vlog("2026-06-30", "100*10")],
       curl: [vlog("2026-06-30", "50*10")],
     };
     const muscle = computeMuscleWeeklyVolume(logs, roster, TODAY, muscleOf);
-    expect(muscle.map((m) => m.group)).toEqual(["back", "biceps"]); // sorted by this-week sets
+    expect(muscle.map((m) => m.group)).toEqual(["back", "biceps"]); // sorted by avg sets
     const back = muscle.find((m) => m.group === "back")!;
-    expect(back.thisWeekSets).toBe(3);
-    expect(back.lastWeekSets).toBe(3);
+    expect(back.avgWeekSets).toBe(3); // 3 sets over 1 counted week
     expect(back.slugs).toEqual(["row"]);
     const biceps = muscle.find((m) => m.group === "biceps")!;
-    expect(biceps.thisWeekSets).toBe(2); // carried curl still credits biceps
+    expect(biceps.avgWeekSets).toBe(2); // carried curl still credits biceps
     expect(biceps.slugs).toEqual(["curl"]);
   });
 
-  it("pace-matches each group's delta in absolute sets", () => {
-    // today Fri 7/10: this week trained Mon 7/6 + Wed 7/8 (2 sets at setCount 1).
-    // Last week trained Mon 6/29 + Sat 7/4; the weekday cutoff (Fri 7/3) only
-    // reaches 6/29, so the baseline is 1 set → delta +1, not 0.
+  it("averages over the trailing window and judges it against the previous one", () => {
+    // Five completed weeks of one back session each, plus a second session in
+    // the 6/29 week → trailing window (6/8..6/29) totals 5 sets over 4 weeks;
+    // previous window clips to [6/1] → avg 1.
     const logs = {
       row: [
-        vlog("2026-07-08", "100*10"),
-        vlog("2026-07-06", "100*10"),
-        vlog("2026-07-04", "90*10"),
-        vlog("2026-06-29", "90*10"),
+        vlog("2026-07-01", "100*10"),
+        vlog("2026-06-29", "100*10"),
+        vlog("2026-06-22", "100*10"),
+        vlog("2026-06-15", "90*10"),
+        vlog("2026-06-08", "90*10"),
+        vlog("2026-06-01", "90*10"),
       ],
       curl: [],
     };
     const back = computeMuscleWeeklyVolume(logs, pullRoster, TODAY, muscleOf).find(
       (m) => m.group === "back",
     )!;
-    expect(back.thisWeekSets).toBe(2);
-    expect(back.lastWeekSets).toBe(2); // both sessions
-    expect(back.lastWeekSetsToDate).toBe(1); // through Fri 7/3 → 6/29 only
-    expect(back.deltaSets).toBe(1);
+    expect(back.avgWeekSets).toBe(1.25); // 5 sets / 4 weeks
+    expect(back.prevAvgWeekSets).toBe(1);
+    expect(back.deltaSets).toBe(0.25);
   });
 
   it("counts sets for zero-tonnage logs the kg view can't see, omits absent groups", () => {
     // Unparseable raw → volumeKg 0, but the session happened → sets count.
+    // First week in progress → falls back to averaging the current week.
     const logs = { row: [vlog("2026-07-08", "felt strong")], curl: [] };
     const muscle = computeMuscleWeeklyVolume(logs, pullRoster, TODAY, muscleOf);
     expect(muscle.map((m) => m.group)).toEqual(["back"]); // curl never logged → no biceps
-    expect(muscle[0].thisWeekSets).toBe(1);
-    expect(muscle[0].deltaSets).toBeNull(); // no last-week presence → no baseline
+    expect(muscle[0].avgWeekSets).toBe(1);
+    expect(muscle[0].deltaSets).toBeNull(); // no prior window → no baseline
+  });
+
+  it("keeps a group whose split vanished from the trailing window — avg 0, negative delta", () => {
+    // Curl lives on its own split, trained only in the previous window (6/1).
+    // No arms session in the trailing window → no carry-forward rows for it,
+    // so biceps drops to 0 — and the dropped muscle must still surface.
+    const roster = [
+      { slug: "row", split: "pull", setCount: 1, assistedMode: false },
+      { slug: "curl", split: "arms", setCount: 1, assistedMode: false },
+    ];
+    const logs = {
+      row: [
+        vlog("2026-06-29", "100*10"),
+        vlog("2026-06-22", "100*10"),
+        vlog("2026-06-15", "90*10"),
+        vlog("2026-06-08", "90*10"),
+      ],
+      curl: [vlog("2026-06-01", "50*10")],
+    };
+    const biceps = computeMuscleWeeklyVolume(logs, roster, TODAY, muscleOf).find(
+      (m) => m.group === "biceps",
+    )!;
+    expect(biceps.avgWeekSets).toBe(0);
+    expect(biceps.prevAvgWeekSets).toBe(1);
+    expect(biceps.deltaSets).toBe(-1);
   });
 });
 
