@@ -1029,6 +1029,14 @@ export function HealthPage() {
     setTrendOpen(true);
   };
 
+  // The Active trend sheet opener — shared by the Energy card's upper-half tap,
+  // its corner › button, and the bars' own tap target, so all three open the
+  // exact same sheet. Undefined until there are ≥2 buckets to draw.
+  const openActiveTrend =
+    energyFull.length >= 2
+      ? () => openTrend({ label: "Active", unit: " kcal", decimals: 0, color: "var(--accent)", points: energyFull, higherIsBetter: true, bucketDays: ENERGY_BUCKET, bars: true })
+      : undefined;
+
   // The Weight trend sheet's config, lifted out of the card map so both the
   // card tap AND the deep-link auto-open (below) draw the same sheet from one
   // definition. Null until there are ≥2 real points. No target-pace corridor
@@ -1230,102 +1238,129 @@ export function HealthPage() {
         id="health-energy-card"
         className={`page-card health-energy${!data ? " loading-card" : ""}`}
       >
-        {/* Same header grammar as every other card: eyebrow + freshness tag in
-            the corner, nothing else. */}
-        <div className="health-tdee-head">
-          <span className="health-card-eyebrow">Active</span>
-          {data && (
-            <FreshnessTag
-              date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null}
-              kind="sync"
-              updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
-            />
+        {/* Upper half — the whole Active reading (header + hero + bars + foot)
+            taps through to the Active trend sheet, same convention as the
+            Trend cards' whole-card tap. The corner › is the discoverable and
+            accessible control; the bars stay their own stop-propagated
+            target. The Resting/TDEE model row below is OUTSIDE this region —
+            its items are their own sheets' entry points. */}
+        <div
+          className={data && tdee?.tdee != null && openActiveTrend ? "health-trend--tappable" : undefined}
+          // Pointer convenience only — keyboard/AT users get the › button.
+          onClick={data && tdee?.tdee != null ? openActiveTrend : undefined}
+        >
+          {/* Same header grammar as every other card: eyebrow + freshness tag
+              + › in the corner. */}
+          <div className="health-tdee-head">
+            <span className="health-card-eyebrow">Active</span>
+            {data && (
+              <div className="health-card-top-right">
+                <FreshnessTag
+                  date={series(metrics, "active_energy_kcal").at(-1)?.date ?? null}
+                  kind="sync"
+                  updatedAt={latestUpdatedAt(metrics, "active_energy_kcal")}
+                />
+                {tdee?.tdee != null && openActiveTrend && (
+                  <button
+                    type="button"
+                    className="health-trend-open"
+                    aria-label="View Active trend"
+                    onClick={(e: ReactMouseEvent) => {
+                      e.stopPropagation();
+                      openActiveTrend();
+                    }}
+                  >
+                    <svg width="7" height="12" viewBox="0 0 7 12" fill="none" aria-hidden>
+                      <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          {!data ? (
+            <>
+              <div className="health-trend-head">
+                <div className="health-trend-info">
+                  <div className="health-trend-stat">
+                    <MetricValue size="lg" unit="kcal">000</MetricValue>
+                  </div>
+                </div>
+                <ActivityBars days={[]} target={null} />
+              </div>
+              <div className="health-trend-foot">
+                <MetricCaption>Loading…</MetricCaption>
+                <div className="health-trend-range">Last {ENERGY_BUCKET} days</div>
+              </div>
+            </>
+          ) : tdee?.tdee != null ? (
+            <>
+              {/* Active leads with the daily distribution — the behaviour-driven
+                  shape behind the average. */}
+              <div className="health-trend-head">
+                <div className="health-trend-info">
+                  <div className="health-trend-stat">
+                    <MetricValue size="lg" unit="kcal">
+                      {tdee.avgActive != null ? <AnimatedMetric value={tdee.avgActive} decimals={0} roll /> : null}
+                    </MetricValue>
+                    {activeChange != null && (
+                      <MetricDelta value={activeChange} direction="up-good" decimals={0} />
+                    )}
+                  </div>
+                </div>
+                <ActivityBars
+                  days={activeDaily}
+                  target={data.activeTarget?.activeTargetPerDay ?? null}
+                  onOpen={openActiveTrend}
+                />
+              </div>
+              <div className="health-trend-foot">
+                <MetricCaption>
+                  {/* Fixed descriptor of the trailing window, not the sample
+                      count — a single missing day shouldn't tick it to "13". */}
+                  14-day average
+                </MetricCaption>
+                <div className="health-trend-range">Last {ENERGY_BUCKET} days</div>
+              </div>
+            </>
+          ) : (
+            <p className="page-note">
+              No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
+            </p>
           )}
         </div>
-        {!data ? (
-          <>
-            <div className="health-trend-head">
-              <div className="health-trend-info">
-                <div className="health-trend-stat">
-                  <MetricValue size="lg" unit="kcal">000</MetricValue>
-                </div>
-              </div>
-              <ActivityBars days={[]} target={null} />
-            </div>
-            <div className="health-trend-foot">
-              <MetricCaption>Loading…</MetricCaption>
-              <div className="health-trend-range">Last {ENERGY_BUCKET} days</div>
-            </div>
-          </>
-        ) : tdee?.tdee != null ? (
-          <>
-            {/* Active leads with the daily distribution — the behaviour-driven
-                shape behind the average. */}
-            <div className="health-trend-head">
-              <div className="health-trend-info">
-                <div className="health-trend-stat">
-                  <MetricValue size="lg" unit="kcal">
-                    {tdee.avgActive != null ? <AnimatedMetric value={tdee.avgActive} decimals={0} roll /> : null}
-                  </MetricValue>
-                  {activeChange != null && (
-                    <MetricDelta value={activeChange} direction="up-good" decimals={0} />
-                  )}
-                </div>
-              </div>
-              <ActivityBars
-                days={activeDaily}
-                target={data.activeTarget?.activeTargetPerDay ?? null}
-                onOpen={
-                  energyFull.length >= 2
-                    ? () => openTrend({ label: "Active", unit: " kcal", decimals: 0, color: "var(--accent)", points: energyFull, higherIsBetter: true, bucketDays: ENERGY_BUCKET, bars: true })
-                    : undefined
-                }
-              />
-            </div>
-            <div className="health-trend-foot">
-              <MetricCaption>
-                {/* Fixed descriptor of the trailing window, not the sample
-                    count — a single missing day shouldn't tick it to "13". */}
-                14-day average
-              </MetricCaption>
-              <div className="health-trend-range">Last {ENERGY_BUCKET} days</div>
-            </div>
 
-            {/* Resting + TDEE — the model behind the ring, in plain sight so
-                Resting + Active = TDEE adds up at a glance. Each item is its
-                own trend-sheet entry point, same "content is the tap target"
-                convention as the Active bars. */}
-            <div className="health-energy-model">
-              <EnergyModelItem
-                label="Resting"
-                value={tdee.avgResting}
-                window="30-day average"
-                // 30-day average of resting energy — a slow metabolic drift,
-                // no objective good direction (down = expected adaptation on a
-                // cut), so the trend delta reads neutral. Only tappable once
-                // there's enough history for a line.
-                onOpen={
-                  restingFull.length >= 2
-                    ? () => openTrend({ label: "Resting", unit: " kcal", decimals: 0, color: "var(--accent)", points: restingFull, higherIsBetter: false, judgeDelta: false, celebrateExtreme: false, bucketDays: RESTING_BUCKET })
-                    : undefined
-                }
-              />
-              <EnergyModelItem
-                label="TDEE"
-                value={tdee.tdee}
-                window="resting + active"
-                onOpen={
-                  tdeeFull.length >= 2
-                    ? () => openTrend({ label: "TDEE", unit: " kcal", decimals: 0, color: "var(--accent)", points: tdeeFull, higherIsBetter: true, judgeDelta: false, celebrateExtreme: false, bucketDays: ENERGY_BUCKET })
-                    : undefined
-                }
-              />
-            </div>
-          </>
-        ) : (
-          <p className="page-note">
-            No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
-          </p>
+        {/* Resting + TDEE — the model behind the ring, in plain sight so
+            Resting + Active = TDEE adds up at a glance. Each item is its own
+            trend-sheet entry point, same "content is the tap target"
+            convention as the Active bars. */}
+        {data && tdee?.tdee != null && (
+          <div className="health-energy-model">
+            <EnergyModelItem
+              label="Resting"
+              value={tdee.avgResting}
+              window="30-day average"
+              // 30-day average of resting energy — a slow metabolic drift,
+              // no objective good direction (down = expected adaptation on a
+              // cut), so the trend delta reads neutral. Only tappable once
+              // there's enough history for a line.
+              onOpen={
+                restingFull.length >= 2
+                  ? () => openTrend({ label: "Resting", unit: " kcal", decimals: 0, color: "var(--accent)", points: restingFull, higherIsBetter: false, judgeDelta: false, celebrateExtreme: false, bucketDays: RESTING_BUCKET })
+                  : undefined
+              }
+            />
+            <EnergyModelItem
+              label="TDEE"
+              value={tdee.tdee}
+              window="resting + active"
+              onOpen={
+                tdeeFull.length >= 2
+                  ? () => openTrend({ label: "TDEE", unit: " kcal", decimals: 0, color: "var(--accent)", points: tdeeFull, higherIsBetter: true, judgeDelta: false, celebrateExtreme: false, bucketDays: ENERGY_BUCKET })
+                  : undefined
+              }
+            />
+          </div>
         )}
       </section>
 
