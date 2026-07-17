@@ -52,10 +52,13 @@ function SessionRow({ s }: { s: WeeklyVolumeSession }) {
 export function WeeklyVolumeCard({
   stat,
   muscle,
+  nameBySlug,
   loading,
 }: {
   stat?: WeeklyVolumeStat;
   muscle?: MuscleVolumeStat[];
+  /** slug → display name, for the muscle rows' contributing-lifts caption. */
+  nameBySlug?: Map<string, string>;
   loading?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -130,7 +133,16 @@ export function WeeklyVolumeCard({
           <div className="wv-sessions">
             {muscle.map((m) => (
               <div className="wv-srow" key={m.group}>
-                <span className="wv-srow-split">{muscleLabel(m.group)}</span>
+                <span className="wv-srow-split">
+                  {muscleLabel(m.group)}
+                  {/* The evidence line: which lifts this number is made of.
+                      Primary-muscle-only means the sets are exactly these
+                      lifts' direct sets — listing them keeps "Back 9" from
+                      reading as over-training when it's 2 lifts × frequency. */}
+                  <span className="wv-srow-lifts">
+                    {m.slugs.map((s) => nameBySlug?.get(s) ?? s).join(" + ")}
+                  </span>
+                </span>
                 {/* vs the previous window's average, up-good like the card
                     head, but in absolute ±sets (counts are small — % amplifies
                     sub-set noise). null (no prior window) renders nothing. */}

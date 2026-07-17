@@ -125,6 +125,16 @@
   color: var(--ink-4);
 }
 
+/* Contributing lifts under the muscle label — the row's evidence (primary-
+   muscle-only: the number IS these lifts' direct sets), styled as a caption
+   so the muscle + value pair keeps the row's voice. */
+.wv-srow-lifts {
+  display: block;
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
+}
+
 /* Week section headers (This week / Last week) carry their week's total —
    the headline is a trailing average, so the actual weeks live here. */
 .wv-sect {

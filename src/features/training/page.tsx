@@ -987,6 +987,12 @@ function TrainingPageInner() {
   // and the Training Health card so a pinned muscle_group_override moves the
   // lift everywhere at once.
   const muscleBySlug = useMemo(() => resolveMuscleBySlug(exercises ?? []), [exercises]);
+  // Muscle-row evidence: the Weekly Volume card lists each group's
+  // contributing lifts by name, so "Back 9 sets/wk" is inspectable.
+  const nameBySlug = useMemo(
+    () => new Map((exercises ?? []).map((ex) => [ex.slug, ex.name])),
+    [exercises],
+  );
 
   const weeklyVolume = useMemo(() => {
     const roster = (exercises ?? [])
@@ -1223,6 +1229,7 @@ function TrainingPageInner() {
       <WeeklyVolumeCard
         stat={exercises ? weeklyVolume.stat : undefined}
         muscle={exercises ? weeklyVolume.muscle : undefined}
+        nameBySlug={nameBySlug}
         loading={!exercises}
       />
 
