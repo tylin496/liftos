@@ -14,9 +14,19 @@
 
    The halo is a box-shadow, not an SVG `filter: drop-shadow()` on the <svg> —
    iOS Safari hard-clips SVG filter regions to a rectangle instead of fading
-   them out, which reads as a square halo around a round ring. */
+   them out, which reads as a square halo around a round ring.
+
+   Halo strength is theme-split: the shadow hugs the stroke's outer edge, and on
+   a LIGHT background a same-colour 55% haze sits between the stroke's lightness
+   and the page's — the ring's edge dissolves into its own glow right at 100%.
+   30% keeps the lit read while the stroke stays crisp. On dark backgrounds the
+   haze is darker than the stroke, so the full 55% bloom never swallows it. */
 .activity-ring.is-complete {
   border-radius: 50%;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ring-glow, var(--good)) 30%, transparent);
+}
+
+:root[data-theme="dark"] .activity-ring.is-complete {
   box-shadow: 0 0 10px color-mix(in srgb, var(--ring-glow, var(--good)) 55%, transparent);
 }
 
