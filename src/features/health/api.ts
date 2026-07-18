@@ -2,8 +2,8 @@ import { supabase } from "@shared/lib/supabase";
 import type { Database } from "@shared/lib/database.types";
 import { computeTdeeWindows, type TdeeEstimate } from "./tdee";
 import { computeActiveTarget, type ActiveTargetView } from "./activeTarget";
-import { sanitizeMetrics } from "./math";
-import { localDateStrDaysAgo } from "@shared/lib/date";
+import { computeDayTypeBaselines, sanitizeMetrics, type DayTypeBaselines } from "./math";
+import { localDateStr, localDateStrDaysAgo } from "@shared/lib/date";
 
 export type BodyMetric = Database["public"]["Tables"]["health_metrics"]["Row"];
 
@@ -34,6 +34,20 @@ export interface HealthData {
   targetTdee: number | null;
   /** Derived active-calorie target + pace, null until both goal and resting exist. */
   activeTarget: ActiveTargetView | null;
+  /** Training-day vs rest-day active baselines (context for the Energy card),
+   *  null until both day types have a real sample in the window. */
+  dayType: DayTypeBaselines | null;
+}
+
+/** Distinct dates with ≥1 logged set — the day-type signal for the active
+ *  baselines. Dates only: whether a day was trained, never what or how much. */
+async function fetchTrainingDates(days: number): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("training_logs")
+    .select("log_date")
+    .gte("log_date", sinceDate(days));
+  if (error) throw error;
+  return new Set((data ?? []).map((r) => r.log_date));
 }
 
 /** The maintenance TDEE goal the user wants to hold, from nutrition_config. */
@@ -49,18 +63,20 @@ async function fetchTargetTdee(): Promise<number | null> {
 async function loadHealthData(days: number): Promise<HealthData> {
   // Fetch extra history so previous-period TDEE windows are covered.
   const fetchDays = Math.max(days, 60);
-  const [allMetrics, targetTdee] = await Promise.all([
+  const [allMetrics, targetTdee, trainingDates] = await Promise.all([
     fetchBodyMetrics(fetchDays),
     fetchTargetTdee(),
+    fetchTrainingDates(fetchDays),
   ]);
 
   const { tdee, tdeePrev } = computeTdeeWindows(allMetrics);
   const activeTarget = computeActiveTarget(allMetrics, targetTdee, tdee.avgResting);
+  const dayType = computeDayTypeBaselines(allMetrics, trainingDates, localDateStr());
 
   const cutoffDisplay = sinceDate(days);
   const metrics = allMetrics.filter((m) => m.metric_date >= cutoffDisplay);
 
-  return { metrics, tdee, tdeePrev, targetTdee, activeTarget };
+  return { metrics, tdee, tdeePrev, targetTdee, activeTarget, dayType };
 }
 
 // Short-lived request cache. Overview and Health both fetch the same 180-day

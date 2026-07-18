@@ -262,6 +262,31 @@
   margin: var(--vr-tight) 0 0;
 }
 
+/* Training-day vs rest-day active baselines — context line under the Active
+   foot: two typical values so today's reading is judged against the right kind
+   of day, not one blended average. Plain text, no colour verdict — the values
+   step up one ink level so they scan as numbers without competing with the
+   headline. "today · trained" is retrospective (a set was logged), pinned
+   right like the range label above it. */
+.health-daytype {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  margin-top: var(--vr-tight);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.health-daytype-val {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.health-daytype-today {
+  margin-left: auto;
+}
+
 /* ── Skeleton loading state ───────────────────────────────────────────────── */
 .health-trend.loading-card .health-card-eyebrow,
 .health-trend.loading-card .metric-val,

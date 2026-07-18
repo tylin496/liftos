@@ -1322,6 +1322,26 @@ export function HealthPage() {
                 </MetricCaption>
                 <div className="health-trend-range">Last {ENERGY_BUCKET} days</div>
               </div>
+              {/* Training-day vs rest-day baselines — context so today's reading
+                  is judged against the right kind of day, not the blended
+                  average above. Retrospective only: "trained" appears once
+                  today has a logged set, never as a prediction. No colour, no
+                  target semantics (context, not verdict). */}
+              {data?.dayType && (
+                <div className="health-daytype">
+                  <span>
+                    Training days{" "}
+                    <span className="health-daytype-val">{data.dayType.trainAvg}</span>
+                  </span>
+                  <span>
+                    Rest days{" "}
+                    <span className="health-daytype-val">{data.dayType.restAvg}</span>
+                  </span>
+                  {data.dayType.todayTrained && (
+                    <span className="health-daytype-today">today · trained</span>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <p className="page-note">

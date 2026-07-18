@@ -1,4 +1,5 @@
 import type { BodyMetric } from "./api";
+import { localDateStr } from "@shared/lib/date";
 import { isStale } from "@shared/lib/freshness";
 import { olsFit } from "@shared/lib/stats";
 
@@ -540,4 +541,62 @@ function regressionFit(
 
 export function regressionSlope(pts: { date: string; value: number }[], days = 28): number | null {
   return regressionFit(pts, days)?.slopePerWeek ?? null;
+}
+
+// ─── Training-day vs rest-day active baselines ───────────────────────────────
+
+/** Two typical active-energy values — one for days with a logged workout, one
+ *  for days without — so a single day's reading is judged against the right
+ *  kind of day instead of one blended average. Descriptive context only: no
+ *  target semantics, no verdict, and deliberately no prediction of whether
+ *  today WILL be a training day (the app only knows whether it already is). */
+export interface DayTypeBaselines {
+  /** Avg active kcal on days with ≥1 training log, rounded. */
+  trainAvg: number;
+  /** Avg active kcal on days with no training log, rounded. */
+  restAvg: number;
+  trainN: number;
+  restN: number;
+  /** Whether today already has a training log (retrospective, never predictive). */
+  todayTrained: boolean;
+}
+
+/** Baseline window — wider than the Energy card's 14-day display window on
+ *  purpose: two split samples need more days to stay steady, and "typical
+ *  training/rest day" is a trait, not a windowed stat of the visible bars. */
+export const DAYTYPE_WINDOW_DAYS = 28;
+
+export function computeDayTypeBaselines(
+  metrics: BodyMetric[],
+  trainingDates: ReadonlySet<string>,
+  todayISO: string,
+  windowDays = DAYTYPE_WINDOW_DAYS,
+): DayTypeBaselines | null {
+  const cutoff = new Date(`${todayISO}T00:00:00`);
+  cutoff.setDate(cutoff.getDate() - windowDays);
+  const cutoffISO = localDateStr(cutoff);
+
+  // Today is excluded from both baselines — its active reading is partial.
+  let trainSum = 0, trainN = 0, restSum = 0, restN = 0;
+  for (const m of metrics) {
+    if (m.active_energy_kcal == null) continue;
+    if (m.metric_date < cutoffISO || m.metric_date >= todayISO) continue;
+    if (trainingDates.has(m.metric_date)) {
+      trainSum += m.active_energy_kcal;
+      trainN++;
+    } else {
+      restSum += m.active_energy_kcal;
+      restN++;
+    }
+  }
+  // Both baselines need a real sample to mean anything — a single-day "average"
+  // reads as authoritative context but is noise.
+  if (trainN < 2 || restN < 2) return null;
+  return {
+    trainAvg: Math.round(trainSum / trainN),
+    restAvg: Math.round(restSum / restN),
+    trainN,
+    restN,
+    todayTrained: trainingDates.has(todayISO),
+  };
 }

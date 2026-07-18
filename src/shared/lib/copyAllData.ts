@@ -15,7 +15,7 @@ import { buildMuscleGrid } from "@features/training/muscleGrid";
 import { defaultSetCount } from "@features/training/logFormHelpers";
 import { SPLITS } from "@features/training/seed";
 import { estimateTdee } from "@features/health/tdee";
-import { computeRecovery, sanitizeMetrics } from "@features/health/math";
+import { computeRecovery, sanitizeMetrics, DAYTYPE_WINDOW_DAYS, type DayTypeBaselines } from "@features/health/math";
 
 export const EXPORT_HEALTH_DAYS = 60;
 export const EXPORT_NUTRITION_DAYS = 60;
@@ -131,6 +131,19 @@ function roundRecovery(r: ReturnType<typeof computeRecovery>) {
     rhr: r.rhr == null ? null : Math.round(r.rhr),
     rhrBaseline: d1(r.rhrBaseline),
     rhrBand: band(r.rhrBand),
+  };
+}
+
+// Export shape for the Energy card's training-day vs rest-day active
+// baselines — self-describing keys instead of the UI's terse trainAvg/restAvg.
+function activeBaselinesFor(d: DayTypeBaselines | null) {
+  if (!d) return null;
+  return {
+    trainingDayAvg: d.trainAvg,
+    restDayAvg: d.restAvg,
+    trainingDays: d.trainN,
+    restDays: d.restN,
+    windowDays: DAYTYPE_WINDOW_DAYS,
   };
 }
 
@@ -760,6 +773,10 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       // `.latest` field), so grouping them again just duplicated nine values.
       tdeeRestingDays: tdeeEst.restingDays,
       tdeeActiveDays: tdeeEst.activeDays,
+      // Training-day vs rest-day active baselines — the same values the Energy
+      // card shows (health.dayType, computed once in fetchHealthData).
+      // Descriptive context: two typical days, never a target or a prediction.
+      activeBaselines: activeBaselinesFor(health?.dayType ?? null),
       recovery,
       summary: healthSummary,
       timeline: healthTimeline,
@@ -848,6 +865,8 @@ export async function buildHealthJson(days = FULL_HEALTH_DAYS): Promise<string> 
       activeDays: tdeeEst.activeDays,
     },
     recovery: roundRecovery(computeRecovery(metrics)),
+    // Same values the Energy card shows (health.dayType) — see activeBaselinesFor.
+    activeBaselines: activeBaselinesFor(health?.dayType ?? null),
     summary: buildHealthSummary(metrics, days),
     timeline: buildHealthTimeline(metrics),
   };

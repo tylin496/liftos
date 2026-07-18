@@ -490,3 +490,71 @@ describe("weightAcceleration", () => {
     expect(weightAcceleration(daily("2026-06-20", [90, 89.9, 89.8, 89.7, 89.6, 89.5, 89.4, 89.3]))).toBeNull();
   });
 });
+
+// ─── computeDayTypeBaselines ─────────────────────────────────────────────────
+
+import { computeDayTypeBaselines } from "./math";
+
+const am = (date: string, kcal: number | null): BodyMetric =>
+  ({ metric_date: date, active_energy_kcal: kcal }) as BodyMetric;
+
+describe("computeDayTypeBaselines", () => {
+  const TODAY = "2026-07-18";
+
+  it("splits the window's days by whether they were trained", () => {
+    const metrics = [
+      am("2026-07-14", 700), // trained
+      am("2026-07-15", 300),
+      am("2026-07-16", 600), // trained
+      am("2026-07-17", 340),
+    ];
+    const trained = new Set(["2026-07-14", "2026-07-16"]);
+    expect(computeDayTypeBaselines(metrics, trained, TODAY)).toEqual({
+      trainAvg: 650,
+      restAvg: 320,
+      trainN: 2,
+      restN: 2,
+      todayTrained: false,
+    });
+  });
+
+  it("excludes today's partial reading and days outside the window", () => {
+    const metrics = [
+      am("2026-06-01", 9999), // before the 28-day window
+      am("2026-07-14", 700),
+      am("2026-07-16", 600),
+      am("2026-07-15", 300),
+      am("2026-07-17", 340),
+      am(TODAY, 50), // partial — never in a baseline
+    ];
+    const trained = new Set(["2026-06-01", "2026-07-14", "2026-07-16", TODAY]);
+    const out = computeDayTypeBaselines(metrics, trained, TODAY);
+    expect(out?.trainAvg).toBe(650);
+    expect(out?.restAvg).toBe(320);
+    expect(out?.todayTrained).toBe(true);
+  });
+
+  it("returns null until both day types have ≥2 samples", () => {
+    const metrics = [
+      am("2026-07-14", 700),
+      am("2026-07-16", 600),
+      am("2026-07-17", 340), // only one rest day
+    ];
+    const trained = new Set(["2026-07-14", "2026-07-16"]);
+    expect(computeDayTypeBaselines(metrics, trained, TODAY)).toBeNull();
+  });
+
+  it("ignores days with no active reading", () => {
+    const metrics = [
+      am("2026-07-13", null), // synced but no active field
+      am("2026-07-14", 700),
+      am("2026-07-15", 300),
+      am("2026-07-16", 600),
+      am("2026-07-17", 340),
+    ];
+    const trained = new Set(["2026-07-13", "2026-07-14", "2026-07-16"]);
+    const out = computeDayTypeBaselines(metrics, trained, TODAY);
+    expect(out?.trainN).toBe(2);
+    expect(out?.restN).toBe(2);
+  });
+});
