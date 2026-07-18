@@ -17,7 +17,7 @@ import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
 import { timelineDate } from "@shared/lib/date";
 import { getEntries } from "@features/nutrition/api";
 import { buildTargetPhases, phaseKindAt, type TargetPhase } from "@shared/lib/phaseTimeline";
-import { phaseKindFromName, type PhaseKind } from "@features/nutrition/logic";
+import { type PhaseKind } from "@features/nutrition/logic";
 import { buildPrEvents } from "./logic";
 import { defaultSetCount } from "./logFormHelpers";
 import { fmtWeightNum } from "./ExprDisplay";
@@ -104,45 +104,27 @@ function SheetInner({
     [prs, phases],
   );
 
-  // Time axis: earliest PR (or phase start) → today. Guard a zero/negative span
-  // (single day of history) so projection can't divide by zero.
-  const t0 = useMemo(() => {
-    const dates = [
-      ...prs.map((p) => parseMs(p.date)),
-      ...(phases ?? []).map((ph) => parseMs(ph.from)),
-    ].filter((n) => isFinite(n));
-    return dates.length ? Math.min(...dates) : Date.now();
-  }, [prs, phases]);
-  const t1 = Date.now();
-  const span = Math.max(1, t1 - t0);
-  const xPct = (d: string) => Math.max(0, Math.min(100, ((parseMs(d) - t0) / span) * 100));
-
-  // Phase segments clipped to the drawn window. Consecutive spans of the SAME
-  // phase KIND are coalesced into one band — the timeline reads phases, not the
-  // many intake tweaks WITHIN a cut (each retargets a span, all still "cut"),
-  // which otherwise stack into an illegible row of overlapping labels.
-  const segments = useMemo(() => {
-    if (!phases) return [];
-    const relevant = phases.filter((ph) => ph.cutPhase && parseMs(ph.to) >= t0);
-    const merged: { from: string; to: string; kind: PhaseKind }[] = [];
-    for (const ph of relevant) {
-      const kind = phaseKindFromName(ph.cutPhase!);
-      const last = merged.at(-1);
-      if (last && last.kind === kind) last.to = ph.to;
-      else merged.push({ from: ph.from, to: ph.to, kind });
+  // PR count per phase kind — the one-glance read ("most PRs landed in the
+  // cut"). A proportional-date strip was tried and dropped: PR density is very
+  // uneven (sparse early, dense recent), so it always crammed into one edge.
+  // Counts can't cram. `null` = PRs before any logged phase (pre-tracking).
+  const phaseCounts = useMemo(() => {
+    const c: Record<PhaseKind, number> = { cut: 0, maintenance: 0, bulk: 0 };
+    let earlier = 0;
+    for (const p of attributed) {
+      if (p.phase) c[p.phase]++;
+      else earlier++;
     }
-    return merged.map((m) => {
-      const left = xPct(m.from);
-      const width = Math.max(0.5, xPct(m.to) - left);
-      // Only wide-enough bands carry text — a label on a sliver overflows into
-      // its neighbours (the exact cramming this whole merge fixes).
-      return { left, width, kind: m.kind, showLabel: width >= 14 };
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phases, t0]);
+    return { ...c, earlier };
+  }, [attributed]);
 
   const newestFirst = [...attributed].reverse();
   const loadingPhases = phases == null;
+  const summaryParts: string[] = [];
+  (["cut", "bulk", "maintenance"] as PhaseKind[]).forEach((k) => {
+    if (phaseCounts[k] > 0) summaryParts.push(`${phaseCounts[k]} in ${PHASE_LABEL[k]}`);
+  });
+  if (phaseCounts.earlier > 0 && !loadingPhases) summaryParts.push(`${phaseCounts.earlier} earlier`);
 
   return createPortal(
     <>
@@ -184,34 +166,14 @@ function SheetInner({
             </p>
           ) : (
             <>
-              {/* Timeline strip: neutral phase band with labelled segments, PR
-                  dots (accent) plotted on the same date axis above it. */}
-              <div className="prtl-strip">
-                <div className="prtl-dots">
-                  {attributed.map((p, i) => (
-                    <span
-                      key={`${p.slug}-${p.date}-${i}`}
-                      className="prtl-dot"
-                      style={{ left: `${xPct(p.date)}%` }}
-                      title={`${p.name} · ${fmtWeightNum(p.weightKg)}×${formatRepsDisplay(p.reps)} · ${timelineDate(p.date).mon} ${timelineDate(p.date).day}`}
-                    />
-                  ))}
-                </div>
-                <div className="prtl-band">
-                  {segments.map((s, i) => (
-                    <div
-                      key={i}
-                      className="prtl-seg"
-                      style={{ left: `${s.left}%`, width: `${s.width}%` }}
-                    >
-                      {s.showLabel && <span className="prtl-seg-label">{PHASE_LABEL[s.kind]}</span>}
-                    </div>
-                  ))}
-                </div>
-                <div className="prtl-axis">
-                  <span>{timelineDate(new Date(t0).toISOString().slice(0, 10)).mon} {timelineDate(new Date(t0).toISOString().slice(0, 10)).day}</span>
-                  <span>Today</span>
-                </div>
+              {/* One-glance summary: how many PRs landed in each phase. */}
+              <div className="prtl-summary">
+                <span className="prtl-summary-total">
+                  {prs.length} PR{prs.length === 1 ? "" : "s"}
+                </span>
+                {summaryParts.length > 0 && (
+                  <span className="prtl-summary-breakdown">{summaryParts.join(" · ")}</span>
+                )}
               </div>
 
               {/* PR list, newest first, each tagged with its phase. */}
