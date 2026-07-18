@@ -188,6 +188,9 @@ const mockDb = {
   nutrition_entries: [...NUTRITION_ENTRIES] as Record<string, unknown>[],
   nutrition_evaluations: [{ ...NUTRITION_EVALUATION }] as Record<string, unknown>[],
   health_metrics: [...BODY_METRICS] as Record<string, unknown>[],
+  // No seeded phase closes — the dev dataset is mid-cut. Present so a
+  // phase_reports read hits an empty table instead of the unknown-table fallback.
+  phase_reports: [] as Record<string, unknown>[],
 };
 
 type TableName = keyof typeof mockDb;

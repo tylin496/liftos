@@ -1,4 +1,5 @@
 import { supabase } from "@shared/lib/supabase";
+import type { Database } from "@shared/lib/database.types";
 import { fetchHealthData, type BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
@@ -96,10 +97,42 @@ export interface OverviewData {
    *  section deliberately shows no week counter (kept lean by design); this is
    *  ready for wherever the block's progress ends up surfacing. */
   maintenanceSince: string | null;
+  /** Settled phase retrospectives (newest first) — one row per closed cut/bulk,
+   *  written once at close time by maybeClosePhase and never recomputed. Empty
+   *  pre-migration 0020 or while no phase has ended yet. */
+  phaseReports: PhaseReport[];
+}
+
+export type PhaseReport = Database["public"]["Tables"]["phase_reports"]["Row"];
+
+/** All settled phase reports, newest close first. Best-effort: a missing table
+ *  (migration 0020 not applied yet) or any read failure returns [] — a phase
+ *  archive can degrade to "none yet", never break the Overview. */
+export async function fetchPhaseReports(): Promise<PhaseReport[]> {
+  const { data, error } = await supabase
+    .from("phase_reports")
+    .select("*")
+    .order("end_date", { ascending: false });
+  if (error) return [];
+  return data ?? [];
+}
+
+/** Upsert a settled phase report. The (user_id, phase_kind, start_date) key
+ *  makes a close idempotent: re-crossing the same band edge rewrites the same
+ *  report instead of duplicating it. */
+export async function savePhaseReport(
+  report: Omit<Database["public"]["Tables"]["phase_reports"]["Insert"], "user_id">,
+): Promise<void> {
+  const { data, error: sessErr } = await supabase.auth.getSession();
+  if (sessErr || !data.session) throw sessErr ?? new Error("Not signed in");
+  const { error } = await supabase
+    .from("phase_reports")
+    .upsert({ ...report, user_id: data.session.user.id }, { onConflict: "user_id,phase_kind,start_date" });
+  if (error) throw error;
 }
 
 export async function fetchOverview(): Promise<OverviewData> {
-  const [health, logsRes, exercisesRes, nutritionState, configRes, entriesRes] = await Promise.all([
+  const [health, logsRes, exercisesRes, nutritionState, configRes, entriesRes, phaseReports] = await Promise.all([
     // 180 days of body metrics. Recovery's 7/30-day windows anchor to the latest
     // reading, so the wider window doesn't shift its baseline.
     fetchHealthData(180),
@@ -135,6 +168,8 @@ export async function fetchOverview(): Promise<OverviewData> {
       .select("entry_date, calories, tdee, deficit_target")
       .gte("entry_date", localDateStrDaysAgo(MAINTENANCE_LOOKBACK_DAYS))
       .order("entry_date", { ascending: true }),
+    // Settled phase retrospectives — best-effort (returns [] on any failure).
+    fetchPhaseReports(),
   ]);
 
   // Supabase resolves failed queries as { data: null, error } instead of
@@ -244,6 +279,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     bulkStartBodyFat: configRes.data?.bulk_start_body_fat_pct ?? null,
     bulkBfCeiling,
     maintenanceSince,
+    phaseReports,
   };
 }
 

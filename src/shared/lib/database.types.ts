@@ -314,6 +314,84 @@ export type Database = {
         }
         Relationships: []
       }
+      phase_reports: {
+        Row: {
+          active_days: number
+          adherent_days: number
+          assumed_tdee: number | null
+          avg_calorie_target: number | null
+          avg_calories: number | null
+          avg_deficit_target: number | null
+          avg_protein: number | null
+          created_at: string
+          end_body_fat_pct: number | null
+          end_date: string
+          end_weight_kg: number | null
+          id: string
+          logged_days: number
+          measured_tdee: number | null
+          observed_rate_kg_wk: number | null
+          phase_kind: string
+          planned_rate_kg_wk: number | null
+          start_body_fat_pct: number | null
+          start_date: string
+          start_weight_kg: number | null
+          user_id: string
+          volume_end_kg_wk: number | null
+          volume_start_kg_wk: number | null
+        }
+        Insert: {
+          active_days: number
+          adherent_days: number
+          assumed_tdee?: number | null
+          avg_calorie_target?: number | null
+          avg_calories?: number | null
+          avg_deficit_target?: number | null
+          avg_protein?: number | null
+          created_at?: string
+          end_body_fat_pct?: number | null
+          end_date: string
+          end_weight_kg?: number | null
+          id?: string
+          logged_days: number
+          measured_tdee?: number | null
+          observed_rate_kg_wk?: number | null
+          phase_kind: string
+          planned_rate_kg_wk?: number | null
+          start_body_fat_pct?: number | null
+          start_date: string
+          start_weight_kg?: number | null
+          user_id: string
+          volume_end_kg_wk?: number | null
+          volume_start_kg_wk?: number | null
+        }
+        Update: {
+          active_days?: number
+          adherent_days?: number
+          assumed_tdee?: number | null
+          avg_calorie_target?: number | null
+          avg_calories?: number | null
+          avg_deficit_target?: number | null
+          avg_protein?: number | null
+          created_at?: string
+          end_body_fat_pct?: number | null
+          end_date?: string
+          end_weight_kg?: number | null
+          id?: string
+          logged_days?: number
+          measured_tdee?: number | null
+          observed_rate_kg_wk?: number | null
+          phase_kind?: string
+          planned_rate_kg_wk?: number | null
+          start_body_fat_pct?: number | null
+          start_date?: string
+          start_weight_kg?: number | null
+          user_id?: string
+          volume_end_kg_wk?: number | null
+          volume_start_kg_wk?: number | null
+        }
+        Relationships: []
+      }
       training_logs: {
         Row: {
           assistance: number | null

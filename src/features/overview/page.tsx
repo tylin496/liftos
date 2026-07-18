@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type Ref } from "react";
-import { fetchOverview, saveCutBaseline, saveBulkBaseline, type OverviewData } from "./api";
+import { fetchOverview, saveCutBaseline, saveBulkBaseline, type OverviewData, type PhaseReport } from "./api";
+import { PhaseReportSheet, phaseSpanLabel, phaseKindLabel, phaseWeightDelta } from "./PhaseReportSheet";
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
@@ -721,6 +722,7 @@ function PhasePlanSection({
   bulkGoalStatus,
   cutMode,
   hadBulk = false,
+  reports = [],
 }: {
   phase: PhaseTriggerResult;
   goalStatus: GoalStatusEvaluation;
@@ -729,8 +731,15 @@ function PhasePlanSection({
   /** A bulk baseline exists (bulk_start_date set) — a bulk has happened, so a
    *  cut phase now means the NEXT cut (waypoint 4), not the first one. */
   hadBulk?: boolean;
+  /** Settled retrospectives of CLOSED phases (newest first) — each renders as a
+   *  tappable archive row under the roadmap, opening the report sheet. */
+  reports?: PhaseReport[];
 }) {
   const [open, setOpen] = useState(false);
+  // The tapped report stays mounted through the sheet's exit transition —
+  // only the open flag flips on close (same pattern as the Health trend sheet).
+  const [reportShown, setReportShown] = useState<PhaseReport | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   // The roadmap sits mid-card, so expanding it can push the reveal behind the
   // floating tab bar. scrollRevealClear scrolls it just clear of the bar — in
   // the same motion as the expand, and only when it would be occluded. Opening
@@ -817,8 +826,36 @@ function PhasePlanSection({
               </li>
             ))}
           </ul>
+          {/* Archive of settled phases — one row per closed cut/bulk, written
+              once at close time (phaseReport.ts) and never recomputed. Rows are
+              history, not status: neutral ink, the sheet holds the full read. */}
+          {reports.length > 0 && (
+            <div className="goal-plan-reports">
+              <span className="goal-plan-reports-caption">Completed phases</span>
+              {reports.map((r) => {
+                const d = phaseWeightDelta(r);
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className="goal-plan-report"
+                    onClick={() => { setReportShown(r); setReportOpen(true); }}
+                  >
+                    <span className="goal-plan-report-kind">{phaseKindLabel(r.phase_kind)}</span>
+                    <span className="goal-plan-report-span">{phaseSpanLabel(r.start_date, r.end_date)}</span>
+                    {d != null && (
+                      <span className="goal-plan-report-delta mono">
+                        {d < 0 ? "▼" : "▲"}{Math.abs(d).toFixed(1)} kg
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
+      <PhaseReportSheet report={reportShown} open={reportOpen} onClose={() => setReportOpen(false)} />
     </div>
   );
 }
@@ -835,6 +872,7 @@ function CutProgressCard({
   bulkStartDate = null,
   onNav,
   loading = false,
+  reports = [],
 }: {
   goal?: Goal | null;
   cutStartDate: string | null;
@@ -852,6 +890,8 @@ function CutProgressCard({
   bulkStartDate?: string | null;
   onNav: () => void;
   loading?: boolean;
+  /** Settled retrospectives of closed phases — the roadmap's archive rows. */
+  reports?: PhaseReport[];
 }) {
   // Root is a div — the Plan toggle can't nest inside a button — with the
   // original content kept tappable via a reset-to-block .goal-navblock button
@@ -1032,6 +1072,7 @@ function CutProgressCard({
           bulkGoalStatus={bulkGoalStatus}
           cutMode={state?.diagnostics.cutMode ?? null}
           hadBulk={bulkStartDate != null}
+          reports={reports}
         />
       )}
     </div>
@@ -1119,6 +1160,7 @@ function BulkJourneyCard({
   bulkGoalStatus,
   onNav,
   loading = false,
+  reports = [],
 }: {
   bulkGoal: BulkGoal | null;
   bulkStartDate: string | null;
@@ -1129,6 +1171,8 @@ function BulkJourneyCard({
   bulkGoalStatus: BulkGoalStatusEvaluation | null;
   onNav: () => void;
   loading?: boolean;
+  /** Settled retrospectives of closed phases — the roadmap's archive rows. */
+  reports?: PhaseReport[];
 }) {
   const e = bulkGoal?.evaluation;
 
@@ -1215,6 +1259,7 @@ function BulkJourneyCard({
           bulkGoalStatus={bulkGoalStatus}
           cutMode={state?.diagnostics.cutMode ?? null}
           hadBulk={bulkStartDate != null}
+          reports={reports}
         />
       )}
     </div>
@@ -1923,6 +1968,7 @@ export function OverviewPage() {
             goalStatus={data.goalStatus}
             bulkGoalStatus={data.bulkGoalStatus}
             onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
+            reports={data.phaseReports}
           />
         )
       ) : data && !readOnly && data.targetBodyFat != null && data.cutStartDate == null ? (
@@ -1941,6 +1987,7 @@ export function OverviewPage() {
           bulkGoalStatus={data?.bulkGoalStatus ?? null}
           bulkStartDate={data?.bulkStartDate ?? null}
           onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
+          reports={data?.phaseReports ?? []}
         />
       )}
 

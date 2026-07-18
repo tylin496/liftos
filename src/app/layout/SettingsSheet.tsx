@@ -8,6 +8,7 @@ import { signOut } from "@shared/lib/auth";
 import { useNutritionConfig } from "@features/nutrition/NutritionConfigContext";
 import { saveConfig, targetsFromConfig, phaseDefsFromConfig } from "@features/nutrition/api";
 import { phaseFromDeficit, trainingMonthsFromStart } from "@features/nutrition/logic";
+import { maybeClosePhase } from "@shared/lib/phaseReport";
 import { useTheme, type ThemePreference } from "@shared/lib/theme";
 import { useIsReadOnly } from "./SessionContext";
 import logoUrl from "@shared/assets/logo.png";
@@ -164,6 +165,10 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
         training_start_date: trainingStartDate || null,
         target_body_fat_pct: numOrNull(targetBf),
       });
+      // Intake crossed into a different phase band → settle the ended cut/bulk
+      // into its one-time retrospective. Fire-and-forget: a failed report never
+      // blocks the save (maybeClosePhase swallows its own errors).
+      void maybeClosePhase(config, updated);
       setConfig(updated);
       setEditingRow(null);
       toast("Settings saved", "success");

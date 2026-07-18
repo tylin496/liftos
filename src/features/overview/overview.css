@@ -8,8 +8,9 @@
      L600  Primary Goal Card
      L850  100% completion state（gold flip）
      L908  Journey Plan section（roadmap + plateau-trigger lights）
-     L1075 Cut baseline initializer (one-time)
-     L1141 Cold-load skeleton
+     L1215 Phase report archive（completed-phase rows + retrospective sheet）
+     L1290 Cut baseline initializer (one-time)
+     L1360 Cold-load skeleton
    ───────────────────────────────────────────────────────────────────────────── */
 
 /* ─── Active Target Card ─────────────────────────────────────────────────
@@ -1210,6 +1211,124 @@
 .goal-plan-chip[data-state="unknown"] .goal-plan-dot {
   background: transparent;
   box-shadow: inset 0 0 0 1.5px var(--rule-strong);
+}
+
+/* ─── Phase report archive（completed-phase rows + retrospective sheet）───
+   Settled retrospectives of closed cut/bulk phases. The rows live under the
+   roadmap inside the Journey card's Plan reveal; tapping one opens the
+   retrospective sheet (PhaseReportSheet, on the shared settings-sheet shell).
+   Everything renders neutral — a finished phase is history, not a verdict. */
+
+.goal-plan-reports {
+  margin-top: var(--vr-block);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-snug);
+}
+
+.goal-plan-reports-caption {
+  font-size: var(--role-field-label-size);
+  font-weight: var(--role-field-label-weight);
+  color: var(--role-field-label-color);
+  letter-spacing: var(--role-field-label-spacing);
+  text-transform: uppercase;
+}
+
+/* Passive grey surface (tappable, but a row, not an input): --bg-soft, no
+   border — a border would read as an editable field. */
+.goal-plan-report {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+  padding: 10px var(--space-3);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+
+.goal-plan-report:active { opacity: 0.7; }
+
+.goal-plan-report-kind {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.goal-plan-report-span {
+  flex: 1;
+  color: var(--ink-3);
+}
+
+.goal-plan-report-delta {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+/* ── Retrospective sheet body ── */
+
+.phase-report-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-block);
+}
+
+.phase-report-window {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+}
+
+.phase-report-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-hairline);
+}
+
+.phase-report-hero-delta {
+  font-family: var(--font-mono);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.phase-report-hero-u {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink-4);
+}
+
+.phase-report-hero-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.phase-report-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.phase-report-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.phase-report-row:last-child { border-bottom: 0; }
+
+.phase-report-k {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.phase-report-v {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ─── Cut baseline initializer (one-time) ────────────────────────────────── */

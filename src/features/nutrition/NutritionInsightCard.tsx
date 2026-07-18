@@ -27,6 +27,7 @@ import { nutritionDecision, rateTone, paceTone } from "./recommendation";
 import { phaseDirection, type PhaseKind } from "./logic";
 import { saveConfig, phaseDefsFromConfig, targetsFromConfig } from "./api";
 import { useNutritionConfig } from "./NutritionConfigContext";
+import { maybeClosePhase } from "@shared/lib/phaseReport";
 import { ErrorState } from "@shared/components/ErrorState";
 import { useToast } from "@shared/components/Toast";
 import { useNav } from "@app/layout/NavContext";
@@ -264,8 +265,13 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
   // its post-change read (fresh target → daysOnTarget resets, confidence caps,
   // decision returns to a hold). Returns whether the write itself landed.
   async function persistIntakeGoal(intake: number): Promise<boolean> {
-    const { defs } = phaseDefsFromConfig(config!);
+    const prev = config!;
+    const { defs } = phaseDefsFromConfig(prev);
     const updated = await saveConfig({ phase_deficits: [...defs, intake] as unknown as any });
+    // An applied recommendation can move the intake into a different phase band
+    // (e.g. "hold at maintenance" ending the cut) — settle the ended phase into
+    // its one-time retrospective. Fire-and-forget; never blocks the apply.
+    void maybeClosePhase(prev, updated);
     setConfig(updated);
     const fresh = await recomputeAndPersist().catch(() => null);
     if (fresh) setState(fresh);

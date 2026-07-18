@@ -8,7 +8,7 @@ import { nutritionDecision } from "@features/nutrition/recommendation";
 import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
 import { computeStats, computeMuscleWeeklyVolume, epley1RM, maxReps, scoreWeight } from "@features/training/logic";
-import { computeStrengthSummary, type StrengthExercise } from "@features/overview/api";
+import { computeStrengthSummary, fetchPhaseReports, type StrengthExercise, type PhaseReport } from "@features/overview/api";
 import { inferMuscleGroup, resolveMuscleBySlug } from "@features/training/muscleGroup";
 import { computeMuscleClusters, suggestClusterFatigue } from "@features/training/muscleCluster";
 import { buildMuscleGrid } from "@features/training/muscleGrid";
@@ -225,6 +225,14 @@ function buildTargetPhases(entries: NutritionEntry[]) {
   }));
 }
 
+/** A settled phase_reports row minus its storage plumbing — the report fields
+ *  ARE the export shape (they were settled at close time from the same UI
+ *  derivations; see shared/lib/phaseReport.ts). */
+function phaseReportForExport(r: PhaseReport) {
+  const { id: _id, user_id: _user, created_at: _created, ...report } = r;
+  return report;
+}
+
 /** Start date of the phase matching the current config target — i.e. how long
  *  today's target has been in force. Null when the current target differs from
  *  the last logged phase (target changed but not yet logged against), so the
@@ -302,13 +310,14 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     .toISOString()
     .slice(0, 10);
 
-  const [health, nutritionConfig, nutritionEntries, nutritionStateFull, exercises, logsBySlug] = await Promise.all([
+  const [health, nutritionConfig, nutritionEntries, nutritionStateFull, exercises, logsBySlug, phaseReports] = await Promise.all([
     fetchHealthData(healthDays).catch(() => null),
     getConfig().catch(() => null),
     getEntries(nutritionStart, today).catch(() => []),
     getNutritionState().catch(() => null),
     fetchExercises().catch(() => []),
     fetchLogsBySlug().catch(() => ({} as Record<string, import("@features/training/api").TrainingLog[]>)),
+    fetchPhaseReports().catch(() => []),
   ]);
 
   // ── Health ──────────────────────────────────────────────────────────────────
@@ -795,6 +804,10 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       // which dates, so an over-target day is judged against the goal of its
       // day — not today's. See buildTargetPhases.
       phases: nutritionPhases,
+      // Settled retrospectives of CLOSED cut/bulk phases — written once at
+      // close time (phaseReport.ts) from the same UI derivations, never
+      // recomputed. Descriptive history; nothing downstream gates on it.
+      closedPhases: phaseReports.map(phaseReportForExport),
       engine: nutritionEngine,
       summary: {
         periodDays: nutritionDays,
@@ -937,12 +950,13 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
   // −(days − 1): getEntries is inclusive both ends (see buildAllDataJson).
   const start = new Date(now.getTime() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
 
-  const [config, entries, state, health] = await Promise.all([
+  const [config, entries, state, health, phaseReports] = await Promise.all([
     getConfig().catch(() => null),
     getEntries(start, today).catch(() => []),
     getNutritionState().catch(() => null),
     // Weight series — needed to decompose confidence (scatter/gap aren't persisted).
     fetchHealthData(90).catch(() => null),
+    fetchPhaseReports().catch(() => []),
   ]);
 
   const targets = config ? targetsFromConfig(config) : null;
@@ -1032,6 +1046,8 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
     // which calorie/protein goal was in force over which dates. See
     // buildTargetPhases: judge each day's intake against its day's target.
     phases,
+    // Settled retrospectives of CLOSED cut/bulk phases (see buildAllDataJson).
+    closedPhases: phaseReports.map(phaseReportForExport),
     engine: engineHypothesis(state, calibration, confidence),
     summary: {
       periodDays: days,
