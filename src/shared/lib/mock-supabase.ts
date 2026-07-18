@@ -76,6 +76,7 @@ const NUTRITION_CONFIG = {
   protein_target: 175,
   phase_deficits: [805, 655, 455, 150, 1],
   height_cm: 178,
+  sex: "male" as string | null,
   training_age_months: 36,
   target_body_fat_pct: 12,
   target_tdee: 2800,

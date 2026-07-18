@@ -5,10 +5,11 @@ import { getNutritionState, type NutritionStateFull } from "@features/nutrition/
 import { localDateStr } from "@shared/lib/date";
 import { weeklyWeightRate, tdeeCalibration, confidenceBreakdownFromSeries, MIN_TREND_POINTS, type TdeeCalibration, type ConfidenceBreakdown } from "@features/nutrition/evaluation";
 import { nutritionDecision } from "@features/nutrition/recommendation";
-import { fetchExercises, fetchLogsBySlug } from "@features/training/api";
+import { fetchExercises, fetchLogsBySlug, fetchLatestBodyweight } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
 import { computeStats, computeMuscleWeeklyVolume, epley1RM, maxReps, scoreWeight } from "@features/training/logic";
 import { computeStrengthSummary, fetchPhaseReports, type StrengthExercise, type PhaseReport } from "@features/overview/api";
+import { canonicalLift, strengthStanding, isSex } from "@features/training/strengthStandards";
 import { inferMuscleGroup, resolveMuscleBySlug } from "@features/training/muscleGroup";
 import { computeMuscleClusters, suggestClusterFatigue } from "@features/training/muscleCluster";
 import { buildMuscleGrid } from "@features/training/muscleGrid";
@@ -231,6 +232,32 @@ function buildTargetPhases(entries: NutritionEntry[]) {
 function phaseReportForExport(r: PhaseReport) {
   const { id: _id, user_id: _user, created_at: _created, ...report } = r;
   return report;
+}
+
+/** The absolute strength-standard read for an export, or null when it doesn't
+ *  apply (non-canonical lift, sex unset, or no bodyweight). Same derivation the
+ *  Training trend sheet shows — an objective ladder position off the all-time
+ *  best e1RM, complementing the PR-distance retention already emitted. */
+function strengthStandardForExport(
+  ex: { name: string; compound: boolean | null; assisted_mode: boolean | null },
+  peakE1rmKg: number | null,
+  bodyweightKg: number | null,
+  sex: string | null | undefined,
+) {
+  const standing = strengthStanding(
+    canonicalLift({ name: ex.name, compound: !!ex.compound, assisted_mode: !!ex.assisted_mode }),
+    peakE1rmKg,
+    bodyweightKg,
+    isSex(sex) ? sex : null,
+  );
+  if (!standing) return null;
+  return {
+    lift: standing.lift,
+    level: standing.level,
+    bodyweightMultiple: standing.ratio,
+    nextLevel: standing.nextLevel,
+    kgToNext: standing.kgToNext,
+  };
 }
 
 /** Start date of the phase matching the current config target — i.e. how long
@@ -619,6 +646,10 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     },
   };
 
+  // Latest recorded bodyweight — the strength-standard divisor (same value the
+  // Training trend sheet uses). Metrics are ascending, so the last weight wins.
+  const latestBodyweight = metrics.filter((m) => m.weight_kg != null).at(-1)?.weight_kg ?? null;
+
   const buildTraining = (logsPerEx: number) =>
     SPLITS.map((split) => {
       const splitExercises = exercises.filter(
@@ -681,6 +712,10 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           status: se ? se.status : null,
           reason: strengthReason(se),
           trajectory: exportTrajectory(se),
+          // Absolute strength-standard ladder position (canonical barbell lifts
+          // only; needs sex + bodyweight). Complements retentionPct's own-past
+          // read with a population coordinate. null when it doesn't apply.
+          strengthStandard: strengthStandardForExport(ex, stats.best?.e1rm ?? null, latestBodyweight, nutritionConfig?.sex),
           sessions: sessionDates.length,
           lastSession,
           // The PR number equals stats.best, so pr carries only what's unique: the
@@ -1080,11 +1115,14 @@ export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<st
 
 /** Training tab: every active exercise per split with full log history, PR, stats, trend. */
 export async function buildTrainingJson(): Promise<string> {
-  const [exercises, logsBySlug] = await Promise.all([
+  const [exercises, logsBySlug, config, bodyweightKg] = await Promise.all([
     fetchExercises().catch(() => []),
     fetchLogsBySlug().catch(
       () => ({}) as Record<string, import("@features/training/api").TrainingLog[]>,
     ),
+    // Sex + latest bodyweight — the strength-standard inputs (both best-effort).
+    getConfig().catch(() => null),
+    fetchLatestBodyweight().catch(() => null),
   ]);
 
   // PR-distance status per exercise (same model as the Training Health card).
@@ -1140,6 +1178,8 @@ export async function buildTrainingJson(): Promise<string> {
         status: se ? se.status : null,
         reason: strengthReason(se),
         trajectory: exportTrajectory(se),
+        // Absolute strength-standard ladder position — see buildAllDataJson.
+        strengthStandard: strengthStandardForExport(ex, stats.best?.e1rm ?? null, bodyweightKg, config?.sex),
         sessions: sessionDates.length,
         lastSession: sessionDates.at(-1) ?? null,
         // PR number equals stats.best; pr carries only what's unique: date + set.

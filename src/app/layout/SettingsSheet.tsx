@@ -105,6 +105,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   const [height, setHeight] = useState("");
   const [trainingStartDate, setTrainingStartDate] = useState("");
   const [targetBf, setTargetBf] = useState("");
+  const [sex, setSex] = useState<"" | "male" | "female">("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingRow, setEditingRow] = useState<RowKey | null>(null);
@@ -130,6 +131,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
     setHeight(config.height_cm == null ? "" : String(config.height_cm));
     setTrainingStartDate(config.training_start_date ?? "");
     setTargetBf(config.target_body_fat_pct == null ? "" : String(config.target_body_fat_pct));
+    setSex(config.sex === "male" || config.sex === "female" ? config.sex : "");
   }, [config]);
 
   const numOrNull = (s: string): number | null => (s.trim() === "" ? null : Number(s));
@@ -164,6 +166,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
         height_cm: numOrNull(height),
         training_start_date: trainingStartDate || null,
         target_body_fat_pct: numOrNull(targetBf),
+        sex: sex === "" ? null : sex,
       });
       // Intake crossed into a different phase band → settle the ended cut/bulk
       // into its one-time retrospective. Fire-and-forget: a failed report never
@@ -331,6 +334,27 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
                   </span>
                 </button>
               )}
+            </div>
+            {/* Sex — an enum, not a number, so it's a small inline toggle
+                rather than the edit-to-input rows above. Drives only the
+                strength-level standard (sex-specific thresholds); left unset,
+                the Training trend sheet simply shows no level. */}
+            <div className="settings-row">
+              <span className="settings-row-label">Sex</span>
+              <div className="settings-sex-toggle" role="group" aria-label="Sex">
+                {(["male", "female"] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`settings-sex-opt${sex === s ? " is-on" : ""}`}
+                    aria-pressed={sex === s}
+                    disabled={readOnly}
+                    onClick={() => setSex((cur) => (cur === s ? "" : s))}
+                  >
+                    {s === "male" ? "Male" : "Female"}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className={`settings-row${editingRow === "start" ? " is-editing" : ""}`}>
               <span className="settings-row-label">Training start</span>

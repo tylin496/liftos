@@ -9,6 +9,8 @@ import { buildTrendSeries, windowTrend, type TrendPoint } from "./logic";
 import { timelineDate } from "@shared/lib/date";
 import { fmtWeightNum } from "./ExprDisplay";
 import { formatRepsDisplay } from "./parser";
+import { canonicalLift, strengthStanding, isSex, STRENGTH_LEVELS } from "./strengthStandards";
+import { useNutritionConfig } from "@features/nutrition/NutritionConfigContext";
 import type { Exercise, TrainingLog } from "./api";
 
 const fmt1 = (v: number) => fmtWeightNum(Math.round(v * 10) / 10);
@@ -122,18 +124,53 @@ function TrendChart({ points, isVol, isPct, scrubUnit }: { points: TrendPoint[];
   );
 }
 
+/* Strength standard — a 5-rung ladder (Beginner → Elite) with the current lift
+   marked. Pure locator, rendered neutral: a level is a fact, not a good/bad
+   verdict (the text-color rule reserves colour for verdicts). Only Elite, the
+   celebrated ceiling, gets the gold accent. The sub-line reads the bodyweight-
+   multiple and the kg left to the next rung — the absolute counterpart to the
+   PR-distance the stats above show. */
+function StrengthLevel({ standing }: { standing: NonNullable<ReturnType<typeof strengthStanding>> }) {
+  const isElite = standing.nextLevel == null;
+  return (
+    <div className="trend-standard">
+      <div className="trend-standard-head">
+        <span className="trend-standard-k">Strength level · {standing.liftLabel}</span>
+        <span className={`trend-standard-level${isElite ? " is-elite" : ""}`}>{standing.level}</span>
+      </div>
+      <ol className="trend-standard-ladder" aria-hidden>
+        {STRENGTH_LEVELS.map((lvl, i) => (
+          <li
+            key={lvl}
+            className={`trend-standard-rung${i === standing.levelIndex ? " is-current" : ""}${i < standing.levelIndex ? " is-cleared" : ""}${i === 4 ? " is-elite" : ""}`}
+          />
+        ))}
+      </ol>
+      <span className="trend-standard-sub mono">
+        {standing.ratio.toFixed(2)}× bodyweight
+        {standing.nextLevel && standing.kgToNext != null && (
+          <> · {fmt1(standing.kgToNext)} kg to {standing.nextLevel}</>
+        )}
+      </span>
+    </div>
+  );
+}
+
 function SheetInner({
   exercise,
   logs,
   closing,
   onClose,
+  bodyweightKg,
 }: {
   exercise: Exercise;
   logs: TrainingLog[];
   closing: boolean;
   onClose: () => void;
+  bodyweightKg: number | null;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
+  const { config } = useNutritionConfig();
 
   const setCount = defaultSetCount(exercise);
   const { full, win } = useMemo(() => {
@@ -163,6 +200,15 @@ function SheetInner({
   const isPct = !isVol && exercise.assisted_mode;
   const unitLabel = isVol ? "vol" : exercise.assisted_mode ? "BW" : "kg";
   const scrubUnit = isVol ? " vol" : isPct ? "% BW" : " kg";
+
+  // Strength standard — an ABSOLUTE coordinate alongside the PR-distance read
+  // above. Placed off the all-time best e1RM (capability, not the latest set),
+  // the user's bodyweight, and configured sex. Null (nothing rendered) unless
+  // the lift is a canonical barbell movement, sex is set, and a bodyweight is
+  // known — the read stays silent rather than guess. See strengthStandards.ts.
+  const allTimeE1rm = full.length ? Math.max(...full.map((p) => p.e1rm)) : null;
+  const sex = isSex(config?.sex) ? config.sex : null;
+  const standing = strengthStanding(canonicalLift(exercise), allTimeE1rm, bodyweightKg, sex);
 
   // Focus trap + Escape-to-close — the page behind the scrim is inert.
   useFocusTrap(sheetRef, onClose);
@@ -244,6 +290,8 @@ function SheetInner({
                   </span>
                 </div>
               </div>
+
+              {standing && <StrengthLevel standing={standing} />}
             </>
           )}
         </div>
@@ -258,13 +306,16 @@ export function TrendSheet({
   logs,
   open,
   onClose,
+  bodyweightKg = null,
 }: {
   exercise: Exercise;
   logs: TrainingLog[];
   open: boolean;
   onClose: () => void;
+  /** Latest bodyweight (kg) — the strength-standard divisor. Null hides it. */
+  bodyweightKg?: number | null;
 }) {
   const { mounted, closing } = useExitTransition(open);
   if (!mounted) return null;
-  return <SheetInner exercise={exercise} logs={logs} closing={closing} onClose={onClose} />;
+  return <SheetInner exercise={exercise} logs={logs} closing={closing} onClose={onClose} bodyweightKg={bodyweightKg} />;
 }

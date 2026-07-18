@@ -6,6 +6,7 @@ import {
   currentUserId,
   fetchExercises,
   fetchLogsBySlug,
+  fetchLatestBodyweight,
   addExercise,
   updateExercise,
   reorderExercises,
@@ -546,6 +547,10 @@ function TrainingPageInner() {
   const splitIds = useMemo(() => SPLITS.map((s) => s.id), []);
   const [exercises, setExercises] = useState<Exercise[] | null>(null);
   const [logs, setLogs] = useState<Record<string, TrainingLog[]>>({});
+  // Latest bodyweight — the divisor for the strength-standard read passed down
+  // to each card's Trend sheet. Null until Health has a weight (or on failure);
+  // the level read simply hides in that case.
+  const [bodyweightKg, setBodyweightKg] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("3mo");
   // Filter control stays tucked away until asked for — it only matters once
@@ -705,10 +710,15 @@ function TrainingPageInner() {
 
   const reloadAll = useCallback(async () => {
     try {
-      const [ex, lg] = await Promise.all([fetchExercises(), fetchLogsBySlug()]);
+      const [ex, lg, bw] = await Promise.all([
+        fetchExercises(),
+        fetchLogsBySlug(),
+        fetchLatestBodyweight().catch(() => null),
+      ]);
       const pending = pendingDeleteSlugsRef.current;
       setExercises(pending.size ? ex.filter((e) => !pending.has(e.slug)) : ex);
       setLogs(lg);
+      setBodyweightKg(bw);
       if (!autoSplitDoneRef.current) {
         autoSplitDoneRef.current = true;
         const auto = nextSessionSplit(ex, lg, SPLITS.map((s) => s.id), localDateStr());
@@ -1239,6 +1249,7 @@ function TrainingPageInner() {
                 isFirst={idx === 0}
                 isLast={idx === activeExercises.length - 1}
                 openTrendSignal={jumpTarget?.slug === ex.slug ? jumpTarget.nonce : null}
+                bodyweightKg={bodyweightKg}
               />
             );
           })}

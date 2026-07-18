@@ -35,6 +35,7 @@
      L2035 Edit Exercise Form
      L2154 Read-only title/target/note display
      L2167 Exercise trend sheet
+     L2462 Strength standard ladder
    ───────────────────────────────────────────────────────────────────────────── */
 
 /* ── Split slide animation ───────────────────────────────────────────────── */
@@ -2457,6 +2458,77 @@
   color: var(--ink-3);
   line-height: 1.5;
   margin: var(--vr-section) 0;
+}
+
+/* ─── Strength standard ladder ───────────────────────────────────────────
+   Absolute strength-level read under the trend stats. All neutral ink — a
+   level is a locator, not a verdict — with the current rung filled and only
+   Elite (the ceiling) carrying the celebration gold. */
+.trend-standard {
+  margin-top: var(--vr-section);
+  padding-top: var(--vr-block);
+  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-snug);
+}
+
+.trend-standard-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.trend-standard-k {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+}
+
+.trend-standard-level {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.trend-standard-level.is-elite {
+  color: var(--gold);
+  text-shadow: var(--gold-glow);
+}
+
+/* Five equal rungs; a bottom-track fill shows position, no border (passive). */
+.trend-standard-ladder {
+  display: flex;
+  gap: var(--space-1);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.trend-standard-rung {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--rule-strong);
+}
+
+.trend-standard-rung.is-cleared {
+  background: var(--ink-3);
+}
+
+.trend-standard-rung.is-current {
+  background: var(--ink);
+}
+
+.trend-standard-rung.is-current.is-elite {
+  background: var(--gold);
+}
+
+.trend-standard-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Celebration-gold glow — PR badges/labels are the "special" gold, so they get

@@ -137,6 +137,9 @@ export interface ExerciseCardProps {
   // A one-shot nonce (from a Training Health row tap) that opens this card's
   // Trend sheet on arrival. Each distinct value re-triggers; null does nothing.
   openTrendSignal?: number | null;
+  // Latest bodyweight (kg), for the Trend sheet's strength-standard read. Null
+  // hides the level. Same value across all cards — the page fetches it once.
+  bodyweightKg?: number | null;
 }
 
 function ExerciseCardImpl({
@@ -154,6 +157,7 @@ function ExerciseCardImpl({
   isFirst,
   isLast,
   openTrendSignal,
+  bodyweightKg = null,
 }: ExerciseCardProps) {
   const toast = useToast();
   const celebration = useCelebration();
@@ -1144,6 +1148,7 @@ function ExerciseCardImpl({
         logs={effectiveLogs}
         open={trendOpen}
         onClose={() => setTrendOpen(false)}
+        bodyweightKg={bodyweightKg}
       />
     </article>
   );

@@ -130,6 +130,7 @@ export type Database = {
           height_cm: number | null
           phase_deficits: Json
           protein_target: number
+          sex: string | null
           target_body_fat_pct: number | null
           target_tdee: number | null
           tdee: number
@@ -151,6 +152,7 @@ export type Database = {
           height_cm?: number | null
           phase_deficits?: Json
           protein_target?: number
+          sex?: string | null
           target_body_fat_pct?: number | null
           target_tdee?: number | null
           tdee?: number
@@ -172,6 +174,7 @@ export type Database = {
           height_cm?: number | null
           phase_deficits?: Json
           protein_target?: number
+          sex?: string | null
           target_body_fat_pct?: number | null
           target_tdee?: number | null
           tdee?: number

@@ -78,6 +78,22 @@ export async function fetchLogsBySlug(): Promise<Record<string, TrainingLog[]>> 
   return grouped;
 }
 
+/** Latest recorded bodyweight (kg), or null when Health has none yet. The
+ *  strength-standard read (see strengthStandards.ts) divides the lift's e1RM by
+ *  this to place it on the population ladder. A single-row read, kept out of
+ *  the heavy fetchHealthData path since only the newest weight is needed. */
+export async function fetchLatestBodyweight(): Promise<number | null> {
+  const { data, error } = await supabase
+    .from("health_metrics")
+    .select("weight_kg")
+    .not("weight_kg", "is", null)
+    .order("metric_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return data?.weight_kg ?? null;
+}
+
 export interface NewLog {
   slug: string;
   raw: string;

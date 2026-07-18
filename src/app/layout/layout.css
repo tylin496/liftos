@@ -810,6 +810,39 @@ html.kb-open .tabbar {
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
+/* Sex toggle — a passive segmented pair (an enum picker, not a text field):
+   --bg-soft track, no border; the selected option lifts to --bg-input + ink.
+   Tapping the active option again clears it (back to unset). */
+.settings-sex-toggle {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--bg-soft);
+  border-radius: var(--radius-pill);
+  padding: 2px;
+}
+
+.settings-sex-opt {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+}
+
+.settings-sex-opt.is-on {
+  background: var(--bg-input);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-sex-opt:disabled {
+  cursor: default;
+}
+
 .settings-row-input {
   font-family: var(--font-mono);
   font-size: var(--text-base);
