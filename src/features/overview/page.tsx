@@ -14,7 +14,7 @@ import { progressColor } from "@shared/lib/progressColor";
 import { displayNameFor } from "@shared/lib/owner";
 import { localDateStr } from "@shared/lib/date";
 import { haptic } from "@shared/lib/haptics";
-import { CLEAR_AFTER_MOVE } from "@shared/lib/motion";
+import { CLEAR_AFTER_MOVE, DUR_EXIT } from "@shared/lib/motion";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { MetricValue, MetricDelta } from "@shared/components/Metric";
 import { Badge } from "@shared/components/Badge";
@@ -1879,9 +1879,10 @@ export function OverviewPage() {
 
   // Keep the System banner mounted through its collapse-out when a directive is
   // dismissed or clears (rec → null). Hold the last rec so it still has content
-  // to render while .is-closing plays; 200 mirrors --dur-exit (the collapse).
+  // to render while .is-closing plays; DUR_EXIT is the JS mirror of --dur-exit
+  // (the collapse duration), so the unmount timer can't drift off the CSS token.
   const rec = data?.nutritionState?.recommendation ?? null;
-  const systemExit = useExitTransition(rec != null, 200);
+  const systemExit = useExitTransition(rec != null, DUR_EXIT);
   const lastRec = useRef<Recommendation | null>(null);
   if (rec) lastRec.current = rec;
   const shownRec = rec ?? lastRec.current;

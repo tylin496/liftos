@@ -5,7 +5,7 @@
 // the state flag driving an animation, or a JS-built transition string. Before
 // this existed, every such site invented its own raw literal (1100 / 1200 / 300
 // for the same 1000ms / 200ms / 280ms tokens), so the two silently drifted.
-const DUR_EXIT = 200; // --dur-exit
+export const DUR_EXIT = 200; // --dur-exit
 const DUR_MOVE = 280; // --dur-move
 const DUR_SHEEN = 1000; // --dur-sheen
 
