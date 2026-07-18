@@ -866,3 +866,39 @@ export function computeWeeklyVolumeTrend(
   }
   return out;
 }
+
+// ─── Session split rotation ──────────────────────────────────────────────────
+
+/** The split the Training page should land on when it opens. Rotation-aware:
+ *  once a calendar day has passed since the last logged set, the session ahead
+ *  is the NEXT split in the rotation (after the last-logged one, wrapping), so
+ *  landing there means no manual split pick before logging. A same-day return
+ *  stays on the last-logged split — that session is still the current one.
+ *  `null` = no logs yet or unmappable slug: keep the caller's current split. */
+export function nextSessionSplit(
+  exercises: { slug: string; split: string }[],
+  logsBySlug: Record<string, TrainingLog[]>,
+  splitIds: readonly string[],
+  today: string,
+): string | null {
+  // Each slug's list is newest-first (fetchLogsBySlug orders log_date desc),
+  // so its head is that lift's latest; the overall latest is the max of heads.
+  let latest: TrainingLog | null = null;
+  for (const list of Object.values(logsBySlug)) {
+    const head = list[0];
+    if (!head) continue;
+    if (
+      !latest ||
+      head.log_date > latest.log_date ||
+      (head.log_date === latest.log_date && head.created_at > latest.created_at)
+    ) {
+      latest = head;
+    }
+  }
+  if (!latest) return null;
+  const lastSlug = latest.exercise_slug;
+  const split = exercises.find((e) => e.slug === lastSlug)?.split;
+  const idx = split ? splitIds.indexOf(split) : -1;
+  if (idx === -1) return null;
+  return latest.log_date < today ? splitIds[(idx + 1) % splitIds.length] : splitIds[idx];
+}

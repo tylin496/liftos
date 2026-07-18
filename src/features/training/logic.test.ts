@@ -420,3 +420,50 @@ describe("scoreWeight — assisted %BW axis", () => {
     expect(d.text).not.toContain("%BW");
   });
 });
+
+// ─── nextSessionSplit ────────────────────────────────────────────────────────
+
+import { nextSessionSplit } from "./logic";
+
+const slog = (date: string, created: string): TrainingLog =>
+  ({ log_date: date, created_at: created, exercise_slug: "" }) as TrainingLog;
+const withSlug = (slug: string, l: TrainingLog): TrainingLog => ({ ...l, exercise_slug: slug });
+
+const rosterEx = [
+  { slug: "bench", split: "push" },
+  { slug: "row", split: "pull" },
+  { slug: "squat", split: "legs" },
+];
+const IDS = ["push", "pull", "legs"];
+
+describe("nextSessionSplit", () => {
+  it("advances to the next split once a day has passed", () => {
+    const logs = { bench: [withSlug("bench", slog("2026-07-17", "t1"))] };
+    expect(nextSessionSplit(rosterEx, logs, IDS, "2026-07-18")).toBe("pull");
+  });
+
+  it("wraps legs back around to push", () => {
+    const logs = { squat: [withSlug("squat", slog("2026-07-17", "t1"))] };
+    expect(nextSessionSplit(rosterEx, logs, IDS, "2026-07-18")).toBe("push");
+  });
+
+  it("stays on the last-logged split same-day (mid-session return)", () => {
+    const logs = { row: [withSlug("row", slog("2026-07-18", "t1"))] };
+    expect(nextSessionSplit(rosterEx, logs, IDS, "2026-07-18")).toBe("pull");
+  });
+
+  it("picks the overall latest across slugs, created_at breaking date ties", () => {
+    const logs = {
+      bench: [withSlug("bench", slog("2026-07-17", "2026-07-17T10:00Z"))],
+      row: [withSlug("row", slog("2026-07-17", "2026-07-17T11:00Z"))],
+    };
+    // Latest set was pull → next day lands on legs.
+    expect(nextSessionSplit(rosterEx, logs, IDS, "2026-07-18")).toBe("legs");
+  });
+
+  it("returns null with no logs or an unmappable slug", () => {
+    expect(nextSessionSplit(rosterEx, {}, IDS, "2026-07-18")).toBeNull();
+    const logs = { ghost: [withSlug("ghost", slog("2026-07-17", "t1"))] };
+    expect(nextSessionSplit(rosterEx, logs, IDS, "2026-07-18")).toBeNull();
+  });
+});

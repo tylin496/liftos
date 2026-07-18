@@ -23,7 +23,7 @@ import {
   ExerciseCard,
   useToast,
 } from "./ExerciseCard";
-import { computeStats, computeWeeklyVolume, computeMuscleWeeklyVolume, computeWeeklyVolumeTrend } from "./logic";
+import { computeStats, computeWeeklyVolume, computeMuscleWeeklyVolume, computeWeeklyVolumeTrend, nextSessionSplit } from "./logic";
 import { inferMuscleGroup, resolveMuscleBySlug } from "./muscleGroup";
 import { StrengthHealthCard } from "./StrengthHealthCard";
 import { WeeklyVolumeCard } from "./WeeklyVolumeCard";
@@ -690,12 +690,30 @@ function TrainingPageInner() {
     setJumpTarget(null);
   }, [jumpTarget]);
 
+  // Auto-advance the split once per mount, off the first successful load: land
+  // on the split you're about to train (nextSessionSplit — last-logged split
+  // when it was logged today, the next one in rotation otherwise) so logging
+  // never needs a manual split pick. Once-per-mount means a manual pick during
+  // the session always wins over later background refetches; every fresh entry
+  // (cold start, ≥3min-idle replay, pull-to-refresh remount) re-lands
+  // automatically. Runs in the same commit as the data swap, so the list's
+  // first real mount already shows the auto split — no visible split flip.
+  const autoSplitDoneRef = useRef(false);
+
   const reloadAll = useCallback(async () => {
     try {
       const [ex, lg] = await Promise.all([fetchExercises(), fetchLogsBySlug()]);
       const pending = pendingDeleteSlugsRef.current;
       setExercises(pending.size ? ex.filter((e) => !pending.has(e.slug)) : ex);
       setLogs(lg);
+      if (!autoSplitDoneRef.current) {
+        autoSplitDoneRef.current = true;
+        const auto = nextSessionSplit(ex, lg, SPLITS.map((s) => s.id), localDateStr());
+        if (auto) {
+          setSplit(auto as SplitId);
+          sessionStorage.setItem("tr-split", auto);
+        }
+      }
       // A successful reload clears any earlier transient failure — without
       // this, a stale error banner outlives the recovery.
       setError(null);
