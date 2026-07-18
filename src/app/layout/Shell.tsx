@@ -19,7 +19,7 @@ import { SessionUserProvider } from "./SessionContext";
 import { NavContext, NavExpandContext, type NavOptions } from "./NavContext";
 import { setActiveScroller } from "./activeScroller";
 import { TabActivityContext } from "./TabActivityContext";
-import { isFeatureHSwipeActive } from "@shared/hooks/useHorizontalSwipe";
+import { isFeatureHSwipeActive, setTabSlideSettling } from "@shared/hooks/useHorizontalSwipe";
 import { isTabSwipeLocked } from "@app/layout/swipeLock";
 import { ToastProvider } from "@shared/components/Toast";
 import { NutritionConfigProvider } from "@features/nutrition/NutritionConfigContext";
@@ -216,6 +216,15 @@ export function Shell({ session }: { session: Session }) {
   >(null);
   const slideRef = useRef(slide);
   slideRef.current = slide;
+  // Mirror the settle window into useHorizontalSwipe's module flag: Shell
+  // ignores touches while a slide settles (onTouchStart guard below), so the
+  // feature-level swipers (Training split pager, Nutrition day/week nav) must
+  // sit those touches out too — otherwise a touch landing mid-settle is read as
+  // a split/day swipe on the tab that's still arriving.
+  useEffect(() => {
+    setTabSlideSettling(slide?.settling === true);
+    return () => setTabSlideSettling(false);
+  }, [slide]);
   // The scrollTo id's landing flag for this tab entry — `expand` is read via
   // NavExpandContext by the target card to auto-open its detail. Kept as its own
   // state (with a single reset-on-consume effect below) so a plain later entry

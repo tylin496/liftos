@@ -61,6 +61,17 @@ export function isFeatureHSwipeActive(): boolean {
   return featureHSwipeActive;
 }
 
+// Set by Shell while a cross-tab slide is settling (release → commit). Shell
+// already ignores touches for that window (its onTouchStart settling guard);
+// feature swipers must match, or a gesture landing during the settle — e.g. a
+// flick's follow-through grazing the incoming page — gets read here instead
+// (12px at flick speed is enough to commit) and pages the split/day "by
+// itself" right as the tab arrives.
+let tabSlideSettling = false;
+export function setTabSlideSettling(active: boolean): void {
+  tabSlideSettling = active;
+}
+
 export function useHorizontalSwipe<T extends HTMLElement>(
   ref: RefObject<T | null>,
   onSwipe: (dir: 1 | -1) => void,
@@ -112,6 +123,12 @@ export function useHorizontalSwipe<T extends HTMLElement>(
         return;
       }
       if (startsOnFormControl(e.target)) {
+        cancelled = true;
+        return;
+      }
+      // Mid-settle touches are ignored for their whole lifetime, matching
+      // Shell's own settling guard (see tabSlideSettling above).
+      if (tabSlideSettling) {
         cancelled = true;
         return;
       }
@@ -194,6 +211,7 @@ export function useHorizontalSwipe<T extends HTMLElement>(
       if (e.button !== 0) return; // left button only
       if (optsRef.current.enabled === false) return;
       if (startsOnFormControl(e.target)) return; // see onTouchStart
+      if (tabSlideSettling) return; // see onTouchStart
       mouseDown = true;
       startX = e.clientX;
       startY = e.clientY;
