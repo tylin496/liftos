@@ -164,6 +164,13 @@
   margin-top: var(--space-3);
 }
 
+/* The segmented control ships a standalone margin-bottom; here the sessions
+   list's first-child breath owns the gap below, so drop it to keep the toggle
+   symmetric (12px above, 12px below) instead of 12/24. */
+.wv-view-seg .seg {
+  margin-bottom: 0;
+}
+
 .wv-sessions {
   display: flex;
   flex-direction: column;
@@ -178,9 +185,26 @@
   font-size: var(--text-sm);
 }
 
-/* First row sits under the head with a breath, and carries the opening rule. */
+/* First row sits under the head with a breath. Split view opens on a section
+   header (its own rule), so only muscle view leads with a row — and a rule
+   hugging the toggle there reads as a stray divider. Drop it; the rules
+   between rows still separate the list. */
 .wv-sessions > :first-child {
   margin-top: var(--space-3);
+}
+
+.wv-sessions > .wv-srow:first-child {
+  border-top: none;
+  /* Match split's seg→content gap: its header carries 12px in padding-top,
+     so trim the row's margin to 4px against its own 8px padding-top (= 12). */
+  margin-top: var(--space-1);
+}
+
+/* A leading section header (split view's "This week") already carries that
+   breath in its own padding-top — don't stack the margin on top or the gap
+   below the toggle doubles to 24px against the 12px above it. */
+.wv-sessions > .wv-sect:first-child {
+  margin-top: 0;
 }
 
 .wv-srow-date {

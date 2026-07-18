@@ -44,6 +44,14 @@
   color: var(--ink);
 }
 
+/* Keyboard focus only — replace the UA's auto ring (bulges outside the pill,
+   picks up the OS accent) with a tidy inset accent ring. A mouse/touch tap
+   lands on :focus, not :focus-visible, so it leaves no lingering outline. */
+.seg-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .seg-item:active {
   transform: scale(var(--tap-scale));
   transition-duration: var(--dur-press);
