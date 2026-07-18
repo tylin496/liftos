@@ -1252,7 +1252,7 @@ export function HealthPage() {
           {/* Same header grammar as every other card: eyebrow + freshness tag
               + › in the corner. */}
           <div className="health-tdee-head">
-            <span className="health-card-eyebrow">Active</span>
+            <span className="health-card-eyebrow">Energy</span>
             {data && (
               <div className="health-card-top-right">
                 <FreshnessTag
@@ -1282,6 +1282,7 @@ export function HealthPage() {
             <>
               <div className="health-trend-head">
                 <div className="health-trend-info">
+                  <span className="health-energy-metric-label">Active</span>
                   <div className="health-trend-stat">
                     <MetricValue size="lg" unit="kcal">000</MetricValue>
                   </div>
@@ -1298,6 +1299,10 @@ export function HealthPage() {
                   shape behind the average. */}
               <div className="health-trend-head">
                 <div className="health-trend-info">
+                  {/* Hero labelled "Active" to match Resting/TDEE below — the
+                      card's subject is Energy (eyebrow), this number is its
+                      active slice. */}
+                  <span className="health-energy-metric-label">Active</span>
                   <div className="health-trend-stat">
                     <MetricValue size="lg" unit="kcal">
                       {tdee.avgActive != null ? <AnimatedMetric value={tdee.avgActive} decimals={0} roll /> : null}
@@ -1316,18 +1321,18 @@ export function HealthPage() {
               <div className="health-trend-foot">
                 <MetricCaption>
                   {/* Fixed descriptor of the trailing window, not the sample
-                      count — a single missing day shouldn't tick it to "13".
-                      No "Last 14 days" range beside it: the bars ARE the last
-                      14 days and this caption already names that window, so a
-                      second copy only crowded the corner above "today · trained". */}
-                  14-day average
+                      count — a single missing day shouldn't tick it to "13". */}
+                  {ENERGY_BUCKET}-day average
                 </MetricCaption>
+                {/* Right-side range label, same slot/convention as the
+                    measurement cards' "N-day trend": the bars ARE the last
+                    ENERGY_BUCKET days, so that's the on-card trend span. */}
+                <div className="health-trend-range">{ENERGY_BUCKET}-day trend</div>
               </div>
               {/* Training-day vs rest-day baselines — context so today's reading
                   is judged against the right kind of day, not the blended
-                  average above. Retrospective only: "trained" appears once
-                  today has a logged set, never as a prediction. No colour, no
-                  target semantics (context, not verdict). */}
+                  average above. No colour, no target semantics (context, not
+                  verdict). */}
               {data?.dayType && (
                 <div className="health-daytype">
                   <span>
@@ -1338,9 +1343,6 @@ export function HealthPage() {
                     Rest days{" "}
                     <span className="health-daytype-val">{data.dayType.restAvg}</span>
                   </span>
-                  {data.dayType.todayTrained && (
-                    <span className="health-daytype-today">today · trained</span>
-                  )}
                 </div>
               )}
             </>

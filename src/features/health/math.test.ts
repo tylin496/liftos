@@ -514,7 +514,6 @@ describe("computeDayTypeBaselines", () => {
       restAvg: 320,
       trainN: 2,
       restN: 2,
-      todayTrained: false,
     });
   });
 
@@ -531,7 +530,6 @@ describe("computeDayTypeBaselines", () => {
     const out = computeDayTypeBaselines(metrics, trained, TODAY);
     expect(out?.trainAvg).toBe(650);
     expect(out?.restAvg).toBe(320);
-    expect(out?.todayTrained).toBe(true);
   });
 
   it("returns null until both day types have ≥2 samples", () => {

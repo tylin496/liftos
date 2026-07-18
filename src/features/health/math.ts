@@ -557,8 +557,6 @@ export interface DayTypeBaselines {
   restAvg: number;
   trainN: number;
   restN: number;
-  /** Whether today already has a training log (retrospective, never predictive). */
-  todayTrained: boolean;
 }
 
 /** Baseline window — wider than the Energy card's 14-day display window on
@@ -597,6 +595,5 @@ export function computeDayTypeBaselines(
     restAvg: Math.round(restSum / restN),
     trainN,
     restN,
-    todayTrained: trainingDates.has(todayISO),
   };
 }
