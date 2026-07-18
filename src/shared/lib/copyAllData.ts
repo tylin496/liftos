@@ -11,6 +11,8 @@ import { parse, score } from "@features/training/parser";
 import { computeStats, computeMuscleWeeklyVolume, epley1RM, maxReps, scoreWeight } from "@features/training/logic";
 import { computeStrengthSummary, fetchPhaseReports, type StrengthExercise, type PhaseReport } from "@features/overview/api";
 import { canonicalLift, strengthStanding, isSex } from "@features/training/strengthStandards";
+import { buildPrEvents } from "@features/training/logic";
+import { proteinVsLeanMass, recoveryVsPrDays } from "./exportCorrelations";
 import { inferMuscleGroup, resolveMuscleBySlug } from "@features/training/muscleGroup";
 import { computeMuscleClusters, suggestClusterFatigue } from "@features/training/muscleCluster";
 import { buildMuscleGrid } from "@features/training/muscleGrid";
@@ -557,8 +559,28 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     deltaSets: m.deltaSets === null ? null : round1(m.deltaSets),
   }));
 
+  // Descriptive correlation signals (never gate decisions — see
+  // exportCorrelations). PR days + all training days across every non-archived
+  // lift, from the same logs the export already holds.
+  const prDates = new Set<string>();
+  const sessionDates = new Set<string>();
+  for (const ex of exercises) {
+    if (ex.archived) continue;
+    const raw = (allLogsBySlug[ex.slug] ?? []).map((e) => e.log);
+    for (const l of raw) if (l.log_date) sessionDates.add(l.log_date);
+    for (const evt of buildPrEvents(raw, defaultSetCount(ex), ex.compound ? "compound" : "isolation", !!ex.assisted_mode)) {
+      prDates.add(evt.date);
+    }
+  }
+  const correlations = {
+    proteinVsLeanMass: proteinVsLeanMass(sortedEntries, metrics, nutritionDays),
+    recoveryVsPerformance: recoveryVsPrDays(prDates, sessionDates, metrics),
+  };
+
   const insights = {
     weight: weightTrend,
+    // Descriptive pairings for an external analysis — never decision inputs.
+    correlations,
     nutrition: {
       windowDays: nutritionDays, // adherence/streak/distribution span the full nutrition window (not 30d)
       adherencePct: nutritionAdherence.adherencePct,
