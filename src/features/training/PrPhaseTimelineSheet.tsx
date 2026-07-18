@@ -118,6 +118,27 @@ function SheetInner({
     return { ...c, earlier };
   }, [attributed]);
 
+  // Ordinal timeline: each PR takes an EQUAL slot in chronological order, so
+  // dots never cram and never blob (unlike a real-date axis, where uneven PR
+  // density squished everything to one edge). Phase bands span the contiguous
+  // run of PRs that share a phase — so a band's WIDTH is how many PRs that phase
+  // produced, which is the read we actually want ("most PRs came in the cut").
+  const bands = useMemo(() => {
+    const n = attributed.length;
+    if (!n) return [];
+    const runs: { startIdx: number; count: number; kind: PhaseKind | null }[] = [];
+    attributed.forEach((p, i) => {
+      const last = runs.at(-1);
+      if (last && last.kind === p.phase) last.count++;
+      else runs.push({ startIdx: i, count: 1, kind: p.phase });
+    });
+    return runs.map((b) => {
+      const width = (b.count / n) * 100;
+      return { left: (b.startIdx / n) * 100, width, kind: b.kind, showLabel: b.kind != null && width >= 12 };
+    });
+  }, [attributed]);
+
+  const n = attributed.length;
   const newestFirst = [...attributed].reverse();
   const loadingPhases = phases == null;
   const summaryParts: string[] = [];
@@ -125,6 +146,8 @@ function SheetInner({
     if (phaseCounts[k] > 0) summaryParts.push(`${phaseCounts[k]} in ${PHASE_LABEL[k]}`);
   });
   if (phaseCounts.earlier > 0 && !loadingPhases) summaryParts.push(`${phaseCounts.earlier} earlier`);
+  const firstDate = attributed[0] ? timelineDate(attributed[0].date) : null;
+  const lastDate = attributed[n - 1] ? timelineDate(attributed[n - 1].date) : null;
 
   return createPortal(
     <>
@@ -173,6 +196,39 @@ function SheetInner({
                 </span>
                 {summaryParts.length > 0 && (
                   <span className="prtl-summary-breakdown">{summaryParts.join(" · ")}</span>
+                )}
+              </div>
+
+              {/* Ordinal timeline: PRs left→right in order, equal slots; phase
+                  bands sized by PR count. Axis ends are the first/last PR date
+                  (order is chronological, spacing is by sequence, not by date). */}
+              <div className="prtl-strip">
+                <div className="prtl-dots">
+                  {attributed.map((p, i) => (
+                    <span
+                      key={`${p.slug}-${p.date}-${i}`}
+                      className="prtl-dot"
+                      style={{ left: `${((i + 0.5) / n) * 100}%` }}
+                      title={`${p.name} · ${fmtWeightNum(p.weightKg)}×${formatRepsDisplay(p.reps)} · ${timelineDate(p.date).mon} ${timelineDate(p.date).day}`}
+                    />
+                  ))}
+                </div>
+                <div className="prtl-band">
+                  {bands.map((b, i) => (
+                    <div
+                      key={i}
+                      className={`prtl-seg${b.kind == null ? " is-untracked" : ""}`}
+                      style={{ left: `${b.left}%`, width: `${b.width}%` }}
+                    >
+                      {b.showLabel && <span className="prtl-seg-label">{PHASE_LABEL[b.kind!]}</span>}
+                    </div>
+                  ))}
+                </div>
+                {firstDate && lastDate && (
+                  <div className="prtl-axis">
+                    <span>{firstDate.mon} {firstDate.day}</span>
+                    <span>{lastDate.mon} {lastDate.day}</span>
+                  </div>
                 )}
               </div>
 

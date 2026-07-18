@@ -2606,6 +2606,81 @@
   color: var(--ink-3);
 }
 
+/* Ordinal timeline strip — dots (one per PR, equal slots) over the phase band
+   (segments sized by PR count) over the first/last-PR date labels. Ordinal
+   spacing, not real-date, so nothing ever crams regardless of PR density. */
+.prtl-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-snug);
+}
+
+.prtl-dots {
+  position: relative;
+  height: 10px;
+}
+
+.prtl-dot {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translate(-50%, -50%);
+}
+
+.prtl-band {
+  position: relative;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-soft);
+}
+
+/* Segments split the band; a divider between adjacent phases is the only
+   boundary cue (no fill hue — a phase is a category, not a verdict). */
+.prtl-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--rule-strong);
+  overflow: hidden;
+}
+.prtl-seg:first-child { border-left: 0; }
+
+/* Pre-tracking PRs (no phase on record): a faint hatch reads as "no data here",
+   distinct from a real (labelled) phase band without inventing a colour. */
+.prtl-seg.is-untracked {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--rule) 0,
+    var(--rule) 1px,
+    transparent 1px,
+    transparent 6px
+  );
+}
+
+.prtl-seg-label {
+  font-size: var(--text-3xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.prtl-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
 /* PR list — one row per breakthrough, newest first, phase-tagged. */
 .prtl-list {
   list-style: none;
