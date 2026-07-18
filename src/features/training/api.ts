@@ -114,6 +114,35 @@ export async function addLog({ slug, raw, date, note }: NewLog): Promise<Trainin
   return data;
 }
 
+/** One-tap "trained, nothing new" — clone each source log's numbers verbatim
+ *  onto `date` in a single insert. Copies the stored numeric fields directly
+ *  (no re-parse) so a repeat is a faithful copy of what was last lifted; the
+ *  note is dropped since it described that day, not this one. Callers pass the
+ *  latest log of each exercise that isn't already logged for `date`. */
+export async function repeatSession(sources: TrainingLog[], date: string): Promise<TrainingLog[]> {
+  if (!sources.length) return [];
+  const userId = await currentUserId();
+  const rows = sources.map((s) => ({
+    user_id: userId,
+    exercise_slug: s.exercise_slug,
+    log_date: date,
+    raw: s.raw,
+    reps: s.reps,
+    weight_kg: s.weight_kg,
+    unit: s.unit,
+    note: null,
+    kind: s.kind,
+    assistance: s.assistance,
+    bodyweight: s.bodyweight,
+  }));
+  const { data, error } = await supabase
+    .from("training_logs")
+    .insert(rows)
+    .select("*");
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function deleteLog(id: string): Promise<void> {
   const { error } = await supabase.from("training_logs").delete().eq("id", id);
   if (error) throw error;

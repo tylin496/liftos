@@ -10,6 +10,7 @@ import {
   updateExercise,
   reorderExercises,
   deleteExerciseAndLogs,
+  repeatSession,
   loadStretches,
   saveStretches,
   uploadStretchImage,
@@ -42,6 +43,7 @@ import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { buildTrainingJson } from "@shared/lib/copyAllData";
 import { daysSince } from "@shared/lib/freshness";
 import { localDateStr } from "@shared/lib/date";
+import { haptic } from "@shared/lib/haptics";
 import { EditIcon } from "./EditIcon";
 import "./training.css";
 
@@ -551,6 +553,7 @@ function TrainingPageInner() {
   const [timeFilterOpen, setTimeFilterOpen] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
   const [addingSubmitting, setAddingSubmitting] = useState(false);
+  const [repeating, setRepeating] = useState(false);
   const [stretches, setStretches] = useState<Record<SplitId, StretchItem[]>>(loadStretches);
   // The single history row whose est-1RM / %-of-PR detail is open. Lifted here
   // (not per-card) so opening one row's detail closes any other across all
@@ -805,6 +808,38 @@ function TrainingPageInner() {
     () => (exercises ?? []).filter((e) => e.split === split && e.archived),
     [exercises, split],
   );
+
+  // "Trained, nothing new" — the latest log of every active exercise in this
+  // split that has history but isn't already logged today. Repeating these is
+  // what marks today's session as done (carry-forward covers the rest): one tap
+  // for a maintained day instead of retyping unchanged sets. Empty once the
+  // split is fully logged (or has no history yet) — the button hides then.
+  const repeatable = useMemo(() => {
+    const today = localDateStr();
+    return activeExercises
+      .map((ex) => (logs[ex.slug] ?? [])[0])
+      .filter((l): l is TrainingLog => !!l && !!l.raw)
+      .filter((l) => !(logs[l.exercise_slug] ?? []).some((x) => x.log_date === today));
+  }, [activeExercises, logs]);
+
+  async function handleRepeatSession() {
+    if (repeating || !repeatable.length) return;
+    setRepeating(true);
+    try {
+      const rows = await repeatSession(repeatable, localDateStr());
+      rows.forEach(onLogAdded);
+      haptic("success");
+      toast(
+        `Session logged — ${rows.length} ${rows.length === 1 ? "exercise" : "exercises"} maintained`,
+        "success",
+      );
+    } catch (e) {
+      haptic("error");
+      toast(String((e as Error)?.message ?? e), "error");
+    } finally {
+      setRepeating(false);
+    }
+  }
 
   async function handleAddExercise(
     name: string,
@@ -1209,6 +1244,21 @@ function TrainingPageInner() {
           })}
           {exercises && activeExercises.length === 0 && (
             <div className="empty-row">No exercises in this split yet — add one below.</div>
+          )}
+          {/* One-tap maintained session: repeats every not-yet-logged-today
+              exercise at its last numbers, so "I trained, nothing new" costs a
+              tap. Hidden once the split is fully logged or has no history. */}
+          {!readOnly && repeatable.length > 0 && (
+            <button
+              type="button"
+              className="tr-repeat-session"
+              disabled={repeating}
+              onClick={handleRepeatSession}
+            >
+              {repeating
+                ? "Logging…"
+                : `Repeat last session (${repeatable.length})`}
+            </button>
           )}
         </div>
       </div>

@@ -78,6 +78,32 @@
   gap: var(--vr-block);
 }
 
+/* One-tap maintained-session action — a passive surface (grey, no border): it's
+   a shortcut, not the primary Log-set path, so it stays quieter than a card.
+   Sits in the list flow below the cards, riding the same entrance/slide. */
+.tr-repeat-session {
+  width: 100%;
+  padding: var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+  transition:
+    color var(--dur-press) var(--ease-press),
+    transform var(--dur-press) var(--ease-press);
+}
+
+.tr-repeat-session:active { transform: scale(var(--tap-scale)); }
+.tr-repeat-session:disabled { opacity: 0.6; cursor: default; }
+
+@media (hover: hover) {
+  .tr-repeat-session:hover:not(:disabled) { color: var(--ink); }
+}
+
 /* ── Exercise card ───────────────────────────────────────────────────────────*/
 @keyframes card-enter {
   from { opacity: 0; transform: translateY(var(--enter-rise, 12px)); }
