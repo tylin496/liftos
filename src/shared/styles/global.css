@@ -56,6 +56,28 @@ button {
   }
 }
 
+/* Theme-toggle cross-fade: no abrupt dark↔light brightness jump. theme.tsx
+   stamps this class for one --dur-move beat around the data-theme swap (runtime
+   changes only — initial load applies instantly). !important so the beat wins
+   over per-component transitions; transform is deliberately excluded so press/
+   slide motion is untouched. Wrapped in no-preference so it defers to the
+   reduced-motion guard above (higher specificity would otherwise out-cascade
+   the guard's universal transition-duration). */
+@media (prefers-reduced-motion: no-preference) {
+  html.is-theme-easing,
+  html.is-theme-easing *,
+  html.is-theme-easing *::before,
+  html.is-theme-easing *::after {
+    transition:
+      background var(--dur-move) var(--ease-move),
+      color var(--dur-move) var(--ease-move),
+      border-color var(--dur-move) var(--ease-move),
+      box-shadow var(--dur-move) var(--ease-move),
+      fill var(--dur-move) var(--ease-move),
+      stroke var(--dur-move) var(--ease-move) !important;
+  }
+}
+
 #root {
   min-height: var(--app-height);
 }

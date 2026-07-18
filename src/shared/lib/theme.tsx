@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type ThemePreference = "light" | "dark" | "system";
 
@@ -22,6 +22,23 @@ function applyTheme(pref: ThemePreference) {
   if (meta) meta.setAttribute("content", resolved === "dark" ? "#1a1a1a" : "#f4f4f6");
 }
 
+/* Runtime theme swaps cross-fade instead of hard-flipping the whole page
+   (an abrupt dark↔light brightness jump). The .is-theme-easing class turns on
+   a one-beat colour transition (global.css); it's stamped just before the
+   data-theme swap and lifted after --dur-move. Rapid re-toggles extend the
+   beat rather than stacking timers. */
+let easeTimer = 0;
+
+function applyThemeEased(pref: ThemePreference) {
+  const root = document.documentElement;
+  // Fallback mirrors --dur-move in tokens.css §Motion — keep in lockstep.
+  const ms = parseFloat(getComputedStyle(root).getPropertyValue("--dur-move")) || 280;
+  root.classList.add("is-theme-easing");
+  applyTheme(pref);
+  window.clearTimeout(easeTimer);
+  easeTimer = window.setTimeout(() => root.classList.remove("is-theme-easing"), ms);
+}
+
 function readStoredPreference(): ThemePreference {
   const stored = localStorage.getItem(STORAGE_KEY);
   return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
@@ -34,14 +51,22 @@ const ThemeContext = createContext<{
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<ThemePreference>(readStoredPreference);
+  const firstApply = useRef(true);
 
   useEffect(() => {
-    applyTheme(theme);
+    // Initial mount paints the stored theme instantly; only a runtime change
+    // (user toggle, or the OS flipping while the app is open) cross-fades.
+    if (firstApply.current) {
+      firstApply.current = false;
+      applyTheme(theme);
+    } else {
+      applyThemeEased(theme);
+    }
     localStorage.setItem(STORAGE_KEY, theme);
     if (theme !== "system") return;
     // Keep "system" live-updating when the OS setting changes while the app is open.
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => applyTheme("system");
+    const onChange = () => applyThemeEased("system");
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, [theme]);
