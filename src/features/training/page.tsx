@@ -1080,15 +1080,21 @@ function TrainingPageInner() {
     }
   }, [lastTrained]);
 
-  const lastLoggedNote = lastTrained && (
-    <span className={`page-topbar-sync-note${lastTrained.daysAgo >= 2 ? " is-bad" : ""}`}>
-      Trained{" "}
-      {lastTrained.daysAgo <= 0
-        ? "today"
-        : lastTrained.daysAgo === 1
-          ? "yesterday"
-          : `${lastTrained.daysAgo}d ago`}
-    </span>
+  // Memoised because PageTopBar's useCrossfade compares the note by reference —
+  // a fresh element every render would restart its 90ms fade cycle perpetually.
+  const lastLoggedNote = useMemo(
+    () =>
+      lastTrained && (
+        <span className={`page-topbar-sync-note${lastTrained.daysAgo >= 2 ? " is-bad" : ""}`}>
+          Trained{" "}
+          {lastTrained.daysAgo <= 0
+            ? "today"
+            : lastTrained.daysAgo === 1
+              ? "yesterday"
+              : `${lastTrained.daysAgo}d ago`}
+        </span>
+      ),
+    [lastTrained],
   );
 
   return (

@@ -65,6 +65,13 @@
 .page-topbar-note {
   opacity: 1;
   transition: opacity var(--dur-press) var(--ease-press) 40ms;
+
+  /* The note's content is data-derived (e.g. Training's "Trained today"), so
+     its first mount lands after the async fetch — later than the eyebrow/title,
+     which paint immediately. Ease that late arrival in instead of popping.
+     Crossfade swaps keep the span mounted, so this plays on first appearance
+     only. */
+  animation: fade-in var(--dur-enter) var(--ease-enter);
 }
 
 .page-topbar-note.is-fading {
