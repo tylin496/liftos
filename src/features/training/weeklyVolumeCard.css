@@ -232,6 +232,34 @@
   color: var(--ink-4);
 }
 
+/* Muscle rows carry a ranked magnitude bar on a second line, so they wrap
+   (the top line keeps its baseline flex; the bar takes the full width below). */
+.wv-srow--muscle {
+  flex-wrap: wrap;
+  /* .wv-srow's gap doubles as the wrap row-gap; tighten it so the bar hugs its
+     number line (6px) instead of inheriting the 12px column gap. */
+  row-gap: 6px;
+}
+
+/* Ranked volume bar: track = full grey ceiling (the busiest muscle), fill =
+   neutral --ink-3 (volume magnitude is context, not a good/bad verdict — same
+   vocabulary as nutrition's nt-track). Sits below the row's number line so the
+   eye can scan the column of bars for cross-muscle imbalance. */
+.wv-srow-bar {
+  flex: 0 0 100%;
+  height: 4px; /* ≤4px graphic detail */
+  border-radius: var(--radius-pill);
+  background: var(--rule-strong);
+  overflow: hidden;
+}
+
+.wv-srow-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink-3);
+}
+
 /* Contributing lifts under the muscle label — the row's evidence (primary-
    muscle-only: the number IS these lifts' direct sets), styled as a caption
    so the muscle + value pair keeps the row's voice. */
