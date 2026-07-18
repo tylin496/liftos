@@ -25,7 +25,8 @@ import {
   ExerciseCard,
   useToast,
 } from "./ExerciseCard";
-import { computeStats, computeWeeklyVolume, computeMuscleWeeklyVolume, computeWeeklyVolumeTrend, nextSessionSplit } from "./logic";
+import { computeStats, computeWeeklyVolume, computeMuscleWeeklyVolume, computeWeeklyVolumeTrend, nextSessionSplit, buildPrEvents } from "./logic";
+import { PrPhaseTimelineSheet } from "./PrPhaseTimelineSheet";
 import { inferMuscleGroup, resolveMuscleBySlug } from "./muscleGroup";
 import { StrengthHealthCard } from "./StrengthHealthCard";
 import { WeeklyVolumeCard } from "./WeeklyVolumeCard";
@@ -565,6 +566,7 @@ function TrainingPageInner() {
   // cards — only one is ever expanded at a time. Log ids are globally unique,
   // so a single id targets exactly the right card.
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   // A Training Health row tap: jump to that lift's card and open its Trend. The
   // nonce makes each tap distinct so re-tapping the same lift re-fires.
   const [jumpTarget, setJumpTarget] = useState<{ slug: string; nonce: number } | null>(null);
@@ -1079,6 +1081,23 @@ function TrainingPageInner() {
     };
   }, [logs, exercises, muscleBySlug]);
 
+  // Whether any lift has ever beaten its own record — gates the PR Timeline
+  // opener (a zero-PR account shows nothing). Short-circuits on the first hit;
+  // the sheet recomputes the full set only once opened.
+  const hasAnyPr = useMemo(() => {
+    for (const ex of exercises ?? []) {
+      if (ex.archived) continue;
+      const evts = buildPrEvents(
+        logs[ex.slug] ?? [],
+        defaultSetCount(ex),
+        ex.compound ? "compound" : "isolation",
+        !!ex.assisted_mode,
+      );
+      if (evts.length > 0) return true;
+    }
+    return false;
+  }, [exercises, logs]);
+
   // Every distinct log date on record, any exercise — feeds the session-count
   // milestone (every 100th training day) in ExerciseCard. A log can only ever
   // add one new date, so callers compare against this set as of before the add.
@@ -1324,6 +1343,30 @@ function TrainingPageInner() {
         trend={exercises ? weeklyVolume.trend : undefined}
         nameBySlug={nameBySlug}
         loading={!exercises}
+      />
+
+      {/* ── PR Timeline entry ── */}
+      {/* A slim opener (not a full card): PRs against phases is a rarely-opened
+          analytical view, so it earns a button, not standing card real-estate.
+          Shown once logs are in and at least one PR exists. */}
+      {exercises && hasAnyPr && (
+        <button
+          type="button"
+          className="page-card prtl-open"
+          onClick={() => setTimelineOpen(true)}
+        >
+          <span className="prtl-open-text">
+            <span className="prtl-open-title">PR Timeline</span>
+            <span className="prtl-open-sub">Your PRs against each cut / bulk phase</span>
+          </span>
+          <span className="prtl-open-chev" aria-hidden>›</span>
+        </button>
+      )}
+      <PrPhaseTimelineSheet
+        exercises={exercises ?? []}
+        logs={logs}
+        open={timelineOpen}
+        onClose={() => setTimelineOpen(false)}
       />
 
       {/* ── Archived (owner only) ── */}

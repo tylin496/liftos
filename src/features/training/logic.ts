@@ -292,6 +292,54 @@ export function computeStats(logs: TrainingLog[], setCount: number, mode: ScoreM
   return { best, prIndex, latest };
 }
 
+export interface PrEvent {
+  date: string;
+  /** The scoring-axis value at the PR — e1RM (compound), best-set tonnage
+   *  (isolation), or %BW-lifted (assisted); the axis `mode`/`assistedMode`
+   *  select, matching cmpStrength. Unit varies, so surfaces that mix lifts show
+   *  weight×reps rather than this raw number. */
+  score: number;
+  weightKg: number;
+  reps: string;
+}
+
+/** The chronological sequence of PR *events* for one lift: each date the lift
+ *  set a new all-time best by the app's own comparator (cmpStrength — the same
+ *  ordering the PR badge and confetti use), not raw e1rm. The FIRST logged set
+ *  establishes the record without emitting an event (it isn't a "new" PR, and
+ *  a dot on every lift's first day would just be noise); every later set that
+ *  beats the running best is an event. `logs` may be in any order — sorted
+ *  ascending internally. Used by the PR + Phase timeline to attribute each
+ *  breakthrough to the phase it happened in. */
+export function buildPrEvents(
+  logs: TrainingLog[],
+  setCount: number,
+  mode: ScoreMode,
+  assistedMode: boolean,
+): PrEvent[] {
+  const entries = logs
+    .map((l) => toLogEntry(l, setCount, assistedMode))
+    .filter((e): e is LogEntry => e !== null && !!e.log.log_date)
+    .sort((a, b) => (a.log.log_date! < b.log.log_date! ? -1 : a.log.log_date! > b.log.log_date! ? 1 : 0));
+
+  const events: PrEvent[] = [];
+  let best: LogEntry | null = null;
+  for (const e of entries) {
+    if (best && cmpStrength(e, best, mode) <= 0) continue;
+    const isImprovement = best !== null; // skip the record-establishing first set
+    best = e;
+    if (isImprovement) {
+      events.push({
+        date: e.log.log_date!,
+        score: mode === "isolation" ? e.tonnage : e.e1rm,
+        weightKg: e.weightKg,
+        reps: e.reps,
+      });
+    }
+  }
+  return events;
+}
+
 // ─── Trend series (for the exercise sparkline) ───────────────────────────────
 
 export interface TrendPoint {

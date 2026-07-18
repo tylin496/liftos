@@ -1,6 +1,7 @@
 import { fetchHealthData } from "@features/health/api";
-import { getConfig, getEntries, targetsFromConfig, type NutritionEntry } from "@features/nutrition/api";
-import { monthlyStats, weeklyStats, trainingMonthsFromStart, phaseFromDeficit, phaseKindFromName } from "@features/nutrition/logic";
+import { getConfig, getEntries, targetsFromConfig } from "@features/nutrition/api";
+import { monthlyStats, weeklyStats, trainingMonthsFromStart, phaseKindFromName } from "@features/nutrition/logic";
+import { buildTargetPhases } from "./phaseTimeline";
 import { getNutritionState, type NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { localDateStr } from "@shared/lib/date";
 import { weeklyWeightRate, tdeeCalibration, confidenceBreakdownFromSeries, MIN_TREND_POINTS, type TdeeCalibration, type ConfidenceBreakdown } from "@features/nutrition/evaluation";
@@ -166,64 +167,6 @@ function weekStartMonday(dateStr: string): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-/** Target-phase history reconstructed from the entries themselves. Every
- *  nutrition entry snapshots the calorie/protein target that was active the day
- *  it was logged (saveEntry writes targetsFromConfig), so the full target
- *  timeline lives in the data — no separate audit table needed. A new phase
- *  begins whenever calorie_target or protein_target changes from the previous
- *  logged day. This lets an analysis attribute each day's intake to the goal
- *  actually in force at the time: a 2452 kcal day under a 2050 target is on
- *  plan, NOT overeating against today's 1750 target. Without this the reader
- *  sees only the current target and mistakes every historical over-target day
- *  for a slip. */
-function buildTargetPhases(entries: NutritionEntry[]) {
-  const withTarget = [...entries]
-    .filter((e) => e.calorie_target != null)
-    .sort((a, b) => a.entry_date.localeCompare(b.entry_date));
-
-  type Acc = {
-    from: string; to: string;
-    calorieTarget: number; proteinTarget: number | null;
-    deficitTarget: number | null; tdee: number | null;
-    calSum: number; calN: number; protSum: number; protN: number;
-  };
-  const accs: Acc[] = [];
-  for (const e of withTarget) {
-    const cal = e.calorie_target as number;
-    const prot = e.protein_target;
-    const last = accs.at(-1);
-    // New phase when the effective target (calories or protein) changes.
-    if (!last || last.calorieTarget !== cal || last.proteinTarget !== prot) {
-      accs.push({
-        from: e.entry_date, to: e.entry_date,
-        calorieTarget: cal, proteinTarget: prot,
-        deficitTarget: e.deficit_target, tdee: e.tdee,
-        calSum: 0, calN: 0, protSum: 0, protN: 0,
-      });
-    }
-    const acc = accs.at(-1)!;
-    acc.to = e.entry_date;
-    if (e.calories != null) { acc.calSum += e.calories; acc.calN++; }
-    if (e.protein != null) { acc.protSum += e.protein; acc.protN++; }
-  }
-
-  return accs.map((a) => ({
-    from: a.from,
-    to: a.to,
-    // activeDays = inclusive calendar span of the phase; loggedDays = how many
-    // of those days actually have an entry (the rest are gaps, not misses).
-    activeDays: Math.round((Date.parse(a.to) - Date.parse(a.from)) / 86_400_000) + 1,
-    loggedDays: a.calN,
-    calorieTarget: a.calorieTarget,
-    proteinTarget: a.proteinTarget,
-    deficitTarget: a.deficitTarget,
-    tdee: a.tdee,
-    cutPhase: a.deficitTarget != null ? phaseFromDeficit(a.deficitTarget) : null,
-    avgCalories: a.calN ? Math.round(a.calSum / a.calN) : null,
-    avgProtein: a.protN ? Math.round(a.protSum / a.protN) : null,
-  }));
 }
 
 /** A settled phase_reports row minus its storage plumbing — the report fields
