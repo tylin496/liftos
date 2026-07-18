@@ -292,7 +292,7 @@ export async function fetchOverview(): Promise<OverviewData> {
 export async function saveCutBaseline(startDate: string, metrics: BodyMetric[]) {
   const { bodyFatPct, weightKg } = cutBaselineAt(metrics, startDate);
   if (bodyFatPct == null) {
-    throw new Error("No body-fat readings near that date to anchor the baseline.");
+    throw new Error("No body-fat readings near that date to anchor the baseline");
   }
   return saveConfig({
     cut_start_date: startDate,
@@ -310,7 +310,7 @@ export async function saveCutBaseline(startDate: string, metrics: BodyMetric[]) 
 export async function saveBulkBaseline(startDate: string, bfCeiling: number, metrics: BodyMetric[]) {
   const { bodyFatPct, weightKg } = cutBaselineAt(metrics, startDate);
   if (bodyFatPct == null) {
-    throw new Error("No body-fat readings near that date to anchor the baseline.");
+    throw new Error("No body-fat readings near that date to anchor the baseline");
   }
   return saveConfig({
     bulk_start_date: startDate,

@@ -664,7 +664,7 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
           </span>
         </div>
         <p className="health-recovery-footer health-recovery-footer--flush">
-          Readiness needs a recent sleep &amp; HRV reading.
+          Readiness needs a recent sleep &amp; HRV reading
         </p>
       </section>
     );
@@ -685,7 +685,7 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
           </span>
         </div>
         <p className="health-recovery-footer health-recovery-footer--flush">
-          Readiness unlocks after ~30 days of sleep &amp; HRV history.
+          Readiness unlocks after ~30 days of sleep &amp; HRV history
         </p>
       </section>
     );
@@ -711,7 +711,7 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
         <RecoveryRow label="HRV"   metric="hrv"   value={snap.hrv}        unit="ms"  baseline={snap.hrvBaseline} band={snap.hrvBand} />
         <RecoveryRow label="RHR"   metric="rhr"   value={snap.rhr}        unit="bpm" baseline={snap.rhrBaseline} band={snap.rhrBand} />
       </div>
-      <p className="health-recovery-legend">Band = 30-day normal range · dot = 7-day average</p>
+      <p className="health-recovery-legend">Band = 30-day normal range dot = 7-day average</p>
       {snap.insight && <p className="health-recovery-footer">{snap.insight}</p>}
     </section>
   );
@@ -1095,7 +1095,7 @@ export function HealthPage() {
       <div className="page health">
         {header}
         <p className="page-note">
-          No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
+          No Apple Health data yet — make sure the iOS Shortcut has synced at least one day
         </p>
       </div>
     );
@@ -1153,7 +1153,6 @@ export function HealthPage() {
                   value={c.change}
                   direction={spec.key === "weight_kg" ? weightDir : "down-good"}
                   decimals={spec.decimals}
-                  unit={spec.unit}
                 />
               ) : null
             }
@@ -1217,8 +1216,9 @@ export function HealthPage() {
           Number(Math.abs(lbmCard.change).toFixed(1)) !== 0 ? (
             <span className="health-lbm-change">
               {lbmCard.change > 0 ? "▲" : "▼"}
-              {" "}
-              {Math.abs(lbmCard.change).toFixed(1)} kg
+              {/* thin space (U+2009) — same tight arrow↔number gap as MetricDelta */}
+              {" "}
+              {Math.abs(lbmCard.change).toFixed(1)}
             </span>
           ) : null
         }
@@ -1311,6 +1311,22 @@ export function HealthPage() {
                       <MetricDelta value={activeChange} direction="up-good" decimals={0} />
                     )}
                   </div>
+                  {/* Training-day vs rest-day baselines — context so today's
+                      reading is judged against the right kind of day, not the
+                      blended average. Small text right under the hero. No colour,
+                      no target semantics (context, not verdict). */}
+                  {data?.dayType && (
+                    <div className="health-daytype">
+                      <span>
+                        Train{" "}
+                        <span className="health-daytype-val">{data.dayType.trainAvg}</span>
+                      </span>
+                      <span>
+                        Rest{" "}
+                        <span className="health-daytype-val">{data.dayType.restAvg}</span>
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <ActivityBars
                   days={activeDaily}
@@ -1324,31 +1340,18 @@ export function HealthPage() {
                       count — a single missing day shouldn't tick it to "13". */}
                   {ENERGY_BUCKET}-day average
                 </MetricCaption>
-                {/* Right-side range label, same slot/convention as the
-                    measurement cards' "N-day trend": the bars ARE the last
-                    ENERGY_BUCKET days, so that's the on-card trend span. */}
-                <div className="health-trend-range">{ENERGY_BUCKET}-day trend</div>
+                {/* Right-side range label. NOT "N-day trend" like the
+                    measurement cards — theirs is a bucketed line over
+                    bucket×SPARK_POINTS days; these bars are raw daily output
+                    over the same ENERGY_BUCKET-day window the headline averages.
+                    Labelling it a "trend" both misnamed the daily resolution
+                    and collided with the "14-day average" caption on the left. */}
+                <div className="health-trend-range">daily {ENERGY_BUCKET} days</div>
               </div>
-              {/* Training-day vs rest-day baselines — context so today's reading
-                  is judged against the right kind of day, not the blended
-                  average above. No colour, no target semantics (context, not
-                  verdict). */}
-              {data?.dayType && (
-                <div className="health-daytype">
-                  <span>
-                    Training days{" "}
-                    <span className="health-daytype-val">{data.dayType.trainAvg}</span>
-                  </span>
-                  <span>
-                    Rest days{" "}
-                    <span className="health-daytype-val">{data.dayType.restAvg}</span>
-                  </span>
-                </div>
-              )}
             </>
           ) : (
             <p className="page-note">
-              No Apple Health data yet. Make sure the iOS Shortcut has synced at least one day.
+              No Apple Health data yet — make sure the iOS Shortcut has synced at least one day
             </p>
           )}
         </div>

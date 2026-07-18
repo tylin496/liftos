@@ -126,7 +126,7 @@ export function suggestClusterFatigue(
   const muscle = cluster.muscle;
   const Muscle = muscle.charAt(0).toUpperCase() + muscle.slice(1);
   const headline = `${Muscle} isn't recovering`;
-  const step = `Back off ${muscle} volume this week, not just one movement.`;
+  const step = `Back off ${muscle} volume this week, not just one movement`;
   return {
     muscle,
     lifts,

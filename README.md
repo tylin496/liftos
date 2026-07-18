@@ -1,44 +1,31 @@
 # LiftOS
 
-Training, Nutrition, and Health tracking backed by Supabase (Postgres + RLS +
-Auth). Google sign-in is handled entirely by Supabase Auth. A Supabase Edge
-Function bridges Apple Health data via the nightly Shortcut — see
-[docs/HEALTH-SYNC.md](docs/HEALTH-SYNC.md).
+Training, Nutrition, and Health tracking. Vite + React + TypeScript frontend
+(GitHub Pages), talking directly to Supabase (Postgres + RLS + Auth) — no custom
+API server. Google sign-in via Supabase Auth; Apple Health syncs nightly through
+a Supabase Edge Function.
 
-## Stack
-
-- **Frontend**: Vite + React + TypeScript, deployed to GitHub Pages
-- **Backend**: Supabase (Postgres + RLS + Auth) — the frontend talks to
-  Supabase directly via `@supabase/supabase-js`; no custom API server
-- **Tabs**: Overview / Training / Nutrition / Health — see
-  [docs/LIFTOS-ARCHITECTURE.md](docs/LIFTOS-ARCHITECTURE.md)
-
-## Google Cloud setup
-
-1. Create a project in [Google Cloud Console](https://console.cloud.google.com/).
-2. Configure the OAuth consent screen (External or Internal).
-3. Create **OAuth 2.0 Client ID** → Application type: **Web application**.
-4. Authorized JavaScript origins:
-   - `https://tylin496.github.io`
-   - `http://127.0.0.1:8765` (local dev)
-5. Add the client ID + secret to the Google provider in Supabase Dashboard →
-   Authentication → Providers.
+- Tabs: Overview / Training / Nutrition / Health — [docs/LIFTOS-ARCHITECTURE.md](docs/LIFTOS-ARCHITECTURE.md)
+- Health sync — [docs/HEALTH-SYNC.md](docs/HEALTH-SYNC.md)
 
 ## Local preview
 
 ```bash
-cp .env.local.example .env.local
-# fill in VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
-npm run dev
+cp .env.local.example .env.local   # fill in VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+npm run dev                        # http://127.0.0.1:5173/ — sign in with Google
 ```
-
-Open `http://127.0.0.1:5173/` and sign in with Google.
 
 ## Scripts
 
 ```bash
 npm run dev        # local dev server
-npm run build       # typecheck + production build
-npm run test         # vitest
-npm run lint:css     # stylelint (design token enforcement)
+npm run build      # typecheck + production build
+npm run test       # vitest
+npm run lint:css   # stylelint (design token enforcement)
 ```
+
+## Google OAuth
+
+Create an OAuth 2.0 **Web application** client in [Google Cloud Console](https://console.cloud.google.com/),
+with authorized origins `https://tylin496.github.io` and `http://127.0.0.1:8765`,
+then add the client ID + secret to Supabase Dashboard → Authentication → Providers.

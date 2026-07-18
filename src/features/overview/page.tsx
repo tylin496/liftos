@@ -435,7 +435,7 @@ function ActiveTargetCard({
                       <>
                         <span className="ov-active-target-mono">{pastDayAccrued.toLocaleString()}</span> /{" "}
                         <span className="ov-active-target-num">{view.activeTargetPerDay.toLocaleString()}</span> active
-                        {" · "}
+                        {" "}
                         {Math.round(pastDayRatio * 100)}%
                       </>
                     ) : (
@@ -461,13 +461,13 @@ function ActiveTargetCard({
                       stay plain mono. */}
                   <span className="ov-active-target-detail">
                     {ratio > 1.05 ? (
-                      <>Above your <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span> baseline · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                      <>Above your <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span> baseline <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
                     ) : position === "behind" ? (
-                      <>Raised to <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> (usual <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span>) · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                      <>Raised to <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> (usual <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span>) <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
                     ) : position === "ahead" ? (
-                      <>Eased to <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> (usual <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span>) · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                      <>Eased to <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> (usual <span className="ov-active-target-mono">{dailyAvg.toLocaleString()}</span>) <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
                     ) : (
-                      <>Today <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> — your usual pace · <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
+                      <>Today <span className="ov-active-target-num">{view.today.target.toLocaleString()}</span> — your usual pace <span className="ov-active-target-mono">{view.today.accrued.toLocaleString()}</span> logged</>
                     )}
                   </span>
                 </>
@@ -476,7 +476,7 @@ function ActiveTargetCard({
           </div>
         ) : (
           <p className="page-note">
-            No resting-energy baseline yet — the target needs a few days of Apple Health data.
+            No resting-energy baseline yet — the target needs a few days of Apple Health data
           </p>
         )}
       </button>
@@ -660,7 +660,7 @@ function GoalTrack({
         className="goal-today"
         style={{ left: `clamp(30px, ${w}%, calc(100% - 30px))`, transition: `left ${ramp}` }}
       >
-        Now · {currentWeight.toFixed(1)} kg
+        Now {currentWeight.toFixed(1)} kg
       </span>
       <div className="goal-path">
         <div className="goal-bar">
@@ -936,7 +936,7 @@ function CutProgressCard({
           </div>
         </div>
         <div className="goal-track">
-          <span className="goal-today">Now · 00.0 kg</span>
+          <span className="goal-today">Now 00.0 kg</span>
           <div className="goal-path">
             <div className="goal-bar">
               <div className="goal-bar-fill" style={{ width: 0 }} />
@@ -1119,7 +1119,7 @@ function BulkBudgetTrack({
         className="goal-today"
         style={{ left: `clamp(30px, ${w}%, calc(100% - 30px))`, transition: `left ${ramp}` }}
       >
-        Now · {bodyFat14dAvg.toFixed(1)}% BF
+        Now {bodyFat14dAvg.toFixed(1)}% BF
       </span>
       <div className="goal-path">
         <div className="goal-bar">
@@ -1186,7 +1186,7 @@ function BulkJourneyCard({
           <span className="goal-label">Bulk Journey</span>
         </div>
         <p className="goal-sub">
-          {loading ? "Loading…" : "No bulk baseline yet — the owner sets it when the bulk starts."}
+          {loading ? "Loading…" : "No bulk baseline yet — the owner sets it when the bulk starts"}
         </p>
       </section>
     );
@@ -1311,9 +1311,9 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
         <p className="goal-init-preview">
           {preview?.bodyFatPct != null
             ? `Baseline: ${preview.bodyFatPct.toFixed(1)}% body fat${
-                preview.weightKg != null ? ` · ${preview.weightKg.toFixed(1)} kg` : ""
+                preview.weightKg != null ? ` ${preview.weightKg.toFixed(1)} kg` : ""
               }`
-            : "No readings near that date — pick a date with body-fat data."}
+            : "No readings near that date — pick a date with body-fat data"}
         </p>
       )}
       <button type="button" className="goal-init-save" onClick={handleSave} disabled={!canSave || saving}>
@@ -1391,9 +1391,9 @@ function BulkBaselineCard({
         <p className="goal-init-preview">
           {preview?.bodyFatPct != null
             ? `Baseline: ${preview.bodyFatPct.toFixed(1)}% body fat${
-                preview.weightKg != null ? ` · ${preview.weightKg.toFixed(1)} kg` : ""
+                preview.weightKg != null ? ` ${preview.weightKg.toFixed(1)} kg` : ""
               }`
-            : "No readings near that date — pick a date with body-fat data."}
+            : "No readings near that date — pick a date with body-fat data"}
         </p>
       )}
       {!ceilingOk && ceiling !== "" && (

@@ -87,14 +87,14 @@ export function nutritionDecision(
     if (noActiveTarget) {
       return maintain(
         target,
-        "This phase has no weight-rate target, so there's nothing to evaluate.",
+        "This phase has no weight-rate target, so there's nothing to evaluate",
         40,
         "No active weight-rate target in this phase",
       );
     }
     return maintain(
       target,
-      "Not enough confident data yet — keep the current target while the trend settles.",
+      "Not enough confident data yet — keep the current target while the trend settles",
       40,
       "Still gathering data on your trend",
     );
@@ -111,8 +111,8 @@ export function nutritionDecision(
     return maintain(
       target,
       bulk
-        ? "Weight gain is tracking within the planned range."
-        : "Weight loss is tracking within the planned range.",
+        ? "Weight gain is tracking within the planned range"
+        : "Weight loss is tracking within the planned range",
       30,
       bulk ? "Weight gain remains on plan" : "Weight loss remains on plan",
     );
@@ -125,8 +125,8 @@ export function nutritionDecision(
     return maintain(
       target,
       tooSlow
-        ? `Weight ${word} appears slower than planned, but confidence is not yet high enough to justify changing your calorie target.`
-        : `Weight ${word} appears faster than planned, but confidence is not yet high enough to justify changing your calorie target.`,
+        ? `Weight ${word} appears slower than planned, but confidence is not yet high enough to justify changing your calorie target`
+        : `Weight ${word} appears faster than planned, but confidence is not yet high enough to justify changing your calorie target`,
       55,
       tooSlow
         ? `${bulk ? "Gain" : "Loss"} looks slow, but the trend isn't confirmed yet`
@@ -144,7 +144,7 @@ export function nutritionDecision(
           eventType: "Review calorie target",
           actionLine: "Weight gain has stalled",
           actionHeadline: "Increase calorie target",
-          reason: "Gaining slower than planned — a small increase should restart it.",
+          reason: "Gaining slower than planned — a small increase should restart it",
           currentTarget: target,
           proposedTarget: target + step,
           priority: 72,
@@ -154,7 +154,7 @@ export function nutritionDecision(
           eventType: "Review calorie target",
           actionLine: "Weight loss has slowed",
           actionHeadline: "Reduce calorie target",
-          reason: "Weight loss has been slower than planned — a small cut should restart it.",
+          reason: "Weight loss has been slower than planned — a small cut should restart it",
           currentTarget: target,
           proposedTarget: Math.max(0, target - step),
           priority: 72,
@@ -166,7 +166,7 @@ export function nutritionDecision(
         eventType: "Review calorie target",
         actionLine: "You're gaining faster than planned",
         actionHeadline: "Reduce calorie target",
-        reason: "You're gaining faster than planned — trim the surplus to keep the gain lean.",
+        reason: "You're gaining faster than planned — trim the surplus to keep the gain lean",
         currentTarget: target,
         proposedTarget: Math.max(0, target - step),
         priority: 70,
@@ -176,7 +176,7 @@ export function nutritionDecision(
         eventType: "Review calorie target",
         actionLine: "You're losing faster than planned",
         actionHeadline: "Increase calorie target",
-        reason: "You're losing faster than planned — ease the deficit to protect muscle.",
+        reason: "You're losing faster than planned — ease the deficit to protect muscle",
         currentTarget: target,
         proposedTarget: target + step,
         priority: 70,

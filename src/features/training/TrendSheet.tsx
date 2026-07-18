@@ -115,7 +115,7 @@ function TrendChart({ points, isVol, isPct, scrubUnit }: { points: TrendPoint[];
           >
             <span className="trend-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
             <span className="trend-tooltip-val mono">
-              {fmtVal(trendVal(scrubPoint, isVol), isVol)}{scrubUnit} · {fmtWeightNum(scrubPoint.weightKg)}×{formatRepsDisplay(scrubPoint.reps)}
+              {fmtVal(trendVal(scrubPoint, isVol), isVol)}{scrubUnit} {fmtWeightNum(scrubPoint.weightKg)}×{formatRepsDisplay(scrubPoint.reps)}
             </span>
           </div>
         );
@@ -135,7 +135,7 @@ function StrengthLevel({ standing }: { standing: NonNullable<ReturnType<typeof s
   return (
     <div className="trend-standard">
       <div className="trend-standard-head">
-        <span className="trend-standard-k">Strength level · {standing.liftLabel}</span>
+        <span className="trend-standard-k">Strength level {standing.liftLabel}</span>
         <span className={`trend-standard-level${isElite ? " is-elite" : ""}`}>{standing.level}</span>
       </div>
       <ol className="trend-standard-ladder" aria-hidden>
@@ -149,7 +149,7 @@ function StrengthLevel({ standing }: { standing: NonNullable<ReturnType<typeof s
       <span className="trend-standard-sub mono">
         {standing.ratio.toFixed(2)}× bodyweight
         {standing.nextLevel && standing.kgToNext != null && (
-          <> · {fmt1(standing.kgToNext)} kg to {standing.nextLevel}</>
+          <> {fmt1(standing.kgToNext)} kg to {standing.nextLevel}</>
         )}
       </span>
     </div>
@@ -254,8 +254,8 @@ function SheetInner({
           {points.length < 2 ? (
             <p className="trend-empty">
               {full.length === 0
-                ? "No weighted sets logged yet — the strength trend appears once you log a few."
-                : "Just getting started — log a few more sessions to see the trend."}
+                ? "No weighted sets logged yet — the strength trend appears once you log a few"
+                : "Just getting started — log a few more sessions to see the trend"}
             </p>
           ) : (
             <>

@@ -43,7 +43,7 @@ export function App() {
           <p className="auth-tagline">Setup needed</p>
           <p className="page-note">
             Add <code>VITE_SUPABASE_ANON_KEY</code> to <code>.env.local</code> and
-            restart the dev server.
+            restart the dev server
           </p>
         </div>
       </div>

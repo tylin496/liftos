@@ -16,7 +16,7 @@ export function Splash({
         </svg>
       </div>
       <div className="splash-word">Lift<b>OS</b></div>
-      <div className="splash-tag">Train · Fuel · Recover</div>
+      <div className="splash-tag">Train Fuel Recover</div>
       <div className="splash-dots" aria-hidden>
         <span></span><span></span><span></span>
       </div>

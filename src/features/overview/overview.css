@@ -610,10 +610,10 @@
      dark mode, painting a sharp-cornered rectangle inside the rounded banner. */
   background: none;
   border: none;
-  /* Horizontal inset matches .page-card so the dot/text line up with every other
-     card's content edge; vertical is tighter — this is a compact two-line banner,
-     so full --space-5 top/bottom left it reading too tall. */
-  padding: var(--space-4) var(--space-5);
+  /* Insets match .page-card so the dot/text line up with every other card's
+     content edge, top/bottom included — the compact two-line block reads cramped
+     at a tighter vertical. */
+  padding: var(--space-5);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-press) var(--ease-press);
@@ -662,8 +662,7 @@
   height: 22px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
-  align-self: flex-start;
-  margin-top: 1px; /* optical: align halo with the title's cap height */
+  align-self: center; /* centered on the two-line block, matching the chevron */
   display: flex;
   align-items: center;
   justify-content: center;

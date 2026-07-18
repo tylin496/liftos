@@ -23,7 +23,7 @@ export function AuthGate() {
       <div className="auth-card">
         <img className="auth-logo" src={logoUrl} alt="" width={76} height={76} />
         <div className="auth-brand">LiftOS</div>
-        <p className="auth-tagline">Training · Nutrition · Health</p>
+        <p className="auth-tagline">Training Nutrition Health</p>
         <button className="auth-google" onClick={handleSignIn} disabled={busy}>
           {busy ? "Connecting…" : "Continue with Google"}
         </button>

@@ -147,7 +147,7 @@ export function composition(marks: { status: LiftStatus }[]): string {
       const w = s === "pr" ? (n === 1 ? "PR" : "PRs") : MARK_WORD[s];
       return `${n} ${w}`;
     })
-    .join(" · ");
+    .join(" ");
 }
 
 /** Single-lift cell body — the one lift's own note, richer than a bare "At your

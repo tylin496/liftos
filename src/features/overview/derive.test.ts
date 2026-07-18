@@ -105,11 +105,11 @@ describe("phasePlanNote", () => {
 
   it("at maintenance → hold, no tone", () => {
     expect(phasePlanNote("maintenance", goalStatus(false, 12), null, 0, 4, 2))
-      .toEqual({ text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" });
+      .toEqual({ text: "Hold for 4–6 weeks, then start the lean bulk", tone: "" });
   });
   it("post-bulk maintenance names both honest exits (resume or next cut)", () => {
     expect(phasePlanNote("maintenance", goalStatus(false, 12), null, 0, 4, 2, true))
-      .toEqual({ text: "Hold for a few weeks, then resume the bulk or start the next cut.", tone: "" });
+      .toEqual({ text: "Hold for a few weeks, then resume the bulk or start the next cut", tone: "" });
   });
   it("goal reached outranks the signal count → start maintenance (go)", () => {
     const note = phasePlanNote("cut", goalStatus(true, 12), null, 4, 4, 2);
@@ -119,7 +119,7 @@ describe("phasePlanNote", () => {
   it("enough signals stacked → consider", () => {
     const note = phasePlanNote("cut", goalStatus(false, 12), null, 3, 4, 2);
     expect(note.tone).toBe(" is-consider");
-    expect(note.text).toBe("3 of 4 signals are on — consider switching to maintenance.");
+    expect(note.text).toBe("3 of 4 signals are on — consider switching to maintenance");
   });
   it("below the consider threshold → the watch-for prompt", () => {
     expect(phasePlanNote("cut", goalStatus(false, 12), null, 1, 4, 2))
@@ -133,7 +133,7 @@ describe("phasePlanNote", () => {
   it("bulk with stacked signals → consider a maintenance break", () => {
     const note = phasePlanNote("bulk", goalStatus(false, 12), bulkGoal(false), 2, 4, 2);
     expect(note.tone).toBe(" is-consider");
-    expect(note.text).toBe("2 of 4 signals are on — consider a maintenance break.");
+    expect(note.text).toBe("2 of 4 signals are on — consider a maintenance break");
   });
   it("bulk below the threshold → the building prompt", () => {
     expect(phasePlanNote("bulk", goalStatus(false, 12), bulkGoal(false), 0, 4, 2))

@@ -262,16 +262,15 @@
   margin: var(--vr-tight) 0 0;
 }
 
-/* Training-day vs rest-day active baselines — context line under the Active
-   foot: two typical values so today's reading is judged against the right kind
-   of day, not one blended average. Plain text, no colour verdict — the values
-   step up one ink level so they scan as numbers without competing with the
-   headline. */
+/* Training-day vs rest-day active baselines — context line right under the
+   Active hero: two typical values so today's reading is judged against the right
+   kind of day, not one blended average. Plain text, no colour verdict — the
+   values step up one ink level so they scan as numbers without competing with
+   the headline. Spacing comes from the info column's flex gap. */
 .health-daytype {
   display: flex;
   align-items: baseline;
   gap: var(--space-4);
-  margin-top: var(--vr-tight);
   font-size: var(--text-sm);
   color: var(--ink-3);
 }
@@ -319,7 +318,6 @@
    no absolute positioning. */
 .health-energy .health-trend-head {
   align-items: flex-end;
-  margin-top: var(--vr-loose);
 }
 
 .health-energy {

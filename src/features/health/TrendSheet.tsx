@@ -365,7 +365,7 @@ function SheetInner({
         <div className="settings-sheet-body health-trend-sheet-body">
           {points.length < 2 ? (
             <p className="health-trend-sheet-empty">
-              Not enough readings yet — the trend appears once a few more come in.
+              Not enough readings yet — the trend appears once a few more come in
             </p>
           ) : (
             <>
@@ -378,7 +378,7 @@ function SheetInner({
                       months >= 2
                         ? `Last ${months} months`
                         : `Last ${Math.max(1, Math.round(spanDays / 7))} weeks`;
-                    return bucketDays > 1 ? `${window} · ${bucketDays}-day averages` : window;
+                    return bucketDays > 1 ? `${window} ${bucketDays}-day averages` : window;
                   })()}
                 </span>
               </div>

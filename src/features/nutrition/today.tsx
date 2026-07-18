@@ -280,7 +280,7 @@ export function labelFor(date: string): string {
   const today = calendarToday();
   if (date === today) {
     const weekday = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
-    return `${weekday} · Today`;
+    return `${weekday} Today`;
   }
   return new Date(date + "T12:00:00").toLocaleDateString("en-US", {
     weekday: "short",

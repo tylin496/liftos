@@ -108,20 +108,20 @@ export function phasePlanNote(
     // Post-bulk maintenance has two honest exits (a break resumes the bulk; a
     // spent fat budget leads to the next cut) — don't pretend to know which.
     return hadBulk
-      ? { text: "Hold for a few weeks, then resume the bulk or start the next cut.", tone: "" }
-      : { text: "Hold for 4–6 weeks, then start the lean bulk.", tone: "" };
+      ? { text: "Hold for a few weeks, then resume the bulk or start the next cut", tone: "" }
+      : { text: "Hold for 4–6 weeks, then start the lean bulk", tone: "" };
   }
   if (phaseKind === "bulk") {
     return bulkGoalStatus?.reached
-      ? { text: `Body fat has reached your ${bulkGoalStatus.bfCeilingPct}% ceiling — start the cut.`, tone: " is-go" }
+      ? { text: `Body fat has reached your ${bulkGoalStatus.bfCeilingPct}% ceiling — start the cut`, tone: " is-go" }
       : n >= considerEnterCount
-        ? { text: `${n} of ${triggerCount} signals are on — consider a maintenance break.`, tone: " is-consider" }
+        ? { text: `${n} of ${triggerCount} signals are on — consider a maintenance break`, tone: " is-consider" }
         : { text: "Building — switch early if these stack up:", tone: "" };
   }
   return goalStatus.reached
-    ? { text: `Body fat has reached your ${goalStatus.targetBodyFatPct}% goal — start maintenance.`, tone: " is-go" }
+    ? { text: `Body fat has reached your ${goalStatus.targetBodyFatPct}% goal — start maintenance`, tone: " is-go" }
     : n >= considerEnterCount
-      ? { text: `${n} of ${triggerCount} signals are on — consider switching to maintenance.`, tone: " is-consider" }
+      ? { text: `${n} of ${triggerCount} signals are on — consider switching to maintenance`, tone: " is-consider" }
       : { text: "Switch early if these stack up:", tone: "" };
 }
 

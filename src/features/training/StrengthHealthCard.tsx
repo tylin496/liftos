@@ -38,7 +38,7 @@ function TrendChip({ trend }: { trend: NonNullable<StrengthSummary["healthTrend"
 /** Subline suffix — the trend restated in words. Omitted when flat/absent. */
 function trendSuffix(trend: StrengthSummary["healthTrend"]): string {
   if (!trend || trend.dir === "flat") return "";
-  return trend.dir === "up" ? " · improving this month" : " · slipping this month";
+  return trend.dir === "up" ? " improving this month" : " slipping this month";
 }
 
 /** Hero-cell footer — the marks row spelled out in words ("1 stalled · 1
@@ -55,7 +55,7 @@ function heroMarksSummary(marks: { status: LiftStatus }[]): string {
     if (status === "steady" && counts.size > 1) continue;
     parts.push(status === "pr" ? `${n} ${n === 1 ? "PR" : "PRs"}` : `${n} ${MARK_WORD[status]}`);
   }
-  return parts.join(" · ");
+  return parts.join(" ");
 }
 
 /** Hero-cell insight — a KPI-card summary ("Worst lift: RDL stalled"), not the
@@ -331,7 +331,7 @@ export function StrengthHealthCard({
     <span className="ov-th-ret-count">
       {onTrack} of {strength.total} tracked lifts on track{trendSuffix(trend)}
       {variant === "full" && recentPRCount > 0 && (
-        <span className="ov-th-pr-clause"> · <span className="ov-th-pr-nowrap">🏆 {recentPRCount} PR{recentPRCount === 1 ? "" : "s"} in 30d</span></span>
+        <span className="ov-th-pr-clause"> <span className="ov-th-pr-nowrap">🏆 {recentPRCount} PR{recentPRCount === 1 ? "" : "s"} in 30d</span></span>
       )}
     </span>
   );
@@ -366,7 +366,7 @@ export function StrengthHealthCard({
     const steadyCount = strength.total - flagged.length;
     const prsThisWeek = strength.exercises.filter((ex) => liftStatus(ex, nowMs) === "pr").length;
     const prClause = prsThisWeek > 0 && (
-      <span className="ov-th-pr-clause"> · <span className="ov-th-pr-nowrap">🏆 {prsThisWeek} {prsThisWeek === 1 ? "PR" : "PRs"} this week</span></span>
+      <span className="ov-th-pr-clause"> <span className="ov-th-pr-nowrap">🏆 {prsThisWeek} {prsThisWeek === 1 ? "PR" : "PRs"} this week</span></span>
     );
 
     return (
@@ -466,7 +466,7 @@ export function StrengthHealthCard({
                   {/* Count rides the title, not a separate footer row — the
                       right side (status + %) is the only thing that should
                       carry weight there (handoff-review: left/right balance). */}
-                  <span className="ov-thg-cell-name-count"> · {cell.count}</span>
+                  <span className="ov-thg-cell-name-count"> {cell.count}</span>
                 </span>
               </span>
               <span className="ov-thg-cell-metric">

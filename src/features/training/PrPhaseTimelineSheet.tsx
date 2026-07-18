@@ -185,7 +185,7 @@ function SheetInner({
         <div className="settings-sheet-body prtl-body">
           {prs.length === 0 ? (
             <p className="prtl-empty">
-              No PRs on record yet — once a lift beats its best, the breakthrough shows here against the phase it landed in.
+              No PRs on record yet — once a lift beats its best, the breakthrough shows here against the phase it landed in
             </p>
           ) : (
             <>
@@ -195,7 +195,7 @@ function SheetInner({
                   {prs.length} PR{prs.length === 1 ? "" : "s"}
                 </span>
                 {summaryParts.length > 0 && (
-                  <span className="prtl-summary-breakdown">{summaryParts.join(" · ")}</span>
+                  <span className="prtl-summary-breakdown">{summaryParts.join(" ")}</span>
                 )}
               </div>
 
@@ -209,7 +209,7 @@ function SheetInner({
                       key={`${p.slug}-${p.date}-${i}`}
                       className="prtl-dot"
                       style={{ left: `${((i + 0.5) / n) * 100}%` }}
-                      title={`${p.name} · ${fmtWeightNum(p.weightKg)}×${formatRepsDisplay(p.reps)} · ${timelineDate(p.date).mon} ${timelineDate(p.date).day}`}
+                      title={`${p.name} ${fmtWeightNum(p.weightKg)}×${formatRepsDisplay(p.reps)} ${timelineDate(p.date).mon} ${timelineDate(p.date).day}`}
                     />
                   ))}
                 </div>

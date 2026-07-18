@@ -84,7 +84,7 @@ export function WeeklyVolumeCard({
      headline changed meaning from this-week total to trailing average, and
      read-only viewers can't know that without it. Full basis stays in the
      export. */
-  const eyebrow = <span className="page-eyebrow wv-eyebrow">Weekly Volume · 4-wk avg</span>;
+  const eyebrow = <span className="page-eyebrow wv-eyebrow">Weekly Volume 4-wk avg</span>;
 
   const valueRow = (
     <div className="wv-row">
@@ -109,7 +109,7 @@ export function WeeklyVolumeCard({
     <div className={`wv-thisweek${open ? " open" : ""}`}>
       <div className="wv-thisweek-inner">
         <MetricCaption>
-          This week ·{" "}
+          This week{" "}
           {loading || !stat ? "0,000" : Math.round(stat.thisWeekKg).toLocaleString()} kg
         </MetricCaption>
       </div>

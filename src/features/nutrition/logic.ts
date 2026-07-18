@@ -252,7 +252,7 @@ export function proteinNote(hasEntry: boolean, protNum: number, proteinTarget: n
   // just states the gap. Neither celebrates. Dropping "to floor" ("fell short")
   // keeps a 4g gap from reading as failure.
   const nearMiss = target > 0 && gap <= Math.round(target * 0.05); // within ~5% of the floor
-  return nearMiss ? `Almost there · ${gap}g to go` : `${gap}g to go`;
+  return nearMiss ? `Almost there ${gap}g to go` : `${gap}g to go`;
 }
 
 // ── Aggregations (weekly trend, monthly adherence) ─────────────────────────

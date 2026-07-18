@@ -79,7 +79,7 @@ function SheetInner({
           {points.length < 2 ? (
             <p className="trend-empty">
               Just getting started — the volume trend appears once a couple of
-              training weeks are behind you.
+              training weeks are behind you
             </p>
           ) : (
             <>
@@ -116,7 +116,7 @@ function SheetInner({
                       <div className={`trend-tooltip trend-tooltip--${anchor}`} style={{ left: `${pct}%` }}>
                         <span className="trend-tooltip-date">{scrubDate.mon} {scrubDate.day}</span>
                         <span className="trend-tooltip-val mono">
-                          {fmtKg(scrubPoint.kg)} kg{scrubPoint.logged ? "" : " · carried"}
+                          {fmtKg(scrubPoint.kg)} kg{scrubPoint.logged ? "" : " carried"}
                         </span>
                       </div>
                     );

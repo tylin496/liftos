@@ -433,7 +433,7 @@ export function HistoryView({
             {/* Spells out double hit so an under-budget day with protein met doesn't
                 read as an unexplained miss: it's the tight calorie band, not just
                 "a good day". */}
-            <p className="nutri-month-note">Double hit = calories on plan · protein met</p>
+            <p className="nutri-month-note">Double hit = calories on plan protein met</p>
 
             {/* Distribution — one proportionally-coloured bar + text legend below.
                 Legend keeps all four buckets separate so it agrees with the

@@ -310,11 +310,11 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
         onClick: () => {
           void persistIntakeGoal(prevIntake)
             .then(() => toast(`Target restored to ${prevIntake.toLocaleString()}`, "info"))
-            .catch(() => toast("Couldn’t restore the target — try again.", "error"));
+            .catch(() => toast("Couldn’t restore the target — try again", "error"));
         },
       });
     } catch {
-      toast("Couldn’t update the target — try again.", "error");
+      toast("Couldn’t update the target — try again", "error");
     } finally {
       setApplying(false);
     }
@@ -326,7 +326,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
     return (
       <ErrorState
         id="nutrition-insight-card"
-        message="Couldn’t load your nutrition insight."
+        message="Couldn’t load your nutrition insight"
         onRetry={() => {
           setLoaded(false);
           setError(false);
@@ -390,7 +390,7 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
             ? "Loading recommendation reason text placeholder."
             : decision
               ? decision.reason
-              : "Log a few days and sync your weight to see how the cut is tracking."}
+              : "Log a few days and sync your weight to see how the cut is tracking"}
         </p>
 
         {/* Current intake goal's tenure — how long this calorie target has been

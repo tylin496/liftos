@@ -82,7 +82,7 @@ function SheetInner({ report: r, closing, onClose }: { report: PhaseReport; clos
           onPointerUp={onDragEnd}
           onPointerCancel={onDragCancel}
         >
-          <span className="settings-sheet-title">{phaseKindLabel(r.phase_kind)} · {phaseSpanLabel(r.start_date, r.end_date)}</span>
+          <span className="settings-sheet-title">{phaseKindLabel(r.phase_kind)} {phaseSpanLabel(r.start_date, r.end_date)}</span>
           <button className="settings-sheet-close" onClick={onClose} aria-label="Close">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
@@ -92,7 +92,7 @@ function SheetInner({ report: r, closing, onClose }: { report: PhaseReport; clos
 
         <div className="settings-sheet-body phase-report-body">
           <span className="phase-report-window">
-            {r.active_days} days · {r.logged_days} logged
+            {r.active_days} days {r.logged_days} logged
           </span>
 
           {delta != null && r.start_weight_kg != null && r.end_weight_kg != null && (
@@ -119,7 +119,7 @@ function SheetInner({ report: r, closing, onClose }: { report: PhaseReport; clos
               k="Pace"
               v={
                 r.observed_rate_kg_wk != null
-                  ? `${signed(r.observed_rate_kg_wk)} kg/wk${r.planned_rate_kg_wk != null ? ` · plan ${signed(r.planned_rate_kg_wk)}` : ""}`
+                  ? `${signed(r.observed_rate_kg_wk)} kg/wk${r.planned_rate_kg_wk != null ? ` plan ${signed(r.planned_rate_kg_wk)}` : ""}`
                   : null
               }
             />
@@ -132,7 +132,7 @@ function SheetInner({ report: r, closing, onClose }: { report: PhaseReport; clos
               <div className="phase-report-row phase-report-row--bar">
                 <span className="phase-report-k">Adherence</span>
                 <span className="phase-report-v mono">
-                  {Math.round((r.adherent_days / r.logged_days) * 100)}% · {r.adherent_days}/{r.logged_days} days
+                  {Math.round((r.adherent_days / r.logged_days) * 100)}% {r.adherent_days}/{r.logged_days} days
                 </span>
                 <div className="phase-report-bar" aria-hidden="true">
                   <span style={{ width: `${Math.round((r.adherent_days / r.logged_days) * 100)}%` }} />
@@ -143,7 +143,7 @@ function SheetInner({ report: r, closing, onClose }: { report: PhaseReport; clos
               k="Avg intake"
               v={
                 r.avg_calories != null
-                  ? `${fmt0(r.avg_calories)} kcal${r.avg_calorie_target != null ? ` · target ${fmt0(r.avg_calorie_target)}` : ""}`
+                  ? `${fmt0(r.avg_calories)} kcal${r.avg_calorie_target != null ? ` target ${fmt0(r.avg_calorie_target)}` : ""}`
                   : null
               }
             />
