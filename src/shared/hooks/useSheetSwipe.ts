@@ -10,6 +10,14 @@ import { useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "
  * quick downward flick (velocity sampled from the last move so a short flick
  * counts).
  *
+ * Feel details (per Apple's Designing Fluid Interfaces):
+ * - Dragging UP rubber-bands instead of hard-stopping at 0 — progressive
+ *   resistance reads as "responsive, but there's nothing more here".
+ * - On release the exit continues at the finger's speed (velocity handoff):
+ *   the remaining travel time is `remaining distance ÷ release velocity`,
+ *   bounded by the motion role tokens, so there's no visible seam between
+ *   dragging and animating. Snap-back likewise scales with return distance.
+ *
  * Pointer capture (taken on the dragged element) keeps the gesture tracking
  * even when the pointer leaves the grabber/header mid-drag — the CSS grabber +
  * header set `touch-action: none`, which is what lets the pointer stream flow
@@ -19,6 +27,44 @@ import { useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "
  * whatever should be draggable (grabber + header). The sheet's CSS must define
  * `.is-dragging` to suspend its entrance transition while the pointer is down.
  */
+
+/* Travel needed to commit a dismiss (px). Doubles as the denominator scaling
+   the snap-back duration, so a barely-nudged sheet returns quickly. */
+const DISMISS_TRAVEL = 90;
+
+/* Apple's rubber-band constant: the further past the boundary, the less the
+   sheet follows — asymptotic, never a hard wall. */
+const RUBBER = 0.55;
+
+function rubberband(overshoot: number, dimension: number): number {
+  return (overshoot * dimension * RUBBER) / (dimension + RUBBER * Math.abs(overshoot));
+}
+
+/* Read a --dur-* role token off the element, in ms. Fallbacks mirror
+   tokens.css §Motion — keep in lockstep (same convention as COUNT_UP_MS). */
+function readDurMs(el: HTMLElement, token: string, fallback: number): number {
+  const v = parseFloat(getComputedStyle(el).getPropertyValue(token));
+  return Number.isFinite(v) && v > 0 ? v : fallback;
+}
+
+/* Run fn once the transform transition ends. The timer is a WATCHDOG for a
+   swallowed transitionend (hidden ancestor, tab switch) — not motion timing. */
+function afterTransform(el: HTMLElement, ms: number, fn: () => void) {
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    el.removeEventListener("transitionend", onEnd);
+    window.clearTimeout(timer);
+    fn();
+  };
+  const onEnd = (ev: TransitionEvent) => {
+    if (ev.target === el && ev.propertyName === "transform") finish();
+  };
+  el.addEventListener("transitionend", onEnd);
+  const timer = window.setTimeout(finish, ms + 80);
+}
+
 export function useSheetSwipe(
   ref: RefObject<HTMLElement | null>,
   onDismiss: () => void,
@@ -35,11 +81,11 @@ export function useSheetSwipe(
   const lastY = useRef(0);
   const lastT = useRef(0);
 
-  function settle(el: HTMLElement) {
-    setTimeout(() => {
+  function settle(el: HTMLElement, ms: number) {
+    afterTransform(el, ms, () => {
       el.style.transition = "";
       el.classList.remove("is-dragging");
-    }, 200);
+    });
   }
 
   function onPointerDown(e: ReactPointerEvent) {
@@ -72,7 +118,9 @@ export function useSheetSwipe(
     prevT.current = lastT.current;
     lastY.current = e.clientY;
     lastT.current = e.timeStamp;
-    const dy = Math.max(0, e.clientY - startY.current);
+    const raw = e.clientY - startY.current;
+    // Downward tracks 1:1; upward rubber-bands against the sheet's own height.
+    const dy = raw >= 0 ? raw : rubberband(raw, ref.current.offsetHeight);
     ref.current.style.transform = `translateY(${dy}px)`;
   }
 
@@ -82,16 +130,27 @@ export function useSheetSwipe(
     const endY = e.clientY;
     const dy = Math.max(0, endY - startY.current);
     const dt = e.timeStamp - prevT.current;
-    const vy = dt > 0 ? (endY - prevY.current) / dt : 0;
+    const vy = dt > 0 ? (endY - prevY.current) / dt : 0; // px/ms, + = downward
     const el = ref.current;
-    el.style.transition = "transform var(--dur-slide) var(--ease-snap)";
+    const slideMs = readDurMs(el, "--dur-slide", 320);
+    const pressMs = readDurMs(el, "--dur-press", 120);
     // Dismiss on enough travel OR a quick downward flick.
-    if (dy > 90 || (vy >= 0.5 && dy >= 12)) {
+    if (dy > DISMISS_TRAVEL || (vy >= 0.5 && dy >= 12)) {
+      // Velocity handoff: finish the remaining travel at the finger's release
+      // speed, clamped to [--dur-press, --dur-slide] — a hard flick exits fast,
+      // a slow release never drags past the un-flicked slide.
+      const remaining = Math.max(0, el.offsetHeight - dy);
+      const ms = vy > 0 ? Math.min(slideMs, Math.max(pressMs, remaining / vy)) : slideMs;
+      el.style.transition = `transform ${ms}ms var(--ease-snap)`;
       el.style.transform = "translateY(100%)";
-      setTimeout(() => onDismissRef.current(), 320); // --dur-slide (matches the transition above)
+      afterTransform(el, ms, () => onDismissRef.current());
     } else {
+      // Snap-back time scales with return distance (a nudge shouldn't take the
+      // full-panel duration), same token bounds.
+      const ms = Math.min(slideMs, Math.max(pressMs, slideMs * (dy / DISMISS_TRAVEL)));
+      el.style.transition = `transform ${ms}ms var(--ease-snap)`;
       el.style.transform = "";
-      settle(el);
+      settle(el, ms);
     }
   }
 
@@ -102,9 +161,10 @@ export function useSheetSwipe(
     if (!dragging.current || !ref.current) return;
     dragging.current = false;
     const el = ref.current;
-    el.style.transition = "transform var(--dur-slide) var(--ease-snap)";
+    const ms = readDurMs(el, "--dur-slide", 320);
+    el.style.transition = `transform ${ms}ms var(--ease-snap)`;
     el.style.transform = "";
-    settle(el);
+    settle(el, ms);
   }
 
   return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel };

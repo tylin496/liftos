@@ -544,6 +544,16 @@ html.kb-open .tabbar {
   -webkit-backdrop-filter: blur(30px) saturate(1.6);
 }
 
+/* Raw-blur exception to the token-level frost override (tokens.css §Transparency
+   accessibility): this layer can't inherit --card-blur, so solidify it here. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .settings-sheet::before {
+    background: color-mix(in srgb, var(--bg) 96%, transparent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 @keyframes sheet-in {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }

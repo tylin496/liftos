@@ -405,3 +405,32 @@
   --shadow-md: 0 18px 42px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
 }
+
+/* ── Transparency / contrast accessibility ────────────────────────────────
+   iOS "Reduce Transparency" and "Increase Contrast" land here (Safari 16.4+).
+   Token-level override so every glass surface (header/tabbar --glass-*, card
+   --card-blur, modal --scrim-blur) frosts to near-solid in ONE place. The
+   blur was doing the separating work; with it gone the fill takes over.
+   Scrim keeps its dim (that's comprehension, not decoration) — only the
+   blur drops. Two raw-blur exceptions get the same treatment locally:
+   .settings-sheet::before (layout.css) and .save-celebration.is-sticky
+   (global.css). */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root {
+    --card-blur: none;
+    --glass-blur: none;
+    --scrim-blur: none;
+    --glass-bg: rgba(244, 244, 246, 0.96);
+  }
+  :root[data-theme="dark"] {
+    --glass-bg: rgba(26, 26, 26, 0.96);
+  }
+}
+
+/* Increase Contrast additionally wants a defined edge on floating chrome:
+   the specular white rim becomes the strong hairline (theme-aware via var). */
+@media (prefers-contrast: more) {
+  :root {
+    --glass-edge: var(--rule-strong);
+  }
+}

@@ -402,6 +402,15 @@ button {
   transition: background var(--dur-exit) var(--ease-move);
 }
 
+/* Raw-blur exception to the token-level frost override (tokens.css §Transparency
+   accessibility): keep the dim (comprehension), drop only the blur. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .save-celebration.is-sticky {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 .save-celebration.is-sticky.is-closing {
   background: transparent;
 }
