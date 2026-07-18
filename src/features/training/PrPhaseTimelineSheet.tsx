@@ -117,16 +117,27 @@ function SheetInner({
   const span = Math.max(1, t1 - t0);
   const xPct = (d: string) => Math.max(0, Math.min(100, ((parseMs(d) - t0) / span) * 100));
 
-  // Phase segments clipped to the drawn window, each carrying its kind + label.
+  // Phase segments clipped to the drawn window. Consecutive spans of the SAME
+  // phase KIND are coalesced into one band — the timeline reads phases, not the
+  // many intake tweaks WITHIN a cut (each retargets a span, all still "cut"),
+  // which otherwise stack into an illegible row of overlapping labels.
   const segments = useMemo(() => {
     if (!phases) return [];
-    return phases
-      .filter((ph) => ph.cutPhase && parseMs(ph.to) >= t0)
-      .map((ph) => {
-        const left = xPct(ph.from);
-        const right = xPct(ph.to);
-        return { left, width: Math.max(0.5, right - left), kind: phaseKindFromName(ph.cutPhase!) };
-      });
+    const relevant = phases.filter((ph) => ph.cutPhase && parseMs(ph.to) >= t0);
+    const merged: { from: string; to: string; kind: PhaseKind }[] = [];
+    for (const ph of relevant) {
+      const kind = phaseKindFromName(ph.cutPhase!);
+      const last = merged.at(-1);
+      if (last && last.kind === kind) last.to = ph.to;
+      else merged.push({ from: ph.from, to: ph.to, kind });
+    }
+    return merged.map((m) => {
+      const left = xPct(m.from);
+      const width = Math.max(0.5, xPct(m.to) - left);
+      // Only wide-enough bands carry text — a label on a sliver overflows into
+      // its neighbours (the exact cramming this whole merge fixes).
+      return { left, width, kind: m.kind, showLabel: width >= 14 };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phases, t0]);
 
@@ -193,7 +204,7 @@ function SheetInner({
                       className="prtl-seg"
                       style={{ left: `${s.left}%`, width: `${s.width}%` }}
                     >
-                      <span className="prtl-seg-label">{PHASE_LABEL[s.kind]}</span>
+                      {s.showLabel && <span className="prtl-seg-label">{PHASE_LABEL[s.kind]}</span>}
                     </div>
                   ))}
                 </div>
