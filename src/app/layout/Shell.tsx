@@ -61,6 +61,32 @@ const SLIDE_MS =
     getComputedStyle(document.documentElement).getPropertyValue("--dur-slide"),
   ) || 320;
 
+// Fallback mirrors --dur-press in tokens.css §Motion — keep in lockstep.
+const PRESS_MS =
+  parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue("--dur-press"),
+  ) || 120;
+
+// Velocity handoff on release (same policy as useSheetSwipe): the settle
+// finishes the REMAINING travel at the finger's release speed, clamped to
+// [--dur-press, --dur-slide] — a hard flick lands fast, a slow release never
+// drags past the un-flicked slide. Tap-triggered slides travel the full width
+// with no finger velocity, so they keep the plain SLIDE_MS.
+function settleMsCommit(remaining: number, towardSpeed: number): number {
+  return towardSpeed > 0
+    ? Math.min(SLIDE_MS, Math.max(PRESS_MS, remaining / towardSpeed))
+    : SLIDE_MS;
+}
+
+// Snap-back scales by return distance instead (its release velocity points the
+// wrong way): a barely-moved drag returns in a press-beat, not a full slide.
+function settleMsSnapBack(returnDx: number, width: number): number {
+  return Math.min(
+    SLIDE_MS,
+    Math.max(PRESS_MS, SLIDE_MS * (Math.abs(returnDx) / width)),
+  );
+}
+
 // Wraps an index into TAB_ORDER so swiping past the last/first tab loops
 // around instead of dead-ending.
 function wrapIndex(i: number): number {
@@ -183,7 +209,10 @@ export function Shell({ session }: { session: Session }) {
   // slide plays out). `settling` disables the finger-follow transition:none so
   // the CSS transition animates the snap.
   const [slide, setSlide] = useState<
-    { to: TabId; dir: 1 | -1; dx: number; settling: boolean } | null
+    // `settleMs` is the settle transition's duration, decided at release
+    // (velocity handoff — see settleMsCommit/settleMsSnapBack). Only read
+    // while `settling`; finger-follow states carry SLIDE_MS as a placeholder.
+    { to: TabId; dir: 1 | -1; dx: number; settling: boolean; settleMs: number } | null
   >(null);
   const slideRef = useRef(slide);
   slideRef.current = slide;
@@ -386,7 +415,7 @@ export function Shell({ session }: { session: Session }) {
   // Finalize a settle animation deterministically after it plays. We use a
   // timer rather than transitionend because descendant transform transitions
   // (progress bars, count-ups) bubble up and would fire the handler early.
-  function scheduleFinalize() {
+  function scheduleFinalize(ms: number = SLIDE_MS) {
     if (settleTimer.current) clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(() => {
       settleTimer.current = null;
@@ -397,7 +426,7 @@ export function Shell({ session }: { session: Session }) {
         pendingHomeScrollRef.current = null;
         panelRefs.current[s.to]?.scrollTo({ top: 0, behavior: "smooth" });
       }
-    }, SLIDE_MS + 20);
+    }, ms + 20);
   }
 
   // Record the leaving tab's scroll position + leave time. The panel keeps its
@@ -517,11 +546,11 @@ export function Shell({ session }: { session: Session }) {
     // Place the incoming panel off-screen with no transition, then flip to the
     // target on a timer so the browser paints the start frame first. setTimeout
     // (not rAF) so the animation still completes if the tab is backgrounded.
-    setSlide({ to: next, dir, dx: 0, settling: false });
+    setSlide({ to: next, dir, dx: 0, settling: false, settleMs: SLIDE_MS });
     kickoffTimer.current = window.setTimeout(() => {
       kickoffTimer.current = null;
       const width = window.innerWidth || 1;
-      setSlide({ to: next, dir, dx: -dir * width, settling: true });
+      setSlide({ to: next, dir, dx: -dir * width, settling: true, settleMs: SLIDE_MS });
       scheduleFinalize();
     }, 30);
   }
@@ -668,7 +697,7 @@ export function Shell({ session }: { session: Session }) {
         const to = dragTo.current;
         if (!to) return;
         const dir: 1 | -1 = dx < 0 ? 1 : -1;
-        setSlide({ to, dir, dx, settling: false });
+        setSlide({ to, dir, dx, settling: false, settleMs: SLIDE_MS });
       } else if (axisLocked.current === "v" && pullActive.current) {
         if (dy <= 0) {
           // Pulled back up past the top — cancel the gesture instead of
@@ -716,8 +745,9 @@ export function Shell({ session }: { session: Session }) {
       if (!to || (Math.abs(dx) < 56 && !flicked)) {
         // Snap back to the current tab.
         if (slideRef.current) {
-          setSlide((s) => (s ? { ...s, dx: 0, settling: true } : null));
-          scheduleFinalize();
+          const ms = settleMsSnapBack(slideRef.current.dx, window.innerWidth || 1);
+          setSlide((s) => (s ? { ...s, dx: 0, settling: true, settleMs: ms } : null));
+          scheduleFinalize(ms);
         }
         return;
       }
@@ -725,8 +755,10 @@ export function Shell({ session }: { session: Session }) {
       enterTab(to);
       const dir: 1 | -1 = dx < 0 ? 1 : -1;
       const width = window.innerWidth || 1;
-      setSlide({ to, dir, dx: -dir * width, settling: true });
-      scheduleFinalize();
+      const remaining = Math.max(0, width - Math.abs(dx));
+      const ms = settleMsCommit(remaining, -dir * velocity);
+      setSlide({ to, dir, dx: -dir * width, settling: true, settleMs: ms });
+      scheduleFinalize(ms);
     }
 
     // touchcancel (iOS notification pull, edge gesture, incoming call) fires
@@ -741,8 +773,9 @@ export function Shell({ session }: { session: Session }) {
         setPull(null);
       }
       if (wasHorizontal && slideRef.current) {
-        setSlide((s) => (s ? { ...s, dx: 0, settling: true } : null));
-        scheduleFinalize();
+        const ms = settleMsSnapBack(slideRef.current.dx, window.innerWidth || 1);
+        setSlide((s) => (s ? { ...s, dx: 0, settling: true, settleMs: ms } : null));
+        scheduleFinalize(ms);
       }
     }
 
@@ -816,7 +849,7 @@ export function Shell({ session }: { session: Session }) {
         const to = dragTo.current;
         if (!to) return;
         const dir: 1 | -1 = dx < 0 ? 1 : -1;
-        setSlide({ to, dir, dx, settling: false });
+        setSlide({ to, dir, dx, settling: false, settleMs: SLIDE_MS });
       }
     }
 
@@ -842,8 +875,9 @@ export function Shell({ session }: { session: Session }) {
       if (!to || (Math.abs(dx) < 56 && !flicked)) {
         // Snap back to the current tab.
         if (slideRef.current) {
-          setSlide((s) => (s ? { ...s, dx: 0, settling: true } : null));
-          scheduleFinalize();
+          const ms = settleMsSnapBack(slideRef.current.dx, window.innerWidth || 1);
+          setSlide((s) => (s ? { ...s, dx: 0, settling: true, settleMs: ms } : null));
+          scheduleFinalize(ms);
         }
         return;
       }
@@ -851,8 +885,10 @@ export function Shell({ session }: { session: Session }) {
       enterTab(to);
       const dir: 1 | -1 = dx < 0 ? 1 : -1;
       const width = window.innerWidth || 1;
-      setSlide({ to, dir, dx: -dir * width, settling: true });
-      scheduleFinalize();
+      const remaining = Math.max(0, width - Math.abs(dx));
+      const ms = settleMsCommit(remaining, -dir * velocity);
+      setSlide({ to, dir, dx: -dir * width, settling: true, settleMs: ms });
+      scheduleFinalize(ms);
     }
 
     function onClickCapture(e: MouseEvent) {
@@ -915,7 +951,7 @@ export function Shell({ session }: { session: Session }) {
                 if (slide) {
                   const width = window.innerWidth || 1;
                   const ease = slide.settling
-                    ? `transform var(--dur-slide) var(--ease-snap)`
+                    ? `transform ${slide.settleMs}ms var(--ease-snap)`
                     : "none";
                   if (tabId === tab) {
                     style = { transform: `translateX(${slide.dx}px)`, transition: ease };
