@@ -64,6 +64,23 @@ function EvidenceCell({
   );
 }
 
+// Diverging magnitude bar for the Apple-Health-vs-log gap — a signed kcal/day
+// value that lives around zero. The fill grows from the centre toward the side
+// the drift leans, its length = magnitude, so direction + size read at a glance
+// where the signed number made you parse both. Neutral --ink-3: the gap can't
+// be attributed to either side (see the cell's note), so it's context, never a
+// verdict. Pins to the edge past GAP_DOMAIN kcal/day.
+const GAP_DOMAIN = 400;
+function DivergingGap({ gap }: { gap: number }) {
+  const half = (Math.min(Math.abs(gap), GAP_DOMAIN) / GAP_DOMAIN) * 50; // % of half-track
+  const style = gap >= 0 ? { left: "50%", width: `${half}%` } : { left: `${50 - half}%`, width: `${half}%` };
+  return (
+    <div className="ni-diverge" aria-hidden="true">
+      <span className="ni-diverge-fill" style={style} />
+    </div>
+  );
+}
+
 // Pace meter — the one comparison that drives the decision, drawn instead of
 // asked. Axis = weekly loss magnitude (kg/wk); the target band is the middle
 // third of the track and the observed rate is a marker on it, so "is −0.71
@@ -453,15 +470,17 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
             intake) − (logged intake) over the same 21d window. + = Apple Health's
             accounting runs above the food log. Neutral ink: the gap can't be
             attributed to either side, so it's context, never a verdict. */}
-        <EvidenceCell
-          label="Apple Health vs log 21d"
-          value={
-            !noData && !loading && hasTrend && d!.intakeGap != null
-              ? `${d!.intakeGap < 0 ? "−" : "+"}${Math.abs(d!.intakeGap).toLocaleString()} kcal/day`
-              : "—"
-          }
-          full
-        />
+        <div className="ni-cell ni-cell--diverge">
+          <div className="ni-diverge-head">
+            <span className="ni-cell-label">Apple Health vs log 21d</span>
+            <span className="ni-cell-value">
+              {!noData && !loading && hasTrend && d!.intakeGap != null
+                ? `${d!.intakeGap < 0 ? "−" : "+"}${Math.abs(d!.intakeGap).toLocaleString()} kcal/day`
+                : "—"}
+            </span>
+          </div>
+          {!noData && !loading && hasTrend && d!.intakeGap != null && <DivergingGap gap={d!.intakeGap} />}
+        </div>
 
         {/* Confidence — meta tier, sinks to the bottom as a closing stamp
             rather than a fourth parallel number. The "why capped" tap-reason was

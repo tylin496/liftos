@@ -323,6 +323,46 @@
   white-space: nowrap;
 }
 
+/* Diverging gap cell: the Apple-Health-vs-log drift is a signed value around
+   zero, so it keeps the full-cell label/value row (.ni-diverge-head) and adds a
+   diverging bar below. .ni-cell already stacks column with a hairline gap. */
+.ni-diverge-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.ni-diverge {
+  position: relative;
+  height: 4px; /* ≤4px graphic detail */
+  margin-top: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--rule-strong);
+}
+
+/* Zero reference: a hairline tick at the centre so a ≈0 drift still reads as
+   "sitting on zero" rather than an empty track. */
+.ni-diverge::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px; /* 1px graphic detail */
+  transform: translateX(-0.5px);
+  background: var(--ink-4);
+}
+
+/* Fill grows from the centre toward the drift's side; neutral, not a verdict. */
+.ni-diverge-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--ink-3);
+}
+
 /* Emphasis tiers — the four evidence cells aren't equally load-bearing:
    Observed rate and Est. intake are the analysis, Confidence is meta on that
    analysis, and Target pace is just a fixed constant. Base (.ni-cell-value)
