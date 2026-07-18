@@ -1290,7 +1290,6 @@ export function HealthPage() {
               </div>
               <div className="health-trend-foot">
                 <MetricCaption>Loading…</MetricCaption>
-                <div className="health-trend-range">Last {ENERGY_BUCKET} days</div>
               </div>
             </>
           ) : tdee?.tdee != null ? (
@@ -1317,10 +1316,12 @@ export function HealthPage() {
               <div className="health-trend-foot">
                 <MetricCaption>
                   {/* Fixed descriptor of the trailing window, not the sample
-                      count — a single missing day shouldn't tick it to "13". */}
+                      count — a single missing day shouldn't tick it to "13".
+                      No "Last 14 days" range beside it: the bars ARE the last
+                      14 days and this caption already names that window, so a
+                      second copy only crowded the corner above "today · trained". */}
                   14-day average
                 </MetricCaption>
-                <div className="health-trend-range">Last {ENERGY_BUCKET} days</div>
               </div>
               {/* Training-day vs rest-day baselines — context so today's reading
                   is judged against the right kind of day, not the blended

@@ -316,7 +316,7 @@
 
 .ov-thg-cell {
   grid-column: span 3;
-  min-height: 84px;
+  min-height: 72px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -331,18 +331,16 @@
   transition: box-shadow var(--dur-press) var(--ease-press), border-color var(--dur-press);
 }
 
-/* Worst group = full-row hero; size tiers set the rest's height ∝ muscle size. */
+/* Worst group = full-row hero; the rest share one floor and grow with content
+ * (grid stretches each row's two tiles to equal height). */
 .ov-thg-cell.is-hero { grid-column: 1 / -1; min-height: 88px; }
-.ov-thg-cell.size-lg { min-height: 84px; }
-.ov-thg-cell.size-md { min-height: 72px; }
-.ov-thg-cell.size-sm { min-height: 56px; }
 
 /* Selection ring — additive, over the tone outline. */
 .ov-thg-cell.is-selected {
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ink) 45%, transparent);
 }
 
-.ov-thg-cell.tone-warn.size-lg.is-selected {
+.ov-thg-cell.tone-warn.is-selected {
   box-shadow: 0 0 0 1.5px var(--accent);
 }
 

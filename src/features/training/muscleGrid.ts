@@ -12,8 +12,6 @@ import { suggestDeload } from "./deload";
 
 export type LiftStatus = "declining" | "stalled" | "pr" | "rebounding" | "steady";
 type Tone = "bad" | "warn" | "good" | "gold" | "steady";
-/** Non-hero cell height tier, set by the muscle's real-world size. */
-type SizeTier = "lg" | "md" | "sm";
 
 type TrackedGroup = Exclude<MuscleGroup, "unknown">;
 
@@ -48,21 +46,6 @@ const STATUS_TONE: Record<LiftStatus, Tone> = {
   steady: "steady",
 };
 
-// Non-hero cell height ∝ muscle size (bigger muscles read as bigger cells). The
-// hero (worst group) ignores this and spans the full row — see MuscleGridCell.
-const MUSCLE_SIZE: Record<TrackedGroup, SizeTier> = {
-  chest: "lg",
-  back: "lg",
-  quads: "lg",
-  hamstrings: "md",
-  shoulders: "md",
-  glutes: "md",
-  biceps: "sm",
-  triceps: "sm",
-  calves: "sm",
-  abs: "sm",
-};
-
 interface LiftMark {
   slug: string;
   status: LiftStatus;
@@ -79,7 +62,6 @@ export interface MuscleGridCell {
   tone: Tone;
   /** The worst group renders as a full-row hero cell. */
   hero: boolean;
-  sizeTier: SizeTier;
   /** One-sentence insight — the deload next step for flagged groups, else a
    *  short state note. Single-line (the card ellipsizes it). */
   insight: string;
@@ -275,7 +257,6 @@ export function buildMuscleGrid(
       status,
       tone: STATUS_TONE[status],
       hero: false, // set after global ordering
-      sizeTier: MUSCLE_SIZE[group],
       insight: buildInsight(status, sorted[0]),
       marks: withStatus.map((w) => ({ slug: w.ex.slug, status: w.status, icon: STATUS_ICON[w.status] })),
       count: `${n} ${n === 1 ? "lift" : "lifts"}`,

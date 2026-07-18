@@ -267,7 +267,7 @@
    of day, not one blended average. Plain text, no colour verdict — the values
    step up one ink level so they scan as numbers without competing with the
    headline. "today · trained" is retrospective (a set was logged), pinned
-   right like the range label above it. */
+   right so it reads as a standalone marker of which baseline today belongs to. */
 .health-daytype {
   display: flex;
   align-items: baseline;

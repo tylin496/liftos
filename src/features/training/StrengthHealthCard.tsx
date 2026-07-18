@@ -449,7 +449,7 @@ export function StrengthHealthCard({
           <button
             key={cell.group}
             type="button"
-            className={`ov-thg-cell tone-${cell.tone} size-${cell.sizeTier}${cell.hero ? " is-hero" : ""}${cell.group === selectedGroup ? " is-selected" : ""}`}
+            className={`ov-thg-cell tone-${cell.tone}${cell.hero ? " is-hero" : ""}${cell.group === selectedGroup ? " is-selected" : ""}`}
             onClick={() => setPicked(cell.group)}
           >
             <span className="ov-thg-cell-head">
