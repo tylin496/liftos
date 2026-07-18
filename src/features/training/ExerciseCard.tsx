@@ -30,7 +30,7 @@ import { sessionMilestoneReached } from "./sessionMilestone";
 import { useToast } from "@shared/components/Toast";
 import { ExprDisplay, fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import { scrollRevealClear } from "@app/layout/revealScroll";
-import { CLEAR_AFTER_SHEEN } from "@shared/lib/motion";
+import { CLEAR_AFTER_SHEEN, DUR_EXIT } from "@shared/lib/motion";
 import { defaultSetCount } from "./logFormHelpers";
 import { AddEntryForm, AddAssistedForm, InlineEditEntry, InlineEditAssistedEntry } from "./LogForms";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
@@ -286,7 +286,7 @@ function ExerciseCardImpl({
   // level (rather than one per mapped row, which would break the rules of
   // hooks) is enough; closingLogId remembers which row to keep rendering
   // while it plays the exit animation.
-  const editorT = useExitTransition(editingLogId != null, 200);
+  const editorT = useExitTransition(editingLogId != null, DUR_EXIT);
   const closingLogIdRef = useRef<string | null>(null);
   if (editingLogId != null) closingLogIdRef.current = editingLogId;
 
