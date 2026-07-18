@@ -1319,6 +1319,30 @@
 
 .phase-report-row:last-child { border-bottom: 0; }
 
+/* Adherence row wraps so its fill bar takes a full-width second line; the row
+   gap doubles as wrap row-gap, so tighten it to hug the number line. */
+.phase-report-row--bar {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+/* Neutral proportion bar: track = full grey ceiling, fill = --ink-3 (context,
+   not a good/bad verdict — same vocabulary as nutrition's nt-track). */
+.phase-report-bar {
+  flex: 0 0 100%;
+  height: 4px; /* ≤4px graphic detail */
+  border-radius: var(--radius-pill);
+  background: var(--rule-strong);
+  overflow: hidden;
+}
+
+.phase-report-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink-3);
+}
+
 .phase-report-k {
   font-size: var(--text-sm);
   color: var(--ink-3);

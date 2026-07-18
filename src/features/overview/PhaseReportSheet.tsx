@@ -123,14 +123,22 @@ function SheetInner({ report: r, closing, onClose }: { report: PhaseReport; clos
                   : null
               }
             />
-            <Row
-              k="Adherence"
-              v={
-                r.logged_days > 0
-                  ? `${Math.round((r.adherent_days / r.logged_days) * 100)}% · ${r.adherent_days}/${r.logged_days} days`
-                  : null
-              }
-            />
+            {r.logged_days > 0 && (
+              /* The one genuinely-proportional row: a neutral fill bar makes
+                 "how much of the phase stayed on plan" a glance. Neutral --ink-3
+                 (not a verdict colour) — a closed phase is history, matching the
+                 sheet's all-neutral treatment. A per-day dot strip was rejected:
+                 logged_days can be large and would overflow. */
+              <div className="phase-report-row phase-report-row--bar">
+                <span className="phase-report-k">Adherence</span>
+                <span className="phase-report-v mono">
+                  {Math.round((r.adherent_days / r.logged_days) * 100)}% · {r.adherent_days}/{r.logged_days} days
+                </span>
+                <div className="phase-report-bar" aria-hidden="true">
+                  <span style={{ width: `${Math.round((r.adherent_days / r.logged_days) * 100)}%` }} />
+                </div>
+              </div>
+            )}
             <Row
               k="Avg intake"
               v={
