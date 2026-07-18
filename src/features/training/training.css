@@ -84,6 +84,10 @@
    a shortcut, not the primary Log-set path, so it stays quieter than a card.
    Sits in the list flow below the cards, riding the same entrance/slide. */
 .tr-repeat-session {
+  /* Positioned so it paints after the preceding .ex-card (which is
+     position:relative); otherwise the card's box-shadow bleeds over the
+     button's top edge and darkens it. */
+  position: relative;
   width: 100%;
   padding: var(--space-3);
   border: none;
@@ -1797,6 +1801,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--vr-block);
+}
+
+/* container already spaces children via gap; drop the head's own margin */
+.stretches .section-head {
+  margin-bottom: 0;
 }
 
 .stretch-grid {
