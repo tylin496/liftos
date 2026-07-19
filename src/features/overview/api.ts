@@ -139,6 +139,10 @@ export async function fetchOverview(): Promise<OverviewData> {
     supabase
       .from("training_logs")
       .select("exercise_slug, raw, log_date")
+      // Exclude "repeat last session" clones — they mark a maintained day but add
+      // no new strength signal, so the performance-trend summary reads them out
+      // (same treatment as the Training tab's own strength reads).
+      .eq("repeated", false)
       .order("log_date", { ascending: true }),
     // All exercises' flags: `archived` (excluded from the strength watch list —
     // retired, not stalled), `compound` (earns round-weight milestones on the

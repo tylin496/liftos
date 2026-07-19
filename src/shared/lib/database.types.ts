@@ -407,6 +407,7 @@ export type Database = {
           note: string | null
           raw: string | null
           reps: string | null
+          repeated: boolean
           unit: string
           user_id: string
           weight_kg: number | null
@@ -422,6 +423,7 @@ export type Database = {
           note?: string | null
           raw?: string | null
           reps?: string | null
+          repeated?: boolean
           unit?: string
           user_id: string
           weight_kg?: number | null
@@ -437,6 +439,7 @@ export type Database = {
           note?: string | null
           raw?: string | null
           reps?: string | null
+          repeated?: boolean
           unit?: string
           user_id?: string
           weight_kg?: number | null

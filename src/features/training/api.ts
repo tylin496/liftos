@@ -150,6 +150,11 @@ export async function repeatSession(sources: TrainingLog[], date: string): Promi
     kind: s.kind,
     assistance: s.assistance,
     bodyweight: s.bodyweight,
+    // Marks the row as a maintained-day clone: it counts the session (volume /
+    // split-advance / recency) but is filtered out of every strength read
+    // (history, PR, e1RM, trend, export) so identical numbers never pollute the
+    // per-lift history. See withoutRepeated.
+    repeated: true,
   }));
   const { data, error } = await supabase
     .from("training_logs")
@@ -157,6 +162,23 @@ export async function repeatSession(sources: TrainingLog[], date: string): Promi
     .select("*");
   if (error) throw error;
   return data ?? [];
+}
+
+/** Drops "repeat last session" markers from a slug→logs map. Those rows clone
+ *  the last real numbers to mark a maintained day; they belong in session /
+ *  volume / split-advance / recency counts (which read the raw logs) but must
+ *  be invisible to any strength read — history list, PR, e1RM, trend, standards,
+ *  export — where a duplicate would show as a phantom entry or flatten a trend.
+ *  Returns the same array reference when a slug has no markers (cheap identity
+ *  so memoized consumers don't re-render needlessly). */
+export function withoutRepeated(
+  logs: Record<string, TrainingLog[]>,
+): Record<string, TrainingLog[]> {
+  const out: Record<string, TrainingLog[]> = {};
+  for (const [slug, arr] of Object.entries(logs)) {
+    out[slug] = arr.some((l) => l.repeated) ? arr.filter((l) => !l.repeated) : arr;
+  }
+  return out;
 }
 
 export async function deleteLog(id: string): Promise<void> {

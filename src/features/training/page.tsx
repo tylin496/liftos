@@ -12,6 +12,7 @@ import {
   reorderExercises,
   deleteExerciseAndLogs,
   repeatSession,
+  withoutRepeated,
   loadStretches,
   saveStretches,
   uploadStretchImage,
@@ -746,6 +747,15 @@ function TrainingPageInner() {
   // Optimistic insert for a freshly-added set — avoids a full-table refetch
   // on the app's most frequent action. Edits/deletes still go through
   // reloadLogs since they touch existing rows.
+  // Strength view of the logs: the same rows minus "repeat last session"
+  // markers. Every per-lift strength read (card history/PR/trend/e1RM, archived
+  // best, PR timeline, Training Health trajectory) keys off this so a maintained
+  // tap never shows as a duplicate entry or flattens a trend. The raw `logs`
+  // stay the source for session-scoped counts — weekly volume, split
+  // auto-advance, recency, the milestone day-set — because a maintained day IS a
+  // trained session there. See withoutRepeated.
+  const strengthLogs = useMemo(() => withoutRepeated(logs), [logs]);
+
   const onLogAdded = useCallback((log: TrainingLog) => {
     setLogs((prev) => {
       const existing = prev[log.exercise_slug] ?? [];
@@ -1037,10 +1047,10 @@ function TrainingPageInner() {
     const compoundSlugs = new Set((exercises ?? []).filter((e) => e.compound).map((e) => e.slug));
     const namesBySlug = Object.fromEntries((exercises ?? []).map((e) => [e.slug, e.name]));
     const activeLogs = Object.fromEntries(
-      Object.entries(logs).filter(([slug]) => !archivedSlugs.has(slug)),
+      Object.entries(strengthLogs).filter(([slug]) => !archivedSlugs.has(slug)),
     );
     return { strength: computeStrengthSummary(activeLogs, compoundSlugs, namesBySlug) };
-  }, [logs, exercises]);
+  }, [strengthLogs, exercises]);
 
   // Weekly volume — total kg lifted this calendar week, completing each trained
   // split's roster via carry-forward (log one Pull set → the whole Pull roster
@@ -1088,7 +1098,7 @@ function TrainingPageInner() {
     for (const ex of exercises ?? []) {
       if (ex.archived) continue;
       const evts = buildPrEvents(
-        logs[ex.slug] ?? [],
+        strengthLogs[ex.slug] ?? [],
         defaultSetCount(ex),
         ex.compound ? "compound" : "isolation",
         !!ex.assisted_mode,
@@ -1096,7 +1106,7 @@ function TrainingPageInner() {
       if (evts.length > 0) return true;
     }
     return false;
-  }, [exercises, logs]);
+  }, [exercises, strengthLogs]);
 
   // Every distinct log date on record, any exercise — feeds the session-count
   // milestone (every 100th training day) in ExerciseCard. A log can only ever
@@ -1241,7 +1251,7 @@ function TrainingPageInner() {
         >
           {activeExercises.map((ex, idx) => {
             const h = cardHandlers.get(ex.slug)!;
-            const cardLogs = logs[ex.slug] ?? EMPTY_LOGS;
+            const cardLogs = strengthLogs[ex.slug] ?? EMPTY_LOGS;
             // Scope the shared expandedLogId down to this card: pass the id only
             // when it belongs to one of this card's rows, else null. So toggling
             // a row re-renders just the owning card(s) instead of all of them
@@ -1364,7 +1374,7 @@ function TrainingPageInner() {
       )}
       <PrPhaseTimelineSheet
         exercises={exercises ?? []}
-        logs={logs}
+        logs={strengthLogs}
         open={timelineOpen}
         onClose={() => setTimelineOpen(false)}
       />
@@ -1373,7 +1383,7 @@ function TrainingPageInner() {
       {!readOnly && (
         <ArchivedSection
           exercises={archivedExercises}
-          logs={logs}
+          logs={strengthLogs}
           onRestore={handleRestore}
           onDelete={handleDeleteArchived}
         />

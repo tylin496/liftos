@@ -234,6 +234,10 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
     supabase
       .from("training_logs")
       .select("exercise_slug, raw, log_date")
+      // Exclude "repeat last session" clones: they mark a maintained day but
+      // carry no new strength signal, so the engine's decline/stall verdict must
+      // read them out (same treatment as the Training Health card).
+      .eq("repeated", false)
       .order("log_date", { ascending: true }),
     // slug + archived + compound: archived filters the training slice, compound
     // picks the score axis (e1RM vs tonnage) so the engine's decline verdict

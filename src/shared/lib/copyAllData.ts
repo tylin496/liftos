@@ -6,7 +6,7 @@ import { getNutritionState, type NutritionStateFull } from "@features/nutrition/
 import { localDateStr } from "@shared/lib/date";
 import { weeklyWeightRate, tdeeCalibration, confidenceBreakdownFromSeries, MIN_TREND_POINTS, type TdeeCalibration, type ConfidenceBreakdown } from "@features/nutrition/evaluation";
 import { nutritionDecision } from "@features/nutrition/recommendation";
-import { fetchExercises, fetchLogsBySlug, fetchLatestBodyweight } from "@features/training/api";
+import { fetchExercises, fetchLogsBySlug, fetchLatestBodyweight, withoutRepeated } from "@features/training/api";
 import { parse, score } from "@features/training/parser";
 import { computeStats, computeMuscleWeeklyVolume, epley1RM, maxReps, scoreWeight } from "@features/training/logic";
 import { computeStrengthSummary, fetchPhaseReports, type StrengthExercise, type PhaseReport } from "@features/overview/api";
@@ -411,10 +411,15 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       : null;
 
   // ── Training ────────────────────────────────────────────────────────────────
-  // Pre-parse all logs (needed for PR calculation regardless of slice)
+  // Pre-parse all logs (needed for PR calculation regardless of slice). Strength
+  // reads (stats, PR, trajectory, per-lift session count, the log listing) run
+  // off the repeat-marker-free view so a maintained-day clone never emits as a
+  // phantom entry; dataSpan below still keys off raw logsBySlug so a maintained
+  // day stays inside the reported window.
+  const strengthLogsBySlug = withoutRepeated(logsBySlug);
   const allLogsBySlug: Record<string, { log: import("@features/training/api").TrainingLog; parsed: ReturnType<typeof parse> | null; w: number | null }[]> = {};
   for (const ex of exercises) {
-    const reversed = [...(logsBySlug[ex.slug] ?? [])].reverse();
+    const reversed = [...(strengthLogsBySlug[ex.slug] ?? [])].reverse();
     allLogsBySlug[ex.slug] = reversed.map((l) => {
       const p = l.raw ? parse(l.raw) : null;
       const w = p ? +score(p).toFixed(2) : null;
@@ -1087,10 +1092,13 @@ export async function buildTrainingJson(): Promise<string> {
   ]);
 
   // PR-distance status per exercise (same model as the Training Health card).
+  // Repeat-marker clones carry no new strength signal — filter them so the
+  // trajectory/stats reads below match the app's own history.
+  const strengthLogsBySlug = withoutRepeated(logsBySlug);
   const strengthBySlug = new Map<string, StrengthExercise>(
     computeStrengthSummary(
       Object.fromEntries(
-        exercises.filter((e) => !e.archived).map((e) => [e.slug, logsBySlug[e.slug] ?? []]),
+        exercises.filter((e) => !e.archived).map((e) => [e.slug, strengthLogsBySlug[e.slug] ?? []]),
       ),
       new Set(exercises.filter((e) => e.compound).map((e) => e.slug)),
       undefined,
@@ -1108,7 +1116,8 @@ export async function buildTrainingJson(): Promise<string> {
     const splitExercises = exercises.filter((ex) => ex.split === split.id && !ex.archived);
     const exerciseData = splitExercises.map((ex) => {
       // fetchLogsBySlug is newest-first; reverse to ascending for stats/logs.
-      const ascLogs = [...(logsBySlug[ex.slug] ?? [])].reverse();
+      // Repeat-marker clones are excluded (see strengthLogsBySlug above).
+      const ascLogs = [...(strengthLogsBySlug[ex.slug] ?? [])].reverse();
       const setCount = defaultSetCount(ex);
       const stats = computeStats(ascLogs, setCount, ex.compound ? "compound" : "isolation", !!ex.assisted_mode);
       const se = strengthBySlug.get(ex.slug);
