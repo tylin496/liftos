@@ -13,16 +13,18 @@
 //    ÷ bodyweight). Bodyweight-multiples are the widely-published shorthand;
 //    they drift a little at bodyweight extremes (heavier lifters score lower
 //    per kg), so treat a level as a band, not a precise percentile.
-//  • Only the five canonical barbell lifts get a standard — the ones the public
-//    tables actually cover. Machines, cables, and isolations have no meaningful
-//    cross-population standard and correctly return null (no level shown).
+//  • Only barbell lifts with a published cross-population table get a standard:
+//    the five classic lifts (long-established tables) plus RDL (crowdsourced
+//    tables only — same ladder, a rung less authoritative). Machines, cables,
+//    and isolations have no meaningful cross-population standard and correctly
+//    return null (no level shown).
 //  • Assisted / bodyweight lifts score on a %-bodyweight axis, not a 1RM in kg,
 //    so they're out of scope here too (canonicalLift returns null for them).
 import type { Exercise } from "./api";
 
 export type Sex = "male" | "female";
 export type StrengthLevel = "Beginner" | "Novice" | "Intermediate" | "Advanced" | "Elite";
-export type CanonicalLift = "bench" | "squat" | "deadlift" | "ohp" | "row";
+export type CanonicalLift = "bench" | "squat" | "deadlift" | "rdl" | "ohp" | "row";
 
 export const STRENGTH_LEVELS: StrengthLevel[] = ["Beginner", "Novice", "Intermediate", "Advanced", "Elite"];
 
@@ -35,6 +37,10 @@ const THRESHOLDS: Record<Sex, Record<CanonicalLift, [number, number, number, num
     bench: [0.75, 1.1, 1.5, 2.0],
     squat: [1.2, 1.6, 2.0, 2.5],
     deadlift: [1.5, 2.0, 2.5, 3.0],
+    // RDL: crowdsourced tables only (no long-established standard); sits at
+    // roughly 75–80% of the conventional-deadlift floors, matching how the two
+    // lifts load in practice.
+    rdl: [1.0, 1.4, 1.8, 2.25],
     ohp: [0.55, 0.8, 1.05, 1.3],
     row: [0.75, 1.0, 1.35, 1.75],
   },
@@ -42,6 +48,7 @@ const THRESHOLDS: Record<Sex, Record<CanonicalLift, [number, number, number, num
     bench: [0.5, 0.75, 1.0, 1.5],
     squat: [0.75, 1.25, 1.6, 2.0],
     deadlift: [1.0, 1.25, 1.75, 2.5],
+    rdl: [0.7, 1.1, 1.5, 2.0],
     ohp: [0.35, 0.5, 0.75, 1.0],
     row: [0.5, 0.7, 0.9, 1.2],
   },
@@ -51,6 +58,7 @@ const LIFT_LABEL: Record<CanonicalLift, string> = {
   bench: "Bench Press",
   squat: "Squat",
   deadlift: "Deadlift",
+  rdl: "Romanian Deadlift",
   ohp: "Overhead Press",
   row: "Barbell Row",
 };
@@ -59,20 +67,24 @@ export const liftLabel = (lift: CanonicalLift) => LIFT_LABEL[lift];
 
 /** Map an exercise to a canonical standard lift, or null when none applies.
  *  Deliberately STRICT — a name has to clearly be the barbell movement the
- *  standard is built on. Variations that load very differently (RDL, front
- *  squat, sumo, machine/cable rows, incline bench) are left out rather than
- *  compared against a table that doesn't fit them: a wrong level is worse than
- *  no level. Assisted / non-compound lifts are excluded up front. */
+ *  standard is built on. RDL has its own table; variations without one that
+ *  load very differently (front squat, sumo, machine/cable rows, incline
+ *  bench) are left out rather than compared against a table that doesn't fit
+ *  them: a wrong level is worse than no level. Assisted / non-compound lifts
+ *  are excluded up front. */
 export function canonicalLift(exercise: Pick<Exercise, "name" | "compound" | "assisted_mode">): CanonicalLift | null {
   if (!exercise.compound || exercise.assisted_mode) return null;
   const n = exercise.name.toLowerCase();
 
   // Exclusions first — variants that share a keyword but not the standard.
-  if (/\b(rdl|romanian|stiff.?leg|good.?morning|sumo|hack|front squat|incline|decline)\b/.test(n)) return null;
+  if (/\b(stiff.?leg|good.?morning|sumo|hack|front squat|incline|decline)\b/.test(n)) return null;
   if (/\b(machine|cable|smith|pec|hammer)\b/.test(n)) return null;
 
   if (/\bbench\b/.test(n) || n === "flat bench press") return "bench";
   if (/\bsquat\b/.test(n)) return "squat";
+  // RDL before deadlift — "Romanian Deadlift" must land on its own table, not
+  // the conventional one.
+  if (/\b(rdl|romanian)\b/.test(n)) return "rdl";
   if (/\bdead\s?lift\b/.test(n) || /\bdeadlift\b/.test(n)) return "deadlift";
   if (/\b(overhead press|ohp|military press|shoulder press|push press|strict press)\b/.test(n)) return "ohp";
   if (/\b(barbell row|bent.?over row|pendlay|bb row)\b/.test(n)) return "row";
