@@ -470,14 +470,23 @@ export function StrengthHealthCard({
                 </span>
               </span>
               <span className="ov-thg-cell-metric">
-                <StatusGlyph status={cell.status} size={cell.hero ? 15 : 12} className="ov-thg-cell-icon" />
-                {/* Hero keeps a headline % (its worst lift, the spotlight number);
-                    ordinary tiles lead with the status WORD instead — a min-% there
-                    reads as a whole-group average and fights a positive note. */}
+                {/* Hero keeps a headline % (its worst lift, the spotlight number)
+                    beside the glyph; ordinary tiles are glyph-ONLY — the word
+                    beside it kept truncating the muscle name on narrow screens,
+                    and the glyph already carries the same status + colour (the
+                    label keeps it screen-readable). */}
                 {cell.hero ? (
-                  <span className="ov-thg-cell-pct">{cell.pct}%</span>
+                  <>
+                    <StatusGlyph status={cell.status} size={15} className="ov-thg-cell-icon" />
+                    <span className="ov-thg-cell-pct">{cell.pct}%</span>
+                  </>
                 ) : (
-                  <span className={`ov-thg-cell-status status-${cell.status}`}>{statusWord(cell.status, cell.pct)}</span>
+                  <StatusGlyph
+                    status={cell.status}
+                    size={14}
+                    className="ov-thg-cell-icon"
+                    label={statusWord(cell.status, cell.pct)}
+                  />
                 )}
               </span>
             </span>

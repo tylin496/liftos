@@ -29,7 +29,7 @@ const PATHS: Record<LiftStatus, { d: string[]; strokeWidth: string }> = {
   steady: { d: ["M20 6 9 17l-5-5"], strokeWidth: "2.2" },
 };
 
-export function StatusGlyph({ status, size = 13, className = "" }: { status: LiftStatus; size?: number; className?: string }) {
+export function StatusGlyph({ status, size = 13, className = "", label }: { status: LiftStatus; size?: number; className?: string; label?: string }) {
   const { d, strokeWidth } = PATHS[status];
   return (
     <svg
@@ -42,7 +42,9 @@ export function StatusGlyph({ status, size = 13, className = "" }: { status: Lif
       strokeLinecap="round"
       strokeLinejoin="round"
       className={`status-${status} ${className}`}
-      aria-hidden
+      // When the glyph stands alone (no status word beside it) it IS the
+      // status content — a label keeps it screen-readable.
+      {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
     >
       {d.map((p) => (
         <path key={p} d={p} />
