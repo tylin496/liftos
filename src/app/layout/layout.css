@@ -1015,7 +1015,8 @@ html.kb-open .tabbar {
   letter-spacing: -0.02em;
   color: var(--ink);
   z-index: 1;
-  animation: word-in var(--dur-enter) var(--ease-enter) 90ms both;
+  animation: word-in var(--dur-enter) var(--ease-enter) both;
+  animation-delay: calc(90ms + var(--splash-sync, 0ms));
 }
 .splash-word b { color: var(--accent); }
 .splash-tag {
@@ -1025,7 +1026,8 @@ html.kb-open .tabbar {
   text-transform: uppercase;
   color: var(--ink-3);
   z-index: 1;
-  animation: word-in var(--dur-enter) var(--ease-enter) 180ms both;
+  animation: word-in var(--dur-enter) var(--ease-enter) both;
+  animation-delay: calc(180ms + var(--splash-sync, 0ms));
 }
 /* Loading cue — three ember dots INSIDE the lockup (fourth stacked item, no
    longer floating at the screen edge). They appear only ~900ms in, so a fast
@@ -1037,7 +1039,8 @@ html.kb-open .tabbar {
   gap: var(--space-2);
   margin-top: var(--vr-block); /* a touch looser than mark→word→tag, still one group */
   z-index: 1;
-  animation: dots-appear var(--dur-move) var(--ease-enter) 900ms both;
+  animation: dots-appear var(--dur-move) var(--ease-enter) both;
+  animation-delay: calc(900ms + var(--splash-sync, 0ms));
 }
 .splash-dots span {
   width: 5px;
@@ -1050,15 +1053,26 @@ html.kb-open .tabbar {
   to { opacity: 1; transform: none; }
 }
 
-/* Trace-line draw signals progress without a spinner */
+/* Trace-line draw signals progress without a spinner. ONE draw, no loop:
+   --ease-enter front-loads the stroke then decelerates into complete, so a fast
+   load reads "mostly done" and a slow one settles lit instead of redrawing.
+   Past 3s the delayed dot-pulse alone carries "still working". Every delay
+   (incl. the loops' phase) is offset by --splash-sync so the static→overlay
+   remount continues mid-animation instead of replaying — see Splash.tsx. */
 @media (prefers-reduced-motion: no-preference) {
-  .splash-trace-path { animation: trace-draw var(--dur-ambient) ease-in-out infinite; }
+  .splash-trace-path {
+    animation: trace-draw var(--dur-ambient) var(--ease-enter) both;
+    animation-delay: var(--splash-sync, 0ms);
+  }
   /* Dots breathe on the shared ambient clock; the nth-child delays sit AFTER the
      shorthand so they survive it (the shorthand would otherwise zero the delay).
      Gated here → static, non-pulsing dots under reduced-motion. */
-  .splash-dots span { animation: dot-pulse var(--dur-ambient) ease-in-out infinite; }
-  .splash-dots span:nth-child(2) { animation-delay: 220ms; }
-  .splash-dots span:nth-child(3) { animation-delay: 440ms; }
+  .splash-dots span {
+    animation: dot-pulse var(--dur-ambient) ease-in-out infinite;
+    animation-delay: var(--splash-sync, 0ms);
+  }
+  .splash-dots span:nth-child(2) { animation-delay: calc(220ms + var(--splash-sync, 0ms)); }
+  .splash-dots span:nth-child(3) { animation-delay: calc(440ms + var(--splash-sync, 0ms)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .splash-trace-path {
@@ -1068,13 +1082,9 @@ html.kb-open .tabbar {
   }
 }
 @keyframes trace-draw {
-  0%    { stroke-dashoffset: 700; opacity: 0; }
-  6%    { opacity: 1; }
-  50%   { stroke-dashoffset: 0; opacity: 1; }
-  70%   { stroke-dashoffset: 0; opacity: 1; }
-  85%   { opacity: 0; }
-  85.1% { stroke-dashoffset: 700; }
-  100%  { stroke-dashoffset: 700; opacity: 0; }
+  0%   { stroke-dashoffset: 700; opacity: 0; }
+  6%   { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
 }
 @keyframes dots-appear {
   from { opacity: 0; transform: translateY(6px); }
