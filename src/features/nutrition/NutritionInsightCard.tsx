@@ -133,11 +133,13 @@ function PaceMeter({
   const rTone = rateTone({ observedRate, targetRange: { min: lo, max: hi }, phaseKind });
   const tone = optimal ? "gold" : rTone === "gold" ? "good" : (rTone ?? "good");
 
-  // Sign must track the number actually printed (obs = phaseDirection·rate),
-  // not the raw rate — else a gain-on-cut / loss-on-bulk makes `obs` negative
-  // and toFixed emits its own minus on top of this one ("+-0.20"). Derive from
-  // obs and print |obs| so the sign is shown exactly once.
-  const sign = obs < 0 ? "−" : obs > 0 ? "+" : "±";
+  // Headline prints the SIGNED weight change (observedRate: kg/wk, negative =
+  // losing), the same convention as the axis ticks below (−0.60/−0.90 on a cut,
+  // +0.60/+0.90 on a bulk) — so the number and the scale never disagree on what
+  // a minus means. Good-vs-bad lives on the dot/band/marker (progress space via
+  // `obs`), NOT on this sign: a cut loss reads −0.65 with a green dot. Derive
+  // from observedRate and print |observedRate| so the sign shows exactly once.
+  const sign = observedRate < 0 ? "−" : observedRate > 0 ? "+" : "±";
   // Caption only fires off-band, where it adds the "why" the meter can't show;
   // in-band it would just restate the marker sitting inside the green — dropped.
   const word = phaseKind === "bulk" ? "gaining" : "losing";
@@ -152,7 +154,7 @@ function PaceMeter({
         <span className="ni-pace-obs">
           <span className={`ni-status-dot status-${tone}`} aria-hidden="true" />
           {sign}
-          {Math.abs(obs).toFixed(2)} kg/wk
+          {Math.abs(observedRate).toFixed(2)} kg/wk
           {/* Rate-TREND arrow: the glyph is the second-order read — is the loss
               speeding up (▲) or slowing toward a plateau (▼)? — NOT the weight's
               own direction. Colour reads the trend against the band: a still-safe
