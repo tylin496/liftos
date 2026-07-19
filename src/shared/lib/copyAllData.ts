@@ -274,13 +274,11 @@ function buildHealthTimeline(metrics: BodyMetric[]) {
 
 export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritionDays = EXPORT_NUTRITION_DAYS): Promise<string> {
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = localDateStr(now);
   // −(nutritionDays − 1): getEntries is inclusive of both ends, so subtracting
   // the full nutritionDays would span nutritionDays+1 calendar days and make
   // `days`/`sampleDays` read one higher than the stated `periodDays`.
-  const nutritionStart = new Date(now.getTime() - (nutritionDays - 1) * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
+  const nutritionStart = localDateStr(new Date(now.getTime() - (nutritionDays - 1) * 86_400_000));
 
   const [health, nutritionConfig, nutritionEntries, nutritionStateFull, exercises, logsBySlug, phaseReports] = await Promise.all([
     fetchHealthData(healthDays).catch(() => null),
@@ -355,9 +353,7 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   // 30-day slices for the top-level summary. Canonical "short window" for the
   // recency-weighted numbers (avg cal/protein, weight30d, deficit).
   const SHORT_WINDOW_DAYS = 30;
-  const cutoff30 = new Date(now.getTime() - SHORT_WINDOW_DAYS * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
+  const cutoff30 = localDateStr(new Date(now.getTime() - SHORT_WINDOW_DAYS * 86_400_000));
   const logged30 = logged.filter((e) => e.entry_date >= cutoff30);
   // When the short window has no data, emit null — NOT the 60d average — so a
   // field named *_30d never silently carries a full-window value.
@@ -946,9 +942,9 @@ function engineHypothesis(
 /** Nutrition tab: targets, engine hypothesis, adherence stats, full entries. */
 export async function buildNutritionJson(days = FULL_NUTRITION_DAYS): Promise<string> {
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = localDateStr(now);
   // −(days − 1): getEntries is inclusive both ends (see buildAllDataJson).
-  const start = new Date(now.getTime() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+  const start = localDateStr(new Date(now.getTime() - (days - 1) * 86_400_000));
 
   const [config, entries, state, health, phaseReports] = await Promise.all([
     getConfig().catch(() => null),

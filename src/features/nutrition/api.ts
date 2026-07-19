@@ -1,5 +1,6 @@
 import { supabase } from "@shared/lib/supabase";
 import { isViewer } from "@shared/lib/owner";
+import { localDateStr } from "@shared/lib/date";
 import type { Database } from "@shared/lib/database.types";
 import { DEFAULTS, phaseFromDeficit } from "./logic";
 
@@ -154,15 +155,40 @@ export async function saveEntry(
 ): Promise<NutritionEntry> {
   const userId = await currentUserId();
   const t = targetsFromConfig(config);
+  // A day's stamped targets are its plan-of-record — the verdict every other
+  // surface judges it by. Editing calories/protein on an already-logged PAST
+  // day must not re-judge it against today's config, so preserve that day's
+  // original snapshot. Today stays live (you're actively on the current plan),
+  // and a legacy row with a null snapshot backfills from config.
+  let snapshot = {
+    tdee: t.tdee,
+    calorie_target: t.calorieTarget,
+    protein_target: t.proteinTarget,
+    deficit_target: t.deficitTarget,
+  };
+  if (date < localDateStr()) {
+    const existing = await getEntry(date);
+    if (
+      existing &&
+      existing.tdee != null &&
+      existing.calorie_target != null &&
+      existing.protein_target != null &&
+      existing.deficit_target != null
+    ) {
+      snapshot = {
+        tdee: existing.tdee,
+        calorie_target: existing.calorie_target,
+        protein_target: existing.protein_target,
+        deficit_target: existing.deficit_target,
+      };
+    }
+  }
   const row = {
     user_id: userId,
     entry_date: date,
     calories: values.calories,
     protein: values.protein,
-    tdee: t.tdee,
-    calorie_target: t.calorieTarget,
-    protein_target: t.proteinTarget,
-    deficit_target: t.deficitTarget,
+    ...snapshot,
   };
   const { data, error } = await supabase
     .from("nutrition_entries")

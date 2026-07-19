@@ -1,4 +1,4 @@
-import { localDateStrDaysAgo } from "@shared/lib/date";
+import { localDateStr, localDateStrDaysAgo } from "@shared/lib/date";
 
 export interface TdeeEstimate {
   tdee: number | null;
@@ -76,10 +76,21 @@ export function computeTdeeWindows(metrics: TdeeMetricRow[]): {
   const cutoff28 = localDateStrDaysAgo(28);
   const cutoff30 = localDateStrDaysAgo(30);
   const cutoff60 = localDateStrDaysAgo(60);
+  // Exclude today from the current window: its live-sync row is a partial
+  // reading (active energy accrues through the day) that would deflate the
+  // average all morning. The sibling day-type baselines (math.ts) and the
+  // active-target math exclude today for the same reason. This also squares the
+  // windows — current active (>= cutoff14 && < today) spans 14 days, matching
+  // the previous window's 14. The prev windows already end before today.
+  const todayISO = localDateStr();
 
   const tdee = estimateTdee(
-    metrics.filter((m) => m.metric_date >= cutoff30).map((m) => ({ resting: m.resting_energy_kcal })),
-    metrics.filter((m) => m.metric_date >= cutoff14).map((m) => ({ active: m.active_energy_kcal })),
+    metrics
+      .filter((m) => m.metric_date >= cutoff30 && m.metric_date < todayISO)
+      .map((m) => ({ resting: m.resting_energy_kcal })),
+    metrics
+      .filter((m) => m.metric_date >= cutoff14 && m.metric_date < todayISO)
+      .map((m) => ({ active: m.active_energy_kcal })),
   );
 
   const tdeePrev = estimateTdee(

@@ -21,6 +21,7 @@ import { COUNT_UP_MS } from "@shared/hooks/useCountUp";
 import { Badge } from "@shared/components/Badge";
 import { MacroEditFields, type MacroField } from "@shared/components/MacroEditFields";
 import { haptic } from "@shared/lib/haptics";
+import { localDateStr } from "@shared/lib/date";
 import { CLEAR_AFTER_MOVE, CLEAR_AFTER_SHEEN } from "@shared/lib/motion";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { useIsReadOnly } from "@app/layout/SessionContext";
@@ -322,6 +323,16 @@ export function TodayView({
   // starts typing a brand-new entry, prematurely showing "Update entry" /
   // "Delete entry" before anything's actually been saved.
   const [entryExists, setEntryExists] = useState(false);
+  // A past day's stamped targets (plan-of-record). Present only for settled days
+  // that carry a snapshot; today and legacy null-snapshot rows judge against the
+  // live config instead. Keeps a navigated-to past day's verdict from flipping
+  // when the current phase/config differs from the day it was logged.
+  const [entrySnapshot, setEntrySnapshot] = useState<{
+    tdee: number;
+    deficitTarget: number;
+    proteinTarget: number;
+    calorieTarget: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -376,6 +387,20 @@ export function TodayView({
         setCalories(entry?.calories != null ? String(entry.calories) : "");
         setProtein(entry?.protein != null ? String(entry.protein) : "");
         setEntryExists(entry?.calories != null || entry?.protein != null);
+        setEntrySnapshot(
+          entry &&
+            entry.tdee != null &&
+            entry.deficit_target != null &&
+            entry.protein_target != null &&
+            entry.calorie_target != null
+            ? {
+                tdee: entry.tdee,
+                deficitTarget: entry.deficit_target,
+                proteinTarget: entry.protein_target,
+                calorieTarget: entry.calorie_target,
+              }
+            : null,
+        );
         setLoading(false);
         firstLoad.current = false;
         isNavigating.current = false;
@@ -482,7 +507,13 @@ export function TodayView({
     return () => clearTimeout(start);
   }, [loading]);
 
-  const targets = useMemo(() => targetsFromConfig(config), [config]);
+  const liveTargets = useMemo(() => targetsFromConfig(config), [config]);
+  // Past settled days are judged against their own stamped snapshot (matching
+  // monthlyStats / history / phase reports); today uses the live plan.
+  const targets =
+    date < localDateStr() && entrySnapshot
+      ? { ...liveTargets, ...entrySnapshot }
+      : liveTargets;
   const calNum = Number(calories) || 0;
   const protNum = Number(protein) || 0;
   const hasEntry = entryExists;
