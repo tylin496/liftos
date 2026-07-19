@@ -15,13 +15,14 @@ const MONTH_ABBR = [
   "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
 ];
 
-/** "YYYY-MM-DD" → {mon, day} for compact timeline/history labels, e.g. {mon:"JUN", day:"25"}. */
-export function timelineDate(isoDate: string): { mon: string; day: string } {
-  if (!isoDate) return { mon: "", day: "" };
+/** "YYYY-MM-DD" → {mon, day, year} for compact timeline/history labels, e.g. {mon:"JUN", day:"25", year:2025}. */
+export function timelineDate(isoDate: string): { mon: string; day: string; year: number | null } {
+  if (!isoDate) return { mon: "", day: "", year: null };
   const d = new Date(isoDate + "T12:00:00");
-  if (isNaN(d.getTime())) return { mon: "", day: String(isoDate) };
+  if (isNaN(d.getTime())) return { mon: "", day: String(isoDate), year: null };
   return {
     mon: MONTH_ABBR[d.getMonth()],
     day: String(d.getDate()).padStart(2, "0"),
+    year: d.getFullYear(),
   };
 }

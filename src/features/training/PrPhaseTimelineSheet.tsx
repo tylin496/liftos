@@ -148,6 +148,10 @@ function SheetInner({
   if (phaseCounts.earlier > 0 && !loadingPhases) summaryParts.push(`${phaseCounts.earlier} earlier`);
   const firstDate = attributed[0] ? timelineDate(attributed[0].date) : null;
   const lastDate = attributed[n - 1] ? timelineDate(attributed[n - 1].date) : null;
+  // Span crosses a year boundary → the compact axis needs the year to disambiguate
+  // (e.g. FEB 01 belongs to last year, not this one).
+  const crossYear =
+    firstDate?.year != null && lastDate?.year != null && firstDate.year !== lastDate.year;
 
   return createPortal(
     <>
@@ -226,8 +230,8 @@ function SheetInner({
                 </div>
                 {firstDate && lastDate && (
                   <div className="prtl-axis">
-                    <span>{firstDate.mon} {firstDate.day}</span>
-                    <span>{lastDate.mon} {lastDate.day}</span>
+                    <span>{firstDate.mon} {firstDate.day}{crossYear && firstDate.year != null ? ` ’${String(firstDate.year).slice(-2)}` : ""}</span>
+                    <span>{lastDate.mon} {lastDate.day}{crossYear && lastDate.year != null ? ` ’${String(lastDate.year).slice(-2)}` : ""}</span>
                   </div>
                 )}
               </div>
