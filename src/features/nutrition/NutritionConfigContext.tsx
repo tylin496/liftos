@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { getConfig, saveConfig, type NutritionConfig } from "./api";
+import { getConfig, saveConfig, targetsFromConfig, type NutritionConfig } from "./api";
 import { recomputeAndPersist } from "./evaluationApi";
-import { maybeClosePhase } from "@shared/lib/phaseReport";
 import { fetchHealthData } from "@features/health/api";
 
 interface NutritionConfigCtx {
@@ -31,16 +30,20 @@ export function NutritionConfigProvider({ children }: { children: ReactNode }) {
       .then(([cfg, health]) => {
         setError(null);
         const healthTdee = health?.tdee?.tdee;
-        if (healthTdee != null && healthTdee !== cfg.tdee) {
+        // Keep the measured TDEE fresh so calorie targets track reality — but an
+        // app-open sync must never silently move the user's phase. The phase is
+        // derived live from (tdee − intake), so a drifting TDEE alone could flip
+        // Lean Bulk → Maintenance or a tracked cut → untracked Cruise with no
+        // user action. Gate on it: apply the synced TDEE only while it stays in
+        // the SAME phase band; a cross-band shift is held until the user applies
+        // it deliberately (Settings / Insight card).
+        const crossesPhase =
+          healthTdee != null &&
+          targetsFromConfig({ ...cfg, tdee: healthTdee }).cutPhaseName !==
+            targetsFromConfig(cfg).cutPhaseName;
+        if (healthTdee != null && healthTdee !== cfg.tdee && !crossesPhase) {
           saveConfig({ tdee: healthTdee })
-            .then((updated) => {
-              // A synced TDEE shift moves the deficit → it can cross a phase
-              // band (e.g. Lean Bulk → Maintenance). Settle the ended phase into
-              // its retrospective, same as the SettingsSheet / Insight writers.
-              // Fire-and-forget: a failed report never blocks config load.
-              void maybeClosePhase(cfg, updated);
-              setConfig(updated);
-            })
+            .then((updated) => setConfig(updated))
             .catch(() => setConfig({ ...cfg, tdee: healthTdee }));
         } else {
           setConfig(cfg);
