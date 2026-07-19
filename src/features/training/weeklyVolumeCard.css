@@ -70,7 +70,7 @@
 .wv-trend-glyph {
   flex-shrink: 0;
   color: var(--accent);
-  transition: opacity var(--dur-press) ease;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
 
 /* Chevron corner stays tappable as a pointer-duplicate of the head toggle. */

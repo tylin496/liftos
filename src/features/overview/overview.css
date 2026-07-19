@@ -984,7 +984,7 @@
 .goal.is-celebrating .goal-bar {
   position: relative;
   overflow: hidden;
-  animation: goal-bar-glow var(--dur-celebrate) ease;
+  animation: goal-bar-glow var(--dur-celebrate) var(--ease-move);
 }
 .goal.is-celebrating .goal-bar-fill { position: relative; }
 .goal.is-celebrating .goal-bar-fill::after {

@@ -654,11 +654,11 @@
   background: var(--scrim-bg);
   backdrop-filter: var(--scrim-blur);
   -webkit-backdrop-filter: var(--scrim-blur);
-  animation: fade-in var(--dur-enter) ease both;
+  animation: fade-in var(--dur-enter) var(--ease-enter) both;
 }
 
 .ncal-backdrop.is-closing {
-  animation: fade-out var(--dur-exit) ease both;
+  animation: fade-out var(--dur-exit) var(--ease-move) both;
 }
 
 .ncal-panel {
@@ -678,7 +678,7 @@
   -webkit-backdrop-filter: var(--card-blur);
   box-shadow: var(--shadow-lg);
   padding: var(--space-6) var(--space-5) var(--space-6);
-  animation: ncal-in var(--dur-enter) ease both;
+  animation: ncal-in var(--dur-enter) var(--ease-enter) both;
 }
 
 @keyframes ncal-in {
@@ -1230,7 +1230,7 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  animation: row-saved var(--dur-sheen) ease forwards;
+  animation: row-saved var(--dur-sheen) var(--ease-move) forwards;
 }
 
 /* Completion check — overlaid on the card's top-right action gutter (over the

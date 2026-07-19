@@ -315,7 +315,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: opacity var(--dur-press) ease;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
 
 /* Accent-tinted so the sparkline affordance reads at a glance — the whole
@@ -324,7 +324,7 @@
   flex-shrink: 0;
   align-self: center;
   color: var(--accent);
-  transition: opacity var(--dur-press) ease;
+  transition: opacity var(--dur-press) var(--ease-press);
 }
 
 /* The trend affordance is the name + glyph itself — a real button, not a
@@ -624,7 +624,7 @@
    only the gold pr-sheen below stays feature-local (reserved for genuine PRs). */
 .hist-row.hist-row-saved {
   border-radius: var(--radius-sm);
-  animation: row-saved var(--dur-sheen) ease forwards;
+  animation: row-saved var(--dur-sheen) var(--ease-move) forwards;
 }
 
 /* Completion check — absolutely positioned over the trailing actions gutter so

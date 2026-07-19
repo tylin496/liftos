@@ -497,7 +497,7 @@ html.kb-open .tabbar {
   background: var(--scrim-bg);
   backdrop-filter: var(--scrim-blur);
   -webkit-backdrop-filter: var(--scrim-blur);
-  animation: fade-in var(--dur-enter) ease both;
+  animation: fade-in var(--dur-enter) var(--ease-enter) both;
   /* The scrim covers the whole viewport ON TOP of the page. Without this, a
      touch-drag anywhere on it panned the .tab-panel behind (the sheet's own
      grabber/header block this via touch-action:none and the body via
@@ -507,7 +507,7 @@ html.kb-open .tabbar {
 }
 
 .settings-backdrop.is-closing {
-  animation: fade-out var(--dur-exit) ease both;
+  animation: fade-out var(--dur-exit) var(--ease-move) both;
 }
 
 .settings-sheet {
@@ -663,7 +663,7 @@ html.kb-open .tabbar {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  transition: color var(--dur-press) ease;
+  transition: color var(--dur-press) var(--ease-press);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -985,7 +985,7 @@ html.kb-open .tabbar {
 .splash--static {
   min-height: var(--app-height);
 }
-.splash.is-leaving { animation: fade-out var(--dur-exit) ease forwards; }
+.splash.is-leaving { animation: fade-out var(--dur-exit) var(--ease-move) forwards; }
 .splash::after {
   content: "";
   position: absolute;
@@ -1053,15 +1053,16 @@ html.kb-open .tabbar {
   to { opacity: 1; transform: none; }
 }
 
-/* Trace-line draw signals progress without a spinner. ONE draw, no loop:
-   --ease-enter front-loads the stroke then decelerates into complete, so a fast
-   load reads "mostly done" and a slow one settles lit instead of redrawing.
-   Past 3s the delayed dot-pulse alone carries "still working". Every delay
-   (incl. the loops' phase) is offset by --splash-sync so the static→overlay
-   remount continues mid-animation instead of replaying — see Splash.tsx. */
+/* Trace-line draw signals progress without a spinner. ONE draw, no loop, on
+   the draw role's curve (--ease-move): the stroke eases in, glides, then
+   settles complete like a single pen stroke — a slow load holds the lit line
+   instead of redrawing, and past 3s the delayed dot-pulse alone carries
+   "still working". Every delay (incl. the loops' phase) is offset by
+   --splash-sync so the static→overlay remount continues mid-animation
+   instead of replaying — see Splash.tsx. */
 @media (prefers-reduced-motion: no-preference) {
   .splash-trace-path {
-    animation: trace-draw var(--dur-ambient) var(--ease-enter) both;
+    animation: trace-draw var(--dur-ambient) var(--ease-move) both;
     animation-delay: var(--splash-sync, 0ms);
   }
   /* Dots breathe on the shared ambient clock; the nth-child delays sit AFTER the
