@@ -55,13 +55,6 @@
 
 .health-trend-open:active { opacity: 0.7; }
 
-.health-tdee-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
 /* ── Trend cards (Weight / Body Fat / Lean Mass) ─────────────────────── */
 /* The whole card is one tap target for the trend sheet — it has no other
    card-level action. The corner chevron and sparkline stay as buttons inside

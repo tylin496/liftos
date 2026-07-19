@@ -1250,7 +1250,7 @@ export function HealthPage() {
         >
           {/* Same header grammar as every other card: eyebrow + freshness tag
               + › in the corner. */}
-          <div className="health-tdee-head">
+          <div className="health-card-top">
             <span className="health-card-eyebrow">Energy</span>
             {data && (
               <div className="health-card-top-right">
