@@ -74,9 +74,6 @@ export function WeeklyVolumeCard({
   // when occluded. Opening only; called while still collapsed to measure the grow.
   const revealRef = useRef<HTMLDivElement>(null);
   const kg = stat?.avgWeekKg ?? 0;
-  /* Bar scale: normalise each muscle to the busiest one. The list is sorted
-     desc so muscle[0] is the max, but reduce defensively (0 when absent). */
-  const maxMuscleSets = muscle?.reduce((mx, m) => Math.max(mx, m.avgWeekSets), 0) ?? 0;
   const toggleOpen = () =>
     setOpen((o) => { if (!o) scrollRevealClear(revealRef.current); return !o; });
 
@@ -180,7 +177,7 @@ export function WeeklyVolumeCard({
         {view === "muscle" && muscle && muscle.length > 0 ? (
           <div className="wv-sessions">
             {muscle.map((m) => (
-              <div className="wv-srow wv-srow--muscle" key={m.group}>
+              <div className="wv-srow" key={m.group}>
                 <span className="wv-srow-split">
                   {muscleLabel(m.group)}
                   {/* The evidence line: which lifts this number is made of.
@@ -201,18 +198,6 @@ export function WeeklyVolumeCard({
                     {m.avgWeekSets === 1 ? " set/wk" : " sets/wk"}
                   </span>
                 </span>
-                {/* Ranked magnitude bar: each muscle's volume vs the busiest
-                    muscle (the list is sorted desc, so muscle[0] is the max).
-                    Neutral fill — volume high/low isn't a verdict; the bar just
-                    makes cross-muscle imbalance a glance instead of a read.
-                    Floor at a sliver so a non-zero muscle never looks empty. */}
-                <div className="wv-srow-bar" aria-hidden="true">
-                  <span
-                    style={{
-                      width: `${maxMuscleSets > 0 ? Math.max(3, (m.avgWeekSets / maxMuscleSets) * 100) : 0}%`,
-                    }}
-                  />
-                </div>
               </div>
             ))}
           </div>
