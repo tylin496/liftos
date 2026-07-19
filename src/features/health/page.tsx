@@ -6,7 +6,6 @@ import {
   rollingAvg,
   computeRecovery,
   sanitizeMetrics,
-  countSkippedBodyFat,
   latestUpdatedAt,
   median,
   RECOVERY_STATUS_COLOR,
@@ -879,10 +878,10 @@ export function HealthPage() {
   }, [activity]);
 
   const metrics = useMemo(() => (data ? sanitizeMetrics(data.metrics) : []), [data]);
-  const skippedBodyFatCount = useMemo(
-    () => (data ? countSkippedBodyFat(data.metrics) : 0),
-    [data],
-  );
+  // Count comes from the fetch boundary, measured on the raw rows before
+  // sanitize nulls the implausible samples — recomputing here on data.metrics
+  // (already sanitized) would always yield 0.
+  const skippedBodyFatCount = data?.skippedBodyFat ?? 0;
 
   const tdee = data?.tdee;
   const tdeePrev = data?.tdeePrev;

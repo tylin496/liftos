@@ -2,7 +2,7 @@ import { supabase } from "@shared/lib/supabase";
 import type { Database } from "@shared/lib/database.types";
 import { computeTdeeWindows, type TdeeEstimate } from "./tdee";
 import { computeActiveTarget, type ActiveTargetView } from "./activeTarget";
-import { computeDayTypeBaselines, sanitizeMetrics, type DayTypeBaselines } from "./math";
+import { computeDayTypeBaselines, countSkippedBodyFat, sanitizeMetrics, type DayTypeBaselines } from "./math";
 import { localDateStr, localDateStrDaysAgo } from "@shared/lib/date";
 
 export type BodyMetric = Database["public"]["Tables"]["health_metrics"]["Row"];
@@ -11,19 +11,28 @@ function sinceDate(days: number): string {
   return localDateStrDaysAgo(days);
 }
 
-/** Last N days of Apple Health metrics, oldest → newest. RLS-scoped. */
-async function fetchBodyMetrics(days = 90): Promise<BodyMetric[]> {
+/** Last N days of Apple Health metrics, oldest → newest. RLS-scoped.
+ *  Returns the sanitized rows plus how many raw samples were dropped — the
+ *  count MUST be taken on the raw fetch, before sanitize nulls the implausible
+ *  body-fat values, otherwise it's always 0. */
+async function fetchBodyMetrics(
+  days = 90,
+): Promise<{ metrics: BodyMetric[]; skippedBodyFat: number }> {
   const { data, error } = await supabase
     .from("health_metrics")
     .select("*")
     .gte("metric_date", sinceDate(days))
     .order("metric_date", { ascending: true });
   if (error) throw error;
+  const raw = data ?? [];
+  // Count implausible body-fat samples on the RAW rows first — sanitizeMetrics
+  // nulls them out, so counting after would always yield 0.
+  const skippedBodyFat = countSkippedBodyFat(raw);
   // Single read boundary: nulls out implausible body-fat samples so every
   // downstream consumer (Health page, Overview goal/lean-mass, TDEE, export)
   // treats the same days as "no reading" — a value that never reaches a chart
   // must never reach the engine or the export summary either.
-  return sanitizeMetrics(data ?? []);
+  return { metrics: sanitizeMetrics(raw), skippedBodyFat };
 }
 
 export interface HealthData {
@@ -37,6 +46,9 @@ export interface HealthData {
   /** Training-day vs rest-day active baselines (context for the Energy card),
    *  null until both day types have a real sample in the window. */
   dayType: DayTypeBaselines | null;
+  /** Count of implausible body-fat samples dropped at the fetch boundary,
+   *  measured on the raw rows before sanitize (so it isn't always 0). */
+  skippedBodyFat: number;
 }
 
 /** Distinct dates with ≥1 logged set — the day-type signal for the active
@@ -63,7 +75,7 @@ async function fetchTargetTdee(): Promise<number | null> {
 async function loadHealthData(days: number): Promise<HealthData> {
   // Fetch extra history so previous-period TDEE windows are covered.
   const fetchDays = Math.max(days, 60);
-  const [allMetrics, targetTdee, trainingDates] = await Promise.all([
+  const [{ metrics: allMetrics, skippedBodyFat }, targetTdee, trainingDates] = await Promise.all([
     fetchBodyMetrics(fetchDays),
     fetchTargetTdee(),
     fetchTrainingDates(fetchDays),
@@ -76,7 +88,7 @@ async function loadHealthData(days: number): Promise<HealthData> {
   const cutoffDisplay = sinceDate(days);
   const metrics = allMetrics.filter((m) => m.metric_date >= cutoffDisplay);
 
-  return { metrics, tdee, tdeePrev, targetTdee, activeTarget, dayType };
+  return { metrics, tdee, tdeePrev, targetTdee, activeTarget, dayType, skippedBodyFat };
 }
 
 // Short-lived request cache. Overview and Health both fetch the same 180-day

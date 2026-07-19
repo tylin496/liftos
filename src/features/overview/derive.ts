@@ -71,7 +71,8 @@ export function weekStripCells(
     const date = localDateStr(new Date(monday.getTime() + i * 86400000));
     const letter = WEEKDAY_ABBR[new Date(`${date}T12:00:00`).getDay()][0];
     if (date === todayISO) {
-      const ratio = view.today.accrued / Math.max(1, view.today.target);
+      // target <= 0 → week's goal already banked before today; read as closed.
+      const ratio = view.today.target <= 0 ? 1 : view.today.accrued / view.today.target;
       const ringColor = ratio >= 1 ? "var(--good)" : progressColor(ratio);
       return { date, letter, kind: "today" as const, fill: Math.min(1, ratio), ringColor };
     }

@@ -43,7 +43,7 @@ const RULES: { re: RegExp; group: Exclude<MuscleGroup, "unknown"> }[] = [
   // ── shoulders (rear delt / reverse fly/pec before chest; press before chest) ──
   { re: /(rear[-\s]?delt|face[-\s]?pull|reverse.*(fl(y|ies|yes)|pec))/, group: "shoulders" },
   { re: /(shoulder|overhead|arnold|military)[-\s]?press|\bohp\b/, group: "shoulders" },
-  { re: /(\blateral|(side|front)[-\s]?raise)/, group: "shoulders" },
+  { re: /(\blateral[-\s]?raise|(side|front)[-\s]?raise)/, group: "shoulders" },
   // Upright row is a delt movement — must precede the back \brow\b below, which
   // would otherwise swallow it.
   { re: /upright[-\s]?row/, group: "shoulders" },

@@ -133,10 +133,15 @@ function PaceMeter({
   const rTone = rateTone({ observedRate, targetRange: { min: lo, max: hi }, phaseKind });
   const tone = optimal ? "gold" : rTone === "gold" ? "good" : (rTone ?? "good");
 
-  const sign = observedRate < 0 ? "−" : observedRate > 0 ? "+" : "±";
+  // Sign must track the number actually printed (obs = phaseDirection·rate),
+  // not the raw rate — else a gain-on-cut / loss-on-bulk makes `obs` negative
+  // and toFixed emits its own minus on top of this one ("+-0.20"). Derive from
+  // obs and print |obs| so the sign is shown exactly once.
+  const sign = obs < 0 ? "−" : obs > 0 ? "+" : "±";
   // Caption only fires off-band, where it adds the "why" the meter can't show;
   // in-band it would just restate the marker sitting inside the green — dropped.
   const word = phaseKind === "bulk" ? "gaining" : "losing";
+  const tickSign = phaseKind === "bulk" ? "+" : "−";
   const note =
     obs < lo ? `below range — ${word} too slowly` : `above range — ${word} too fast`;
 
@@ -147,7 +152,7 @@ function PaceMeter({
         <span className="ni-pace-obs">
           <span className={`ni-status-dot status-${tone}`} aria-hidden="true" />
           {sign}
-          {obs.toFixed(2)} kg/wk
+          {Math.abs(obs).toFixed(2)} kg/wk
           {/* Rate-TREND arrow: the glyph is the second-order read — is the loss
               speeding up (▲) or slowing toward a plateau (▼)? — NOT the weight's
               own direction. Colour reads the trend against the band: a still-safe
@@ -195,11 +200,13 @@ function PaceMeter({
         </div>
         <div className="ni-meter-scale">
           <span className="ni-meter-end">slower</span>
+          {/* Directed band: a cut's target is a LOSS (−), a bulk's is a GAIN (+).
+              lo/hi are unsigned magnitudes, so the prefix follows phaseKind. */}
           <span className="ni-meter-tick" style={{ left: "33.33%" }}>
-            −{lo.toFixed(2)}
+            {tickSign}{lo.toFixed(2)}
           </span>
           <span className="ni-meter-tick" style={{ left: "66.67%" }}>
-            −{hi.toFixed(2)}
+            {tickSign}{hi.toFixed(2)}
           </span>
           <span className="ni-meter-end ni-meter-end--right">faster</span>
         </div>
@@ -434,7 +441,9 @@ export function NutritionInsightCard({ refreshKey = 0 }: { refreshKey?: number }
               (expand) rather than duplicating a sparkline here — only shown when
               there's an actual reading worth jumping to. */}
           <div className="ni-group-head">
-            <span className="page-eyebrow" style={{ margin: 0 }}>Weight-loss pace</span>
+            <span className="page-eyebrow" style={{ margin: 0 }}>
+              {e?.phaseKind === "bulk" ? "Weight-gain pace" : "Weight-loss pace"}
+            </span>
             {!noData && !loading && hasTrend && hasRange && e && (
               <button
                 type="button"

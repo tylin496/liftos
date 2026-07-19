@@ -57,7 +57,9 @@ const copyAllData = () => buildAllDataJson(EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_
 // `shown` is null, i.e. before the roll starts). `innerRef` goes on the ring
 // centre so its on-screen position can be measured for the stagger.
 function ActiveTargetRingBody({ shown, target, synced = true, innerRef }: { shown: number | null; target: number; synced?: boolean; innerRef?: Ref<HTMLDivElement> }) {
-  const ratio = (shown ?? 0) / Math.max(1, target);
+  // A 0-target day means the week's goal was already banked before today —
+  // read it as closed (ratio 1), not accrued-as-percentage of a phantom 1 kcal.
+  const ratio = target <= 0 ? 1 : (shown ?? 0) / target;
   // Hero number tracks the ring's own state in lock-step with the tween:
   //   below 100% — how much is left to CLOSE the ring, counting DOWN (target→0);
   //   at 100%    — "✓", the ring is closed;
@@ -367,7 +369,8 @@ function ActiveTargetCard({
   // On-pace → today.target == the flat daily average; behind → higher, ahead →
   // lower. A ±30 kcal deadband keeps it from flickering near equality.
   const position = view ? activeTargetPosition(view.today.target, dailyAvg) : "on";
-  const ratio = view ? view.today.accrued / Math.max(1, view.today.target) : 0;
+  // target <= 0 → week already banked; read as closed (see ActiveTargetRingBody).
+  const ratio = view ? (view.today.target <= 0 ? 1 : view.today.accrued / view.today.target) : 0;
 
   // Footer balance. Current week: the live "through yesterday vs flat pace"
   // running figure the floating target is built from. A past (completed) week:

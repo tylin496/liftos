@@ -78,7 +78,6 @@ export function composeRepsMulti(values: string[], defaultRep: string): string {
   }
   const first = resolved[0];
   if (!first) return "";
-  if (resolved.every((x) => x === first)) return resolved.join("/");
   return resolved.join("/");
 }
 
