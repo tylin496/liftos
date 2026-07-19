@@ -15,6 +15,7 @@ import {
   computeHistDelta,
   filterByTime,
   toLogEntry,
+  epley1RM,
   strengthScore,
   scoreWeight,
   computePRBests,
@@ -763,15 +764,11 @@ function ExerciseCardImpl({
                       />{" "}
                       {bestParsed.assisted ? "kg" : isLbUnit(bestParsed.unit) ? "lb" : "kg"}
                     </span>
-                    {/* assisted: hero is the assist "19 kg"; the "= lifted × reps"
-                        read-out reuses .pr-meta. Lifted reads in %BW (net / bodyweight)
-                        to match the history rows and delta — the raw kg is contaminated
-                        by bodyweight. expr-star gives the × the same 4px spacing as
-                        every other × on screen. */}
+                    {/* assisted: hero is the assist "19 kg"; the read-out reuses .pr-meta.
+                        The %BW lifted read-out is intentionally omitted here to save header
+                        space — every history row below already carries the %BW label.
+                        expr-star gives the × the same 4px spacing as every other × on screen. */}
                     <span className="pr-meta mono">
-                      {am && bestParsed.assisted && (
-                        <span className="expr-sep">= {fmtWeightNum(Math.round(scoreWeight(bestParsed, am) * 10) / 10)}% BW</span>
-                      )}
                       <span className="expr-star">×</span>
                       <span>{formatRepsDisplay(bestParsed.reps)}</span>
                     </span>
@@ -855,6 +852,18 @@ function ExerciseCardImpl({
             // never disagree — including for isolation lifts.
             const entry = toLogEntry(log, sc, am);
             const entryScore = entry ? (mode === "isolation" ? entry.tonnage : entry.e1rm) : 0;
+            // Est. 1RM shown in the expanded drawer (kg, display only — never a
+            // scoring axis). Compound already scores on the Epley e1rm. Assisted
+            // scores on %BW (which the collapsed row already shows), so its e1rm
+            // field holds that %BW — repeating it in the drawer is the redundancy
+            // this replaces. Here we project a kg 1RM off the EFFECTIVE load moved
+            // (entry.weightKg = bodyweight − assist); this stays out of the %BW
+            // score axis, it's purely a strength read-out distinct from the row.
+            const detailE1rm = entry
+              ? histBw != null && histAssist != null
+                ? epley1RM(entry.weightKg, entry.reps)
+                : entry.e1rm
+              : 0;
             const bestScore = stats.best ? (mode === "isolation" ? stats.best.tonnage : stats.best.e1rm) : 0;
             const retention =
               entryScore > 0 && bestScore > 0
@@ -999,21 +1008,25 @@ function ExerciseCardImpl({
                   <div className="hist-detail-clip">
                   <div className="hist-detail-drawer">
                     <div className="hist-detail">
-                      {/* Compound shows Est. 1RM (kg); isolation shows best-set
-                          Volume (weight × reps) — the axis it's actually judged on.
-                          Tonnage is a kg·reps product, not a weight, so it is NOT
-                          run through fmtWeightNum's lb conversion. Assisted logs
-                          score on the plain % of bodyweight lifted (scoreWeight, no
-                          Epley), so they read "Lifted" in %BW rather than Est. 1RM. */}
+                      {/* Compound and assisted show Est. 1RM (kg); isolation shows
+                          best-set Volume (weight × reps) — the axis it's actually
+                          judged on. Tonnage is a kg·reps product, not a weight, so
+                          it is NOT run through fmtWeightNum's lb conversion. The row
+                          already shows an assisted log's %BW, so the drawer leads
+                          with a distinct kg strength read (detailE1rm) instead of
+                          repeating it — see detailE1rm above for why this stays off
+                          the %BW score axis. */}
                       <span className="hist-detail-k">
-                        {mode === "isolation" ? "Volume" : histBw != null && histAssist != null ? "Lifted" : "Est. 1RM"}
+                        {mode === "isolation" ? "Volume" : "Est. 1RM"}
                       </span>
                       <span className="hist-detail-v mono">
-                        {entryScore > 0
-                          ? mode === "isolation"
+                        {mode === "isolation"
+                          ? entryScore > 0
                             ? `${Math.round(entryScore)} vol`
-                            : `${fmtWeightNum(Math.round(entryScore * 10) / 10)}${histBw != null && histAssist != null ? "% BW" : " kg"}`
-                          : "—"}
+                            : "—"
+                          : detailE1rm > 0
+                            ? `${fmtWeightNum(Math.round(detailE1rm * 10) / 10)} kg`
+                            : "—"}
                       </span>
                     </div>
                     <div className="hist-detail">
