@@ -209,6 +209,13 @@ export interface RecoverySnapshot {
   sleepBand: Band | null;
   hrvBand: Band | null;
   rhrBand: Band | null;
+  /** Per-metric verdicts behind `score` (below baseline past the ±5% tolerance).
+   *  The gauges colour their dots from these SAME flags — never re-derive the
+   *  threshold downstream, or dot colour can drift from the card's status.
+   *  false with a null baseline means "ungradeable", not "passing". */
+  sleepLow: boolean;
+  hrvLow: boolean;
+  rhrHigh: boolean;
   /** 0–3: how many metrics are at or above their personal baseline */
   score: number;
   status: RecoveryStatus | null;
@@ -338,7 +345,7 @@ export function computeRecovery(metrics: BodyMetric[]): RecoverySnapshot {
     ? metrics.find((m) => m.metric_date === date)?.updated_at ?? null
     : null;
 
-  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, sleepBand, hrvBand, rhrBand, score, status, baselineBuilding, insight, date, updatedAt, stale, loadContext };
+  return { sleepHours, hrv, rhr, sleepBaseline, hrvBaseline, rhrBaseline, sleepBand, hrvBand, rhrBand, sleepLow, hrvLow, rhrHigh, score, status, baselineBuilding, insight, date, updatedAt, stale, loadContext };
 }
 
 // A day counts as "trained" at ≥20 exercise minutes; ≥2 such days in the trailing

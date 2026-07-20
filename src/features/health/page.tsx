@@ -492,8 +492,12 @@ function AnimatedMetric({
 /* Fixed 0→ceiling display scales for the recovery gauges. Each metric maps its
    reading to a position on its own physiological scale; RHR is inverted
    (lower = better) so a low resting HR sits further right and reads as "good".
-   The band, tick and dot all map through the SAME scale, so "dot at or past the
-   band" always means "at or better than your own normal" — no units to parse. */
+   The band, tick and dot all map through the SAME scale, so further right is
+   always the healthier direction — no units to parse. Position is context only:
+   the band shows the 30-day scatter (±1 SD), while the pass/fail verdict is the
+   DOT COLOUR, graded against the baseline mean with computeRecovery's ±5%
+   tolerance — a dot can legitimately sit inside the band yet read amber (wide
+   scatter) or just outside it and read green (tight scatter). */
 type GaugeMetric = "sleep" | "hrv" | "rhr";
 const GAUGE_SCALE: Record<GaugeMetric, { lo: number; hi: number; invert: boolean }> = {
   sleep: { lo: 0, hi: 10, invert: false },
@@ -511,17 +515,16 @@ function gaugePct(metric: GaugeMetric, v: number): number {
 }
 
 /** Dot tone: green when the reading is at/past baseline in the healthy
-    direction, amber when it's meaningfully below — the SAME per-metric pass
-    thresholds computeRecovery scores on (±5% tolerance), so a gauge's colour and
-    the overall status can never disagree. A reading with no baseline yet isn't
-    gradeable, so its dot is a neutral ink (NOT green) — a green dot there would
-    imply "passing" against a baseline that doesn't exist, contradicting the
-    withheld status. Amber is --warn (the app's caution colour); --gold stays
+    direction, amber when it's meaningfully below. `down` is computeRecovery's
+    own per-metric verdict (the flag behind the 0–3 score), so a gauge's colour
+    and the overall status can never disagree. A reading with no baseline yet
+    isn't gradeable, so its dot is a neutral ink (NOT green) — a green dot there
+    would imply "passing" against a baseline that doesn't exist, contradicting
+    the withheld status. Amber is --warn (the app's caution colour); --gold stays
     reserved for celebration, never a "below baseline" read. */
-function gaugeTone(metric: GaugeMetric, v: number, baseline: number | null): string {
+function gaugeTone(down: boolean, baseline: number | null): string {
   if (baseline == null) return "var(--ink-4)";
-  const pass = metric === "rhr" ? v <= baseline * 1.05 : v >= baseline * 0.95;
-  return pass ? "var(--good)" : "var(--warn)";
+  return down ? "var(--warn)" : "var(--good)";
 }
 
 /* Range gauge: the shaded band is the 30-day normal range, the tick its
@@ -579,6 +582,7 @@ function RecoveryRow({
   unit,
   baseline,
   band,
+  down,
 }: {
   label: string;
   metric: GaugeMetric;
@@ -586,6 +590,7 @@ function RecoveryRow({
   unit: string;
   baseline: number | null;
   band: { lo: number; hi: number } | null;
+  down: boolean;
 }) {
   const decimals = unit === "h" ? 1 : 0;
 
@@ -603,7 +608,7 @@ function RecoveryRow({
           pos={gaugePct(metric, value)}
           band={bandPct != null ? { lo: bandPct[0], hi: bandPct[1] } : null}
           tick={baseline != null ? gaugePct(metric, baseline) : null}
-          tone={gaugeTone(metric, value, baseline)}
+          tone={gaugeTone(down, baseline)}
         />
       ) : (
         <div className="health-recovery-gauge" />
@@ -706,11 +711,11 @@ function RecoveryCard({ snap, loading = false }: { snap?: RecoverySnapshot | nul
         </span>
       </div>
       <div className="health-recovery-rows">
-        <RecoveryRow label="Sleep" metric="sleep" value={snap.sleepHours} unit="h"   baseline={snap.sleepBaseline} band={snap.sleepBand} />
-        <RecoveryRow label="HRV"   metric="hrv"   value={snap.hrv}        unit="ms"  baseline={snap.hrvBaseline} band={snap.hrvBand} />
-        <RecoveryRow label="RHR"   metric="rhr"   value={snap.rhr}        unit="bpm" baseline={snap.rhrBaseline} band={snap.rhrBand} />
+        <RecoveryRow label="Sleep" metric="sleep" value={snap.sleepHours} unit="h"   baseline={snap.sleepBaseline} band={snap.sleepBand} down={snap.sleepLow} />
+        <RecoveryRow label="HRV"   metric="hrv"   value={snap.hrv}        unit="ms"  baseline={snap.hrvBaseline} band={snap.hrvBand} down={snap.hrvLow} />
+        <RecoveryRow label="RHR"   metric="rhr"   value={snap.rhr}        unit="bpm" baseline={snap.rhrBaseline} band={snap.rhrBand} down={snap.rhrHigh} />
       </div>
-      <p className="health-recovery-legend">Band = 30-day normal range dot = 7-day average</p>
+      <p className="health-recovery-legend">Band = 30-day normal range · dot = 7-day average</p>
       {snap.insight && <p className="health-recovery-footer">{snap.insight}</p>}
     </section>
   );
