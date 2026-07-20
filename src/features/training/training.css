@@ -80,8 +80,8 @@
   gap: var(--vr-block);
 }
 
-/* One-tap maintained-session action — a passive surface (grey, no border): it's
-   a shortcut, not the primary Log-set path, so it stays quieter than a card.
+/* One-tap maintained-session action — same dashed-outline family as
+   .add-exercise-btn: a secondary in-flow action, quieter than a card.
    Sits in the list flow below the cards, riding the same entrance/slide. */
 .tr-repeat-session {
   /* Positioned so it paints after the preceding .ex-card (which is
@@ -90,16 +90,17 @@
   position: relative;
   width: 100%;
   padding: var(--space-3);
-  border: none;
+  border: 1px dashed var(--rule-strong);
   border-radius: var(--radius-sm);
-  background: var(--bg-soft);
+  background: transparent;
   cursor: pointer;
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-2);
+  font-family: var(--font-ui);
+  font-size: var(--role-action-size);
+  font-weight: var(--role-action-weight);
+  color: var(--role-action-color);
   transition:
-    color var(--dur-press) var(--ease-press),
+    border-color var(--dur-press),
+    color var(--dur-press),
     transform var(--dur-press) var(--ease-press);
 }
 
@@ -107,7 +108,10 @@
 .tr-repeat-session:disabled { opacity: 0.6; cursor: default; }
 
 @media (hover: hover) {
-  .tr-repeat-session:hover:not(:disabled) { color: var(--ink); }
+  .tr-repeat-session:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 /* ── Exercise card ───────────────────────────────────────────────────────────*/
