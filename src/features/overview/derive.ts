@@ -32,13 +32,16 @@ export function weekActiveTotal(metrics: BodyMetric[], mondayISO: string): numbe
 }
 
 /** Footer balance vs the flat pace. Current week: the live "through yesterday
- *  vs flat pace" running figure. A completed past week: its full-week total vs
- *  the 7-day goal (a retrospective settle). `pastWeekTotal` is ignored for the
- *  current week — pass weekActiveTotal(metrics, mondayISO) for a past week. */
+ *  vs flat pace" running figure, plus last week's carried surplus — the same
+ *  credit the floating target eases by, so the readout matches the ring. A
+ *  completed past week: its full-week total vs the 7-day goal (a retrospective
+ *  settle — that week's own surplus, NOT zeroed when it was spent the week
+ *  after). `pastWeekTotal` is ignored for the current week — pass
+ *  weekActiveTotal(metrics, mondayISO) for a past week. */
 export function weekBanked(view: ActiveTargetView, isCurrentWeek: boolean, pastWeekTotal: number): number {
   const perDay = view.activeTargetPerDay;
   return isCurrentWeek
-    ? view.accruedThroughYesterday - perDay * (view.weekday - 1)
+    ? view.carriedFromLastWeek + view.accruedThroughYesterday - perDay * (view.weekday - 1)
     : Math.round(pastWeekTotal - perDay * 7);
 }
 

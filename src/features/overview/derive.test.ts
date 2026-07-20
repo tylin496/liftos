@@ -18,6 +18,7 @@ const view = (over: Partial<ActiveTargetView> & { today?: Partial<ActiveTargetVi
     mondayISO: "2026-07-13",
     weekday: 2,
     accruedThroughYesterday: 500,
+    carriedFromLastWeek: 0,
     today: { target: 500, accrued: 250, synced: true, lastSyncDate: "2026-07-14", ...(over.today ?? {}) },
     ...over,
   }) as unknown as ActiveTargetView;
@@ -58,6 +59,11 @@ describe("weekBanked", () => {
     // weekday 3 (Wed) → 2 elapsed days; 900 accrued vs 2×500 flat = −100.
     const v = view({ weekday: 3, accruedThroughYesterday: 900 });
     expect(weekBanked(v, true, 0)).toBe(-100);
+  });
+  it("current week includes last week's carried surplus (matches the eased ring)", () => {
+    // Same −100 running figure as above, +300 carried in → net +200.
+    const v = view({ weekday: 3, accruedThroughYesterday: 900, carriedFromLastWeek: 300 });
+    expect(weekBanked(v, true, 0)).toBe(200);
   });
   it("past week = full-week total minus the 7-day goal, rounded", () => {
     const v = view({});

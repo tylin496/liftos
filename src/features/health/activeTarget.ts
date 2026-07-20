@@ -23,6 +23,11 @@ export interface ActiveTargetView {
    *  reading) — same figure the floating target is computed from, exposed
    *  for the week-strip footer's banked/short readout. */
   accruedThroughYesterday: number;
+  /** Last week's surplus carried into this week (≥0). Surplus only — a short
+   *  week starts the next one clean — and one week of memory: it's measured
+   *  from last week's RAW total vs the flat goal, so credit spent (or unused)
+   *  last week doesn't compound forward. */
+  carriedFromLastWeek: number;
 
   /** Today's floating target — the ring. Rises/falls with the rest of the
    *  week's pace so far, so a banked surplus quietly lowers today's ask and a
@@ -83,6 +88,21 @@ export function computeActiveTarget(
     )
     .reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
 
+  // Last week's surplus rolls forward as credit against this week's goal.
+  // Surplus only (a shortfall doesn't raise this week's ask — debt snowballs
+  // into abandonment), and against the CURRENT per-day goal (resting drifts a
+  // few kcal week to week; re-deriving last week's exact goal isn't worth it).
+  const prevMondayISO = localDateStr(
+    new Date(new Date(`${mondayISO}T12:00:00`).getTime() - 7 * 86400000),
+  );
+  const lastWeekTotal = metrics
+    .filter(
+      (m) =>
+        m.metric_date >= prevMondayISO && m.metric_date < mondayISO && m.active_energy_kcal != null,
+    )
+    .reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
+  const carriedFromLastWeek = Math.max(0, Math.round(lastWeekTotal - activeTargetPerDay * 7));
+
   // Today's floating target: what's left of the weekly goal, spread across
   // today + the days after it. Banking active on prior days lowers this;
   // falling behind raises it — the number the ring is actually built on.
@@ -90,7 +110,9 @@ export function computeActiveTarget(
   const daysRemainingInclToday = 8 - weekday;
   const todayTarget = Math.max(
     0,
-    Math.round((weeklyGoalTotal - accruedThroughYesterday) / daysRemainingInclToday),
+    Math.round(
+      (weeklyGoalTotal - carriedFromLastWeek - accruedThroughYesterday) / daysRemainingInclToday,
+    ),
   );
   const todayRow = metrics.find((m) => m.metric_date === todayISO);
   const todaySynced = todayRow?.active_energy_kcal != null;
@@ -109,6 +131,7 @@ export function computeActiveTarget(
     mondayISO,
     weekday,
     accruedThroughYesterday: Math.round(accruedThroughYesterday),
+    carriedFromLastWeek,
     today: {
       target: todayTarget,
       accrued: Math.round(todayAccrued),
