@@ -99,10 +99,15 @@ export interface NewLog {
   raw: string;
   date: string;
   note?: string;
+  /** Rest-day extra (see migration 0023): a real strength record whose volume
+   *  counts on its own, but which never marks the day as a trained session of
+   *  its split — no roster carry-forward, no rotation advance, no training-day
+   *  flag for recovery. */
+  bonus?: boolean;
 }
 
 /** Parse lifting notation and insert a set. */
-export async function addLog({ slug, raw, date, note }: NewLog): Promise<TrainingLog> {
+export async function addLog({ slug, raw, date, note, bonus }: NewLog): Promise<TrainingLog> {
   const parsed = parse(raw);
   if (!parsed || !Number.isFinite(parsed.weight)) {
     throw new Error(`Couldn't parse "${raw}" — try e.g. 100*8 or 97-(25)*8`);
@@ -120,6 +125,9 @@ export async function addLog({ slug, raw, date, note }: NewLog): Promise<Trainin
     kind: parsed.assisted ? "assisted" : "normal",
     assistance: parsed.assisted?.assist ?? null,
     bodyweight: parsed.assisted?.bw ?? null,
+    // Only sent when set, so ordinary logging keeps working against a database
+    // that hasn't applied migration 0023 yet (the column default covers false).
+    ...(bonus ? { bonus: true } : {}),
   };
   const { data, error } = await supabase
     .from("training_logs")

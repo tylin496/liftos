@@ -467,3 +467,59 @@ describe("nextSessionSplit", () => {
     expect(nextSessionSplit(rosterEx, logs, IDS, "2026-07-18")).toBeNull();
   });
 });
+
+// ─── bonus sets (rest-day extras) ────────────────────────────────────────────
+
+const blog = (date: string, raw: string): TrainingLog =>
+  ({ log_date: date, raw, bonus: true }) as TrainingLog;
+
+describe("bonus sets — volume counts, the day is not a session", () => {
+  it("adds only the logged set's volume — no roster carry-forward", () => {
+    const logs = {
+      row: [vlog("2026-06-30", "100*10")],
+      curl: [blog("2026-07-08", "60*10"), vlog("2026-06-30", "50*10")],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    // Bonus curl only — row's 1000 does NOT ride along on the rest day.
+    expect(stat.thisWeekKg).toBe(600);
+    expect(stat.thisWeekSessions).toEqual([
+      { date: "2026-07-08", split: "pull", volumeKg: 600, bonus: true },
+    ]);
+  });
+
+  it("joins its own week's maintained total once, but is never the shape later silence inherits", () => {
+    // Week 6/22: real full session (1500). Week 6/29: bonus-only curl (600).
+    // 6/29 must maintain the 6/22 shape (1500) PLUS its own bonus — never
+    // read as a 600 kg week that later weeks would then inherit.
+    const logs = {
+      row: [vlog("2026-06-24", "100*10")],
+      curl: [blog("2026-07-01", "60*10"), vlog("2026-06-24", "50*10")],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.weeksCounted).toBe(2);
+    expect(stat.avgWeekKg).toBe((1500 + 600 + 1500) / 2);
+  });
+
+  it("a properly-trained day absorbs its bonus set — no double count, no marker", () => {
+    // Real row session on 7/8 plus a bonus-flagged curl the same day: the
+    // session's carry-forward already reads curl's 7/8 numbers.
+    const logs = {
+      row: [vlog("2026-07-08", "100*10")],
+      curl: [blog("2026-07-08", "60*10")],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    expect(stat.thisWeekKg).toBe(1600);
+    expect(stat.thisWeekSessions).toEqual([
+      { date: "2026-07-08", split: "pull", volumeKg: 1600 },
+    ]);
+  });
+
+  it("does not advance the split rotation", () => {
+    const logs = {
+      row: [withSlug("row", slog("2026-07-17", "t1"))],
+      bench: [withSlug("bench", { ...slog("2026-07-18", "t2"), bonus: true })],
+    };
+    // The bonus push set is ignored — last real session is pull → legs is next.
+    expect(nextSessionSplit(rosterEx, logs, IDS, "2026-07-18")).toBe("legs");
+  });
+});

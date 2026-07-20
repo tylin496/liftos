@@ -335,7 +335,7 @@ function ExerciseCardImpl({
 
   /** Resolves true only when the log persisted — the add form clears on true
    *  and retains the typed set on false (see AddEntryForm.onAdd). */
-  async function handleAdd(raw: string, date: string, note: string): Promise<boolean> {
+  async function handleAdd(raw: string, date: string, note: string, bonus: boolean): Promise<boolean> {
     if (submitting) return false;
     // One entry per exercise per day — every set for the day lives in a single
     // drop-set entry, so a second same-day log is always a mistake. Point the
@@ -353,6 +353,7 @@ function ExerciseCardImpl({
         raw,
         date,
         note: note || undefined,
+        bonus,
       });
       setEditingMode("view");
       // A logged set IS a completed set — confirm it with the shared "set
@@ -383,8 +384,9 @@ function ExerciseCardImpl({
       const milestone = exercise.compound && !newParsed?.assisted ? milestoneReached(newScore, prevBests.weightKg) : null;
       // Account-wide, exercise-agnostic — checked regardless of milestone/PR so
       // it only ever surfaces via the final else-if below (a PR or round-weight
-      // milestone on the same save always outranks it).
-      const sessionMilestone = sessionMilestoneReached(priorSessionDates, date);
+      // milestone on the same save always outranks it). A bonus set never
+      // reaches it: a rest-day extra isn't the Nth training day.
+      const sessionMilestone = bonus ? null : sessionMilestoneReached(priorSessionDates, date);
       // Assisted PRs celebrate in %BW (scoreWeight), like the card and every other
       // assisted read-out; raw net kg is the bodyweight-contaminated number the
       // %BW axis exists to replace. Milestones stay suppressed for assisted above.
@@ -931,6 +933,9 @@ function ExerciseCardImpl({
                       <span className="hist-expr-row">
                         <ExprDisplay raw={log.raw} histMode />
                       </span>
+                    )}
+                    {log.bonus && (
+                      <span className="hist-bonus-tag">bonus</span>
                     )}
                     {log.note && (
                       <span className="hist-note">{log.note}</span>

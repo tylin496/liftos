@@ -242,6 +242,16 @@
   color: var(--role-caption-color);
 }
 
+/* Rest-day extra marker on a session row — caption register, inline after the
+   split name (the small kg number is the point, not a crashed session). */
+.wv-srow-bonus {
+  margin-left: var(--space-2);
+  font-size: var(--role-caption-size);
+  font-weight: var(--role-caption-weight);
+  color: var(--role-caption-color);
+  font-style: italic;
+}
+
 /* Week section headers (This week / Last week) carry their week's total —
    the headline is a trailing average, so the actual weeks live here. */
 .wv-sect {

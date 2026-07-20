@@ -36,7 +36,13 @@ function SessionRow({ s }: { s: WeeklyVolumeSession }) {
   return (
     <div className="wv-srow">
       <span className="wv-srow-date">{fmtSessionDate(s.date)}</span>
-      <span className="wv-srow-split">{SPLIT_NAME[s.split] ?? s.split}</span>
+      <span className="wv-srow-split">
+        {SPLIT_NAME[s.split] ?? s.split}
+        {/* Rest-day extra: only the logged set's volume, no roster carry-
+            forward — the tag keeps a small kg number from reading as a
+            crashed session. */}
+        {s.bonus && <span className="wv-srow-bonus">bonus</span>}
+      </span>
       <span className="wv-srow-vol">{Math.round(s.volumeKg).toLocaleString()}</span>
     </div>
   );

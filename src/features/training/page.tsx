@@ -1111,10 +1111,11 @@ function TrainingPageInner() {
   // Every distinct log date on record, any exercise — feeds the session-count
   // milestone (every 100th training day) in ExerciseCard. A log can only ever
   // add one new date, so callers compare against this set as of before the add.
+  // Bonus-only days stay out: a rest-day extra isn't a training day.
   const allLogDates = useMemo(() => {
     const dates = new Set<string>();
     for (const arr of Object.values(logs)) {
-      for (const l of arr) if (l.log_date) dates.add(l.log_date);
+      for (const l of arr) if (l.log_date && !l.bonus) dates.add(l.log_date);
     }
     return dates;
   }, [logs]);
@@ -1122,12 +1123,13 @@ function TrainingPageInner() {
   // The split of the single most recent log across all splits, not just the
   // one currently open — each slug's array is already newest-first, so only
   // its head needs checking. Feeds the segmented-control ✓ (which split was
-  // trained last) and the header note (how long ago).
+  // trained last) and the header note (how long ago). Bonus sets don't move
+  // the ✓ — a rest-day extra doesn't make its split the one "trained last".
   const lastTrained = useMemo(() => {
     const splitBySlug = new Map((exercises ?? []).map((e) => [e.slug, e.split]));
     let latest: TrainingLog | null = null;
     for (const arr of Object.values(logs)) {
-      const head = arr[0];
+      const head = arr.find((l) => !l.bonus);
       if (head && (!latest || head.log_date > latest.log_date)) latest = head;
     }
     if (!latest) return undefined;

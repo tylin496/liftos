@@ -523,6 +523,11 @@ export interface WeeklyVolumeSession {
   date: string; // YYYY-MM-DD
   split: string;
   volumeKg: number;
+  /** True when the day holds only bonus sets (rest-day extras) — the row is
+   *  real logged volume but NOT a session of the split, so the disclosure must
+   *  not read it as a crashed one. Only present when true (keeps ordinary
+   *  session rows unchanged). */
+  bonus?: boolean;
 }
 
 export interface WeeklyVolumeStat {
@@ -584,7 +589,16 @@ function logVolume(log: TrainingLog, setCount: number, assistedMode: boolean): n
  *  these per session, computeMuscleWeeklyVolume re-buckets the same rows per
  *  muscle group, so the two views can never disagree on what a session was
  *  worth. */
-type WeekRow = { date: string; split: string; ex: WeeklyVolumeExercise; volumeKg: number };
+type WeekRow = {
+  date: string;
+  split: string;
+  ex: WeeklyVolumeExercise;
+  volumeKg: number;
+  /** Rest-day extra (training_logs.bonus): its own volume only — the day is
+   *  not a session, so it never pulls the split's roster along and is never
+   *  inherited forward by maintained weeks (an extra isn't a state). */
+  bonus?: boolean;
+};
 
 function weekExerciseRows(
   logs: Record<string, TrainingLog[]>,
@@ -608,12 +622,14 @@ function weekExerciseRows(
   };
 
   const weekEndExcl = addDays(weekStart, 7);
-  // split -> the distinct dates that split was trained this week
+  // split -> the distinct dates that split was trained this week. Bonus sets
+  // don't qualify: a lone rest-day extra must not turn its day into a session
+  // that drags the whole roster's carry-forward volume along.
   const trained = new Map<string, Set<string>>();
   for (const ex of roster) {
     for (const l of logs[ex.slug] ?? []) {
       const d = l.log_date;
-      if (d && d >= weekStart && d < weekEndExcl) {
+      if (d && !l.bonus && d >= weekStart && d < weekEndExcl) {
         const set = trained.get(ex.split) ?? new Set<string>();
         set.add(d);
         trained.set(ex.split, set);
@@ -632,6 +648,18 @@ function weekExerciseRows(
         const src = latestUpTo(ex.slug, date);
         if (src) rows.push({ date, split, ex, volumeKg: logVolume(src, ex.setCount, ex.assistedMode) });
       }
+    }
+  }
+
+  // Bonus sets ride on top: exactly the logged volume, nothing carried. A day
+  // whose split was also properly trained needs no extra row — the session's
+  // carry-forward already reads that day's log for the exercise.
+  for (const ex of roster) {
+    for (const l of logs[ex.slug] ?? []) {
+      const d = l.log_date;
+      if (!l.bonus || !d || d < weekStart || d >= weekEndExcl) continue;
+      if (trained.get(ex.split)?.has(d)) continue;
+      rows.push({ date: d, split: ex.split, ex, volumeKg: logVolume(l, ex.setCount, ex.assistedMode), bonus: true });
     }
   }
   return rows;
@@ -706,12 +734,14 @@ function maintainedWeekRows(
   const out: WeekRow[] = [];
   for (const split of new Set(roster.map((ex) => ex.split))) {
     // The split's most recent logged week on or before `weekStart` — the week
-    // whose shape this week maintains.
+    // whose shape this week maintains. Bonus sets don't count as "logged":
+    // a rest-day extra isn't a session shape, so it must never become the
+    // week later silence maintains (that would read as a volume crash).
     let effective: string | null = null;
     for (const ex of roster) {
       if (ex.split !== split) continue;
       for (const l of logs[ex.slug] ?? []) {
-        if (!l.log_date) continue;
+        if (!l.log_date || l.bonus) continue;
         const w = weekStartMonday(l.log_date);
         if (w <= weekStart && (effective === null || w > effective)) effective = w;
       }
@@ -721,6 +751,10 @@ function maintainedWeekRows(
         ...rowsAt(effective).filter(
           (r) =>
             r.split === split &&
+            // Bonus rows are one-off extras, not a state — 沒記就是維持
+            // maintains sessions, never snacks. This week's own bonus rows are
+            // re-added below.
+            !r.bonus &&
             // Inheritance carries a week's shape forward, but never a retired
             // lift past its archival: keep it only while the target week still
             // overlaps its active life.
@@ -728,6 +762,9 @@ function maintainedWeekRows(
         ),
       );
   }
+  // The week's own bonus sets: real logged volume, counted once, right here —
+  // then gone (never inherited by the weeks that follow).
+  out.push(...rowsAt(weekStart).filter((r) => r.bonus));
   return out;
 }
 
@@ -755,7 +792,12 @@ export function computeWeeklyVolume(
     const perSession = new Map<string, WeeklyVolumeSession>();
     for (const r of weekExerciseRows(logs, roster, weekStart)) {
       const key = `${r.split} ${r.date}`;
-      const s = perSession.get(key) ?? { date: r.date, split: r.split, volumeKg: 0 };
+      // A day's rows are either all carry-forward or all bonus (weekExerciseRows
+      // skips bonus rows on properly-trained days), so the first row settles the
+      // marker for the whole entry.
+      const s =
+        perSession.get(key) ??
+        ({ date: r.date, split: r.split, volumeKg: 0, ...(r.bonus ? { bonus: true } : {}) } as WeeklyVolumeSession);
       s.volumeKg += r.volumeKg;
       perSession.set(key, s);
     }
@@ -931,9 +973,11 @@ export function nextSessionSplit(
 ): string | null {
   // Each slug's list is newest-first (fetchLogsBySlug orders log_date desc),
   // so its head is that lift's latest; the overall latest is the max of heads.
+  // Bonus sets are skipped: a rest-day extra isn't a session, so it must not
+  // advance the rotation past the split actually trained last.
   let latest: TrainingLog | null = null;
   for (const list of Object.values(logsBySlug)) {
-    const head = list[0];
+    const head = list.find((l) => !l.bonus);
     if (!head) continue;
     if (
       !latest ||

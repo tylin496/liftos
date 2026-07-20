@@ -57,8 +57,20 @@ async function fetchTrainingDates(days: number): Promise<Set<string>> {
   const { data, error } = await supabase
     .from("training_logs")
     .select("log_date")
+    // A bonus-only day (rest-day extra, migration 0023) is still a rest day —
+    // it must not flip recovery's load context or the day-type baselines.
+    .eq("bonus", false)
     .gte("log_date", sinceDate(days));
-  if (error) throw error;
+  if (error) {
+    // Migration 0023 not applied yet → the bonus column doesn't exist, and
+    // then no bonus rows can exist either: the unfiltered read is identical.
+    const retry = await supabase
+      .from("training_logs")
+      .select("log_date")
+      .gte("log_date", sinceDate(days));
+    if (retry.error) throw retry.error;
+    return new Set((retry.data ?? []).map((r) => r.log_date));
+  }
   return new Set((data ?? []).map((r) => r.log_date));
 }
 

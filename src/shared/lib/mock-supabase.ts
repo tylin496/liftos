@@ -57,10 +57,12 @@ const TRAINING_LOGS = REAL_TRAINING_LOGS.map((r) => ({
   ...r,
   user_id: DEV_USER_ID,
   updated_at: r.created_at,
-  // Real logged sets, never repeat-session clones — stamp the column the CSV
-  // predates so `.eq("repeated", false)` reads match production (an undefined
-  // field would fail that equality and drop every row).
+  // Real logged sets, never repeat-session clones or bonus extras — stamp the
+  // columns the CSV predates so `.eq("repeated", false)` / `.eq("bonus", false)`
+  // reads match production (an undefined field would fail that equality and
+  // drop every row).
   repeated: false,
+  bonus: false,
 }));
 
 // ── Nutrition config ───────────────────────────────────────────────────────────

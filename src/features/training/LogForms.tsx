@@ -254,6 +254,44 @@ function AssistedPreviewBar({ load, reps, assist }: { load: number | null; reps:
   );
 }
 
+// Date chip + Bonus toggle — the add forms' top bar. Bonus marks a rest-day
+// extra: the set's own volume counts, but the day is not a session of the
+// split (no roster carry-forward, no rotation advance, still a rest day).
+function LogTopbar({
+  date,
+  setDate,
+  bonus,
+  setBonus,
+}: {
+  date: string;
+  setDate: (v: string) => void;
+  bonus: boolean;
+  setBonus: (v: boolean) => void;
+}) {
+  const isToday = date === todayStr();
+  return (
+    <div className="log-topbar">
+      <input
+        type="date"
+        className={`log-date-chip${isToday ? " is-today" : ""}`}
+        value={date}
+        max={todayStr()}
+        onChange={(e) => setDate(e.target.value)}
+        aria-label="Date"
+      />
+      <button
+        type="button"
+        className={`log-bonus-chip${bonus ? " on" : ""}`}
+        aria-pressed={bonus}
+        aria-label="Bonus set — counts its volume only, not a session"
+        onClick={() => setBonus(!bonus)}
+      >
+        Bonus
+      </button>
+    </div>
+  );
+}
+
 // The note input (identical across every form).
 function NoteField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
@@ -320,7 +358,7 @@ export function AddEntryForm({
   /** Resolves true only when the log actually persisted — the form clears on
    *  true and RETAINS the typed set on false (network drop, duplicate day), so
    *  an error toast never costs the user their input. */
-  onAdd: (raw: string, date: string, note: string) => Promise<boolean>;
+  onAdd: (raw: string, date: string, note: string, bonus: boolean) => Promise<boolean>;
   onCancel: () => void;
   submitting?: boolean;
 }) {
@@ -332,6 +370,7 @@ export function AddEntryForm({
   const [unit, setUnit] = useState<"kg" | "lbs">(isLbUnit(lastParsed?.unit) ? "lbs" : "kg");
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
+  const [bonus, setBonus] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
 
@@ -353,27 +392,17 @@ export function AddEntryForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValid || submitting) return;
-    const saved = await onAdd(raw, date, note.trim());
+    const saved = await onAdd(raw, date, note.trim(), bonus);
     if (!saved) return; // keep the typed set for a retry
     setWeightExpr("");
     setRepValues(emptyRepValues(n));
     setNote("");
+    setBonus(false);
   }
-
-  const isToday = date === todayStr();
 
   return (
     <form className="add-form log-redesign" ref={formRef} onSubmit={submit}>
-      <div className="log-topbar">
-        <input
-          type="date"
-          className={`log-date-chip${isToday ? " is-today" : ""}`}
-          value={date}
-          max={todayStr()}
-          onChange={(e) => setDate(e.target.value)}
-          aria-label="Date"
-        />
-      </div>
+      <LogTopbar date={date} setDate={setDate} bonus={bonus} setBonus={setBonus} />
 
       <WeightZone
         weightRef={weightRef}
@@ -420,7 +449,7 @@ export function AddAssistedForm({
   lastLog: TrainingLog | null;
   /** Same contract as AddEntryForm.onAdd: true = persisted (clear the form),
    *  false = failed/bounced (retain the typed set). */
-  onAdd: (raw: string, date: string, note: string) => Promise<boolean>;
+  onAdd: (raw: string, date: string, note: string, bonus: boolean) => Promise<boolean>;
   onCancel: () => void;
   submitting?: boolean;
 }) {
@@ -442,6 +471,7 @@ export function AddAssistedForm({
   const [repValues, setRepValues] = useState(() => emptyRepValues(n));
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
+  const [bonus, setBonus] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
 
@@ -474,27 +504,17 @@ export function AddAssistedForm({
     if (!isValid || effectiveLoad === null || submitting) return;
     localStorage.setItem(LAST_BW_KEY, String(parsedBw));
     const raw = normalize(`${parsedBw}-(${parsedAssist}) *${reps}`);
-    const saved = await onAdd(raw, date, note.trim());
+    const saved = await onAdd(raw, date, note.trim(), bonus);
     if (!saved) return; // keep the typed set for a retry
     setAssistance("");
     setRepValues(emptyRepValues(n));
     setNote("");
+    setBonus(false);
   }
-
-  const isToday = date === todayStr();
 
   return (
     <form className="add-form log-redesign" ref={formRef} onSubmit={submit}>
-      <div className="log-topbar">
-        <input
-          type="date"
-          className={`log-date-chip${isToday ? " is-today" : ""}`}
-          value={date}
-          max={todayStr()}
-          onChange={(e) => setDate(e.target.value)}
-          aria-label="Date"
-        />
-      </div>
+      <LogTopbar date={date} setDate={setDate} bonus={bonus} setBonus={setBonus} />
 
       <AssistedWeightZone
         assistRef={assistRef}

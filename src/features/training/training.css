@@ -704,6 +704,14 @@
   color: var(--ink-4);
 }
 
+/* "bonus" marker under a rest-day extra's expression — same quiet register as
+   a note (it explains the row, it isn't a verdict). */
+.hist-bonus-tag {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+  font-style: italic;
+}
+
 .hist-change {
   display: flex;
   align-items: center;
@@ -1082,6 +1090,29 @@
    would make an editable input look disabled. Border/background stay full. */
 .log-date-chip.is-today {
   color: var(--ink-3);
+}
+
+/* Bonus toggle — marks the set as a rest-day extra (volume only, not a
+   session). Passive-face chip per the grey-surface rule: --bg-soft, no border
+   (a border would read as an editable input). On = accent tint — brand-
+   coloured selection like the primary CTA, never a verdict colour. */
+.log-bonus-chip {
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  color: var(--ink-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--dur-press), color var(--dur-press);
+}
+
+.log-bonus-chip.on {
+  background: var(--accent-glow);
+  color: var(--accent);
 }
 
 /* ── Weight zone ─────────────────────────────────────────────────────────────*/

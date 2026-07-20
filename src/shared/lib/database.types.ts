@@ -399,6 +399,7 @@ export type Database = {
         Row: {
           assistance: number | null
           bodyweight: number | null
+          bonus: boolean
           created_at: string
           exercise_slug: string
           id: string
@@ -415,6 +416,7 @@ export type Database = {
         Insert: {
           assistance?: number | null
           bodyweight?: number | null
+          bonus?: boolean
           created_at?: string
           exercise_slug: string
           id?: string
@@ -431,6 +433,7 @@ export type Database = {
         Update: {
           assistance?: number | null
           bodyweight?: number | null
+          bonus?: boolean
           created_at?: string
           exercise_slug?: string
           id?: string
