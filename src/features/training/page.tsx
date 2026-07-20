@@ -1120,6 +1120,15 @@ function TrainingPageInner() {
     return dates;
   }, [logs]);
 
+  // The split a session today would be (rotation-aware, bonus logs skipped) —
+  // the add forms' Bonus smart default keys off it: logging an exercise of any
+  // OTHER split reads as a rest-day extra, so its Bonus toggle starts on. A
+  // default only — an out-of-order real session just unticks it.
+  const expectedSplit = useMemo(
+    () => nextSessionSplit(exercises ?? [], logs, SPLITS.map((s) => s.id), localDateStr()),
+    [exercises, logs],
+  );
+
   // The split of the single most recent log across all splits, not just the
   // one currently open — each slug's array is already newest-first, so only
   // its head needs checking. Feeds the segmented-control ✓ (which split was
@@ -1281,6 +1290,7 @@ function TrainingPageInner() {
                 isLast={idx === activeExercises.length - 1}
                 openTrendSignal={jumpTarget?.slug === ex.slug ? jumpTarget.nonce : null}
                 bodyweightKg={bodyweightKg}
+                bonusDefault={expectedSplit != null && ex.split !== expectedSplit}
               />
             );
           })}

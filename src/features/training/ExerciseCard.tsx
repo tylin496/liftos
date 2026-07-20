@@ -141,6 +141,10 @@ export interface ExerciseCardProps {
   // Latest bodyweight (kg), for the Trend sheet's strength-standard read. Null
   // hides the level. Same value across all cards — the page fetches it once.
   bodyweightKg?: number | null;
+  // Smart default for the add forms' Bonus toggle: true when this exercise's
+  // split isn't the one a session today would be (rotation-aware), so logging
+  // it reads as a rest-day extra. A default only — always user-overridable.
+  bonusDefault?: boolean;
 }
 
 function ExerciseCardImpl({
@@ -159,6 +163,7 @@ function ExerciseCardImpl({
   isLast,
   openTrendSignal,
   bodyweightKg = null,
+  bonusDefault = false,
 }: ExerciseCardProps) {
   const toast = useToast();
   const celebration = useCelebration();
@@ -1113,6 +1118,7 @@ function ExerciseCardImpl({
                 onAdd={handleAdd}
                 onCancel={() => setEditingMode("view")}
                 submitting={submitting}
+                defaultBonus={bonusDefault}
               />
             ) : (
               <AddEntryForm
@@ -1121,6 +1127,7 @@ function ExerciseCardImpl({
                 onAdd={handleAdd}
                 onCancel={() => setEditingMode("view")}
                 submitting={submitting}
+                defaultBonus={bonusDefault}
               />
             )}
           </div>

@@ -352,6 +352,7 @@ export function AddEntryForm({
   onAdd,
   onCancel,
   submitting = false,
+  defaultBonus = false,
 }: {
   setCount: number;
   lastRaw: string;
@@ -361,6 +362,9 @@ export function AddEntryForm({
   onAdd: (raw: string, date: string, note: string, bonus: boolean) => Promise<boolean>;
   onCancel: () => void;
   submitting?: boolean;
+  /** Smart default for the Bonus toggle (exercise out of rotation today) —
+   *  seeds the state only; the user can always flip it. */
+  defaultBonus?: boolean;
 }) {
   const n = Math.max(MIN_SET_COUNT, setCount);
   const lastParsed = lastRaw ? parse(lastRaw) : null;
@@ -370,7 +374,7 @@ export function AddEntryForm({
   const [unit, setUnit] = useState<"kg" | "lbs">(isLbUnit(lastParsed?.unit) ? "lbs" : "kg");
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
-  const [bonus, setBonus] = useState(false);
+  const [bonus, setBonus] = useState(defaultBonus);
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
 
@@ -397,7 +401,7 @@ export function AddEntryForm({
     setWeightExpr("");
     setRepValues(emptyRepValues(n));
     setNote("");
-    setBonus(false);
+    setBonus(defaultBonus);
   }
 
   return (
@@ -444,6 +448,7 @@ export function AddAssistedForm({
   onAdd,
   onCancel,
   submitting = false,
+  defaultBonus = false,
 }: {
   setCount: number;
   lastLog: TrainingLog | null;
@@ -452,6 +457,8 @@ export function AddAssistedForm({
   onAdd: (raw: string, date: string, note: string, bonus: boolean) => Promise<boolean>;
   onCancel: () => void;
   submitting?: boolean;
+  /** Same contract as AddEntryForm.defaultBonus. */
+  defaultBonus?: boolean;
 }) {
   const n = Math.max(MIN_SET_COUNT, setCount);
   const lastParsed = lastLog?.raw ? parse(lastLog.raw) : null;
@@ -471,7 +478,7 @@ export function AddAssistedForm({
   const [repValues, setRepValues] = useState(() => emptyRepValues(n));
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
-  const [bonus, setBonus] = useState(false);
+  const [bonus, setBonus] = useState(defaultBonus);
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
 
@@ -509,7 +516,7 @@ export function AddAssistedForm({
     setAssistance("");
     setRepValues(emptyRepValues(n));
     setNote("");
-    setBonus(false);
+    setBonus(defaultBonus);
   }
 
   return (
