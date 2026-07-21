@@ -35,6 +35,12 @@ const FULL_NUTRITION_DAYS = 180;
 // outside this window) — full history isn't needed for strength analysis.
 const MAX_TRAINING_LOGS_PER_EXERCISE = 15;
 
+// How to read the per-lift log listings — shipped in both training exports so an
+// LLM never mistakes "only squat has an entry today" for "only squat was trained".
+// Same convention as the rest of the app: absent log = maintained, never zero.
+const TRAINING_LOGGING_MODEL =
+  "A lift gets a new entry only when its numbers change. On any date where at least one lift of a split has an entry, the ENTIRE split was trained that day — lifts without an entry were performed at their last logged numbers, not skipped. A day where the whole split repeated unchanged is recorded via a repeat marker and omitted from these logs entirely (no new strength signal), so absence of entries never means absence of training.";
+
 /** A structured "why this status" for a strength lift, read straight off the same
  *  settled flags the Training card uses — so the export reader shows a reason
  *  ("Below peak") without re-judging the numbers. `weeksSinceImprovement` is
@@ -597,6 +603,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       // distant docstrings): retentionPct here and in training[].performance is
       // the same current ÷ peak on the lift's scoring axis.
       note: "retentionPct = current ÷ peak on the lift's scoring axis (compound: e1RM; isolation: best-set tonnage; assisted: %bodyweight). trajectory.velocityPct = % change of the recent session-best vs its anchor session (recovering: window min, declining: window max) over the recent-sessions window — not kg, not per-week.",
+      // How to read training[].logs — without this, a day with one entry reads
+      // as a one-lift session (it isn't; unlogged lifts ran at prior numbers).
+      loggingModel: TRAINING_LOGGING_MODEL,
       exercisesTracked: improvingCount + trainingAttention.length,
       improvingCount,
       needsAttentionCount: trainingAttention.length,
@@ -1195,6 +1204,8 @@ export async function buildTrainingJson(): Promise<string> {
         .map((l) => l.log_date),
     ),
     schedule: { split: "PPL", cycle: SPLITS.map((s) => s.name) },
+    // How to read each exercise's `logs` (same text as the all-data export).
+    loggingModel: TRAINING_LOGGING_MODEL,
     splits,
   };
   return JSON.stringify(payload);
