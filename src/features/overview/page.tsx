@@ -4,7 +4,7 @@ import { PhaseReportSheet, phaseSpanLabel, phaseKindLabel, phaseWeightDelta } fr
 import { cutBaselineAt } from "./goal";
 import type { BodyMetric } from "@features/health/api";
 import type { ActiveTargetView } from "@features/health/activeTarget";
-import { series, rollingAvg, trailingAvg, latestUpdatedAt } from "@features/health/math";
+import { series, rollingAvg, bucketSeries, latestUpdatedAt } from "@features/health/math";
 import { isStale, formatAgo } from "@shared/lib/freshness";
 import { FreshnessTag } from "@shared/components/FreshnessTag";
 import { useCountUp, COUNT_UP_MS } from "@shared/hooks/useCountUp";
@@ -1456,30 +1456,30 @@ function BulkBaselineCard({
 // orange "Below pace" — and that pairing is the point, not a contradiction.
 // Gold is reserved for "Optimal" (on-target AND in the band's top slice, near
 // the safe max) — a celebration read, not just an absence of caution.
-// Full-width 14-day weight trend line. Line-only (no beads/labels) to keep the
-// Health-tab minimalism, but stretched edge-to-edge as the card's dominant
-// element. Smoothing stays honest — raw daily readings from `series`, same
-// source the Health weight card uses; no new interpolation.
+// Full-width weekly-average trend line. Line-only (no beads/labels) to keep
+// the Health-tab minimalism, but stretched edge-to-edge as the card's dominant
+// element. Averaging stays honest — weekly means of the raw readings from
+// `series`, the same source AND bucketing as the Health weight card; no new
+// interpolation.
 // preserveAspectRatio="none" stretches the 100×64 viewBox to fill the card
 // width while non-scaling-stroke keeps the line a constant 2px.
 
-// Trend line is a 7-day (168h) trailing average of the raw daily readings —
-// the same window as every other weight read on this card (the "7d avg"
-// footer, the fallback delta) and as Health's weekly buckets, so the line's
-// endpoint and the footer number tell one story (was 3.5 days, which still
-// let single-day water blips wiggle the tail; widened 2026-07-21, user
-// request). The KPI is the loss RATE — per-day detail lives in the trend
-// sheet the chart opens on tap, not inline.
-const TREND_WINDOW_HOURS = 168;
+// Sparkline = WEEKLY AVERAGES, mirroring the Health weight card's buckets
+// (7-day buckets × 6 = 42 days): each vertex is one week's mean, and the final
+// bucket is the trailing 7 days — the exact window the footer's "7d avg"
+// shows, so the line's endpoint and that number always match. (User request
+// 2026-07-21: weekly averages, not a smoothed daily line — earlier trailing-avg
+// versions still wiggled per-day.) Per-day detail lives in the trend sheet the
+// chart opens on tap, not inline.
+const SPARK_BUCKET_DAYS = 7;
+const SPARK_BUCKETS = 6;
 
-// Inline spark / corridor window, in calendar days. Deliberately the SAME span
-// the hero rate (and the recommendation's observed rate) is fit on, so the
-// dashed corridor never spans a different period than the number above it. This
-// is why this card's corridor looks steeper/narrower than Health's weight card:
-// Health draws its corridor over a 42-day trend, this one over 21 days of pace.
-// Kept as a named constant so the "21-day pace" label and the cutoff geometry
-// below can't drift apart.
-const SPARK_WINDOW_DAYS = 21;
+// Window the hero RATE is fit on (the recommendation's observed rate) — names
+// the "21-day pace" qualifier beside the number. The chart below spans the
+// longer 42-day bucket window; number and shape carry their own windows now,
+// the same presentation split as Health's weight card (7-day headline over a
+// 42-day chart).
+const RATE_WINDOW_DAYS = 21;
 
 function WeightSparkline({
   points,
@@ -1529,10 +1529,10 @@ function WeightSparkline({
   }
 
   // Geometry — the trend polyline, gradient area, and the target-pace corridor
-  // wedge, all projected into the SVG's coordinate space. points arrives
-  // pre-smoothed (trailingAvg over the caller's full history, already sliced to
-  // this window); the corridor rays anchor at a Theil-Sen fit of the drawn
-  // trend, not one edge point. See buildSparkGeometry.
+  // wedge, all projected into the SVG's coordinate space. points arrive as
+  // weekly bucket averages (bucketSeries — one vertex per week); the corridor
+  // rays anchor at a Theil-Sen fit of the drawn trend, not one edge point. See
+  // buildSparkGeometry.
   const { pts, area, corridor, latest } = buildSparkGeometry(points, targetRange, direction);
 
   // The latest dot is a plain "you are here" marker in the line's own tone. Pace
@@ -1681,26 +1681,17 @@ function WeightCard({
   const prevWeek = rollingAvg(weightPts, 7, 7);
   const weightDelta = thisWeek != null && prevWeek != null ? thisWeek - prevWeek : null;
 
-  // Last 21 daily readings — the trend shape under the number, over the SAME
-  // 21-day window the recommendation's observed rate (and this card's hero rate)
-  // is fit on, so the corridor and the number never span different periods. The
-  // line itself stays a 7-day trailing average (TREND_WINDOW_HOURS), so a
-  // longer window shows more trend, not more jitter. Line tone is driven by the
-  // SAME weightDelta sign as MetricDelta below (down = good on a cut): direction
-  // from the number's sign, colour from the tone — kept independent, matching
-  // the delta-arrow rule.
-  // trailingAvg runs over the FULL history, not the 21d slice — otherwise the
-  // window's first few points would average over their own truncated stub
-  // (day 0 averaging with nothing before it) instead of true prior history,
-  // understating the smoothing right where the corridor anchors its start.
-  // Window is 21 calendar DAYS (same cutoff convention as theilSenSlope:
-  // last date − 20), not the last 21 readings — a missed weigh-in day must
-  // not silently stretch the chart onto a longer window than the rate it
-  // sits beside was fit on.
-  const sparkCutoff = weightDate
-    ? localDateStr(new Date(new Date(weightDate + "T12:00:00").getTime() - (SPARK_WINDOW_DAYS - 1) * 86400000))
-    : "";
-  const sparkPoints = trailingAvg(weightPts, TREND_WINDOW_HOURS).filter((p) => p.date >= sparkCutoff);
+  // Weekly averages over the last 6 weeks — the same bucketSeries call shape
+  // as Health's weight card (bucket 7), so the two charts bucket identically
+  // and the final vertex IS the footer's "7d avg" (bucketSeries anchors its
+  // newest bucket on the trailing 7 days, the exact rollingAvg window). Line
+  // tone is driven by the SAME weightDelta sign as MetricDelta below (down =
+  // good on a cut): direction from the number's sign, colour from the tone —
+  // kept independent, matching the delta-arrow rule.
+  const sparkPoints = bucketSeries(weightPts, {
+    spanDays: SPARK_BUCKET_DAYS * SPARK_BUCKETS,
+    bucketDays: SPARK_BUCKET_DAYS,
+  });
   // Weight polarity follows the phase from the SAME persisted evaluation row
   // every other read on this card uses (null state → the cut default): on a
   // bulk, up = green — the exact mirror of the cut's rule.
@@ -1833,13 +1824,14 @@ function WeightCard({
             <MetricDelta value={weightDelta} direction={weightDir} decimals={1} unit="kg" />
           </div>
         )}
-        {/* Window qualifier — names the period the hero rate is fit on (and the
-            span the dashed corridor is drawn over: same 21 days). "pace" not
-            "trend" so it reads as a distinct view from Health's "42-day trend"
-            weight card, whose corridor spans a different window. Only shown once
-            a real fit exists (rate != null); Forming/Calibrating has no pace. */}
+        {/* Window qualifier — names the period the hero RATE is fit on. The
+            chart below spans the longer 42-day bucket window (see
+            SPARK_BUCKETS); the qualifier labels the number, not the shape.
+            "pace" not "trend" so it reads as a distinct view from Health's
+            "42-day trend" weight card. Only shown once a real fit exists
+            (rate != null); Forming/Calibrating has no pace. */}
         {rate != null && (
-          <span className="ov-weight-window">{SPARK_WINDOW_DAYS}-day pace</span>
+          <span className="ov-weight-window">{RATE_WINDOW_DAYS}-day pace</span>
         )}
       </div>
 
