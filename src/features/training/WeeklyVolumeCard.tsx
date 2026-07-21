@@ -43,6 +43,10 @@ function SessionRow({ s }: { s: WeeklyVolumeSession }) {
             crashed session. */}
         {s.bonus && <span className="wv-srow-bonus">bonus</span>}
       </span>
+      {/* vs the split's previous session (any week back) — the live per-row
+          read; the card head's window delta stays the steering number.
+          Absent (first session / bonus row) renders nothing. */}
+      <MetricDelta value={s.deltaPct} direction="up-good" unit="%" decimals={0} />
       <span className="wv-srow-vol">{Math.round(s.volumeKg).toLocaleString()}</span>
     </div>
   );

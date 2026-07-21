@@ -115,7 +115,8 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     expect(stat.weeksCounted).toBe(1);
     expect(stat.deltaPct).toBeNull();
     expect(stat.thisWeekSessions).toEqual([
-      { date: "2026-07-08", split: "pull", volumeKg: 1600 },
+      // deltaPct: vs the previous pull session (6/30, 1500).
+      { date: "2026-07-08", split: "pull", volumeKg: 1600, deltaPct: expect.closeTo((100 / 1500) * 100, 5) },
     ]);
   });
 
@@ -128,8 +129,25 @@ describe("computeWeeklyVolume — split-completion carry-forward", () => {
     };
     const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
     expect(stat.lastWeekSessions).toEqual([
-      { date: "2026-07-01", split: "pull", volumeKg: 500 + 1000 },
+      // deltaPct reaches past the displayed weeks: previous session is 6/28
+      // (row alone, 1000) — (1500 − 1000) / 1000.
+      { date: "2026-07-01", split: "pull", volumeKg: 500 + 1000, deltaPct: 50 },
     ]);
+  });
+
+  it("per-session delta: first session and cross-split sessions stay delta-less", () => {
+    const logs = {
+      row: [vlog("2026-07-08", "110*10"), vlog("2026-06-30", "100*10")],
+      curl: [],
+      squat: [vlog("2026-07-07", "100*10")],
+    };
+    const roster = [...pullRoster, { slug: "squat", split: "legs", setCount: 1, assistedMode: false }];
+    const stat = computeWeeklyVolume(logs, roster, TODAY);
+    const bySplit = Object.fromEntries(stat.thisWeekSessions.map((s) => [s.split, s]));
+    // Pull compares to its own previous session — never to the legs day between.
+    expect(bySplit.pull.deltaPct).toBeCloseTo(10, 5);
+    // First-ever legs session: nothing to compare against.
+    expect(bySplit.legs.deltaPct).toBeUndefined();
   });
 
   it("counts each trained date of a split as its own session", () => {
@@ -498,6 +516,20 @@ describe("bonus sets — volume counts, the day is not a session", () => {
     const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
     expect(stat.weeksCounted).toBe(2);
     expect(stat.avgWeekKg).toBe((1500 + 600 + 1500) / 2);
+  });
+
+  it("carries no per-session delta and is never the delta baseline", () => {
+    // Real 6/30 (1500) → bonus 7/6 (600) → real 7/8. The bonus row compares to
+    // nothing, and 7/8 must judge against 6/30's session, not the 600 snack.
+    const logs = {
+      row: [vlog("2026-07-08", "110*10"), vlog("2026-06-30", "100*10")],
+      curl: [blog("2026-07-06", "60*10"), vlog("2026-06-30", "50*10")],
+    };
+    const stat = computeWeeklyVolume(logs, pullRoster, TODAY);
+    const byDate = Object.fromEntries(stat.thisWeekSessions.map((s) => [s.date, s]));
+    expect(byDate["2026-07-06"].deltaPct).toBeUndefined();
+    // 7/8: 1100 + carried 500 (the 6/30 curl — a bonus set never carries) = 1600.
+    expect(byDate["2026-07-08"].deltaPct).toBeCloseTo((100 / 1500) * 100, 5);
   });
 
   it("a properly-trained day absorbs its bonus set — no double count, no marker", () => {

@@ -523,6 +523,12 @@ export interface WeeklyVolumeSession {
   date: string; // YYYY-MM-DD
   split: string;
   volumeKg: number;
+  /** % change vs the split's *previous* non-bonus session (any week back, not
+   *  just the displayed two) — the live per-row read; the headline's window
+   *  delta stays the steering number. Both sides are the same carry-forward
+   *  sum, so a roster change reads as a volume change, not an artifact.
+   *  Absent on the split's first session and on bonus rows. */
+  deltaPct?: number;
   /** True when the day holds only bonus sets (rest-day extras) — the row is
    *  real logged volume but NOT a session of the split, so the disclosure must
    *  not read it as a crashed one. Only present when true (keeps ordinary
@@ -793,9 +799,21 @@ export function computeWeeklyVolume(
   roster: WeeklyVolumeExercise[],
   today: string,
 ): WeeklyVolumeStat {
+  // One shared row cache: weekSessions, the per-session deltas and the
+  // maintained-week averages below all re-read the same weeks.
+  const rowsCache = new Map<string, WeekRow[]>();
+  const rowsAt = (w: string): WeekRow[] => {
+    let r = rowsCache.get(w);
+    if (!r) {
+      r = weekExerciseRows(logs, roster, w);
+      rowsCache.set(w, r);
+    }
+    return r;
+  };
+
   const weekSessions = (weekStart: string): WeeklyVolumeSession[] => {
     const perSession = new Map<string, WeeklyVolumeSession>();
-    for (const r of weekExerciseRows(logs, roster, weekStart)) {
+    for (const r of rowsAt(weekStart)) {
       const key = `${r.split} ${r.date}`;
       // A day's rows are either all carry-forward or all bonus (weekExerciseRows
       // skips bonus rows on properly-trained days), so the first row settles the
@@ -813,10 +831,36 @@ export function computeWeeklyVolume(
 
   const sumKg = (arr: WeeklyVolumeSession[]) => arr.reduce((s, x) => s + x.volumeKg, 0);
 
+  // Per-row delta vs the split's previous non-bonus session, wherever it falls
+  // (rotations put it beyond the two displayed weeks). Bonus rows compare to
+  // nothing: an extra isn't a session. First-ever session stays delta-less.
+  const annotateSessionDeltas = (sessions: WeeklyVolumeSession[]) => {
+    for (const s of sessions) {
+      if (s.bonus) continue;
+      // Most recent non-bonus trained date of this split before the session —
+      // the same "any log marks the day trained" rule as weekExerciseRows.
+      let prevDate: string | null = null;
+      for (const ex of roster) {
+        if (ex.split !== s.split) continue;
+        for (const l of logs[ex.slug] ?? []) {
+          if (!l.log_date || l.bonus || l.log_date >= s.date) continue;
+          if (prevDate === null || l.log_date > prevDate) prevDate = l.log_date;
+        }
+      }
+      if (prevDate === null) continue;
+      const prevKg = rowsAt(weekStartMonday(prevDate))
+        .filter((r) => r.split === s.split && r.date === prevDate)
+        .reduce((sum, r) => sum + r.volumeKg, 0);
+      if (prevKg > 0) s.deltaPct = ((s.volumeKg - prevKg) / prevKg) * 100;
+    }
+  };
+
   const thisWeekStart = weekStartMonday(today);
   const lastWeekStart = addDays(thisWeekStart, -7);
   const thisWeekSessions = weekSessions(thisWeekStart);
   const lastWeekSessions = weekSessions(lastWeekStart);
+  annotateSessionDeltas(thisWeekSessions);
+  annotateSessionDeltas(lastWeekSessions);
   const thisWeekKg = sumKg(thisWeekSessions);
   const lastWeekKg = sumKg(lastWeekSessions);
 
@@ -824,7 +868,6 @@ export function computeWeeklyVolume(
   // Averages run on *maintained* weeks (unlogged split-weeks inherit the
   // split's last logged week — 沒記就是維持), while the disclosure's this/last
   // week rows above stay strictly what was logged.
-  const rowsCache = new Map<string, WeekRow[]>();
   const maintainedKg = (w: string) =>
     maintainedWeekRows(logs, roster, w, rowsCache).reduce((s, r) => s + r.volumeKg, 0);
   const avgOf = (weeks: string[]) =>
