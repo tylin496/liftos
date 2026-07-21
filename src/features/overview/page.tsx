@@ -1633,10 +1633,10 @@ function WeightCard({
           </div>
         </div>
         <WeightSparkline points={[]} tone="flat" />
-        {/* Footer placeholder — mirrors the loaded card's "Now" row so the
+        {/* Footer placeholder — mirrors the loaded card's "7d avg" row so the
             skeleton holds the same height (LAYOUT-STABILITY). */}
         <div className="ov-weight-footer">
-          <span className="ov-weight-now">Now <b>00.0</b> kg</span>
+          <span className="ov-weight-now">7d avg <b>00.0</b> kg</span>
         </div>
       </div>
     );
@@ -1712,9 +1712,12 @@ function WeightCard({
 
   // Rate leads: on a cut the KPI you act on is the loss RATE (kg/wk), not the
   // day's scale weight (water/glycogen noise). So the hero is the rate and the
-  // current weight is demoted to the "Now" context number in the footer. Until
-  // the trend settles (rate == null → Forming/Calibrating) the hero falls back
-  // to the weight level so the card always leads with a real number.
+  // weight level is demoted to the footer — as the 7-day average, the same
+  // headline read as the Health weight card this card taps through to, so the
+  // two numbers agree on arrival (a raw latest reading is the noisiest version
+  // of the very number this card exists to de-noise). Until the trend settles
+  // (rate == null → Forming/Calibrating) the hero falls back to the weight
+  // level so the card always leads with a real number.
   //
   // The whole card opens Health's weight card (deep-link lands on the
   // `health-weight-card` anchor): this summary is derived from that card's
@@ -1821,12 +1824,13 @@ function WeightCard({
         targetRange={state?.evaluation.targetRange ?? null}
         direction={phaseDirection(phaseKind)}
       />
-      {/* Footer — current reading (left) + the target corridor legend
-          (right), moved down from the hero row so the hero's right side is
-          free for the acceleration chip. */}
+      {/* Footer — 7-day average (left; matches the Health weight card's
+          headline) + the target corridor legend (right), moved down from the
+          hero row so the hero's right side is free for the acceleration
+          chip. */}
       <div className="ov-weight-footer">
         <span className="ov-weight-now">
-          Now <b>{fmt1kg(weightLatest)}</b> kg
+          7d avg <b>{fmt1kg(thisWeek ?? weightLatest)}</b> kg
         </span>
         {hasTargetBand && (
           <span className="ov-weight-legend">
