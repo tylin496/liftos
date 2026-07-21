@@ -205,7 +205,7 @@ describe("Decision Engine — precedence ladder", () => {
       recovery: recovery("Ready"),
       training: training("improving"),
     });
-    expect(rec?.title).toBe("Push for a PR this week");
+    expect(rec?.title).toBe("Add weight this week");
     expect(rec?.source).toBe("training");
   });
 
