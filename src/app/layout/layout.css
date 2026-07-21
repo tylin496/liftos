@@ -418,10 +418,17 @@ html.kb-open .tabbar {
   will-change: transform;
 }
 
-/* Spotlight dim — siblings + header step back while the target holds the light. */
+/* Spotlight dim — siblings + header step back while the target holds the light.
+   opacity/transform need !important: every .page child permanently carries
+   rise-in with fill:both, and an animation's fill overrides normal declarations
+   for the properties it animates (opacity + transform) — without !important
+   only the filter half of this dim ever rendered. Author !important outranks
+   the animation origin, and the .page > * transition still rides the change. */
 .page.is-arriving > *:not(.is-arrived) {
-  opacity: 0.3;
-  transform: scale(0.985);
+  /* stylelint-disable-next-line declaration-no-important */
+  opacity: 0.3 !important;
+  /* stylelint-disable-next-line declaration-no-important */
+  transform: scale(0.985) !important;
   filter: grayscale(1) blur(2px);
 }
 
