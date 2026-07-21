@@ -39,7 +39,7 @@ const MAX_TRAINING_LOGS_PER_EXERCISE = 15;
 // LLM never mistakes "only squat has an entry today" for "only squat was trained".
 // Same convention as the rest of the app: absent log = maintained, never zero.
 const TRAINING_LOGGING_MODEL =
-  "A lift gets a new entry only when its numbers change. On any date where at least one lift of a split has an entry, the ENTIRE split was trained that day — lifts without an entry were performed at their last logged numbers, not skipped. A day where the whole split repeated unchanged is recorded via a repeat marker and omitted from these logs entirely (no new strength signal), so absence of entries never means absence of training.";
+  "A lift gets a new entry only when its numbers change. On any date where at least one lift of a split has an entry, the ENTIRE split was trained that day — lifts without an entry were performed at their last logged numbers, not skipped. A day where the whole split repeated unchanged is recorded via a repeat marker and omitted from these logs entirely (no new strength signal), so absence of entries never means absence of training. Exception: a log flagged bonus:true is a rest-day extra of that one lift — it does NOT mean its split was trained that day, adds only its own volume, and does not advance the split rotation.";
 
 /** A structured "why this status" for a strength lift, read straight off the same
  *  settled flags the Training card uses — so the export reader shows a reason
@@ -709,6 +709,8 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
               raw: l.raw,
               weight: w,
               reps: p?.reps ?? null,
+              // Rest-day extra (see loggingModel): this lift alone, not a split day.
+              ...(l.bonus ? { bonus: true } : {}),
               ...(isVol
                 ? { volume: p && sw != null ? +(sw * maxReps(p.reps)).toFixed(1) : null }
                 : { e1rm: p && sw != null ? +epley1RM(sw, p.reps).toFixed(1) : null }),
@@ -1177,6 +1179,8 @@ export async function buildTrainingJson(): Promise<string> {
             raw: l.raw,
             weight: w,
             reps: p?.reps ?? null,
+            // Rest-day extra (see loggingModel): this lift alone, not a split day.
+            ...(l.bonus ? { bonus: true } : {}),
             ...(isVol
               ? { volume: p && sw != null ? +(sw * maxReps(p.reps)).toFixed(1) : null }
               : { e1rm: p && sw != null ? +epley1RM(sw, p.reps).toFixed(1) : null }),
