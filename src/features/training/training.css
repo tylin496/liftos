@@ -1274,6 +1274,35 @@
   font-weight: 400;
 }
 
+/* "+1 set" — dashed-outline action family (.tr-repeat-session /
+   .add-exercise-btn): appends one rep input to THIS log only; the exercise's
+   ×N target is untouched. Stretches to the reps-input height via the row's
+   default align-items. Hidden at MAX_SET_COUNT (JSX). */
+.reps-add-btn {
+  flex: 0 0 44px;
+  min-width: 0;
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  color: var(--role-action-color);
+  transition:
+    border-color var(--dur-press),
+    color var(--dur-press),
+    transform var(--dur-press) var(--ease-press);
+}
+
+.reps-add-btn:active { transform: scale(var(--tap-scale)); }
+
+@media (hover: hover) {
+  .reps-add-btn:hover {
+    border-color: var(--accent);
+  }
+}
+
 /* ── Live preview / note ─────────────────────────────────────────────────────*/
 .log-preview-bar {
   padding: var(--space-2) var(--space-3);

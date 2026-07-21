@@ -6,12 +6,14 @@ import type { TrainingLog } from "./api";
 import { fmtWeightNum, isLbUnit } from "./ExprDisplay";
 import {
   MIN_SET_COUNT,
+  MAX_SET_COUNT,
   LAST_BW_KEY,
   todayStr,
   heroInputStyle,
   emptyRepValues,
   repsStringToValues,
   composeRepsMulti,
+  trimExtraEmptyReps,
   useScrollAboveKeyboard,
   useWeightAdjuster,
   useAssistAdjuster,
@@ -37,9 +39,27 @@ function RepsSetInput({
   hero?: boolean;
 }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
-  const n = Math.max(MIN_SET_COUNT, setCount);
+  // values can outgrow setCount via the "+1 set" button — extra inputs are
+  // per-log only and never touch the exercise's ×N target.
+  const n = Math.max(MIN_SET_COUNT, setCount, values.length);
+  const focusIdx = useRef<number | null>(null);
+  useEffect(() => {
+    if (focusIdx.current != null) {
+      refs.current[focusIdx.current]?.focus();
+      focusIdx.current = null;
+    }
+  });
+
+  function addSet() {
+    const next = Array.from({ length: n }, (_, i) => values[i] ?? "");
+    focusIdx.current = n;
+    onChange([...next, ""]);
+  }
 
   function placeholderFor(i: number) {
+    // Extra (beyond-target) inputs suggest nothing: blank = set not done,
+    // unlike base inputs where blank inherits the previous set on compose.
+    if (i >= Math.max(MIN_SET_COUNT, setCount)) return "";
     // First, try to use the value from the previous set
     for (let j = i - 1; j >= 0; j--) {
       const p = (values[j] ?? "").trim();
@@ -77,12 +97,22 @@ function RepsSetInput({
           value={values[i] ?? ""}
           onChange={(e) => setAt(i, e.target.value)}
           onKeyDown={(e) => onKeyDown(i, e)}
-          placeholder={placeholderFor(i) || "6"}
+          placeholder={i >= Math.max(MIN_SET_COUNT, setCount) ? "" : placeholderFor(i) || "6"}
           aria-label={`Set ${i + 1} reps`}
           autoComplete="off"
           inputMode="numeric"
         />
       ))}
+      {n < MAX_SET_COUNT && (
+        <button
+          type="button"
+          className="reps-add-btn"
+          onClick={addSet}
+          aria-label="Add one more set for this log only"
+        >
+          +
+        </button>
+      )}
     </div>
   );
 }
@@ -379,7 +409,7 @@ export function AddEntryForm({
   useScrollAboveKeyboard(formRef);
 
   const suffix = unit === "lbs" ? " lbs" : "";
-  const reps = composeRepsMulti(repValues, defaultRep);
+  const reps = composeRepsMulti(trimExtraEmptyReps(repValues, n), defaultRep);
   const effectiveWeightExpr = weightExpr.trim() || (lastParsed?.weightExpr ?? "");
   const raw =
     effectiveWeightExpr && reps
@@ -502,7 +532,7 @@ export function AddAssistedForm({
   const parsedBw = parseFloat(bodyweight) || 0;
   const effectiveLoad =
     parsedBw > 0 && parsedAssist > 0 ? +(parsedBw - parsedAssist).toFixed(2) : null;
-  const reps = composeRepsMulti(repValues, "");
+  const reps = composeRepsMulti(trimExtraEmptyReps(repValues, n), "");
   const isValid = effectiveLoad !== null && effectiveLoad > 0 && reps.length > 0;
   const { assistRef, adjustAssist } = useAssistAdjuster(setAssistance, parsedAssist);
 
@@ -588,7 +618,7 @@ export function InlineEditEntry({
   useScrollAboveKeyboard(formRef);
 
   const suffix = unit === "lbs" ? " lbs" : "";
-  const reps = composeRepsMulti(repValues, "");
+  const reps = composeRepsMulti(trimExtraEmptyReps(repValues, n), "");
   const raw =
     weightExpr.trim() && reps
       ? normalize(`${weightExpr.trim()}${suffix} *${reps}`)
@@ -677,7 +707,7 @@ export function InlineEditAssistedEntry({
   const parsedBw = parseFloat(bodyweight) || 0;
   const effectiveLoad =
     parsedBw > 0 && parsedAssist > 0 ? +(parsedBw - parsedAssist).toFixed(2) : null;
-  const reps = composeRepsMulti(repValues, "");
+  const reps = composeRepsMulti(trimExtraEmptyReps(repValues, n), "");
   const isValid = effectiveLoad !== null && effectiveLoad > 0 && reps.length > 0;
   const { assistRef, adjustAssist } = useAssistAdjuster(setAssistance, parsedAssist);
 

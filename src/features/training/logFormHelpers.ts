@@ -5,7 +5,7 @@ import { localDateStr } from "@shared/lib/date";
 import { getActiveScroller } from "@app/layout/activeScroller";
 
 export const MIN_SET_COUNT = 1;
-const MAX_SET_COUNT = 5;
+export const MAX_SET_COUNT = 5;
 const DEFAULT_SET_COUNT = 3;
 export const LAST_BW_KEY = "liftos/lastBodyweight";
 
@@ -68,6 +68,18 @@ export function repsStringToValues(reps: string, n: number): string[] {
     return Array.from({ length: count }, () => segs[0]);
   }
   return Array.from({ length: count }, (_, i) => segs[i] ?? segs[segs.length - 1] ?? "");
+}
+
+/** Drop trailing EMPTY inputs beyond `base` (the exercise's configured set
+ *  count) before composing. Extra inputs come from the "+1 set" button and are
+ *  opt-in per log: left blank they must vanish, not inherit the previous set's
+ *  reps the way a blank input inside the base count does. */
+export function trimExtraEmptyReps(values: string[], base: number): string[] {
+  const out = values.slice();
+  while (out.length > Math.max(MIN_SET_COUNT, base) && !(out[out.length - 1] ?? "").trim()) {
+    out.pop();
+  }
+  return out;
 }
 
 export function composeRepsMulti(values: string[], defaultRep: string): string {
