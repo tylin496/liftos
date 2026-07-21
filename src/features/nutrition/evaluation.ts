@@ -356,6 +356,16 @@ export interface TdeeCalibration {
    *  asserted complete logging (assume_complete_logging): the candidate explanations,
    *  ordered by nothing — the reader weighs them, LiftOS makes no pick. */
   possibleCauses: string[] | null;
+  /** True when assumedTdee IS the HealthKit estimate — the app-open auto-sync
+   *  (NutritionConfigContext) writes it verbatim while it stays in-band, so
+   *  dHealth ≈ 0 by construction. Then measuredHealthTdee is NOT an independent
+   *  check on assumedTdee and the calibration reduces to a two-source read:
+   *  HealthKit burn vs the log+weight-implied TDEE. */
+  assumedTdeeSyncedToHealth: boolean;
+  /** Reader-facing caveat, set only when assumedTdeeSyncedToHealth — travels in
+   *  the JSON export so an external reader can't count the assumedTdee ↔
+   *  measuredHealthTdee agreement as corroboration. */
+  note: string | null;
 }
 
 /** kcal/day a MEASURED TDEE must exceed the target's assumed TDEE before we'll
@@ -382,6 +392,8 @@ const TDEE_MISCALIBRATION_KCAL = 250;
  *  construction — the sensor "backing" the assumption is largely the same number, and
  *  in practice the calibration reduces to sensor-vs-log with the sensor hard-trusted.
  *  assumeCompleteLogging exists precisely so the user can veto that trust ordering.
+ *  That circularity is surfaced to the reader as assumedTdeeSyncedToHealth + note,
+ *  so the export can't be misread as two sources backing the assumed TDEE.
  *
  *  Inform-only: never proposes a calorie change — it hands the numbers to the reader
  *  (the AI export's audit). Returns null when there isn't enough to judge: no trusted
@@ -414,6 +426,12 @@ export function tdeeCalibration(input: {
   const impliedFromLog = loggedIntake - (observedRate * KCAL_PER_KG) / 7;
   const dHealth = estimatedTdee - assumedTdee;
   const dLog = impliedFromLog - assumedTdee;
+
+  // The auto-sync writes the HealthKit estimate into config.tdee verbatim, so
+  // integer equality is its signature. When it holds, "the sensor backs the
+  // assumption" is vacuous — flag it so readers don't count the same reading twice.
+  const syncedToHealth =
+    healthTdeeMeasured && Math.round(assumedTdee) === Math.round(estimatedTdee);
 
   const healthClears = Math.abs(dHealth) >= TDEE_MISCALIBRATION_KCAL;
   const logClears = Math.abs(dLog) >= TDEE_MISCALIBRATION_KCAL;
@@ -464,6 +482,10 @@ export function tdeeCalibration(input: {
     status,
     likelyCause,
     possibleCauses,
+    assumedTdeeSyncedToHealth: syncedToHealth,
+    note: syncedToHealth
+      ? "assumedTdee is auto-synced to the HealthKit estimate on app open, so assumedTdee and measuredHealthTdee are the SAME reading, not two corroborating sources — do not read their agreement as evidence the assumed TDEE is right. Equally, do not read (measuredHealthTdee − measuredLogTdee) as the TDEE's error magnitude: measuredLogTdee inherits food-log estimation error AND short-window weight-trend noise (water/glycogen/sodium), so the gap is a flag to keep watching, not a measured correction. True TDEE may sit between the two numbers or nearer either one."
+      : null,
   };
 }
 

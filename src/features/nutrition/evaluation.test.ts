@@ -241,6 +241,9 @@ describe("tdeeCalibration — inform-only cross-check", () => {
     expect(c.delta).toBe(550);
     // Sensor corroborates → the TDEE itself is the culprit.
     expect(c.likelyCause).toBe("tdee");
+    // assumed (2250) ≠ measured burn (2800): genuinely independent, no caveat.
+    expect(c.assumedTdeeSyncedToHealth).toBe(false);
+    expect(c.note).toBeNull();
   });
 
   it("claims 'over' when both sources agree the assumed TDEE is too high", () => {
@@ -321,6 +324,10 @@ describe("tdeeCalibration — inform-only cross-check", () => {
     expect(c.measuredLogTdee).toBe(2464);
     expect(c.likelyCause).toBe("under-logging");
     expect(c.possibleCauses).toBeNull();
+    // assumed == measured burn is the auto-sync's signature: the object must
+    // disclose the circularity so a reader can't count the same number twice.
+    expect(c.assumedTdeeSyncedToHealth).toBe(true);
+    expect(c.note).toBeTruthy();
   });
 
   it("assumeCompleteLogging vetoes the under-logging attribution — unattributed + possibleCauses", () => {
@@ -367,6 +374,9 @@ describe("tdeeCalibration — inform-only cross-check", () => {
     })!;
     expect(c.status).toBe("unclear");
     expect(c.likelyCause).toBeNull();
+    // Fallback equality is tautological, not a sync — no circularity to disclose.
+    expect(c.assumedTdeeSyncedToHealth).toBe(false);
+    expect(c.note).toBeNull();
   });
 
   it("returns null with no food-log signal (single source can't corroborate)", () => {

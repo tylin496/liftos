@@ -943,7 +943,9 @@ function engineHypothesis(
     // Inform-only cross-check: is the TDEE the target is built on still consistent
     // with measured burn AND the food-log/weight-implied TDEE? Claims "under"/"over"
     // only when both independent sources corroborate. null = not enough to judge.
-    // Never proposes a calorie change — the reader decides.
+    // Never proposes a calorie change — the reader decides. When config.tdee was
+    // auto-synced to HealthKit the sources aren't independent — the object says so
+    // itself (assumedTdeeSyncedToHealth + note).
     tdeeCalibration: calibration,
     decision: {
       action: d.action,
