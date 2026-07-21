@@ -736,12 +736,18 @@ function PhasePlanSection({
   bulkGoalStatus,
   cutMode,
   hadBulk = false,
+  cutEta = null,
   reports = [],
 }: {
   phase: PhaseTriggerResult;
   goalStatus: GoalStatusEvaluation;
   bulkGoalStatus: BulkGoalStatusEvaluation | null;
   cutMode: string | null;
+  /** Headline ETA mirrored onto the Cut row ("≈10 wk"), so the roadmap reads
+   *  durations where they're honestly known (Cut = live pace, Maintenance =
+   *  4–6 wk). Already filtered to a real duration by the caller — placeholder
+   *  strings never reach here. Null on the bulk card (a bulk has no ETA). */
+  cutEta?: string | null;
   /** A bulk baseline exists (bulk_start_date set) — a bulk has happened, so a
    *  cut phase now means the NEXT cut (waypoint 4), not the first one. */
   hadBulk?: boolean;
@@ -776,7 +782,11 @@ function PhasePlanSection({
   // One-line read, in priority order mirroring the engine's ladder (see
   // phasePlanNote). Deliberately nothing more — the Journey card already answers
   // "where am I" and "is it going well"; this section only answers "what's the
-  // road ahead and when should the plan change". No week counters, no numbers.
+  // road ahead and when should the plan change". The only numbers are stage
+  // durations with an honest basis: Cut carries the headline ETA (live pace,
+  // user-requested 2026-07-21), Maintenance its 4–6 wk convention. Bulk and
+  // Next-cut stay deliberately numberless — their lengths depend on choices
+  // not yet made, so any figure would be invented.
   const note = phasePlanNote(kind, goalStatus, bulkGoalStatus, n, phase.triggers.length, CONSIDER_ENTER_COUNT, hadBulk);
   const cutLabel = cutStageLabel(goalStatus.targetBodyFatPct);
   const bulkLabel = bulkStageLabel(bulkGoalStatus?.bfCeilingPct ?? null);
@@ -815,6 +825,14 @@ function PhasePlanSection({
           <ol className="goal-plan-stages">
             <li className={`goal-plan-step${atMaintenance || atBulk || atNextCut ? " is-done" : " is-current"}`}>
               <span className="goal-plan-step-dot" aria-hidden />{cutLabel}
+              {/* ETA only while the cut is the current stage — a done stage's
+                  remaining-time is moot. */}
+              {cutEta && !atMaintenance && !atBulk && !atNextCut && (
+                <>
+                  {" "}
+                  <span className="goal-plan-step-sub">{cutEta}</span>
+                </>
+              )}
             </li>
             <li className={`goal-plan-step${atMaintenance ? " is-current" : atBulk || atNextCut ? " is-done" : ""}`}>
               <span className="goal-plan-step-dot" aria-hidden />Maintenance{" "}
@@ -1086,6 +1104,14 @@ function CutProgressCard({
           bulkGoalStatus={bulkGoalStatus}
           cutMode={state?.diagnostics.cutMode ?? null}
           hadBulk={bulkStartDate != null}
+          // Same eta string as the hero — filtered to a real duration
+          // ("≈N weeks" / ">1 year", never the placeholder strings) and
+          // shortened to the Maintenance row's "wk" style.
+          cutEta={
+            eta && (eta.startsWith("≈") || eta === ">1 year")
+              ? eta.replace(" weeks", " wk")
+              : null
+          }
           reports={reports}
         />
       )}
