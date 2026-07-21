@@ -585,14 +585,26 @@ html.kb-open .tabbar {
   animation: none !important;
 }
 
+/* Full-width band with the pill painted by ::before — not a 36px element with
+   auto margins. Margins belong to the PARENT box for hit-testing, so with the
+   old markup the strip above/beside the pill was .settings-sheet (touch-action:
+   auto) and a drag started there panned the tab behind the sheet. Padding keeps
+   that space inside the grabber's own box, which blocks the pan-through and
+   widens the swipe-to-dismiss target at the same time. */
 .settings-sheet-grabber {
-  width: 36px;
-  height: 4px;
-  border-radius: var(--radius-pill);
-  background: var(--rule-strong);
-  margin: var(--space-3) auto var(--space-1);
+  padding: var(--space-3) 0 var(--space-1);
   flex-shrink: 0;
   touch-action: none;
+}
+
+.settings-sheet-grabber::before {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--rule-strong);
 }
 
 .settings-sheet-header {
