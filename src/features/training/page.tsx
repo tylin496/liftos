@@ -832,16 +832,23 @@ function TrainingPageInner() {
   );
 
   // "Trained, nothing new" — the latest log of every active exercise in this
-  // split that has history but isn't already logged today. Repeating these is
-  // what marks today's session as done (carry-forward covers the rest): one tap
-  // for a maintained day instead of retyping unchanged sets. Empty once the
-  // split is fully logged (or has no history yet) — the button hides then.
+  // split that has history. Repeating these is what marks today's session as
+  // done (carry-forward covers the rest): one tap for a maintained day instead
+  // of retyping unchanged sets. The moment anything in the split is logged
+  // today the user is logging the session themselves, so the button hides
+  // entirely — offering to clone the leftovers would fake-complete the day.
+  // Bonus rows don't count as "logging the session": a rest-day extra isn't a
+  // session (see training-bonus-set), so it neither hides the button nor
+  // blocks its exercise from being repeated later.
   const repeatable = useMemo(() => {
     const today = localDateStr();
+    const loggedToday = activeExercises.some((ex) =>
+      (logs[ex.slug] ?? []).some((l) => l.log_date === today && !l.bonus),
+    );
+    if (loggedToday) return [];
     return activeExercises
       .map((ex) => (logs[ex.slug] ?? [])[0])
-      .filter((l): l is TrainingLog => !!l && !!l.raw)
-      .filter((l) => !(logs[l.exercise_slug] ?? []).some((x) => x.log_date === today));
+      .filter((l): l is TrainingLog => !!l && !!l.raw);
   }, [activeExercises, logs]);
 
   async function handleRepeatSession() {
