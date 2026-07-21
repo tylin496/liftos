@@ -384,9 +384,9 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
     return {
       source: "training",
       priority: 50,
-      title: "Push for a PR this week",
+      title: "Add weight this week",
       subtitle:
-        "Recovery's strong and your lifts are trending up — a good week to chase a PR",
+        "Recovery's fully back and every lift is trending up — the rare week it all lines up, so push a top set past last time instead of matching it",
     };
   }
 
