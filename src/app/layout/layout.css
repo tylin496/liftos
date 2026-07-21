@@ -423,8 +423,12 @@ html.kb-open .tabbar {
    rise-in with fill:both, and an animation's fill overrides normal declarations
    for the properties it animates (opacity + transform) — without !important
    only the filter half of this dim ever rendered. Author !important outranks
-   the animation origin, and the .page > * transition still rides the change. */
-.page.is-arriving > *:not(.is-arrived) {
+   the animation origin, and the .page > * transition still rides the change.
+   The :has() exemption matters as much as the :not(): a target card isn't
+   always a DIRECT .page child — nutrition-today-card sits inside TodayView's
+   drag container div — and without it that wrapper (a plain page child) would
+   dim/blur the very card being spotlit. */
+.page.is-arriving > *:not(.is-arrived):not(:has(.is-arrived)) {
   /* stylelint-disable-next-line declaration-no-important */
   opacity: 0.3 !important;
   /* stylelint-disable-next-line declaration-no-important */

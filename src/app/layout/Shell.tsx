@@ -380,7 +380,14 @@ export function Shell({ session }: { session: Session }) {
       el.scrollIntoView({ block: "center" });
       if (!arrived && !el.classList.contains("loading-card")) {
         arrived = true;
-        fireTimer = window.setTimeout(() => fireArrival(el), ARRIVE_DELAY_MS);
+        // Re-query at fire time: a keyed remount during the settle beat (e.g.
+        // the Today card re-keys on day-nav) swaps the DOM node — the id
+        // survives, the captured element doesn't, and animating a detached
+        // node shows nothing.
+        fireTimer = window.setTimeout(() => {
+          const live = document.getElementById(targetId);
+          if (live) fireArrival(live);
+        }, ARRIVE_DELAY_MS);
       }
     };
     // User takeover (scroll/tap/key): stop re-aligning — the scroll is theirs
