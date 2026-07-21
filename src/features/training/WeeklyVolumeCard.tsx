@@ -32,7 +32,7 @@ function fmtAvgSets(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
-function SessionRow({ s }: { s: WeeklyVolumeSession }) {
+function SessionRow({ s, showDelta }: { s: WeeklyVolumeSession; showDelta?: boolean }) {
   return (
     <div className="wv-srow">
       <span className="wv-srow-date">{fmtSessionDate(s.date)}</span>
@@ -43,10 +43,13 @@ function SessionRow({ s }: { s: WeeklyVolumeSession }) {
             crashed session. */}
         {s.bonus && <span className="wv-srow-bonus">bonus</span>}
       </span>
-      {/* vs the split's previous session (any week back) — the live per-row
-          read; the card head's window delta stays the steering number.
-          Absent (first session / bonus row) renders nothing. */}
-      <MetricDelta value={s.deltaPct} direction="up-good" unit="%" decimals={0} />
+      {/* vs the split's previous session (any week back) — shown only on the
+          latest session: it's the just-trained live read, older rows are
+          settled history and the card head's window delta already carries the
+          trend. Absent value (first-ever session) renders nothing. */}
+      {showDelta && (
+        <MetricDelta value={s.deltaPct} direction="up-good" unit="%" decimals={0} />
+      )}
       <span className="wv-srow-vol">{Math.round(s.volumeKg).toLocaleString()}</span>
     </div>
   );
@@ -84,6 +87,13 @@ export function WeeklyVolumeCard({
   // when occluded. Opening only; called while still collapsed to measure the grow.
   const revealRef = useRef<HTMLDivElement>(null);
   const kg = stat?.avgWeekKg ?? 0;
+  // Only the most recent real session carries the per-row delta (rows are
+  // newest-first; bonus rows never compare). One live read, not a column of
+  // settled history — logic still annotates every row.
+  const latestSession = [
+    ...(stat?.thisWeekSessions ?? []),
+    ...(stat?.lastWeekSessions ?? []),
+  ].find((s) => !s.bonus);
   const toggleOpen = () =>
     setOpen((o) => { if (!o) scrollRevealClear(revealRef.current); return !o; });
 
@@ -225,7 +235,7 @@ export function WeeklyVolumeCard({
               <span className="wv-empty">No sessions yet this week</span>
             )}
             {stat.thisWeekSessions.map((s) => (
-              <SessionRow key={`${s.split}-${s.date}`} s={s} />
+              <SessionRow key={`${s.split}-${s.date}`} s={s} showDelta={s === latestSession} />
             ))}
             {stat.lastWeekSessions.length > 0 && (
               <>
@@ -236,7 +246,7 @@ export function WeeklyVolumeCard({
                   </span>
                 </div>
                 {stat.lastWeekSessions.map((s) => (
-                  <SessionRow key={`${s.split}-${s.date}`} s={s} />
+                  <SessionRow key={`${s.split}-${s.date}`} s={s} showDelta={s === latestSession} />
                 ))}
               </>
             )}
