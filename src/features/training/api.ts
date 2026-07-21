@@ -69,7 +69,11 @@ export async function fetchLogsBySlug(): Promise<Record<string, TrainingLog[]>> 
   const { data, error } = await supabase
     .from("training_logs")
     .select("*")
-    .order("log_date", { ascending: false });
+    .order("log_date", { ascending: false })
+    // Deterministic tie-break for legal same-day pairs (bonus + session row):
+    // "take the first entry" reads (latest set, volume carry-forward source)
+    // must not flip between refetches on Postgres's unspecified tie order.
+    .order("created_at", { ascending: false });
   if (error) throw error;
   const grouped: Record<string, TrainingLog[]> = {};
   for (const log of data ?? []) {

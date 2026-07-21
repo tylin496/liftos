@@ -11,6 +11,7 @@ import {
   updateExercise,
   reorderExercises,
   deleteExerciseAndLogs,
+  deleteLog,
   repeatSession,
   withoutRepeated,
   loadStretches,
@@ -874,9 +875,27 @@ function TrainingPageInner() {
       const rows = await repeatSession(repeatable, localDateStr());
       rows.forEach(onLogAdded);
       haptic("success");
+      // Undo window, matching the delete convention: a mistap would otherwise
+      // be unrecoverable in the UI — the button hides once today reads as
+      // logged, and the clones themselves are invisible to every list.
       toast(
         `Session logged — ${rows.length} ${rows.length === 1 ? "exercise" : "exercises"} maintained`,
         "success",
+        5000,
+        {
+          label: "Undo",
+          onClick: async () => {
+            try {
+              await Promise.all(rows.map((r) => deleteLog(r.id)));
+              haptic("tap");
+            } catch (e) {
+              toast(String((e as Error)?.message ?? e), "error");
+            }
+            // Re-sync either way — full success restores the button; a partial
+            // failure shows whatever actually remains instead of a stale mix.
+            reloadLogs();
+          },
+        },
       );
     } catch (e) {
       haptic("error");
