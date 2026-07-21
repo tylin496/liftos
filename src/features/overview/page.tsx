@@ -1463,11 +1463,14 @@ function BulkBaselineCard({
 // preserveAspectRatio="none" stretches the 100×64 viewBox to fill the card
 // width while non-scaling-stroke keeps the line a constant 2px.
 
-// Trend line is a 3.5-day (84h) trailing average of the raw daily readings —
-// the KPI is the loss RATE, so the line should read as "where's the trend
-// headed", not jitter on every water-weight blip. Per-day detail lives in the
-// trend sheet the chart opens on tap, not inline.
-const TREND_WINDOW_HOURS = 84;
+// Trend line is a 7-day (168h) trailing average of the raw daily readings —
+// the same window as every other weight read on this card (the "7d avg"
+// footer, the fallback delta) and as Health's weekly buckets, so the line's
+// endpoint and the footer number tell one story (was 3.5 days, which still
+// let single-day water blips wiggle the tail; widened 2026-07-21, user
+// request). The KPI is the loss RATE — per-day detail lives in the trend
+// sheet the chart opens on tap, not inline.
+const TREND_WINDOW_HOURS = 168;
 
 // Inline spark / corridor window, in calendar days. Deliberately the SAME span
 // the hero rate (and the recommendation's observed rate) is fit on, so the
@@ -1681,7 +1684,7 @@ function WeightCard({
   // Last 21 daily readings — the trend shape under the number, over the SAME
   // 21-day window the recommendation's observed rate (and this card's hero rate)
   // is fit on, so the corridor and the number never span different periods. The
-  // line itself stays a 3.5-day trailing average (TREND_WINDOW_HOURS), so a
+  // line itself stays a 7-day trailing average (TREND_WINDOW_HOURS), so a
   // longer window shows more trend, not more jitter. Line tone is driven by the
   // SAME weightDelta sign as MetricDelta below (down = good on a cut): direction
   // from the number's sign, colour from the tone — kept independent, matching
