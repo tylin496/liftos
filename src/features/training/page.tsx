@@ -756,6 +756,19 @@ function TrainingPageInner() {
   // trained session there. See withoutRepeated.
   const strengthLogs = useMemo(() => withoutRepeated(logs), [logs]);
 
+  // The clones withoutRepeated just stripped, per slug — handed to each card so
+  // its same-day guards can still see (and supersede) a maintained marker
+  // hiding under the date. Slugs without clones are omitted; the card prop
+  // falls back to EMPTY_LOGS so memoized cards keep a stable identity.
+  const repeatedLogs = useMemo(() => {
+    const out: Record<string, TrainingLog[]> = {};
+    for (const [slug, arr] of Object.entries(logs)) {
+      const rep = arr.filter((l) => l.repeated);
+      if (rep.length) out[slug] = rep;
+    }
+    return out;
+  }, [logs]);
+
   const onLogAdded = useCallback((log: TrainingLog) => {
     setLogs((prev) => {
       const existing = prev[log.exercise_slug] ?? [];
@@ -847,7 +860,10 @@ function TrainingPageInner() {
     );
     if (loggedToday) return [];
     return activeExercises
-      .map((ex) => (logs[ex.slug] ?? [])[0])
+      // Latest non-bonus log: a rest-day extra is a single tacked-on set, not
+      // a session, so it can't be the "last session" a repeat clones — skip to
+      // the most recent real (or repeated) entry underneath it.
+      .map((ex) => (logs[ex.slug] ?? []).find((l) => !l.bonus))
       .filter((l): l is TrainingLog => !!l && !!l.raw);
   }, [activeExercises, logs]);
 
@@ -1298,6 +1314,7 @@ function TrainingPageInner() {
                 openTrendSignal={jumpTarget?.slug === ex.slug ? jumpTarget.nonce : null}
                 bodyweightKg={bodyweightKg}
                 bonusDefault={expectedSplit != null && ex.split !== expectedSplit}
+                repeatedLogs={repeatedLogs[ex.slug] ?? EMPTY_LOGS}
               />
             );
           })}

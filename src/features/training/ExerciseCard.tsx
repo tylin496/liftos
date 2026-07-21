@@ -145,6 +145,11 @@ export interface ExerciseCardProps {
   // split isn't the one a session today would be (rotation-aware), so logging
   // it reads as a rest-day extra. A default only — always user-overridable.
   bonusDefault?: boolean;
+  // This exercise's "repeat last session" clones (training_logs.repeated) —
+  // stripped from `logs` by withoutRepeated, so the same-day guards below need
+  // them handed in separately: a real log on a maintained day supersedes its
+  // clone instead of silently stacking a second row on the date.
+  repeatedLogs: TrainingLog[];
 }
 
 function ExerciseCardImpl({
@@ -164,6 +169,7 @@ function ExerciseCardImpl({
   openTrendSignal,
   bodyweightKg = null,
   bonusDefault = false,
+  repeatedLogs,
 }: ExerciseCardProps) {
   const toast = useToast();
   const celebration = useCelebration();
@@ -369,6 +375,12 @@ function ExerciseCardImpl({
       });
       return false;
     }
+    // A same-day "repeat last session" clone is invisible above (strength reads
+    // filter it), but a real log supersedes the maintained marker: insert the
+    // log, then remove the clone so a hidden row can't linger under the new
+    // entry. Bonus adds leave it — a rest-day extra rides on top of a
+    // maintained day, it doesn't re-describe the session.
+    const supersededClones = bonus ? [] : repeatedLogs.filter((l) => l.log_date === date);
     setSubmitting(true);
     const oldBest = stats.best;
     try {
@@ -451,6 +463,12 @@ function ExerciseCardImpl({
       // Insert the row Supabase already returned instead of a full-table
       // refetch — the log-a-set loop stays fast on a flaky connection.
       onLogAdded(newLog);
+      if (supersededClones.length) {
+        // Failure tolerated: the clone stays filtered from strength reads
+        // either way, and the reload below re-syncs whatever state remains.
+        await Promise.all(supersededClones.map((c) => deleteLog(c.id).catch(() => {})));
+        onLogged();
+      }
       return true;
     } catch (err) {
       haptic("error");
@@ -537,6 +555,15 @@ function ExerciseCardImpl({
       } else {
         toast("Entry updated", "success");
       }
+      // Moving (or re-saving) onto a date held by a hidden "repeat last
+      // session" clone: the real entry supersedes the maintained marker — same
+      // rule as the add path (and like there, a bonus row rides on top
+      // instead). Also self-heals a clone left stacked under this row by the
+      // pre-fix guard.
+      const supersededClones = log.bonus
+        ? []
+        : repeatedLogs.filter((l) => l.log_date === date && l.id !== log.id);
+      await Promise.all(supersededClones.map((c) => deleteLog(c.id).catch(() => {})));
       onLogged();
     } catch (err) {
       haptic("error");
