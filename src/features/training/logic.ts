@@ -613,10 +613,15 @@ function weekExerciseRows(
   }
 
   // Most recent set for `slug` on or before `date` — logs are newest-first, so
-  // the first entry within range wins.
+  // the first entry within range wins. A bonus row is an extra, not a state:
+  // it never carries forward, so the only one a session may read is one dated
+  // on the session's own day (whose volume the bonus pass below then skips,
+  // keeping it counted exactly once).
   const latestUpTo = (slug: string, date: string): TrainingLog | null => {
     for (const l of logs[slug] ?? []) {
-      if (l.log_date && l.log_date <= date) return l;
+      if (!l.log_date || l.log_date > date) continue;
+      if (l.bonus && l.log_date !== date) continue;
+      return l;
     }
     return null;
   };
