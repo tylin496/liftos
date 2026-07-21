@@ -428,3 +428,58 @@ describe("computeStrengthSummary — display name", () => {
     expect(s.exercises.find((e) => e.slug === "rdl")!.name).toBe("Rdl");
   });
 });
+
+describe("computeStrengthSummary — settled stalls (attention expiry)", () => {
+  it("a stable stall aged ≥12 weeks settles: off the attention list, settled flag on", () => {
+    // Peak at 100×8, then ~90%-of-PR holds scattered over 15 weeks — no decline,
+    // no recovery, just a new baseline. The stall said its piece for 12 weeks;
+    // it must not nag forever ("stalled 41 wks" every week is noise).
+    const s = computeStrengthSummary({
+      squat: [
+        log("2026-01-01", "100*8"), // PR on both axes → stall clock starts here
+        log("2026-01-15", "88*8"),
+        log("2026-02-15", "90*8"),
+        log("2026-03-15", "88*8"),
+        log("2026-04-18", "89*8"), // ~15 wks after the peak, still ~90% — settled
+      ],
+    });
+    const squat = s.exercises.find((e) => e.slug === "squat")!;
+    expect(squat.status).toBe("watch"); // still genuinely below PR
+    expect(squat.stalledWeeks).toBeGreaterThanOrEqual(12);
+    expect(squat.declining).toBe(false);
+    expect(squat.settled).toBe(true);
+    expect(squat.needsAttention).toBe(false); // the flag expired
+    expect(s.attention).toBe(0);
+  });
+
+  it("the same stall under 12 weeks is still flagged (not settled)", () => {
+    const s = computeStrengthSummary({
+      squat: [
+        log("2026-01-01", "100*8"),
+        log("2026-01-15", "88*8"),
+        log("2026-02-01", "90*8"),
+        log("2026-02-19", "89*8"), // ~7 wks after the peak — fresh enough to flag
+      ],
+    });
+    const squat = s.exercises.find((e) => e.slug === "squat")!;
+    expect(squat.settled).toBe(false);
+    expect(squat.needsAttention).toBe(true);
+    expect(s.attention).toBe(1);
+  });
+
+  it("an acute decline re-flags an aged stall — settled never masks a live slide", () => {
+    const s = computeStrengthSummary({
+      squat: [
+        log("2026-01-01", "100*8"),
+        log("2026-02-01", "92*8"),
+        log("2026-03-01", "90*8"),
+        log("2026-04-18", "88*8"), // 92→90→88: consecutive slide into the latest session
+      ],
+    });
+    const squat = s.exercises.find((e) => e.slug === "squat")!;
+    expect(squat.stalledWeeks).toBeGreaterThanOrEqual(12); // aged past the expiry…
+    expect(squat.declining).toBe(true); // …but actively sliding
+    expect(squat.settled).toBe(false);
+    expect(squat.needsAttention).toBe(true);
+  });
+});

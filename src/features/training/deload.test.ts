@@ -15,6 +15,7 @@ function ex(over: Partial<StrengthExercise> = {}): StrengthExercise {
     lastLogDate: "2026-07-08",
     lastPRDate: "2026-04-06",
     needsAttention: true,
+    settled: false,
     recovering: false,
     declining: false,
     recentBests: [88, 85, 84, 82, 80],

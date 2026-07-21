@@ -61,6 +61,13 @@ interface StrengthTrajectory {
  *  Decision Engine's decline gate, so the three never disagree. */
 const ATTENTION_STALL_WEEKS = 3;
 
+/** A stall this old (and still stable) stops demanding attention: after ~3 months
+ *  below peak with no decline, the hold IS the lift's current baseline — repeating
+ *  "stalled N wks" every week is noise, not signal (maintenance = success). The
+ *  lift demotes to `settled`: a neutral below-best fact, off the intervention
+ *  list. Any acute decline re-flags it immediately (`declining` bypasses this). */
+const SETTLED_STALL_WEEKS = 12;
+
 /** A recovering lift's latest session must clear its recent trough by at least
  *  this ratio (≥2%) — enough to be a real climb, not e1RM float noise. Mirrors
  *  the magnitude the PR clock already treats as meaningful. */
@@ -165,8 +172,16 @@ export interface StrengthExercise {
   lastPRDate: string;
   /** Below PR AND stuck ≥ ATTENTION_STALL_WEEKS — the single "this lift needs
    *  intervention" predicate. A recently-PR'd watch lift is false (grace period).
-   *  Also false while `recovering` (climbing back on its own → no intervention). */
+   *  Also false while `recovering` (climbing back on its own → no intervention),
+   *  and false once the stall has `settled` (aged past SETTLED_STALL_WEEKS while
+   *  stable — the flag expires rather than nagging forever). */
   needsAttention: boolean;
+  /** Below PR, stable, and stalled ≥ SETTLED_STALL_WEEKS — a chronic stall
+   *  accepted as the lift's current baseline. A neutral fact ("holding below
+   *  best"), NOT a flag: it exists so the UI/export can still state the gap
+   *  without keeping the lift on the intervention list. Mutually exclusive with
+   *  `needsAttention`; any acute `declining` run re-flags immediately. */
+  settled: boolean;
   /** Below PR but the last few LOGGED sessions are climbing back — a recovery
    *  visible in the data (not inferred from silence). Suppresses needsAttention
    *  and earns a "Rebounding" chip; never used to FLAG a lift, only to rescue one. */
@@ -203,7 +218,8 @@ export interface StrengthSummary {
   stable: number;
   watch: number;
   /** Lifts flagged for intervention = watch AND stalled ≥ ATTENTION_STALL_WEEKS.
-   *  ≤ watch; a recently-PR'd watch lift is excluded. */
+   *  ≤ watch; a recently-PR'd watch lift is excluded, as is a `settled` one
+   *  (stall aged past SETTLED_STALL_WEEKS while stable). */
   attention: number;
   total: number; // exercises with enough data
   exercises: StrengthExercise[];
@@ -463,9 +479,14 @@ export function computeStrengthSummary(
     // aligned to their dates so confidence reflects the exact data it summarises.
     const windowDates = datedBests.slice(-8).map(([d]) => d);
     const trajectory = computeTrajectory(sessionBests, windowDates);
+    // Settled: the stall aged past SETTLED_STALL_WEEKS without declining — the
+    // hold is the new baseline, so the attention flag expires (it already said
+    // its piece for 12 weeks). Declining re-flags regardless of stall age.
+    const settled =
+      status === "watch" && stalledWeeks >= SETTLED_STALL_WEEKS && !recovering && !declining;
     const needsAttention =
       declining ||
-      (status === "watch" && stalledWeeks >= ATTENTION_STALL_WEEKS && !recovering);
+      (status === "watch" && stalledWeeks >= ATTENTION_STALL_WEEKS && !recovering && !settled);
     if (needsAttention) strength.attention++;
 
     strength.exercises.push({
@@ -479,6 +500,7 @@ export function computeStrengthSummary(
       lastLogDate: lastDate,
       lastPRDate: prDate,
       needsAttention,
+      settled,
       recovering,
       declining,
       recentBests: sessionBests.slice(-8),

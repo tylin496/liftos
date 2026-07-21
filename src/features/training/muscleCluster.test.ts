@@ -21,6 +21,7 @@ function ex(
     lastLogDate,
     lastPRDate: lastLogDate,
     needsAttention: false,
+    settled: false,
     recovering: false,
     declining: dir === "declining",
     recentBests: [100, 100, 100, 100],

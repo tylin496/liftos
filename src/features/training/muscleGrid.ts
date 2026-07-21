@@ -93,7 +93,10 @@ export function steadyNote(ex: StrengthExercise): string {
   const r = retention(ex);
   if (r >= AT_BEST_RETENTION) return "at your best";
   if (r >= NEAR_BEST_RETENTION) return "near your best";
-  return "holding steady";
+  // A settled lift (chronic stall accepted as baseline) states the gap as a
+  // neutral fact — not "steady" (it isn't at its best) and not a warning
+  // (the stall already said its piece; see SETTLED_STALL_WEEKS).
+  return ex.settled ? "holding below best" : "holding steady";
 }
 
 // ── Cell language: the grid is a STATUS MAP, not a number grid ───────────────
@@ -166,7 +169,8 @@ function singleLiftNote(ex: StrengthExercise, status: LiftStatus): string {
     case "pr":
       return `${ex.name} — new PR`;
     default:
-      return retention(ex) >= NEAR_BEST_RETENTION ? `${ex.name} maintained PR` : `${ex.name} holding steady`;
+      if (retention(ex) >= NEAR_BEST_RETENTION) return `${ex.name} maintained PR`;
+      return ex.settled ? `${ex.name} holding below best` : `${ex.name} holding steady`;
   }
 }
 
@@ -185,7 +189,9 @@ function weeksAgo(isoDate: string, nowMs: number): number {
 /** One lift's status, from the same trusted flags the list view read. Order is
  *  the tie-break: an acute slide (declining) leads; a lift flagged for
  *  intervention (needsAttention, but not declining) is stalled; a PR in the past
- *  week is a win; a visible climb-back is rebounding; otherwise it's holding. */
+ *  week is a win; a visible climb-back is rebounding; otherwise it's holding.
+ *  A `settled` lift (expired stall) lands here in the steady tier by design —
+ *  steadyNote states its below-best gap without a warning tone. */
 export function liftStatus(ex: StrengthExercise, nowMs: number): LiftStatus {
   if (ex.declining) return "declining";
   if (ex.needsAttention) return "stalled";

@@ -487,7 +487,20 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       // not a PR drought (holding a PR doesn't advance it). (renamed from weeksSincePR)
       weeksSinceImprovement: x.stalledWeeks,
     }));
-  const improvingCount = [...strengthBySlug.values()].filter((x) => !x.needsAttention).length;
+  // Settled lifts (chronic stall accepted as baseline — off the intervention
+  // list, see StrengthExercise.settled) still export descriptively: the AI
+  // reader should know the gap exists even though the UI stopped flagging it.
+  const settledBelowPeak = [...strengthBySlug.values()]
+    .filter((x) => x.settled)
+    .sort((a, b) => a.trend - b.trend)
+    .map((x) => ({
+      name: nameBySlug.get(x.slug) ?? x.name,
+      retentionPct: +(x.trend * 100).toFixed(1),
+      weeksSinceImprovement: x.stalledWeeks,
+    }));
+  const improvingCount = [...strengthBySlug.values()].filter(
+    (x) => !x.needsAttention && !x.settled,
+  ).length;
 
   // Muscle-cluster fatigue: several lifts of one primary muscle sliding together
   // in the same block — a systemic signal a per-lift read can't see. Riding on
@@ -606,10 +619,13 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       // How to read training[].logs — without this, a day with one entry reads
       // as a one-lift session (it isn't; unlogged lifts ran at prior numbers).
       loggingModel: TRAINING_LOGGING_MODEL,
-      exercisesTracked: improvingCount + trainingAttention.length,
+      exercisesTracked: improvingCount + trainingAttention.length + settledBelowPeak.length,
       improvingCount,
       needsAttentionCount: trainingAttention.length,
       attention: trainingAttention,
+      // Chronic stalls that aged out of the attention list (stable ≥12 wks below
+      // peak = accepted baseline). Descriptive only — not a flag, not a to-do.
+      settledBelowPeak,
       // Per-muscle rollup for every tracked group (state, best/worst lift, counts).
       muscleSummary,
       // Muscle-level fatigue clusters (systemic only) — empty when nothing lines up.
