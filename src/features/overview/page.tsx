@@ -1584,16 +1584,15 @@ function WeightCard({
   metrics,
   state,
   onNav,
-  onNavEmpty,
   loading = false,
 }: {
   weightLatest: number | null;
   metrics: BodyMetric[];
   state: NutritionStateFull | null;
-  // Loaded card → Nutrition (the pace read); empty card → Health (its CTA is
-  // "sync from Apple Health"). Two targets, one per destination-that-fits.
+  // Every state routes to Health's weight card — the loaded card is a summary
+  // of that card's data, so tapping it lands on the full history (and the empty
+  // card's CTA is "sync from Apple Health", same destination).
   onNav: () => void;
-  onNavEmpty: () => void;
   loading?: boolean;
 }) {
   // observedRate is a real 0-fallback when no trend could be fit (<5 readings in
@@ -1613,9 +1612,10 @@ function WeightCard({
   const accelTone = accelArrowTone(rateBandTone, accelDirection);
   // Only a conclusive pace verdict carries the cut baseline day count; an
   // inconclusive read ("Forming"/"Calibrating") is just the word, no suffix.
-  // The whole card navigates to Nutrition (the pace verdict is Nutrition's
-  // territory); the sparkline is an inline read only, not a second tap target —
-  // full weight history lives on Health's weight card. One card, one action.
+  // The whole card navigates to Health's weight card (user decision
+  // 2026-07-21 — this summary's "full view" is the weight history, not the
+  // Nutrition recommendation it used to open); the sparkline is an inline
+  // read only, not a second tap target. One card, one action.
 
   // Cold load — same div shell (tag matches the loaded card so the node isn't
   // replaced), placeholder stat + flat sparkline + Rate/Status row. Resolves in
@@ -1691,11 +1691,11 @@ function WeightCard({
         role="button"
         tabIndex={0}
         className="page-card ov-weight ov-weight--empty"
-        onClick={onNavEmpty}
+        onClick={onNav}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onNavEmpty();
+            onNav();
           }
         }}
       >
@@ -1716,17 +1716,16 @@ function WeightCard({
   // the trend settles (rate == null → Forming/Calibrating) the hero falls back
   // to the weight level so the card always leads with a real number.
   //
-  // With data present the whole card opens Nutrition's recommendation: what it
-  // reports is the loss rate against the calorie-target corridor — a pace
-  // verdict, which is Nutrition's territory ("am I on track / what do I
-  // change"), not the raw metric. The full weight history still lives on
-  // Health's weight card, but this card is about pace, so it lands where you act
-  // on it. (The empty state is the exception — its CTA is "sync from Apple
-  // Health", so it routes to Health via onNavEmpty. And the earlier in-card
-  // split — body → Health, a nested pace pill → Nutrition — was dropped when the
-  // verdict pill was quieted away, so there is no nested <button> to preserve.)
-  // It's a div with role=button rather than a native <button> only for parity
-  // with the loading/empty branches above.
+  // The whole card opens Health's weight card (deep-link lands on the
+  // `health-weight-card` anchor): this summary is derived from that card's
+  // series, so its "full view" is the weight history there — not the Nutrition
+  // recommendation it used to open (rerouted 2026-07-21, user decision). The
+  // empty state shares the destination — its CTA is "sync from Apple Health".
+  // (The earlier in-card split — body → Health, a nested pace pill →
+  // Nutrition — was dropped when the verdict pill was quieted away, so there
+  // is no nested <button> to preserve.) It's a div with role=button rather
+  // than a native <button> only for parity with the loading/empty branches
+  // above.
 
   return (
     <div
@@ -2037,8 +2036,7 @@ export function OverviewPage() {
             weightLatest={data?.weightLatest ?? null}
             metrics={data?.metrics ?? []}
             state={data?.nutritionState ?? null}
-            onNav={() => nav("nutrition", { scrollTo: "nutrition-insight-card" })}
-            onNavEmpty={() => nav("health", { scrollTo: "health-weight-card" })}
+            onNav={() => nav("health", { scrollTo: "health-weight-card" })}
           />
         );
         const strengthCard = (
