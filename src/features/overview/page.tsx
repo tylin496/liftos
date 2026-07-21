@@ -1953,14 +1953,15 @@ export function OverviewPage() {
       )}
 
       {/* Log-intake shortcut — rides the same System-banner vocabulary, but is
-          a plain data-entry to-do: tap → Nutrition's day form (a deep-link, so
-          the form lands on the day that needs closing out). */}
+          a plain data-entry to-do: tap → Nutrition's day form, opened straight
+          into the blank entry (expand), landed on the day that needs closing
+          out (a deep-link remount resets the form to defaultLogDate). */}
       {intakeExit.mounted && (
         <SystemCard
           key="log-intake"
           rec={LOG_INTAKE_REC}
           closing={intakeExit.closing}
-          onNav={() => nav("nutrition", { scrollTo: "nutrition-today-card" })}
+          onNav={() => nav("nutrition", { scrollTo: "nutrition-today-card", expand: true })}
         />
       )}
 

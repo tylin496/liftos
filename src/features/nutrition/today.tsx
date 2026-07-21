@@ -25,6 +25,7 @@ import { localDateStr } from "@shared/lib/date";
 import { CLEAR_AFTER_MOVE, CLEAR_AFTER_SHEEN } from "@shared/lib/motion";
 import { useHorizontalSwipe } from "@shared/hooks/useHorizontalSwipe";
 import { useIsReadOnly } from "@app/layout/SessionContext";
+import { useNavExpand } from "@app/layout/NavContext";
 import "@shared/components/nutriGrid.css";
 
 const MIN_DATE = "2026-02-09";
@@ -369,6 +370,27 @@ export function TodayView({
 
   const todayStr = calendarToday();
   const isToday = date === todayStr;
+
+  // Overview's log-intake banner deep-links here with `expand` — arrival should
+  // drop straight into the blank form, not land on a card the user must tap
+  // again. Captured reactively (the Shell clears the signal right after this
+  // commit), then consumed only once the entry fetch settles: opening earlier
+  // would race the load effect's setEditField(null), and a day that turns out
+  // to already have an entry just lands on the card (the banner was stale).
+  // No haptic — this is an arrival, not a tap on the form's own affordance.
+  const isNavTarget = useNavExpand() === "nutrition-today-card";
+  const [navOpenPending, setNavOpenPending] = useState(isNavTarget);
+  useEffect(() => {
+    if (isNavTarget) setNavOpenPending(true);
+  }, [isNavTarget]);
+  useEffect(() => {
+    if (!navOpenPending || loading) return;
+    setNavOpenPending(false);
+    if (!readOnly && !entryExists) {
+      setSaveError(null);
+      setEditField("calories");
+    }
+  }, [navOpenPending, loading, readOnly, entryExists]);
 
   // Load entry when date changes
   useEffect(() => {
