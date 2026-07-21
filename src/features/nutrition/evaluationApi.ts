@@ -219,7 +219,7 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
   const [metricsRes, configRes, entriesRes, logsRes, archivedRes, priorState] = await Promise.all([
     supabase
       .from("health_metrics")
-      .select("metric_date, weight_kg, body_fat_pct, active_energy_kcal, resting_energy_kcal, exercise_minutes, sleep_seconds, resting_heart_rate, hrv_sdnn_ms")
+      .select("metric_date, weight_kg, body_fat_pct, active_energy_kcal, active_energy_estimated, resting_energy_kcal, exercise_minutes, sleep_seconds, resting_heart_rate, hrv_sdnn_ms")
       .gte("metric_date", localDateStrDaysAgo(90))
       .order("metric_date", { ascending: true }),
     supabase.from("nutrition_config").select("*").maybeSingle(),

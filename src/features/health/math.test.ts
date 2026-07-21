@@ -555,4 +555,18 @@ describe("computeDayTypeBaselines", () => {
     expect(out?.trainN).toBe(2);
     expect(out?.restN).toBe(2);
   });
+
+  it("ignores step-estimated days — a baseline is a measured trait", () => {
+    const metrics = [
+      { ...am("2026-07-13", 240), active_energy_estimated: true }, // watch off, steps fallback
+      am("2026-07-14", 700),
+      am("2026-07-15", 300),
+      am("2026-07-16", 600),
+      am("2026-07-17", 340),
+    ];
+    const trained = new Set(["2026-07-14", "2026-07-16"]);
+    const out = computeDayTypeBaselines(metrics, trained, TODAY);
+    expect(out?.restN).toBe(2);
+    expect(out?.restAvg).toBe(320); // 240 would have dragged it to ~293
+  });
 });

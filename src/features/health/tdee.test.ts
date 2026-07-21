@@ -70,4 +70,25 @@ describe("computeTdeeWindows", () => {
     expect(tdeePrev.avgActive).toBe(500);
     expect(tdeePrev.tdee).toBe(2100);
   });
+
+  it("excludes step-estimated active days from both windows", () => {
+    const metrics: TdeeMetricRow[] = [
+      { metric_date: iso(3), resting_energy_kcal: 1700, active_energy_kcal: 600 },
+      { metric_date: iso(7), resting_energy_kcal: 1700, active_energy_kcal: 600 },
+      // Watch off — step fallback wrote 240. Counts in weekly totals, never here.
+      { metric_date: iso(9), resting_energy_kcal: null, active_energy_kcal: 240, active_energy_estimated: true },
+      { metric_date: iso(20), resting_energy_kcal: null, active_energy_kcal: 500 },
+      { metric_date: iso(22), resting_energy_kcal: null, active_energy_kcal: 500 },
+      { metric_date: iso(24), resting_energy_kcal: null, active_energy_kcal: 200, active_energy_estimated: true },
+      // Prev resting window (30–60d) — estimateTdee nulls the whole estimate
+      // when either window is empty, so tdeePrev needs resting data to report.
+      { metric_date: iso(40), resting_energy_kcal: 1600, active_energy_kcal: null },
+    ];
+    const { tdee, tdeePrev } = computeTdeeWindows(metrics);
+
+    expect(tdee.avgActive).toBe(600);
+    expect(tdee.activeDays).toBe(2);
+    expect(tdeePrev.avgActive).toBe(500);
+    expect(tdeePrev.activeDays).toBe(2);
+  });
 });

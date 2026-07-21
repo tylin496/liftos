@@ -8,16 +8,54 @@ Payload shape is fixed by the Shortcut:
 ```json
 {
   "date": "YYYY-MM-DD",
-  "weight": 93.6,         // or ""
-  "bodyFat": 20.4,        // or ""
-  "activeEnergy": 540,    // or ""
-  "restingEnergy": 1800   // or ""
+  "weight_kg": 93.6,           // or ""
+  "body_fat_pct": 20.4,        // or ""
+  "active_energy_kcal": 540,   // or ""
+  "resting_energy_kcal": 1800, // or ""
+  "exercise_minutes": 42,      // or ""
+  "steps": 8200,               // or ""
+  "sleep_seconds": 25200,      // or ""
+  "resting_heart_rate": 54,    // or ""
+  "hrv_sdnn_ms": 38.2          // or ""
 }
 ```
 
-- Empty strings → `null`. Energies are rounded to integers; weight/body-fat keep decimals.
+- Field names are matched case-insensitively and plain-English aliases are
+  accepted (`weight`, `bodyfat`, `activeenergy`, `rhr`, `stepcount`, …) — the
+  full alias list is in the header comment of `index.ts`.
+- Empty strings → `null`. Energies/steps round to integers; weight/body-fat keep decimals.
 - Upserts one row per `date` into `health_metrics` (unique key `user_id, metric_date`).
-- Idempotent: re-running the Shortcut for a date overwrites that day.
+- Idempotent: re-running the Shortcut for a date updates only the fields that
+  arrive with a real number — a blank never overwrites a previously-synced value.
+
+## Data-gap guards
+
+HealthKit reports a data gap as a very low number, not as missing data. Two
+guards catch that, each judging a reading against the user's own recent median
+(30-day window, ≥7 prior readings before the guard engages):
+
+| Field | Threshold | On failure |
+|-------|-----------|------------|
+| `resting_energy_kcal` | < 0.8× median | dropped → `droppedResting` in the response |
+| `active_energy_kcal` | < 0.15× median | dropped, then backfilled from steps → `droppedActive` / `estimatedActive` |
+
+Active energy's threshold is far looser because it genuinely swings several-fold
+between a training day and a couch day — 0.15× only catches "the watch was off".
+
+**Step fallback.** When a past day has no usable active reading but ≥1000 steps,
+active energy is derived at **40 kcal / 1000 steps** and the row is marked
+`active_energy_estimated = true`. Below 1000 steps the phone probably wasn't
+carried either, so the day stays a no-reading (which every average skips) rather
+than a fabricated near-zero. An estimate never overwrites a measured value, and a
+later measured sync clears the flag.
+
+Both guards apply to **past days only** — today's row syncs live and is
+legitimately near-zero all morning.
+
+Readers split on the flag: TDEE windows (`tdee.ts`) and day-type baselines
+(`math.ts`) exclude estimated days, since those calibrate targets; weekly active
+totals and the Active Target ring include them — an estimate beats a hole in a
+total.
 
 ## Required secrets (`supabase secrets set ...`)
 

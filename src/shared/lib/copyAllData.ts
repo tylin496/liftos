@@ -272,9 +272,16 @@ function buildHealthTimeline(metrics: BodyMetric[]) {
     activeEnergy:     col((m) => m.active_energy_kcal),
     restingEnergy:    col((m) => m.resting_energy_kcal),
     exerciseMinutes:  col((m) => m.exercise_minutes),
+    steps:            col((m) => m.steps),
     sleepSeconds:     col((m) => m.sleep_seconds),
     restingHeartRate: col((m) => m.resting_heart_rate),
     hrv:              col((m) => m.hrv_sdnn_ms),
+    // Days whose activeEnergy was derived from steps (watch not worn) rather
+    // than measured, at 40 kcal/1000 steps. Listed as dates rather than a
+    // parallel boolean column — it's a handful of days, not a per-day property.
+    // These are EXCLUDED from the TDEE windows and the day-type baselines, and
+    // INCLUDED in weekly active totals; treat them as lower-precision.
+    activeEnergyEstimatedDates: dates.filter((d) => byDate.get(d)!.active_energy_estimated),
   };
 }
 

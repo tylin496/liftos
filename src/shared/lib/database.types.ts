@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       health_metrics: {
         Row: {
+          active_energy_estimated: boolean
           active_energy_kcal: number | null
           body_fat_pct: number | null
           created_at: string
@@ -26,11 +27,13 @@ export type Database = {
           resting_energy_kcal: number | null
           resting_heart_rate: number | null
           sleep_seconds: number | null
+          steps: number | null
           updated_at: string
           user_id: string
           weight_kg: number | null
         }
         Insert: {
+          active_energy_estimated?: boolean
           active_energy_kcal?: number | null
           body_fat_pct?: number | null
           created_at?: string
@@ -41,11 +44,13 @@ export type Database = {
           resting_energy_kcal?: number | null
           resting_heart_rate?: number | null
           sleep_seconds?: number | null
+          steps?: number | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
         }
         Update: {
+          active_energy_estimated?: boolean
           active_energy_kcal?: number | null
           body_fat_pct?: number | null
           created_at?: string
@@ -56,6 +61,7 @@ export type Database = {
           resting_energy_kcal?: number | null
           resting_heart_rate?: number | null
           sleep_seconds?: number | null
+          steps?: number | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null

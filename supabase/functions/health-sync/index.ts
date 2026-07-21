@@ -8,11 +8,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // POST payload — field names match the health_metrics columns exactly:
 //   { date: "YYYY-MM-DD", weight_kg: number|"", body_fat_pct: number|"",
 //     active_energy_kcal: number|"", resting_energy_kcal: number|"",
-//     exercise_minutes: number|"",
+//     exercise_minutes: number|"", steps: number|"",
 //     sleep_seconds: number|"", resting_heart_rate: number|"", hrv_sdnn_ms: number|"" }
 // Also accepts these plain-English aliases: weight, bodyfat / body_fat, activeenergy /
 // active_energy, restingenergy / resting_energy, sleep / asleep, restingheartrate / rhr,
-// hrvsdnnms / hrv. All field names (including these aliases) are matched
+// hrvsdnnms / hrv, stepcount / step_count. All field names (including these aliases) are matched
 // case-insensitively, since Shortcuts derives variable names from step labels
 // and their capitalization isn't something the user reliably controls.
 // `date` is normally required, but a missing/blank one falls back to today in
@@ -27,8 +27,10 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // emits 0 instead of "" when a Health sample is missing, and these are never
 // real readings. resting_energy is additionally dropped when it falls far below
 // the user's recent median (see the anomaly guard below) — a HealthKit data
-// gap rather than a real ~1300 kcal resting day. A dropped value is reported
-// back as `droppedResting` in the response.
+// gap rather than a real ~1300 kcal resting day. active_energy gets the same
+// treatment at a much lower threshold, and can then be BACKFILLED from steps
+// (see the step-fallback block). Dropped values are reported back as
+// `droppedResting` / `droppedActive`, a step-derived one as `estimatedActive`.
 //
 // Required secrets (`supabase secrets set ...`):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HEALTH_SYNC_USER_ID
@@ -125,6 +127,56 @@ export function isPlausibleResting(value: number, priorReadings: number[]): bool
   return value >= med * RESTING_GUARD_FLOOR;
 }
 
+// --- Active-energy guard + step fallback --------------------------------------
+// Same failure as resting energy, different shape: an unworn watch leaves Active
+// Energy at 0–25 kcal for the whole day. Averaged in, those days drag the 14-day
+// avgActive (and therefore TDEE, and therefore the cut deficit) down.
+//
+// The threshold has to be FAR lower than resting's 0.8 — active energy genuinely
+// swings 3–4x between a heavy training day and a couch day, and a real rest day
+// must survive. 0.15x the personal median only catches "the watch was off".
+
+const ACTIVE_GUARD_WINDOW = 30;
+const ACTIVE_GUARD_MIN_SAMPLES = 7;
+/** Drop an active reading below this fraction of the recent median. */
+const ACTIVE_GUARD_FLOOR = 0.15;
+
+/**
+ * True to keep an active-energy reading, false to drop it as "watch not worn".
+ * Same shape as isPlausibleResting: passes when history is too thin to judge.
+ * `priorReadings` must contain measured values only — feeding step-derived
+ * estimates back in would walk the median down over time.
+ */
+export function isPlausibleActive(value: number, priorReadings: number[]): boolean {
+  const recent = priorReadings.slice(0, ACTIVE_GUARD_WINDOW);
+  if (recent.length < ACTIVE_GUARD_MIN_SAMPLES) return true;
+  const med = median(recent);
+  if (med === null || med <= 0) return true;
+  return value >= med * ACTIVE_GUARD_FLOOR;
+}
+
+/**
+ * Conservative step→active-energy conversion for days the watch missed. 40 kcal
+ * per 1000 steps sits at the low end of the 35–45 range for this user's body
+ * mass — deliberately, since the whole point is to stop a data gap from biasing
+ * TDEE, and biasing it the other way would be no better.
+ */
+const KCAL_PER_STEP = 0.04;
+
+/**
+ * Below this the phone probably wasn't carried either, so the step count says
+ * nothing about the day. Estimating 8 kcal off 200 steps is exactly the bogus
+ * near-zero the guard just rejected — leave the day as no-reading instead, which
+ * every average skips (a missing day is "unknown", never "did nothing").
+ */
+const MIN_STEPS_FOR_ESTIMATE = 1000;
+
+/** Step-derived active energy, or null when the step count can't carry one. */
+export function estimateActiveFromSteps(steps: number | null | undefined): number | null {
+  if (steps == null || !Number.isFinite(steps) || steps < MIN_STEPS_FOR_ESTIMATE) return null;
+  return Math.round(steps * KCAL_PER_STEP);
+}
+
 /** Validate + normalize the Shortcut payload into a health_metrics row. */
 export function buildRecord(body: any): { record?: Record<string, unknown>; error?: string } {
   if (!body || typeof body !== "object") {
@@ -160,6 +212,8 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   if (resting !== null) record.resting_energy_kcal = resting;
   const exerciseMinutes = intOrNull(pick(keys, "exercise_minutes"));
   if (exerciseMinutes !== null) record.exercise_minutes = exerciseMinutes;
+  const steps = intOrNull(pick(keys, "steps", "stepcount", "step_count"));
+  if (steps !== null && steps >= 0) record.steps = steps;
 
   const rawSleep = pick(keys, "sleep_seconds", "sleep", "asleep");
   let sleepSeconds = intOrNull(rawSleep);
@@ -280,6 +334,64 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Active-energy guard + step fallback — PAST days only. Today's row syncs live
+  // and is legitimately near-zero all morning (active energy accrues through the
+  // day), so running the guard on it would flag every pre-noon sync and then
+  // overwrite the Active Target ring's own number with a step estimate.
+  const todayLocalISO = new Date().toLocaleDateString("sv-SE", { timeZone: LOCAL_TZ });
+  const isPastDay = (record.metric_date as string) < todayLocalISO;
+
+  let droppedActive: number | null = null;
+  let estimatedActive: number | null = null;
+
+  if (isPastDay) {
+    if (record.active_energy_kcal != null) {
+      const { data: hist } = await supabase
+        .from("health_metrics")
+        .select("active_energy_kcal")
+        .eq("user_id", userId)
+        .eq("active_energy_estimated", false)
+        .neq("metric_date", record.metric_date)
+        .not("active_energy_kcal", "is", null)
+        .order("metric_date", { ascending: false })
+        .limit(ACTIVE_GUARD_WINDOW);
+      const prior = (hist ?? [])
+        .map((r) => r.active_energy_kcal as number)
+        .filter((n) => Number.isFinite(n));
+      if (!isPlausibleActive(record.active_energy_kcal as number, prior)) {
+        droppedActive = record.active_energy_kcal as number;
+        delete record.active_energy_kcal;
+      }
+    }
+
+    if (record.active_energy_kcal == null) {
+      // No usable watch reading — fall back to steps. Never over a value that was
+      // actually measured: a later re-sync of the same day can carry steps but no
+      // active energy, and that must not demote a real reading to an estimate.
+      const estimate = estimateActiveFromSteps(record.steps as number | undefined);
+      if (estimate !== null) {
+        const { data: existing } = await supabase
+          .from("health_metrics")
+          .select("active_energy_kcal, active_energy_estimated")
+          .eq("user_id", userId)
+          .eq("metric_date", record.metric_date)
+          .maybeSingle();
+        const hasMeasured =
+          existing?.active_energy_kcal != null && existing.active_energy_estimated === false;
+        if (!hasMeasured) {
+          record.active_energy_kcal = estimate;
+          record.active_energy_estimated = true;
+          estimatedActive = estimate;
+        }
+      }
+    } else {
+      // A measured value clears an estimate a previous run left on this day.
+      record.active_energy_estimated = false;
+    }
+  } else if (record.active_energy_kcal != null) {
+    record.active_energy_estimated = false;
+  }
+
   const { data, error: dbErr } = await supabase
     .from("health_metrics")
     .upsert({ user_id: userId, ...record }, { onConflict: "user_id,metric_date" })
@@ -287,5 +399,5 @@ Deno.serve(async (req) => {
     .single();
 
   if (dbErr) return json({ error: dbErr.message }, 500);
-  return json({ ok: true, record: data, droppedResting });
+  return json({ ok: true, record: data, droppedResting, droppedActive, estimatedActive });
 });

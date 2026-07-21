@@ -581,10 +581,12 @@ export function computeDayTypeBaselines(
   cutoff.setDate(cutoff.getDate() - windowDays);
   const cutoffISO = localDateStr(cutoff);
 
-  // Today is excluded from both baselines — its active reading is partial.
+  // Today is excluded from both baselines — its active reading is partial. So is
+  // any step-estimated day: "a typical training/rest day" is a measured trait,
+  // and a watch-off day says nothing about which kind of day it was.
   let trainSum = 0, trainN = 0, restSum = 0, restN = 0;
   for (const m of metrics) {
-    if (m.active_energy_kcal == null) continue;
+    if (m.active_energy_kcal == null || m.active_energy_estimated) continue;
     if (m.metric_date < cutoffISO || m.metric_date >= todayISO) continue;
     if (trainingDates.has(m.metric_date)) {
       trainSum += m.active_energy_kcal;

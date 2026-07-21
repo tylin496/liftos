@@ -53,6 +53,9 @@ export interface TdeeMetricRow {
   metric_date: string;
   resting_energy_kcal: number | null;
   active_energy_kcal: number | null;
+  /** True when active_energy_kcal was derived from steps on a day the watch
+   *  missed (health-sync's step fallback) rather than measured. */
+  active_energy_estimated?: boolean | null;
 }
 
 /**
@@ -67,6 +70,12 @@ export interface TdeeMetricRow {
  * period shifts both back (resting 30–60d, active 14–28d) for an apples-to-
  * apples trend arrow. Single source of truth for TDEE windowing — Health card +
  * Overview both call it. Caller must supply ≥60 days for tdeePrev to be full.
+ *
+ * Step-derived active energy (`active_energy_estimated`) is EXCLUDED from both
+ * windows. TDEE is what the cut deficit is measured against, so it stays built
+ * on measured readings only — an estimated day drops out exactly like a missing
+ * one. Descriptive totals (weekly active, the Active Target ring) do count it;
+ * the split is deliberate.
  */
 export function computeTdeeWindows(metrics: TdeeMetricRow[]): {
   tdee: TdeeEstimate;
@@ -84,13 +93,15 @@ export function computeTdeeWindows(metrics: TdeeMetricRow[]): {
   // the previous window's 14. The prev windows already end before today.
   const todayISO = localDateStr();
 
+  const measuredActive = (m: TdeeMetricRow) => (m.active_energy_estimated ? null : m.active_energy_kcal);
+
   const tdee = estimateTdee(
     metrics
       .filter((m) => m.metric_date >= cutoff30 && m.metric_date < todayISO)
       .map((m) => ({ resting: m.resting_energy_kcal })),
     metrics
       .filter((m) => m.metric_date >= cutoff14 && m.metric_date < todayISO)
-      .map((m) => ({ active: m.active_energy_kcal })),
+      .map((m) => ({ active: measuredActive(m) })),
   );
 
   const tdeePrev = estimateTdee(
@@ -99,7 +110,7 @@ export function computeTdeeWindows(metrics: TdeeMetricRow[]): {
       .map((m) => ({ resting: m.resting_energy_kcal })),
     metrics
       .filter((m) => m.metric_date >= cutoff28 && m.metric_date < cutoff14)
-      .map((m) => ({ active: m.active_energy_kcal })),
+      .map((m) => ({ active: measuredActive(m) })),
   );
 
   return { tdee, tdeePrev };
