@@ -345,9 +345,9 @@ export function Shell({ session }: { session: Session }) {
   // data lands. So DON'T scroll yet — wait for the first real height change
   // (skeleton → data) and let that single scroll carry us to the target, then
   // RE-ALIGN on every later shift. Stops only when the user takes over
-  // (scroll/tap/key) or a superseding nav fires — never on a timer, so it stays
-  // correct through any future card content/layout (slow load, lazy image, font
-  // swap). No feedback loop: scrolling doesn't resize elements, so scrollIntoView
+  // (scroll/tap/key — which keeps a pending arrival highlight) or a superseding
+  // nav fires (which drops it too) — never on a timer, so it stays correct
+  // through any future card content/layout (slow load, lazy image, font swap). No feedback loop: scrolling doesn't resize elements, so scrollIntoView
   // never re-fires the observer. scrollIntoView honours the card's
   // scroll-margin-top (a breath) and auto-scrolls this panel (nearest scroller).
   function startAlign(targetId: string, scroller: HTMLElement) {
@@ -383,15 +383,30 @@ export function Shell({ session }: { session: Session }) {
         fireTimer = window.setTimeout(() => fireArrival(el), ARRIVE_DELAY_MS);
       }
     };
-    const cancel = () => {
+    // User takeover (scroll/tap/key): stop re-aligning — the scroll is theirs
+    // now — but let an already-earned arrival highlight play out. It's a
+    // passive visual cue, not a scroll; killing it just because a finger
+    // touched down during the 180ms settle beat (or during a cold load) is
+    // why the spotlight sometimes never showed on a first visit.
+    const stop = () => {
       if (cancelled) return;
       cancelled = true;
-      if (fireTimer != null) window.clearTimeout(fireTimer);
       ro?.disconnect();
-      window.removeEventListener("wheel", cancel);
-      window.removeEventListener("touchstart", cancel);
-      window.removeEventListener("pointerdown", cancel);
-      window.removeEventListener("keydown", cancel);
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("touchstart", stop);
+      window.removeEventListener("pointerdown", stop);
+      window.removeEventListener("keydown", stop);
+    };
+    // Superseding nav: ALSO drop the pending highlight — the user is leaving
+    // this tab, and a late fire would spotlight (and dim) a page that's no
+    // longer on screen. alignRef keeps pointing here past a user-input stop
+    // precisely so a later nav can still reach this pending timer.
+    const cancel = () => {
+      if (fireTimer != null) {
+        window.clearTimeout(fireTimer);
+        fireTimer = null;
+      }
+      stop();
       if (alignRef.current?.cancel === cancel) alignRef.current = null;
     };
     alignRef.current = { cancel };
@@ -405,10 +420,10 @@ export function Shell({ session }: { session: Session }) {
         if (cancelled) return;
         lastHeight = content.scrollHeight;
         align(); // pre-position (warm: lands off-screen; cold: no-op on the skeleton)
-        window.addEventListener("wheel", cancel, { passive: true });
-        window.addEventListener("touchstart", cancel, { passive: true });
-        window.addEventListener("pointerdown", cancel, { passive: true });
-        window.addEventListener("keydown", cancel);
+        window.addEventListener("wheel", stop, { passive: true });
+        window.addEventListener("touchstart", stop, { passive: true });
+        window.addEventListener("pointerdown", stop, { passive: true });
+        window.addEventListener("keydown", stop);
         ro = new ResizeObserver(() => {
           if (cancelled) return;
           const h = content.scrollHeight;
