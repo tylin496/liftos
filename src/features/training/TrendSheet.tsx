@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
+import { useScrollableFlag } from "@shared/hooks/useScrollableFlag";
 import { useTrendChart } from "@shared/hooks/useTrendChart";
 import { defaultSetCount } from "./logFormHelpers";
 import { buildTrendSeries, windowTrend, type TrendPoint } from "./logic";
@@ -170,6 +171,7 @@ function SheetInner({
   bodyweightKg: number | null;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const { config } = useNutritionConfig();
 
   const setCount = defaultSetCount(exercise);
@@ -212,6 +214,9 @@ function SheetInner({
 
   // Focus trap + Escape-to-close — the page behind the scrim is inert.
   useFocusTrap(sheetRef, onClose);
+  // Body refuses browser panning unless it really overflows — otherwise the
+  // drag falls through the sheet and scrolls the page behind it.
+  useScrollableFlag(bodyRef);
 
   // Swipe-down-to-dismiss on the grabber/header — matches the Settings sheet.
   const { onPointerDown: onDragStart, onPointerMove: onDragMove, onPointerUp: onDragEnd, onPointerCancel: onDragCancel } =
@@ -250,7 +255,7 @@ function SheetInner({
           </button>
         </div>
 
-        <div className="settings-sheet-body trend-sheet-body">
+        <div ref={bodyRef} className="settings-sheet-body trend-sheet-body">
           {points.length < 2 ? (
             <p className="trend-empty">
               {full.length === 0

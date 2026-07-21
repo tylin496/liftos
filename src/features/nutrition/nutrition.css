@@ -655,6 +655,10 @@
   backdrop-filter: var(--scrim-blur);
   -webkit-backdrop-filter: var(--scrim-blur);
   animation: fade-in var(--dur-enter) var(--ease-enter) both;
+  /* Same as .settings-backdrop: the scrim sits on top of the page, so without
+     this a touch-drag anywhere on it pans the .tab-panel behind. none stops the
+     pan-through; tap-to-close (onClick) still fires. */
+  touch-action: none;
 }
 
 .ncal-backdrop.is-closing {
@@ -677,7 +681,11 @@
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
   box-shadow: var(--shadow-lg);
-  padding: var(--space-6) var(--space-5) var(--space-6);
+  /* No padding on the panel itself: padding (like margin) belongs to the panel
+     for hit-testing, and the panel can't take touch-action:none without also
+     disabling the .ncal-grid scroller inside it. The three rows carry the frame
+     instead, so every pixel of the modal belongs to a row that either refuses
+     the pan (header/weekdays) or is the scroller (grid). */
   animation: ncal-in var(--dur-enter) var(--ease-enter) both;
 }
 
@@ -697,7 +705,10 @@
 .ncal-header {
   display: flex;
   align-items: center;
-  margin-bottom: var(--vr-section);
+  /* Carries the panel's top/side frame + the gap below (was the panel's own
+     padding and this row's margin — both panel-owned, both pan-through). */
+  padding: var(--space-6) var(--space-5) var(--vr-section);
+  touch-action: none;
 }
 
 .ncal-month-label {
@@ -767,7 +778,8 @@
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 2px; /* match .ncal-week column gap so weekday labels align over day cells */
-  margin-bottom: var(--vr-block);
+  padding: 0 var(--space-5) var(--vr-block);
+  touch-action: none;
 }
 
 .ncal-weekdays span {
@@ -780,7 +792,13 @@
 }
 
 .ncal-grid {
-  height: calc(8 * 38px + 7 * 6px);
+  /* Eight rows of viewport, unchanged: border-box means the padding that took
+     over the panel's side/bottom frame has to be added back to the height. The
+     frame is inside the scroller so it can't be a pan-through gap — and this
+     one really scrolls (history extends as you reach the top), so its
+     overscroll-behavior:contain holds. */
+  height: calc(8 * 38px + 7 * 6px + var(--space-6));
+  padding: 0 var(--space-5) var(--space-6);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;

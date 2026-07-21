@@ -2169,6 +2169,13 @@
 
 .image-crop-sheet {
   padding-bottom: var(--space-5);
+  /* The one sheet with no .settings-sheet-body scroller — crop area, zoom row
+     and actions are all fixed height — so the whole panel can refuse browser
+     panning outright. Without it the sheet's own padding and the crop area's
+     margin belong to .settings-sheet (touch-action:auto) and a drag there pans
+     the tab behind. Cropper and the zoom slider drive themselves from touch
+     events, which this doesn't touch. */
+  touch-action: none;
 }
 
 .image-crop-area {
@@ -2356,14 +2363,6 @@
 .trend-sheet-body {
   gap: var(--space-4);
   padding-bottom: var(--space-6);
-  /* .settings-sheet-body's overscroll-behavior:contain only stops scroll
-     chaining on a container that CAN scroll — WebKit ignores it when there is
-     nothing to scroll, so a drag on this sheet's blank areas (around the title,
-     the meta row, the space above the bars) panned the tab behind instead.
-     Trend-sheet content is fixed height (130px plot + meta + stat row + the
-     optional standard ladder ≈ 420px) and never approaches the sheet's 88dvh
-     cap, so nothing in here ever needs to scroll. */
-  touch-action: none;
 }
 
 .trend-meta-row {

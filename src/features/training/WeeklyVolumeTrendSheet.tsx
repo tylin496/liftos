@@ -4,6 +4,7 @@ import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
+import { useScrollableFlag } from "@shared/hooks/useScrollableFlag";
 import { timelineDate } from "@shared/lib/date";
 import type { WeeklyVolumeTrendPoint } from "./logic";
 
@@ -21,8 +22,12 @@ function SheetInner({
   onClose: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useFocusTrap(sheetRef, onClose);
+  // Body refuses browser panning unless it really overflows — otherwise the
+  // drag falls through the sheet and scrolls the page behind it.
+  useScrollableFlag(bodyRef);
   const { onPointerDown: onDragStart, onPointerMove: onDragMove, onPointerUp: onDragEnd, onPointerCancel: onDragCancel } =
     useSheetSwipe(sheetRef, onClose);
 
@@ -75,7 +80,7 @@ function SheetInner({
           </button>
         </div>
 
-        <div className="settings-sheet-body trend-sheet-body">
+        <div ref={bodyRef} className="settings-sheet-body trend-sheet-body">
           {points.length < 2 ? (
             <p className="trend-empty">
               Just getting started — the volume trend appears once a couple of

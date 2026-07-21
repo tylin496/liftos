@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
+import { useScrollableFlag } from "@shared/hooks/useScrollableFlag";
 import { timelineDate } from "@shared/lib/date";
 import type { PhaseReport } from "./api";
 
@@ -49,7 +50,11 @@ function Row({ k, v }: { k: string; v: string | null }) {
 
 function SheetInner({ report: r, closing, onClose }: { report: PhaseReport; closing: boolean; onClose: () => void }) {
   const sheetRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   useFocusTrap(sheetRef, onClose);
+  // Body refuses browser panning unless it really overflows — otherwise the
+  // drag falls through the sheet and scrolls the page behind it.
+  useScrollableFlag(bodyRef);
   const { onPointerDown: onDragStart, onPointerMove: onDragMove, onPointerUp: onDragEnd, onPointerCancel: onDragCancel } =
     useSheetSwipe(sheetRef, onClose);
 
@@ -90,7 +95,7 @@ function SheetInner({ report: r, closing, onClose }: { report: PhaseReport; clos
           </button>
         </div>
 
-        <div className="settings-sheet-body phase-report-body">
+        <div ref={bodyRef} className="settings-sheet-body phase-report-body">
           <span className="phase-report-window">
             {r.active_days} days {r.logged_days} logged
           </span>

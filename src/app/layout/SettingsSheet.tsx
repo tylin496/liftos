@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
+import { useScrollableFlag } from "@shared/hooks/useScrollableFlag";
 import { useToast } from "@shared/components/Toast";
 import { signOut } from "@shared/lib/auth";
 import { useNutritionConfig } from "@features/nutrition/NutritionConfigContext";
@@ -111,11 +112,15 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   const [editingRow, setEditingRow] = useState<RowKey | null>(null);
 
   const sheetRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   // Focus trap + Escape-to-close. aria-modal promises the rest of the page is
   // inert while this is open — without this, a keyboard/switch-control user
   // could Tab straight out of the sheet into the page behind the scrim.
   useFocusTrap(sheetRef, onClose);
+  // Body refuses browser panning unless it really overflows — otherwise the
+  // drag falls through the sheet and scrolls the page behind it.
+  useScrollableFlag(bodyRef);
 
   // Swipe-down-to-dismiss on the grabber/header — the grabber otherwise
   // implies a drag affordance it doesn't honor.
@@ -219,7 +224,7 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
           </div>
         </div>
 
-        <div className="settings-sheet-body">
+        <div ref={bodyRef} className="settings-sheet-body">
           <p className="settings-section-label">Nutrition</p>
           <div className="settings-group">
             <div className={`settings-row${editingRow === "protein" ? " is-editing" : ""}`}>

@@ -703,12 +703,15 @@ html.kb-open .tabbar {
 .settings-sheet-body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  /* Keep a scroll gesture inside the sheet: without this, a drag on a body that
-     doesn't overflow (e.g. the short trend sheet) chains through to the
-     .tab-panel behind the scrim and scrolls the page. Contain stops the chain
-     even when there's nothing here to scroll. (The header/grabber already block
-     it via touch-action:none.) */
+  /* Keep a scroll gesture inside the sheet: without this, a drag here chains
+     through to the .tab-panel behind the scrim and scrolls the page. (The
+     header/grabber block it via touch-action:none.)
+     Contain only holds on a scroller that can actually scroll, though — WebKit
+     ignores it otherwise, which is why the touch-action pair below exists:
+     bodies whose content fits refuse the pan outright, and useScrollableFlag
+     hands back pan-y the moment there IS something to scroll. */
   overscroll-behavior: contain;
+  touch-action: none;
   padding: var(--space-4) var(--space-5) calc(env(safe-area-inset-bottom, 0px) + var(--space-4));
   display: flex;
   flex-direction: column;
@@ -736,6 +739,13 @@ html.kb-open .tabbar {
      into that band. */
   -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--space-4));
   mask-image: linear-gradient(to bottom, transparent, black var(--space-4));
+}
+
+/* Set by useScrollableFlag while the content really overflows — only then does
+   a vertical pan belong to this body, and only then does its
+   overscroll-behavior:contain actually stop the chain to the page behind. */
+.settings-sheet-body.is-scrollable {
+  touch-action: pan-y;
 }
 
 .settings-section-label {
@@ -1004,6 +1014,10 @@ html.kb-open .tabbar {
   position: fixed;
   inset: 0;
   z-index: var(--z-splash);
+  /* Covers the whole viewport with nothing scrollable in it — same reason the
+     scrim takes this: a drag on it would otherwise pan the tab panel underneath
+     while the app is still hidden behind the splash. */
+  touch-action: none;
 }
 .splash--static {
   min-height: var(--app-height);

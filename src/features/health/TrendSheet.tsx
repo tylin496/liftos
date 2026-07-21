@@ -4,6 +4,7 @@ import { useChartScrub } from "@shared/hooks/useChartScrub";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
+import { useScrollableFlag } from "@shared/hooks/useScrollableFlag";
 import { useTrendChart } from "@shared/hooks/useTrendChart";
 import { timelineDate } from "@shared/lib/date";
 import { median } from "./math";
@@ -298,6 +299,7 @@ function SheetInner({
   onClose: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const { label, unit, decimals, color, points, higherIsBetter, judgeDelta = true, celebrateExtreme = true, bucketDays, minSpan = 0, band } = config;
 
   const first = points[0];
@@ -324,6 +326,9 @@ function SheetInner({
 
   // Focus trap + Escape-to-close — the page behind the scrim is inert.
   useFocusTrap(sheetRef, onClose);
+  // Body refuses browser panning unless it really overflows — otherwise the
+  // drag falls through the sheet and scrolls the page behind it.
+  useScrollableFlag(bodyRef);
 
   // Swipe-down-to-dismiss on the grabber/header — matches the Settings sheet.
   const { onPointerDown: onDragStart, onPointerMove: onDragMove, onPointerUp: onDragEnd, onPointerCancel: onDragCancel } =
@@ -362,7 +367,7 @@ function SheetInner({
           </button>
         </div>
 
-        <div className="settings-sheet-body health-trend-sheet-body">
+        <div ref={bodyRef} className="settings-sheet-body health-trend-sheet-body">
           {points.length < 2 ? (
             <p className="health-trend-sheet-empty">
               Not enough readings yet — the trend appears once a few more come in

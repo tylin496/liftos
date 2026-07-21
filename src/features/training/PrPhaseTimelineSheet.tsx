@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useFocusTrap } from "@shared/hooks/useFocusTrap";
 import { useSheetSwipe } from "@shared/hooks/useSheetSwipe";
+import { useScrollableFlag } from "@shared/hooks/useScrollableFlag";
 import { timelineDate } from "@shared/lib/date";
 import { getEntries } from "@features/nutrition/api";
 import { buildTargetPhases, phaseKindAt, type TargetPhase } from "@shared/lib/phaseTimeline";
@@ -53,7 +54,11 @@ function SheetInner({
   onClose: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   useFocusTrap(sheetRef, onClose);
+  // Body refuses browser panning unless it really overflows — otherwise the
+  // drag falls through the sheet and scrolls the page behind it.
+  useScrollableFlag(bodyRef);
   const { onPointerDown: onDragStart, onPointerMove: onDragMove, onPointerUp: onDragEnd, onPointerCancel: onDragCancel } =
     useSheetSwipe(sheetRef, onClose);
 
@@ -186,7 +191,7 @@ function SheetInner({
           </button>
         </div>
 
-        <div className="settings-sheet-body prtl-body">
+        <div ref={bodyRef} className="settings-sheet-body prtl-body">
           {prs.length === 0 ? (
             <p className="prtl-empty">
               No PRs on record yet — once a lift beats its best, the breakthrough shows here against the phase it landed in
