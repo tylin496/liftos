@@ -1066,25 +1066,6 @@ html.kb-open .tabbar {
   animation: word-in var(--dur-enter) var(--ease-enter) both;
   animation-delay: calc(180ms + var(--splash-sync, 0ms));
 }
-/* Loading cue — three ember dots INSIDE the lockup (fourth stacked item, no
-   longer floating at the screen edge). They appear only ~900ms in, so a fast
-   splash never shows them; only a genuinely stuck cold start surfaces the
-   "still working" breath, right where the eye already rests. */
-.splash-dots {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-2);
-  margin-top: var(--vr-block); /* a touch looser than mark→word→tag, still one group */
-  z-index: 1;
-  animation: dots-appear var(--dur-move) var(--ease-enter) both;
-  animation-delay: calc(900ms + var(--splash-sync, 0ms));
-}
-.splash-dots span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-}
 @keyframes word-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
@@ -1093,24 +1074,14 @@ html.kb-open .tabbar {
 /* Trace-line draw signals progress without a spinner. ONE draw, no loop, on
    the draw role's curve (--ease-move): the stroke eases in, glides, then
    settles complete like a single pen stroke — a slow load holds the lit line
-   instead of redrawing, and past 3s the delayed dot-pulse alone carries
-   "still working". Every delay (incl. the loops' phase) is offset by
-   --splash-sync so the static→overlay remount continues mid-animation
-   instead of replaying — see Splash.tsx. */
+   instead of redrawing. The delay is offset by --splash-sync so the
+   static→overlay remount continues mid-animation instead of replaying —
+   see Splash.tsx. */
 @media (prefers-reduced-motion: no-preference) {
   .splash-trace-path {
     animation: trace-draw var(--dur-ambient) var(--ease-move) both;
     animation-delay: var(--splash-sync, 0ms);
   }
-  /* Dots breathe on the shared ambient clock; the nth-child delays sit AFTER the
-     shorthand so they survive it (the shorthand would otherwise zero the delay).
-     Gated here → static, non-pulsing dots under reduced-motion. */
-  .splash-dots span {
-    animation: dot-pulse var(--dur-ambient) ease-in-out infinite;
-    animation-delay: var(--splash-sync, 0ms);
-  }
-  .splash-dots span:nth-child(2) { animation-delay: calc(220ms + var(--splash-sync, 0ms)); }
-  .splash-dots span:nth-child(3) { animation-delay: calc(440ms + var(--splash-sync, 0ms)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .splash-trace-path {
@@ -1123,14 +1094,6 @@ html.kb-open .tabbar {
   0%   { stroke-dashoffset: 700; opacity: 0; }
   6%   { opacity: 1; }
   100% { stroke-dashoffset: 0; opacity: 1; }
-}
-@keyframes dots-appear {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: none; }
-}
-@keyframes dot-pulse {
-  0%, 100% { opacity: 0.35; }
-  50%      { opacity: 0.8; }
 }
 
 /* Settings — low-key brand footer */
