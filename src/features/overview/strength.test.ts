@@ -467,6 +467,21 @@ describe("computeStrengthSummary — settled stalls (attention expiry)", () => {
     expect(s.attention).toBe(1);
   });
 
+  it("a settled lift no longer vetoes the engine's 'improving' verdict", () => {
+    // Two lifts PRing on their latest session + one lift parked ~10% below peak
+    // for months with no slide. Before the expiry that stall held the whole
+    // block at "holding" forever; a long-accepted baseline is not evidence the
+    // CURRENT block is failing.
+    const s = computeStrengthSummary({
+      press: [log("2026-01-01", "50*8"), log("2026-01-20", "54*8"), log("2026-02-01", "57*8"), log("2026-04-18", "60*8")],
+      hinge: [log("2026-01-01", "90*8"), log("2026-01-20", "94*8"), log("2026-02-01", "97*8"), log("2026-04-18", "100*8")],
+      squat: [log("2026-01-01", "100*8"), log("2026-01-15", "88*8"), log("2026-02-15", "90*8"), log("2026-04-18", "89*8")],
+    });
+    expect(s.exercises.find((e) => e.slug === "squat")!.settled).toBe(true);
+    expect(s.attention).toBe(0);
+    expect(buildTrainingEvaluation(s).trend).toBe("improving");
+  });
+
   it("an acute decline re-flags an aged stall — settled never masks a live slide", () => {
     const s = computeStrengthSummary({
       squat: [

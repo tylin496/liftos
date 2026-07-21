@@ -145,7 +145,15 @@ function drillLines(ex: StrengthExercise, status: LiftStatus): { action: string 
       return { action: null, state: "Rebounding — climbing back" };
     default: {
       const n = steadyNote(ex);
-      return { action: null, state: n[0].toUpperCase() + n.slice(1) };
+      const state = n[0].toUpperCase() + n.slice(1);
+      // A settled lift keeps its stall duration HERE and only here: the fact is
+      // real and a reader who opened the drill-down asked for it, but it no
+      // longer travels up to the spotlight demanding action every week.
+      if (ex.settled) {
+        const wk = `${ex.stalledWeeks} ${ex.stalledWeeks === 1 ? "wk" : "wks"}`;
+        return { action: null, state: `${state} · ${wk}` };
+      }
+      return { action: null, state };
     }
   }
 }
@@ -276,10 +284,14 @@ export function StrengthHealthCard({
     ? (ex: StrengthExercise) => muscleBySlug.get(ex.slug) ?? inferMuscleGroup(ex.name, ex.slug)
     : undefined;
   const grid = buildMuscleGrid(strength.exercises, nowMs, muscleOf);
-  // On track = lifts NOT flagged for intervention (strength.attention is exactly
-  // the declining ∪ stalled count). Hero % + trend come from the summary so the
-  // number never re-derives independently of the export/engine.
-  const onTrack = strength.total - strength.attention;
+  // On track = lifts neither flagged for intervention (strength.attention is
+  // exactly the declining ∪ stalled count) NOR settled below best. A settled
+  // lift is not a problem, but it isn't "on track" either — counting it as such
+  // would overclaim ("10 of 10") the moment a chronic stall aged out. It sits
+  // out of both sides: grey bar segment, absent from the count. Hero % + trend
+  // come from the summary so the number never re-derives independently.
+  const settledCount = strength.exercises.filter((e) => e.settled).length;
+  const onTrack = strength.total - strength.attention - settledCount;
   const heroPct = strength.healthPct;
   const trend = strength.healthTrend;
 
@@ -336,17 +348,21 @@ export function StrengthHealthCard({
     </span>
   );
 
-  // Bar cells are severity-sorted (good → stalled → declining) so the on-track
-  // green fills from the left and flagged lifts collect at the right — one clean
-  // proportion meter. Its cell-by-cell entrance is a sanctioned cascade.
-  const barSeverity = (e: StrengthExercise) => (e.declining ? 2 : e.needsAttention ? 1 : 0);
+  // Bar cells are severity-sorted (good → settled → stalled → declining) so the
+  // on-track green fills from the left and flagged lifts collect at the right —
+  // one clean proportion meter. A settled lift takes NO fill class: the segment's
+  // base track (--rule-strong grey) is exactly the right reading — present in the
+  // denominator, claimed by neither side. Cell-by-cell entrance is a sanctioned cascade.
+  const barSeverity = (e: StrengthExercise) => (e.declining ? 3 : e.needsAttention ? 2 : e.settled ? 1 : 0);
   const barCells = [...strength.exercises].sort((a, b) => barSeverity(a) - barSeverity(b));
+  const barFill = (e: StrengthExercise) =>
+    e.declining ? " is-declining" : e.needsAttention ? " is-watch" : e.settled ? "" : " is-good";
   const bar = (
     <div className="ov-th-bar" role="img" aria-label={`${onTrack} of ${strength.total} tracked lifts on track`}>
       {barCells.map((ex, i) => (
         <span
           key={ex.slug}
-          className={`ov-th-bar-seg${ex.declining ? " is-declining" : ex.needsAttention ? " is-watch" : " is-good"}`}
+          className={`ov-th-bar-seg${barFill(ex)}`}
           style={{ animationDelay: `calc(var(--enter-wait) + ${i} * var(--stagger-step))` }}
         />
       ))}
@@ -363,7 +379,11 @@ export function StrengthHealthCard({
     const flagged = strength.exercises
       .filter((ex) => ex.needsAttention)
       .sort((a, b) => Number(b.declining) - Number(a.declining));
-    const steadyCount = strength.total - flagged.length;
+    // Settled lifts are their own clause, not folded into "steady" — a lift
+    // holding 11% below its best for a year isn't what a reader pictures at
+    // "steady", and silently counting it there would contradict the on-track
+    // line above (which excludes it).
+    const steadyCount = strength.total - flagged.length - settledCount;
     const prsThisWeek = strength.exercises.filter((ex) => liftStatus(ex, nowMs) === "pr").length;
     const prClause = prsThisWeek > 0 && (
       <span className="ov-th-pr-clause"> <span className="ov-th-pr-nowrap">🏆 {prsThisWeek} {prsThisWeek === 1 ? "PR" : "PRs"} this week</span></span>
@@ -404,7 +424,9 @@ export function StrengthHealthCard({
         )}
 
         <div className="ov-th-steady-summary">
-          {flagged.length === 0 ? `All ${strength.total} lifts on track` : `– ${steadyCount} steady`}
+          {flagged.length === 0 && settledCount === 0
+            ? `All ${strength.total} lifts on track`
+            : `– ${steadyCount} steady${settledCount > 0 ? ` · ${settledCount} below best` : ""}`}
           {prClause}
         </div>
       </button>

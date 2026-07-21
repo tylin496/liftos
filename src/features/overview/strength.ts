@@ -617,9 +617,12 @@ export function buildTrainingEvaluation(summary: StrengthSummary): TrainingEvalu
   // "improving" needs a majority PRing AND no lift that actually needs
   // intervention. Gating on stalledWatch (needsAttention) rather than raw `watch`
   // is a real-data calibration fix: a strong block almost always carries 1–2
-  // lagging lifts that are either fresh off a PR (grace window) or visibly
-  // rebounding — neither is a problem, so neither should veto the whole-body
-  // "improving" read. Only a settled stall or an acute slide should. (Export
+  // lagging lifts that are either fresh off a PR (grace window), visibly
+  // rebounding, or holding a long-accepted baseline (the `settled` flag) — none
+  // is a problem, so none should veto the whole-body "improving" read. Only an
+  // ACTIVE stall (3–12 wks, still asking for a deload) or an acute slide should.
+  // The majority-PRing gate is what stops a body full of expired stalls from
+  // reading "improving": settled lifts aren't in `improving` either. (Export
   // check 2026-07: 8/11 lifts PRing with the only watch lifts being a just-PR'd
   // Assisted Pull-up + a rebounding Leg Curl — old `watch === 0` mislabelled it.)
   else if (improving > total / 2 && stalledWatch === 0) trend = "improving";
