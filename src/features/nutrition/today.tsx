@@ -649,8 +649,10 @@ export function TodayView({
 
       {celebration.node}
 
-      {/* Daily card */}
+      {/* Daily card. The id is Overview's log-intake deep-link target — a
+          deep-link remounts the tab, so the form re-lands on defaultLogDate. */}
       <section
+        id="nutrition-today-card"
         key={navSeq}
         ref={cardRef}
         className={[

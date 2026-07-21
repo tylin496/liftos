@@ -15,7 +15,7 @@ import {
   type BulkGoalStatusEvaluation,
 } from "./goal";
 import { evaluatePhaseTriggers, type PhaseTriggerResult } from "./phaseTriggers";
-import { maintenanceStartDate, MAINTENANCE_LOOKBACK_DAYS } from "@features/nutrition/logic";
+import { maintenanceStartDate, MAINTENANCE_LOOKBACK_DAYS, defaultLogDate } from "@features/nutrition/logic";
 import { localDateStrDaysAgo } from "@shared/lib/date";
 import { saveConfig } from "@features/nutrition/api";
 import {
@@ -97,6 +97,10 @@ export interface OverviewData {
    *  section deliberately shows no week counter (kept lean by design); this is
    *  ready for wherever the block's progress ends up surfacing. */
   maintenanceSince: string | null;
+  /** True when the day you'd currently be logging (defaultLogDate — today, or
+   *  yesterday pre-dawn) has no nutrition entry yet. Drives the tappable
+   *  log-intake shortcut banner; never feeds any evaluation. */
+  intakePending: boolean;
   /** Settled phase retrospectives (newest first) — one row per closed cut/bulk,
    *  written once at close time by maybeClosePhase and never recomputed. Empty
    *  pre-migration 0020 or while no phase has ended yet. */
@@ -259,6 +263,11 @@ export async function fetchOverview(): Promise<OverviewData> {
   );
   const maintenanceSince = maintenanceStartDate(entries);
 
+  // The log-day (5am rollover — pre-dawn still closes out yesterday) has no
+  // entry yet → surface the log-intake shortcut. entriesRes has no upper date
+  // bound, so today's row is in the window the moment it's saved.
+  const intakePending = !entries.some((e) => e.entry_date === defaultLogDate());
+
   return {
     weightLatest,
     activeEnergy,
@@ -283,6 +292,7 @@ export async function fetchOverview(): Promise<OverviewData> {
     bulkStartBodyFat: configRes.data?.bulk_start_body_fat_pct ?? null,
     bulkBfCeiling,
     maintenanceSince,
+    intakePending,
     phaseReports,
   };
 }

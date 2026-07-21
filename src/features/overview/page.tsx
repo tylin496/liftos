@@ -527,6 +527,17 @@ function ActiveTargetCard({
 // deliberately carries no number — the calorie target lives on the Nutrition
 // card, never duplicated here. Nutrition is the only provider today; adding
 // more never touches this card.
+// Log-intake shortcut — a data-entry to-do in the System banner's vocabulary,
+// NOT an engine directive (it never enters the ladder or persists): it surfaces
+// whenever the current log-day has no nutrition entry, and tapping it jumps
+// straight to the Nutrition day form. Static because its content never varies.
+const LOG_INTAKE_REC: Recommendation = {
+  source: "nutrition",
+  priority: 0,
+  title: "Log today's intake",
+  subtitle: "Nothing recorded for the day yet",
+};
+
 const REC_TAB: Record<Recommendation["source"], TabId> = {
   nutrition: "nutrition",
   training: "training",
@@ -1890,6 +1901,12 @@ export function OverviewPage() {
   if (rec) lastRec.current = rec;
   const shownRec = rec ?? lastRec.current;
 
+  // Log-intake shortcut banner — same collapse-out choreography as the System
+  // banner, its own exit instance so the two clear independently. Read-only
+  // viewers can't log, so they never see the to-do.
+  const intakePrompt = !readOnly && data?.intakePending === true;
+  const intakeExit = useExitTransition(intakePrompt, DUR_EXIT);
+
   const header = (
     <div className="shell-header">
       <PageTopBar eyebrow={fmtTopbarDate()} title={greeting(user, displayNameFor(user?.email))} onCopy={copyAllData} />
@@ -1932,6 +1949,18 @@ export function OverviewPage() {
                   void dismissRecoveryDirective().then(load).catch(() => load());
                 }
           }
+        />
+      )}
+
+      {/* Log-intake shortcut — rides the same System-banner vocabulary, but is
+          a plain data-entry to-do: tap → Nutrition's day form (a deep-link, so
+          the form lands on the day that needs closing out). */}
+      {intakeExit.mounted && (
+        <SystemCard
+          key="log-intake"
+          rec={LOG_INTAKE_REC}
+          closing={intakeExit.closing}
+          onNav={() => nav("nutrition", { scrollTo: "nutrition-today-card" })}
         />
       )}
 
