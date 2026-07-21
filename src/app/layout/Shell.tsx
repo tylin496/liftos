@@ -102,33 +102,50 @@ const ARRIVE_DIM_MS = 1450;
 // separate, delayed second step.
 const ARRIVE_DELAY_MS = 180;
 // Module-level (not per-render) so a second deep-link firing before the first
-// dim hold ends clears the earlier timer instead of racing it.
+// dim hold ends clears the earlier timer instead of racing it. The page is
+// remembered alongside the timer: clearing the old timer orphans that page's
+// .is-arriving (nothing else ever removes it), so a back-to-back arrival on a
+// DIFFERENT tab must release the earlier page itself.
 let arriveDimTimer: number | null = null;
+let arriveDimPage: HTMLElement | null = null;
 
 // One-shot "you arrived here" highlight on a deep-link target card: the
 // target lifts (layout.css ov-arrive-lift) while every other top-level card
 // and the header dim/desaturate via .is-arriving on the .page container —
 // "spotlight" contrast rather than a stroke on the target itself. Reflow-
-// restarts if the class somehow lingers from a prior fire, then removes
+// restarts if the marker somehow lingers from a prior fire, then removes
 // itself on animationend so a later deep-link to the same card re-fires. The
 // animationend guard is essential: the card's own descendants (bars,
 // count-ups, spark wipes) animate during the entrance cascade and their
 // animationend BUBBLES up to the card — we clear only on our own animation
 // ending on the card itself, never a child's.
+// The target marker is a data attribute, NOT a class: React rewrites the
+// class attribute wholesale whenever the card's rendered className changes
+// (any state flag flipping mid-lift — say, tapping the card open right after
+// arrival), which would strip a classList-added marker and drop the card into
+// its own spotlight dim. React leaves attributes it didn't render alone, so
+// data-arrived survives those re-renders. (.is-arriving stays a class: .page
+// containers render static className strings React never rewrites.)
 function fireArrival(el: HTMLElement) {
   const page = el.closest<HTMLElement>(".page");
-  el.classList.remove("is-arrived");
+  delete el.dataset.arrived;
   void el.offsetWidth; // force reflow so re-adding restarts the animation
-  el.classList.add("is-arrived");
-  if (arriveDimTimer != null) window.clearTimeout(arriveDimTimer);
+  el.dataset.arrived = "";
+  if (arriveDimTimer != null) {
+    window.clearTimeout(arriveDimTimer);
+    if (arriveDimPage && arriveDimPage !== page)
+      arriveDimPage.classList.remove("is-arriving");
+  }
   page?.classList.add("is-arriving");
+  arriveDimPage = page;
   arriveDimTimer = window.setTimeout(() => {
     page?.classList.remove("is-arriving");
     arriveDimTimer = null;
+    arriveDimPage = null;
   }, ARRIVE_DIM_MS);
   const clear = (e: AnimationEvent) => {
     if (e.target !== el || e.animationName !== "ov-arrive-lift") return;
-    el.classList.remove("is-arrived");
+    delete el.dataset.arrived;
     el.removeEventListener("animationend", clear);
   };
   el.addEventListener("animationend", clear);

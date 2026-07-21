@@ -370,7 +370,7 @@ html.kb-open .tabbar {
 }
 
 /* ── Deep-link arrival highlight ─────────────────────────────────────────────
-   Fired by Shell (startAlign) as .is-arrived when a deep-link from Overview
+   Fired by Shell (startAlign) as data-arrived when a deep-link from Overview
    lands on its target card. "Spotlight": the target card rises on a soft
    shadow bloom alone (no border/ring layer — a stroke on the target reads as
    the card's own emphasis; the cue should come from CONTRAST with everything
@@ -403,12 +403,12 @@ html.kb-open .tabbar {
   }
 }
 
-.page-card.is-arrived {
+.page-card[data-arrived] {
   position: relative;
   z-index: var(--z-raised);
   /* Keep rise-in in slot 0 — IDENTICAL to the .page > * baseline (same name,
      duration, curve, fill, delay) — and only add/remove ov-arrive-lift in
-     slot 1. Dropping .is-arrived on animationend then leaves slot 0 unchanged,
+     slot 1. Dropping data-arrived on animationend then leaves slot 0 unchanged,
      so the browser doesn't treat rise-in as newly applied and REPLAY the
      entrance (the "re-render after it settles" you'd otherwise see). */
   animation:
@@ -428,7 +428,7 @@ html.kb-open .tabbar {
    always a DIRECT .page child — nutrition-today-card sits inside TodayView's
    drag container div — and without it that wrapper (a plain page child) would
    dim/blur the very card being spotlit. */
-.page.is-arriving > *:not(.is-arrived):not(:has(.is-arrived)) {
+.page.is-arriving > *:not([data-arrived]):not(:has([data-arrived])) {
   /* stylelint-disable-next-line declaration-no-important */
   opacity: 0.3 !important;
   /* stylelint-disable-next-line declaration-no-important */
