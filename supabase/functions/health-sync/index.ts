@@ -45,23 +45,26 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const LOCAL_TZ = "Asia/Taipei";
 
 /**
- * Case-insensitive alias lookup. Shortcuts auto-generates variable names from
- * step output labels, so the same field can arrive as `weight_kg`, `Weight_Kg`,
- * or `WeightKG` depending on how the user built the shortcut. Normalizing once
- * per request means every alias list below only needs to list spellings, not
- * every capitalization of each spelling.
+ * Alias lookup that ignores case AND every separator. Shortcuts auto-generates
+ * variable names from step output labels, so the same field arrives as
+ * `weight_kg`, `Weight_Kg`, `WeightKG`, or `Weight KG` depending on how the
+ * shortcut was built — and a label with a space in it is the normal case, not
+ * the exception. Stripping non-alphanumerics collapses all of those onto one
+ * key, so the alias lists below only need one spelling per name.
  */
+const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
 function pick(keys: Map<string, unknown>, ...aliases: string[]): unknown {
   for (const alias of aliases) {
-    const v = keys.get(alias.toLowerCase());
+    const v = keys.get(normKey(alias));
     if (v !== undefined) return v;
   }
   return undefined;
 }
 
-function lowercaseKeys(body: Record<string, unknown>): Map<string, unknown> {
+function normalizeKeys(body: Record<string, unknown>): Map<string, unknown> {
   const map = new Map<string, unknown>();
-  for (const k of Object.keys(body)) map.set(k.toLowerCase(), body[k]);
+  for (const k of Object.keys(body)) map.set(normKey(k), body[k]);
   return map;
 }
 
@@ -182,7 +185,7 @@ export function buildRecord(body: any): { record?: Record<string, unknown>; erro
   if (!body || typeof body !== "object") {
     return { error: "Missing JSON body" };
   }
-  const keys = lowercaseKeys(body);
+  const keys = normalizeKeys(body);
   let rawDate = pick(keys, "date");
   if (typeof rawDate !== "string" || rawDate.trim() === "") {
     rawDate = new Date().toLocaleDateString("sv-SE", { timeZone: LOCAL_TZ });
@@ -310,6 +313,18 @@ Deno.serve(async (req) => {
 
   const { record, error } = buildRecord(body);
   if (error) return json({ error }, 400);
+
+  // Ingest diagnostic: which payload fields arrived vs which ones actually
+  // mapped onto a column. A field the Shortcut sends under an unrecognized name
+  // is otherwise dropped in total silence — this is the only way to see it.
+  // Key names only, never values: the log doesn't need the health data.
+  console.log(
+    JSON.stringify({
+      ingest: record.metric_date,
+      sent: Object.keys(body ?? {}).sort(),
+      mapped: Object.keys(record).sort(),
+    }),
+  );
 
   // Anomaly guard: a resting-energy value far below the recent personal median
   // is a HealthKit data gap, not a real reading. Drop it (don't write) so it
