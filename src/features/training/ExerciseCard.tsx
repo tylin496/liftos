@@ -343,11 +343,30 @@ function ExerciseCardImpl({
   async function handleAdd(raw: string, date: string, note: string, bonus: boolean): Promise<boolean> {
     if (submitting) return false;
     // One entry per exercise per day — every set for the day lives in a single
-    // drop-set entry, so a second same-day log is always a mistake. Point the
-    // user at the existing entry instead of silently creating a duplicate.
-    if (effectiveLogs.some((l) => l.log_date === date)) {
-      haptic("error");
-      toast("Already logged for that day — edit that entry instead", "error");
+    // drop-set entry, so a second same-day log is always a mistake. Instead of
+    // bouncing the user off to find that entry, open its inline editor directly
+    // (prefilled with the stored sets): logging again on a logged day almost
+    // always means "fix what's there" — adding a set has its own +1 button.
+    const dup = effectiveLogs.find((l) => l.log_date === date);
+    if (dup) {
+      const idx = filteredDesc.findIndex((l) => l.id === dup.id);
+      // Outside the current time filter the row (and its editor) can't render;
+      // same while a pending delete has editing disabled — fall back to the
+      // redirect toast in both cases.
+      if (idx === -1 || deletedLogIds.size > 0) {
+        haptic("error");
+        toast("Already logged for that day — edit that entry instead", "error");
+        return false;
+      }
+      if (idx >= visibleCount) setShowAll(true);
+      haptic("tap");
+      setEditingMode("view");
+      setExpandedLogId(null);
+      setEditingLogId(dup.id);
+      toast("Already logged that day — editing the existing entry", "info");
+      requestAnimationFrame(() => {
+        if (cardRef.current) scrollIntoViewInterruptible(cardRef.current);
+      });
       return false;
     }
     setSubmitting(true);
