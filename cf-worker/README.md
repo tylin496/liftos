@@ -12,46 +12,47 @@ this repo through the GitHub Contents API. No token ever reaches the browser.
    - Permissions: **Contents → Read and write**
    - Nothing else.
 
-2. **Supabase JWT secret** — Supabase Dashboard → Project Settings → API →
-   copy the **JWT Secret** (not the anon/service key). Only needed as a fallback
-   for projects still on legacy HS256 signing; ES256 (asymmetric-key) projects
-   are verified via the public JWKS and don't use this secret.
-
-3. **Cloudflare** — `cd cf-worker && npm install`, then `npx wrangler login`
+2. **Cloudflare** — `cd cf-worker && npm install`, then `npx wrangler login`
    (opens a browser to authorize; free account is fine).
 
-4. **Set the two secrets** (prompts for the value, does not echo it):
+3. **Set the secret** (prompts for the value, does not echo it):
    ```
    npx wrangler secret put GITHUB_TOKEN
-   npx wrangler secret put SUPABASE_JWT_SECRET
    ```
+   That is the only secret the worker needs — token verification uses the
+   project's *public* JWKS, so there is no shared signing secret to store.
 
-5. **Deploy**:
+4. **Deploy**:
    ```
    npx wrangler deploy
    ```
    This prints the Worker URL, e.g. `https://liftos-image-upload.<subdomain>.workers.dev`.
 
-6. **Wire the URL into the app**:
+5. **Wire the URL into the app**:
    - Local dev: add `VITE_UPLOAD_WORKER_URL=<that url>` to `.env.local`.
    - Production build: add a repo secret named `VITE_UPLOAD_WORKER_URL` at
      GitHub → repo → Settings → Secrets and variables → Actions, same place
      `VITE_SUPABASE_URL` already lives. The deploy workflow already reads it.
 
-## Token verification (ES256 vs HS256)
+## Token verification (ES256 only)
 
-The worker verifies the caller's Supabase access token against whatever
-algorithm the token header declares:
+The project signs access tokens with asymmetric keys, so every token it issues
+declares `alg: ES256`. The worker fetches the matching public key (by `kid`)
+from `${SUPABASE_URL}/auth/v1/.well-known/jwks.json` and verifies against it —
+which is why `SUPABASE_URL` is set in `wrangler.toml` (public value, safe to
+commit). The JWKS is cached for the life of the isolate.
 
-- **ES256** — the default for projects using asymmetric JWT signing keys. The
-  worker fetches the project's public key from
-  `${SUPABASE_URL}/auth/v1/.well-known/jwks.json` and verifies with it. This is
-  why `SUPABASE_URL` is set in `wrangler.toml` (public value, safe to commit).
-- **HS256** — legacy shared-secret projects; verified with `SUPABASE_JWT_SECRET`.
+**Any other `alg` is rejected outright.** An HS256 branch verifying against a
+shared `SUPABASE_JWT_SECRET` used to sit here for legacy projects. Once the
+project moved to asymmetric keys that branch became unreachable by any real
+token, and it was removed on 2026-07-22 after the ES256 path was verified
+end-to-end against production (commit `c907f88`). Don't re-add an algorithm
+fallback: a branch only a foreign token can enter is an entry point, not a
+safety net.
 
-If uploads suddenly 401 with "Invalid or expired token" for the owner, check
-whether the project migrated to asymmetric keys (JWKS returns an `ES256` key) —
-an HS256-only worker cannot verify those tokens.
+If uploads start 401ing with "Invalid or expired token" for the owner, check
+that JWKS still returns an `ES256` key and that the token's `kid` is in it —
+a key rotation mid-isolate is the one case the cache can get wrong.
 
 ## Changing the allowed origin
 

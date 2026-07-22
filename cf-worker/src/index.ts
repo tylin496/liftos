@@ -1,6 +1,5 @@
 export interface Env {
   GITHUB_TOKEN: string;
-  SUPABASE_JWT_SECRET: string;
   SUPABASE_URL: string;
   GITHUB_REPO: string;
   OWNER_EMAIL: string;
@@ -25,7 +24,7 @@ function json(body: unknown, status = 200) {
   });
 }
 
-// ─── JWT verification (HS256, matches Supabase's project JWT secret) ───────
+// ─── JWT verification (ES256, against the project's public JWKS) ───────────
 
 function base64UrlToBytes(b64url: string): Uint8Array {
   const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/").padEnd(
@@ -49,23 +48,6 @@ async function fetchJwks(supabaseUrl: string): Promise<{ keys: JsonWebKey[] }> {
   return jwksCache;
 }
 
-async function verifyHS256(
-  headerB64: string,
-  payloadB64: string,
-  signature: Uint8Array,
-  secret: string,
-): Promise<boolean> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["verify"],
-  );
-  const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
-  return crypto.subtle.verify("HMAC", key, signature, data);
-}
-
 async function verifyES256(
   headerB64: string,
   payloadB64: string,
@@ -87,9 +69,11 @@ async function verifyES256(
   return crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, signature, data);
 }
 
-// Verifies the token against whichever algorithm the header declares. Supabase
-// projects on asymmetric signing keys issue ES256 (verified via JWKS); legacy
-// projects issue HS256 (verified with the shared JWT secret).
+// The project signs with asymmetric keys, so every token it issues is ES256 and
+// is verified against the public JWKS. An HS256 fallback lived here for legacy
+// shared-secret projects; it was unreachable once the project migrated, and a
+// path that can only ever be entered by a token this project cannot mint is a
+// way in, not a fallback. Anything not ES256 is rejected.
 async function verifySupabaseJWT(
   token: string,
   env: Env,
@@ -105,16 +89,12 @@ async function verifySupabaseJWT(
     return null;
   }
 
+  if (header.alg !== "ES256") return null;
+
   const signature = base64UrlToBytes(sigB64);
   let valid: boolean;
   try {
-    if (header.alg === "ES256") {
-      valid = await verifyES256(headerB64, payloadB64, signature, header.kid, env);
-    } else if (header.alg === "HS256") {
-      valid = await verifyHS256(headerB64, payloadB64, signature, env.SUPABASE_JWT_SECRET);
-    } else {
-      return null;
-    }
+    valid = await verifyES256(headerB64, payloadB64, signature, header.kid, env);
   } catch {
     return null;
   }

@@ -4,7 +4,6 @@ compatibility_date = "2024-01-01"
 
 # Secrets (set via `wrangler secret put <NAME>`, never committed):
 #   GITHUB_TOKEN        fine-grained PAT, Contents: Read and write, scoped to tylin496/liftos only
-#   SUPABASE_JWT_SECRET  Supabase project Settings > API > JWT Secret (HS256 fallback only)
 #
 # Vars (safe to commit, not secret):
 [vars]
