@@ -76,6 +76,15 @@ than a fabricated near-zero. A floor never overwrites a measured value — excep
 stored one that fails the same cross-check — and a later measured sync clears the
 flag.
 
+**Never below the floor.** A reading that survives both guards but still sits
+under the walking it must contain — the band between `floor/1.5` and `floor` — is
+raised to the floor and flagged. Active Energy includes walking, so such a value
+isn't merely suspicious, it's impossible; storing it would let a number the
+function's own arithmetic disproves reach TDEE as a measurement. This is not a
+loosening of the 1.5× detection threshold, which stays conservative because
+*dropping* a reading discards data. Refusing to store an impossible value
+discards nothing and has no false-positive mode.
+
 This is a floor, not an estimate, and the distinction drives the design.
 Regressing active energy on steps over 111 rest days gives **r² = 0.076**: steps
 explain almost none of the variance, because Active Energy is dominated by a

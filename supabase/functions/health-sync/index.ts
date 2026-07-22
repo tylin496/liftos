@@ -478,6 +478,20 @@ Deno.serve(async (req) => {
           estimatedActive = estimate;
         }
       }
+    } else if (floor !== null && (record.active_energy_kcal as number) < floor) {
+      // The reading survived both guards but still sits below the walking it
+      // must contain — the band between floor/1.5 and floor. Active Energy
+      // includes walking, so this value is not merely suspicious, it's
+      // impossible, and storing it would let a number our own arithmetic
+      // disproves into TDEE as a measurement.
+      //
+      // Raise to the floor rather than dropping to it: this is NOT a loosening
+      // of the 1.5x detection threshold, which stays conservative precisely
+      // because dropping a reading discards data. Refusing to store a physically
+      // impossible value costs nothing and has no false-positive mode.
+      record.active_energy_kcal = floor;
+      record.active_energy_estimated = true;
+      estimatedActive = floor;
     } else {
       // A measured value clears an estimate a previous run left on this day.
       record.active_energy_estimated = false;
