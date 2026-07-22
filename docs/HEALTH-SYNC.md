@@ -37,17 +37,36 @@ guards catch that, each judging a reading against the user's own recent median
 | Field | Threshold | On failure |
 |-------|-----------|------------|
 | `resting_energy_kcal` | < 0.8× median | dropped → `droppedResting` in the response |
-| `active_energy_kcal` | < 0.15× median | dropped, then backfilled from steps → `droppedActive` / `estimatedActive` |
+| `active_energy_kcal` | < 0.15× median | dropped, then floored from steps → `droppedActive` / `estimatedActive` |
 
 Active energy's threshold is far looser because it genuinely swings several-fold
 between a training day and a couch day — 0.15× only catches "the watch was off".
 
-**Step fallback.** When a past day has no usable active reading but ≥1000 steps,
-active energy is derived at **40 kcal / 1000 steps** and the row is marked
+**Step cross-check.** The median guard compares a reading against the user's own
+history. A second check compares it against the *same day's* steps, which is
+better evidence: when the step floor (below) exceeds the reading by **3×**, the
+watch was worn for part of the day. That case reads plausibly-low against the
+median and slips the first guard entirely — verified against the Apple Health
+export, where one such day logged 99 kcal and 854 watch steps while the phone
+counted 14,446.
+
+**Step floor.** When a past day has no usable active reading but ≥1000 steps,
+active energy is derived at **34 kcal / 1000 steps** and the row is marked
 `active_energy_estimated = true`. Below 1000 steps the phone probably wasn't
 carried either, so the day stays a no-reading (which every average skips) rather
-than a fabricated near-zero. An estimate never overwrites a measured value, and a
-later measured sync clears the flag.
+than a fabricated near-zero. A floor never overwrites a measured value — except a
+stored one that fails the same cross-check — and a later measured sync clears the
+flag.
+
+This is a floor, not an estimate, and the distinction drives the design.
+Regressing active energy on steps over 111 rest days gives **r² = 0.076**: steps
+explain almost none of the variance, because Active Energy is dominated by a
+~449 kcal/day intercept of non-step activity. Steps cannot predict a day's total.
+What they can do is bound it from below — walking is mechanical work that
+definitely happened. The physics (~0.5 kcal/kg/km at 90.5 kg over ~0.75 km per
+1000 steps) and the fitted regression slope agree on 34 kcal/1000 steps. The
+intercept is unpredictable; the slope is solid. So a step-derived value claims
+only "at least this much", and is deliberately biased low.
 
 Both guards apply to **past days only** — today's row syncs live and is
 legitimately near-zero all morning.

@@ -159,24 +159,47 @@ export function isPlausibleActive(value: number, priorReadings: number[]): boole
 }
 
 /**
- * Conservative step→active-energy conversion for days the watch missed. 40 kcal
- * per 1000 steps sits at the low end of the 35–45 range for this user's body
- * mass — deliberately, since the whole point is to stop a data gap from biasing
- * TDEE, and biasing it the other way would be no better.
+ * Step→active-energy conversion, 34 kcal per 1000 steps.
+ *
+ * This is a FLOOR, not an estimate, and the distinction is the whole design.
+ * Regressing active energy on steps over 111 of this user's rest days gives
+ * r² = 0.076 — steps explain almost none of the variance, because Apple's
+ * Active Energy is dominated by a ~449 kcal/day intercept of non-step activity
+ * that steps say nothing about. So steps can NOT predict a day's total.
+ *
+ * What they can do is bound it from below. Walking is mechanical work that
+ * definitely happened: ~0.5 kcal/kg/km at 90.5 kg over ~0.75 km per 1000 steps
+ * = 34 kcal. Two independent derivations agree on that number — the physics
+ * above, and the fitted regression slope (34.0 kcal/1000 steps). The intercept
+ * is what's unpredictable; the slope is solid.
+ *
+ * So a step-derived value claims only "at least this much was burned" and is
+ * deliberately biased low. It never feeds TDEE (see tdee.ts) — a floor is not a
+ * measurement, and the cut deficit is measured against measurements.
  */
-const KCAL_PER_STEP = 0.04;
+const KCAL_PER_STEP = 0.034;
 
 /**
  * Below this the phone probably wasn't carried either, so the step count says
- * nothing about the day. Estimating 8 kcal off 200 steps is exactly the bogus
- * near-zero the guard just rejected — leave the day as no-reading instead, which
- * every average skips (a missing day is "unknown", never "did nothing").
+ * nothing about the day. A 200-step day floors at 7 kcal, which is exactly the
+ * bogus near-zero the guard just rejected — leave the day as no-reading instead,
+ * which every average skips (a missing day is "unknown", never "did nothing").
  */
-const MIN_STEPS_FOR_ESTIMATE = 1000;
+const MIN_STEPS_FOR_FLOOR = 1000;
 
-/** Step-derived active energy, or null when the step count can't carry one. */
-export function estimateActiveFromSteps(steps: number | null | undefined): number | null {
-  if (steps == null || !Number.isFinite(steps) || steps < MIN_STEPS_FOR_ESTIMATE) return null;
+/**
+ * How far a step floor must exceed a measured reading before the reading is
+ * treated as a partial-wear artifact. Verified against this user's Apple Health
+ * export: the watch-off days show the phone counting 7–14k steps while the watch
+ * logged a few hundred, so the real cases clear 3x comfortably. A genuinely
+ * sedentary day never does — active energy always exceeds the walking floor,
+ * since it also contains everything that isn't walking.
+ */
+const STEP_CROSSCHECK_RATIO = 3;
+
+/** Step-derived floor on a day's active energy, or null when steps can't carry one. */
+export function activeFloorFromSteps(steps: number | null | undefined): number | null {
+  if (steps == null || !Number.isFinite(steps) || steps < MIN_STEPS_FOR_FLOOR) return null;
   return Math.round(steps * KCAL_PER_STEP);
 }
 
@@ -360,6 +383,8 @@ Deno.serve(async (req) => {
   let estimatedActive: number | null = null;
 
   if (isPastDay) {
+    const floor = activeFloorFromSteps(record.steps as number | undefined);
+
     if (record.active_energy_kcal != null) {
       const { data: hist } = await supabase
         .from("health_metrics")
@@ -379,11 +404,28 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Step cross-check. The median guard compares a reading against the user's
+    // own history; this compares it against the SAME DAY's steps, which is
+    // strictly better evidence. It catches the partial-wear case the median
+    // guard structurally can't: a day that reads plausibly-low overall while the
+    // phone counted five figures of steps. Verified against the Apple Health
+    // export — e.g. a day the watch logged 99 kcal and 854 steps while the phone
+    // counted 14,446. Walking alone puts a ~491 kcal floor under that day, so
+    // the 99 is an artifact of a watch worn for an hour, not a quiet day.
+    if (
+      record.active_energy_kcal != null &&
+      floor !== null &&
+      floor > (record.active_energy_kcal as number) * STEP_CROSSCHECK_RATIO
+    ) {
+      droppedActive = record.active_energy_kcal as number;
+      delete record.active_energy_kcal;
+    }
+
     if (record.active_energy_kcal == null) {
-      // No usable watch reading — fall back to steps. Never over a value that was
-      // actually measured: a later re-sync of the same day can carry steps but no
-      // active energy, and that must not demote a real reading to an estimate.
-      const estimate = estimateActiveFromSteps(record.steps as number | undefined);
+      // No usable watch reading — fall back to the step floor. Never over a value
+      // that was actually measured: a later re-sync of the same day can carry
+      // steps but no active energy, and that must not demote a real reading.
+      const estimate = floor;
       if (estimate !== null) {
         const { data: existing } = await supabase
           .from("health_metrics")
@@ -391,8 +433,18 @@ Deno.serve(async (req) => {
           .eq("user_id", userId)
           .eq("metric_date", record.metric_date)
           .maybeSingle();
+        // A stored measurement normally blocks the floor — a floor must never
+        // demote a real reading. The exception is a stored value that fails the
+        // same cross-check the incoming one just failed: an artifact written by
+        // an earlier sync (before steps arrived for that day) is exactly what
+        // this is here to replace, and leaving it would make the fix depend on
+        // which sync happened to run first.
+        const storedMeasured =
+          existing?.active_energy_kcal != null && existing.active_energy_estimated === false
+            ? (existing.active_energy_kcal as number)
+            : null;
         const hasMeasured =
-          existing?.active_energy_kcal != null && existing.active_energy_estimated === false;
+          storedMeasured !== null && estimate <= storedMeasured * STEP_CROSSCHECK_RATIO;
         if (!hasMeasured) {
           record.active_energy_kcal = estimate;
           record.active_energy_estimated = true;
