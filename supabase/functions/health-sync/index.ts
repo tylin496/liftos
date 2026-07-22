@@ -189,13 +189,27 @@ const MIN_STEPS_FOR_FLOOR = 1000;
 
 /**
  * How far a step floor must exceed a measured reading before the reading is
- * treated as a partial-wear artifact. Verified against this user's Apple Health
- * export: the watch-off days show the phone counting 7–14k steps while the watch
- * logged a few hundred, so the real cases clear 3x comfortably. A genuinely
- * sedentary day never does — active energy always exceeds the walking floor,
- * since it also contains everything that isn't walking.
+ * treated as a partial-wear artifact.
+ *
+ * The threshold can sit this close to 1 because the argument is definitional,
+ * not statistical: Active Energy *includes* walking, so a valid reading can
+ * never be less than the walking it contains. floor > measured means the
+ * measurement is incomplete, full stop. The 1.5 is slack for conversion error
+ * and step miscounting, nothing more.
+ *
+ * Calibrated against this user's measured days: normal rest days sit at
+ * floor/measured = 0.18 and training days at 0.13, so 1.5 clears typical days
+ * by ~8x. Even a rest day 2 SD below average lands at 1.07. Dropping to 1.0
+ * would start catching that day, which is why the slack stops at 1.5.
+ *
+ * Was 3 initially, which only caught the total-non-wear days. It missed the
+ * case that actually matters here: this user wears the Apple Watch to sleep, so
+ * a mechanical-watch day is never a zero day — it collects a couple hundred kcal
+ * of evening and overnight wear, which cleared 3x and survived as a "measured"
+ * value. Sleep tracking makes partial wear the normal failure mode, not the edge
+ * case.
  */
-const STEP_CROSSCHECK_RATIO = 3;
+const STEP_CROSSCHECK_RATIO = 1.5;
 
 /** Step-derived floor on a day's active energy, or null when steps can't carry one. */
 export function activeFloorFromSteps(steps: number | null | undefined): number | null {

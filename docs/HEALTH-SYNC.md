@@ -44,11 +44,23 @@ between a training day and a couch day — 0.15× only catches "the watch was of
 
 **Step cross-check.** The median guard compares a reading against the user's own
 history. A second check compares it against the *same day's* steps, which is
-better evidence: when the step floor (below) exceeds the reading by **3×**, the
-watch was worn for part of the day. That case reads plausibly-low against the
-median and slips the first guard entirely — verified against the Apple Health
+better evidence: when the step floor (below) exceeds the reading by **1.5×**, the
+watch was worn for only part of the day. That case reads plausibly-low against
+the median and slips the first guard entirely — verified against the Apple Health
 export, where one such day logged 99 kcal and 854 watch steps while the phone
 counted 14,446.
+
+The threshold sits close to 1 because the argument is definitional rather than
+statistical: Active Energy *includes* walking, so a valid reading can never be
+less than the walking it contains. The 1.5 is slack for conversion error and step
+miscounting. Measured days back this up — normal rest days sit at
+floor/measured = 0.18 and training days at 0.13, so 1.5 clears them by ~8×, while
+a rest day 2 SD below average still only reaches 1.07.
+
+Partial wear is the *normal* failure mode for this user, not an edge case: the
+Apple Watch goes on for sleep tracking, so a day spent wearing a mechanical watch
+never reads as zero — it collects a couple hundred kcal of evening and overnight
+wear. An earlier 3× threshold let exactly that through as a "measured" value.
 
 **Step floor.** When a past day has no usable active reading but ≥1000 steps,
 active energy is derived at **34 kcal / 1000 steps** and the row is marked
