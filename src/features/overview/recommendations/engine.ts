@@ -38,7 +38,9 @@ import type { TrainingEvaluation } from "@features/overview/strength";
 import type { LeanMassEvaluation } from "@features/overview/goal";
 import { GOAL_EXIT_MARGIN_PP } from "@features/overview/goal";
 import { phaseDirection } from "@features/nutrition/logic";
+import { KCAL_PER_KG } from "@features/nutrition/evaluation";
 import { recoveryRecommendation, RECOVERY_TITLE } from "./recovery";
+import { NO_ACTION_TITLE } from "@features/nutrition/recommendation";
 import { nutritionProvider } from "./nutrition";
 // nutrition's own "Review calorie target" (reduce) is the slow-side correction the
 // engine defers to when strength is safe — keep the title here so the hysteresis keys
@@ -50,6 +52,7 @@ const REVIEW_TARGET_TITLE = "Review calorie target";
 // are produced inline in this file, so their constant and producer are co-located.
 const REDUCE_DEFICIT_TITLE = "Reduce deficit slightly";
 const INCREASE_ACTIVITY_TITLE = "Increase activity";
+const HIT_TARGET_TITLE = "Hit your current target";
 const START_MAINTENANCE_TITLE = "Start maintenance";
 const CONSIDER_MAINTENANCE_TITLE = "Consider switching to maintenance";
 // Bulk mirrors — same ladder positions as their cut counterparts, gated on
@@ -124,10 +127,51 @@ function weightState(n: RecContext["nutrition"], priorTitle: string | null): Wei
   return "on_pace";
 }
 
-// Held the current target long enough to read as adherence, not a fresh change.
+// ── Adherence: is the plan actually being followed? ───────────────────────────
+// `daysOnTarget` is a much narrower fact than its name suggests — it counts the
+// trailing days the calorie_target FIELD has held its current value. It says the
+// plan is settled (not freshly changed, so the scale's read isn't a post-change
+// water transient); it says nothing whatsoever about what was eaten. On its own it
+// would let "target set three weeks ago, +400 kcal/day every day since" read as
+// adherent, and the stall rung would then assert "you're on target" — a fact it
+// never checked — before prescribing a lever aimed at the wrong problem.
+//
+// So the food log gets a veto, and only a veto. The asymmetry is forced by what the
+// log is: a systematic UNDER-count (nobody logs the oil in the pan), roughly
+// constant — see the imprecise-logs principle the reduce lever is built on. Read
+// against a target that makes it:
+//   • logged clearly ABOVE target → conclusive. The true intake is higher still, so
+//     the plan is definitely not being followed. Revokes adherence.
+//   • logged at/below target → inconclusive. Could be adherence, could be the
+//     offset. It cannot MANUFACTURE the adherence claim, only fail to deny it.
+//   • no log at all → no evidence either way; unchanged behaviour (a non-logger
+//     keeps the muscle guardrail, per "no data → no bad news").
 const ADHERENT_DAYS = 7;
+
+// How far above target the logged mean must sit before it overrules the plan.
+// Sized to the question being asked: the smallest sustained daily overshoot that
+// could itself explain the stall the rung is reacting to — STALLED_EPS (0.1 kg/wk)
+// of unrealised progress ≈ 110 kcal/day. Under that, the gap is inside the log's
+// own precision and explains nothing.
+const OFF_PLAN_KCAL = (STALLED_EPS * KCAL_PER_KG) / 7;
+
+/** Logged intake deviating from the target in the direction that would explain a
+ *  stall — eating ABOVE target on a cut, BELOW it on a bulk — by enough to matter.
+ *  Returns the daily kcal magnitude, or 0 when the log is absent or doesn't
+ *  clear the margin. Phase-agnostic by construction: the same "against the plan"
+ *  polarity every other verdict in this file reads. */
+function loggedOffPlan(n: RecContext["nutrition"]): number {
+  if (!n) return 0;
+  const { loggedIntake, calorieTarget } = n.diagnostics;
+  if (loggedIntake == null) return 0;
+  // phaseDirection is −1 on a cut / +1 on a bulk (the sign of "progress" on the
+  // scale), so negating it gives the sign of "over-eating relative to the plan".
+  const against = (loggedIntake - calorieTarget) * -phaseDirection(n.evaluation.phaseKind);
+  return against > OFF_PLAN_KCAL ? against : 0;
+}
+
 function isAdherent(n: RecContext["nutrition"]): boolean {
-  return !!n && n.diagnostics.daysOnTarget >= ADHERENT_DAYS;
+  return !!n && n.diagnostics.daysOnTarget >= ADHERENT_DAYS && loggedOffPlan(n) === 0;
 }
 
 type RecoveryState = "good" | "ok" | "poor" | "unknown";
@@ -339,34 +383,77 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
           : "You're gaining faster than planned while training slips — trim the surplus; more food isn't helping",
     };
   }
+  // The scale isn't moving the way the plan says it should. Every rung below
+  // answers that same fact; they differ only in which lever is honest to pull.
+  const stalling = w === "stalled" || w === "slow";
+
+  // 2b-pre Hit your current target. Before touching ANY lever, check the plan is
+  //    actually being run: when the food log says intake has been sitting against
+  //    the plan (over on a cut / under on a bulk) by enough to explain the stall,
+  //    the target isn't what's wrong. Moving it would be answering a question
+  //    nobody asked — a lower target you don't follow is just a bigger gap, and
+  //    "add activity" prescribes work to offset food you could simply not eat.
+  //    Fires on the log's positive evidence only (see loggedOffPlan), so a
+  //    non-logger never sees it. No hysteresis needed: the input is a 21-day mean
+  //    against a fixed number, already smoother than anything that chatters.
+  const offPlan = loggedOffPlan(ctx.nutrition);
+  if (stalling && offPlan > 0 && (isCutting(ctx.nutrition) || isBulking(ctx.nutrition))) {
+    // Rounded to 50 — the log is a rough instrument (a systematic under-count),
+    // and quoting it to the kcal would claim a precision it doesn't have.
+    const gap = Math.round(offPlan / 50) * 50;
+    return {
+      source: "nutrition",
+      priority: 70,
+      title: HIT_TARGET_TITLE,
+      subtitle: isCutting(ctx.nutrition)
+        ? `Your food log is averaging about ${gap} kcal/day over target — the target isn't the problem yet, so close that gap before changing it`
+        : `Your food log is averaging about ${gap} kcal/day under target — the surplus is on paper only, so hit the target you already have before raising it`,
+    };
+  }
+
   // 2b Genuinely slow / stalled while adherent — the scale isn't moving enough.
   //    Lowering the target is a valid lever ONLY when strength is clearly safe:
   //    deepening the deficit trades muscle for speed, and for a hypertrophy-minded
   //    lifter that's usually a bad trade. So the DEFAULT is to add activity (or hold)
   //    rather than cut, and we fall through to nutrition's own reduce ONLY when the
   //    lifts confirm there's room — training present, not low-confidence, not
-  //    declining, and no lift on watch. Absent/soft strength data → stay conservative
-  //    and don't cut. (Being at the band FLOOR is NOT a trigger — that's often the
-  //    safest pace; the deceleration is already shown by the Weight card's accel arrow.)
+  //    declining, and no lift needing intervention. Absent/soft strength data → stay
+  //    conservative and don't cut. (Being at the band FLOOR is NOT a trigger — that's
+  //    often the safest pace; the deceleration is already shown by the Weight card's
+  //    accel arrow.)
   // Cut-only: on a bulk a stalled scale means the surplus is too SMALL — adding
   // activity would make it smaller still, so the bulk's slow-side lever is
   // nutritionDecision's own "Increase calorie target" (the default below).
-  const wantsTighten = isCutting(ctx.nutrition) && (w === "stalled" || w === "slow") && isAdherent(ctx.nutrition);
+  const wantsTighten = isCutting(ctx.nutrition) && stalling && isAdherent(ctx.nutrition);
   if (wantsTighten) {
     // Divert to activity (don't cut) on POSITIVE evidence the lifts are softening —
-    // a declining trend OR any lift on watch. Absent/low-confidence training = no
-    // evidence, so we don't block the cut (no data → no bad news). This is broader
-    // than the old "only a confirmed decline" gate: a stalling key lift is enough to
-    // stop deepening the deficit.
+    // a declining trend OR a lift that actually needs intervention. Absent/low-
+    // confidence training = no evidence, so we don't block the cut (no data → no
+    // bad news).
+    //
+    // `attention`, NOT `watch`. `watch` is every lift under 94% of its PR, which in
+    // a healthy block is chronically non-empty: a lift fresh off a PR sits below it,
+    // a rebounding lift sits below it, and a `settled` one sits below it by
+    // definition — that flag exists precisely to stop 12-week-old stalls from being
+    // re-litigated every week. Gating on `watch` therefore makes the guardrail
+    // unconditional for anyone with a dozen lifts: the deficit could never be
+    // deepened, and nutrition's own lever would be permanently unreachable.
+    // buildTrainingEvaluation already rejected `watch` for exactly this reason when
+    // it computes `trend` — reading it here was the engine taking the version that
+    // module overruled. `attention` is the predicate `trend` is built from, so the
+    // two now agree by construction.
     const t = ctx.training;
-    const strengthSoftening = t != null && t.confidence !== "low" && (t.trend === "declining" || t.watch > 0);
+    const strengthSoftening = t != null && t.confidence !== "low" && (t.trend === "declining" || t.attention > 0);
     if (strengthSoftening) {
       return {
         source: "weight",
         priority: 68,
         title: INCREASE_ACTIVITY_TITLE,
+        // Says only what's been verified: the target has held for weeks (daysOnTarget)
+        // and the log hasn't contradicted it. It does NOT claim the eating was on
+        // target — nothing here can prove that (the log only ever disproves it).
         subtitle:
-          "You're on target but the scale's stalled — add activity before cutting calories further, so you protect strength while your lifts are under strain",
+          "The scale's stalled and your target hasn't moved in weeks — add activity before cutting calories further, so you protect strength while your lifts are under strain",
       };
     }
     // Lifts show no strain → fall through to nutrition's own reduce (below).
@@ -379,7 +466,7 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
   // "maintain" — the Capitalize tier is a *better* sustain, so it's checked here
   // rather than after the default (which would always pre-empt it).
   const nut = ctx.nutrition ? nutritionProvider(ctx) : null;
-  const nutIdle = !nut || nut.title === "No action needed";
+  const nutIdle = !nut || nut.title === NO_ACTION_TITLE;
   if (nutIdle && recoveryState(r) === "good" && trn === "improving" && ctx.training) {
     const t = ctx.training;
     // State-as-fact, not a slogan: lead with the concrete count of lifts at their

@@ -4,11 +4,12 @@
 // Extracted from overview/api.ts so the persistence path (nutrition/evaluationApi)
 // can build the training slice without importing overview/api — which imports
 // evaluationApi back, and that cycle is best avoided. This module depends only on
-// the training parser/e1RM, nothing else.
+// the training parser/e1RM plus the shared freshness table, nothing else.
 
 import { parse, score } from "@features/training/parser";
 import { strengthScore, maxReps, totalReps, scoreWeight, type ScoreMode } from "@features/training/logic";
 import { milestoneReached } from "@features/training/milestone";
+import { isStale } from "@shared/lib/freshness";
 
 /** Reps for the local reps-tiebreak — NOT training/logic.ts's totalReps, which
  *  multiplies a bare number ("7") by the exercise's real set count. This module
@@ -265,6 +266,11 @@ export interface StrengthSummary {
    *  `dir` its sign (a <1-point move reads "flat"). Null when there isn't a
    *  comparable past snapshot. Drives the "↑2%" trend chip + the subline suffix. */
   healthTrend: { delta: number; dir: "up" | "down" | "flat" } | null;
+  /** Most recent logged session date across ALL lifts (including ones with too
+   *  few sessions to judge) — "when did you last train", not "when was the last
+   *  judgeable session". The recency the Decision Engine's training verdict is
+   *  gated on; null when nothing is logged at all. */
+  lastLogDate: string | null;
 }
 
 /** One lift's retention (latest ÷ all-time PR) — the atom under both the hero %
@@ -313,7 +319,7 @@ export function computeStrengthSummary(
    *  behaviour (decide per-log by whether the raw parsed as assisted). */
   assistedSlugs?: Set<string>,
 ): StrengthSummary {
-  const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, attention: 0, total: 0, exercises: [], healthPct: null, healthTrend: null };
+  const strength: StrengthSummary = { improving: 0, stable: 0, watch: 0, attention: 0, total: 0, exercises: [], healthPct: null, healthTrend: null, lastLogDate: latestLogDate(logsBySlug) };
 
   for (const [slug, slugLogs] of Object.entries(logsBySlug)) {
     // Performance trend: need ≥4 logs to compare recent 3 vs prior sessions
@@ -576,19 +582,26 @@ const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 /** A <1-point move (after whole-% rounding) is noise, not a trend → "flat". */
 const TREND_FLAT_BAND = 1;
 
-/** Latest log date across all lifts, as ms — the reference "now" for the trend
- *  window. Data-derived (not Date.now()) so the read stays pure/deterministic and
- *  a month of no logging doesn't silently collapse the comparison window. */
-function latestLogMs(logsBySlug: LogsBySlug): number | null {
-  let max = -Infinity;
+/** Latest log date across all lifts (YYYY-MM-DD, compared lexically like the
+ *  rest of this module). Two readers: the trend window's reference "now", and
+ *  the summary's `lastLogDate` — the training slice's recency. */
+function latestLogDate(logsBySlug: LogsBySlug): string | null {
+  let max: string | null = null;
   for (const logs of Object.values(logsBySlug)) {
     for (const l of logs) {
-      if (!l.log_date) continue;
-      const t = Date.parse(l.log_date);
-      if (Number.isFinite(t) && t > max) max = t;
+      if (l.log_date && (max === null || l.log_date > max)) max = l.log_date;
     }
   }
-  return max === -Infinity ? null : max;
+  return max;
+}
+
+/** Latest log date as ms — the reference "now" for the trend window. Data-derived
+ *  (not Date.now()) so the read stays pure/deterministic and a month of no logging
+ *  doesn't silently collapse the comparison window. */
+function latestLogMs(logsBySlug: LogsBySlug): number | null {
+  const d = latestLogDate(logsBySlug);
+  const t = d ? Date.parse(d) : NaN;
+  return Number.isFinite(t) ? t : null;
 }
 
 /** Health-% delta vs the snapshot ~30 days before the latest log. Filters each
@@ -643,8 +656,17 @@ type TrainingTrend = "improving" | "holding" | "declining";
 export interface TrainingEvaluation {
   trend: TrainingTrend;
   confidence: "low" | "medium" | "high";
-  /** Lifts sitting below PR (from the summary) — surfaced for wording/debug. */
+  /** Lifts sitting below PR (from the summary) — surfaced for wording/debug.
+   *  NOT a decision input: a healthy block almost always carries 1–2 lifts under
+   *  94% that are fine (fresh off a PR, visibly rebounding, or a `settled`
+   *  baseline). Anything asking "are the lifts in trouble?" reads `attention`. */
   watch: number;
+  /** Lifts that actually need intervention — below PR AND stalled ≥3 weeks AND
+   *  neither rebounding nor `settled` (summary.attention / `needsAttention`).
+   *  This is the softening signal: the same predicate `trend` is built from, at
+   *  single-lift granularity, so a rung that wants "any lift in trouble" and the
+   *  whole-body trend can't disagree about what trouble means. */
+  attention: number;
   /** Lifts at or above their all-time best (status "improving") — the concrete
    *  count the Capitalize rung reports so its copy states a fact, not a slogan. */
   improving: number;
@@ -734,18 +756,40 @@ function pickLeader(exercises: StrengthExercise[]): TrainingEvaluation["leader"]
     : null;
 }
 
-export function buildTrainingEvaluation(summary: StrengthSummary): TrainingEvaluation {
-  const { improving, watch, total, exercises } = summary;
+export function buildTrainingEvaluation(
+  summary: StrengthSummary,
+  /** Today (YYYY-MM-DD) — injected so this stays pure/testable. Omitted = read
+   *  the clock, which is what every non-test caller wants. */
+  today?: string,
+): TrainingEvaluation {
+  const { improving, watch, attention, total, exercises } = summary;
   const leader = pickLeader(exercises);
   // Fewer than two judgeable lifts → we can't claim a trend. Neutral + low
   // confidence so the engine never fires a training-dependent tier off noise.
-  if (total < 2) return { trend: "holding", confidence: "low", watch, improving, total, leader };
+  if (total < 2)
+    return { trend: "holding", confidence: "low", watch, attention, improving, total, leader };
 
   // A lift counts toward decline only when it's both below PR (watch) AND has
-  // carried that gap for ≥3 weeks — a settled drop, not a fresh dip.
-  const stalledWatch = exercises.filter((e) => e.needsAttention).length;
+  // carried that gap for ≥3 weeks — a settled drop, not a fresh dip. That's
+  // exactly `summary.attention` (needsAttention per lift), which is also what the
+  // evaluation now exposes, so the whole-body trend and the per-lift softening
+  // signal are literally the same count.
+  const stalledWatch = attention;
   const declineThreshold = Math.max(2, Math.ceil(total / 3)); // ≥⅓ of lifts, min 2
-  const confidence: TrainingEvaluation["confidence"] = total >= 4 ? "high" : "medium";
+  // RECENCY GATE (the same one recovery already applies — see buildRecoveryEvaluation).
+  // Every number above is computed from logged sessions and is now-free by design:
+  // stalledWeeks runs peak → last log, not peak → today, so silence can never read
+  // as decline. That asymmetry is deliberate and stays — but its mirror image has to
+  // hold too. A verdict built entirely out of sessions from two months ago is not
+  // evidence about THIS week, so after the training freshness window it stops being
+  // actionable: confidence drops to low, the engine discretizes that to "unknown",
+  // and the tiers that need training evidence (Capitalize's PR push, 2b's strength
+  // guardrail) go quiet. Not logging isn't a decline; it also isn't a licence to tell
+  // someone laid up sick to add weight. The trend itself is left as-measured — it's
+  // still an honest summary of the last block, and confidence is the field that says
+  // how much to lean on it.
+  const stale = isStale("training", summary.lastLogDate, today);
+  const confidence: TrainingEvaluation["confidence"] = stale ? "low" : total >= 4 ? "high" : "medium";
 
   let trend: TrainingTrend;
   if (stalledWatch >= declineThreshold) trend = "declining";
@@ -763,5 +807,5 @@ export function buildTrainingEvaluation(summary: StrengthSummary): TrainingEvalu
   else if (improving > total / 2 && stalledWatch === 0) trend = "improving";
   else trend = "holding";
 
-  return { trend, confidence, watch, improving, total, leader };
+  return { trend, confidence, watch, attention, improving, total, leader };
 }

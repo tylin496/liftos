@@ -28,6 +28,8 @@ function nutrition(
     daysOnTarget?: number;
     cutMode?: string;
     accelDirection?: "faster" | "slowing" | null;
+    /** Mean daily logged intake. null (the default) = no food-log signal. */
+    loggedIntake?: number | null;
   } = {},
 ): NonNullable<RecContext["nutrition"]> {
   const evaluation: NutritionEvaluation = {
@@ -50,7 +52,7 @@ function nutrition(
     windowDays: 21,
     weightDataPoints: 21,
     longestGap: 1,
-    loggedIntake: null,
+    loggedIntake: over.loggedIntake ?? null,
     intakeGap: null,
     daysOnTarget: over.daysOnTarget ?? 30,
   };
@@ -73,10 +75,15 @@ const training = (
   confidence: TrainingEvaluation["confidence"] = "high",
   watch = trend === "declining" ? 2 : 0,
   leader: TrainingEvaluation["leader"] = null,
+  /** Lifts actually needing intervention (≤ watch). Defaults to the realistic
+   *  shape: a "declining" verdict IS built from stalled watch lifts, while a
+   *  healthy block's watch lifts are fresh-PR/rebounding/settled → none. */
+  attention = trend === "declining" ? watch : 0,
 ): TrainingEvaluation => ({
   trend,
   confidence,
   watch,
+  attention,
   improving: trend === "improving" ? 4 - watch : 0,
   total: 4,
   leader,
@@ -185,12 +192,91 @@ describe("Decision Engine — precedence ladder", () => {
     expect(rec?.title).not.toBe("Increase activity");
   });
 
-  it("2b: stalled + adhering + a key lift on WATCH (not yet declining) → still holds off the cut", () => {
+  it("2b: stalled + adhering + one lift NEEDING ATTENTION (not yet a decline) → still holds off the cut", () => {
     const rec = decide({
       nutrition: nutrition({ status: "below_target", observedRate: -0.05, confidence: "high", daysOnTarget: 20 }),
-      training: training("holding", "high", 1), // holding overall, but 1 lift on watch
+      // holding overall, but one lift is stalled ≥3 wks and still asking for help
+      training: training("holding", "high", 1, null, 1),
     });
     expect(rec?.title).toBe("Increase activity");
+  });
+
+  it("2b: lifts merely on WATCH with none needing attention is NOT softening — the cut lever stays open", () => {
+    // The shape of a healthy block: a couple of lifts under 94% of PR because
+    // they're fresh off a PR / rebounding / a settled 12-week baseline. Gating on
+    // raw `watch` made the guardrail unconditional for anyone with a dozen lifts.
+    const rec = decide({
+      nutrition: nutrition({ status: "below_target", observedRate: -0.05, confidence: "high", daysOnTarget: 20 }),
+      training: training("holding", "high", 3, null, 0),
+    });
+    expect(rec?.title).toBe("Review calorie target");
+    expect(rec?.title).not.toBe("Increase activity");
+  });
+
+  it("2b-pre: stalled with the log sitting OVER target → hit the target, don't move it", () => {
+    // The failure `daysOnTarget` alone can't see: target set three weeks ago and
+    // never touched (so it reads as "adherent"), while ~400 kcal/day more than it
+    // gets eaten every day. Neither lowering the target nor prescribing cardio is
+    // the answer to a plan that isn't being run.
+    const rec = decide({
+      nutrition: nutrition({
+        status: "below_target",
+        observedRate: -0.05,
+        confidence: "high",
+        daysOnTarget: 20,
+        loggedIntake: 2545, // target 2145
+      }),
+      training: training("declining"), // would otherwise divert to activity
+    });
+    expect(rec?.title).toBe("Hit your current target");
+    expect(rec?.subtitle).toContain("400 kcal/day over target");
+  });
+
+  it("2b-pre: a log at/below target can't overrule adherence — only a clear overshoot does", () => {
+    // The log is a systematic UNDER-count, so "logged ≈ target" proves nothing and
+    // must leave the existing verdict alone; only the conclusive direction bites.
+    const rec = decide({
+      nutrition: nutrition({
+        status: "below_target",
+        observedRate: -0.05,
+        confidence: "high",
+        daysOnTarget: 20,
+        loggedIntake: 2100, // under target
+      }),
+      training: training("declining"),
+    });
+    expect(rec?.title).toBe("Increase activity");
+  });
+
+  it("2b-pre: an overshoot inside the log's own precision doesn't fire", () => {
+    const rec = decide({
+      nutrition: nutrition({
+        status: "below_target",
+        observedRate: -0.05,
+        confidence: "high",
+        daysOnTarget: 20,
+        loggedIntake: 2200, // +55/day — can't explain a stall
+      }),
+      training: training("declining"),
+    });
+    expect(rec?.title).toBe("Increase activity");
+  });
+
+  it("2b-pre bulk mirror: a slow gain with the log UNDER target → hit the target, don't raise it", () => {
+    const rec = decide({
+      nutrition: nutrition({
+        cutMode: "Lean Bulk",
+        status: "below_target",
+        observedRate: 0.02,
+        min: 0.2,
+        max: 0.4,
+        confidence: "high",
+        daysOnTarget: 20,
+        loggedIntake: 1845, // 300 under target
+      }),
+    });
+    expect(rec?.title).toBe("Hit your current target");
+    expect(rec?.subtitle).toContain("under target");
   });
 
   it("stalled but NOT adhering → falls through to nutrition (activity isn't the fix)", () => {

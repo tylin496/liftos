@@ -14,6 +14,13 @@ import { phaseDirection } from "./logic";
 
 type NutritionAction = "maintain" | "reduce" | "increase";
 
+/** The "nothing to do" decision title. Exported because two other surfaces branch
+ *  on it — the Decision Engine's Capitalize tier only fires when nutrition is idle,
+ *  and the System card hides its banner entirely — and a silent string mismatch
+ *  there is invisible: the tier just never fires again. Same reason RECOVERY_TITLE
+ *  is owned by the file that produces it. */
+export const NO_ACTION_TITLE = "No action needed";
+
 export interface NutritionDecision {
   action: NutritionAction;
   /** System card line 1 — the *decision*: "No action needed" when nothing is
@@ -59,7 +66,7 @@ function maintain(
 ): NutritionDecision {
   return {
     action: "maintain",
-    eventType: "No action needed",
+    eventType: NO_ACTION_TITLE,
     actionLine,
     actionHeadline: "Maintain current target",
     reason,

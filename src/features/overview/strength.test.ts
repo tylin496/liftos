@@ -103,7 +103,7 @@ describe("computeStrengthSummary — two-axis stall clock", () => {
       a: [log("2026-01-01", "80*8"), log("2026-01-08", "70*8"), log("2026-01-15", "72*8"), log("2026-02-19", "60*8")],
       b: [log("2026-01-01", "80*8"), log("2026-01-08", "70*8"), log("2026-01-15", "72*8"), log("2026-02-19", "60*8")],
     });
-    expect(buildTrainingEvaluation(plateau).trend).toBe("declining");
+    expect(buildTrainingEvaluation(plateau, "2026-02-20").trend).toBe("declining");
   });
 
   it("a majority PRing reads 'improving' even with a rebounding watch lift", () => {
@@ -117,7 +117,7 @@ describe("computeStrengthSummary — two-axis stall clock", () => {
       squat: [log("2026-01-01", "80*8"), log("2026-01-20", "60*8"), log("2026-02-01", "65*8"), log("2026-02-15", "70*8")],
     });
     expect(block.exercises.find((e) => e.slug === "squat")!.needsAttention).toBe(false);
-    expect(buildTrainingEvaluation(block).trend).toBe("improving");
+    expect(buildTrainingEvaluation(block, "2026-02-16").trend).toBe("improving");
   });
 });
 
@@ -479,7 +479,7 @@ describe("computeStrengthSummary — settled stalls (attention expiry)", () => {
     });
     expect(s.exercises.find((e) => e.slug === "squat")!.settled).toBe(true);
     expect(s.attention).toBe(0);
-    expect(buildTrainingEvaluation(s).trend).toBe("improving");
+    expect(buildTrainingEvaluation(s, "2026-04-19").trend).toBe("improving");
   });
 
   it("an acute decline re-flags an aged stall — settled never masks a live slide", () => {
@@ -496,6 +496,46 @@ describe("computeStrengthSummary — settled stalls (attention expiry)", () => {
     expect(squat.declining).toBe(true); // …but actively sliding
     expect(squat.settled).toBe(false);
     expect(squat.needsAttention).toBe(true);
+  });
+});
+
+describe("buildTrainingEvaluation — recency gate", () => {
+  // A block that was unambiguously improving while it was being logged.
+  const block = () =>
+    computeStrengthSummary({
+      press: [log("2026-01-01", "50*8"), log("2026-01-08", "54*8"), log("2026-01-15", "57*8"), log("2026-01-22", "60*8")],
+      hinge: [log("2026-01-01", "90*8"), log("2026-01-08", "94*8"), log("2026-01-15", "97*8"), log("2026-01-22", "100*8")],
+    });
+
+  it("carries the summary's last log date", () => {
+    expect(block().lastLogDate).toBe("2026-01-22");
+  });
+
+  it("still trusts the verdict inside the freshness window", () => {
+    // 14 days on = one missed week. Deloads and bad weeks happen; that's not a gap.
+    // (medium, not high — two judgeable lifts; the point is that it isn't low.)
+    expect(buildTrainingEvaluation(block(), "2026-02-05").confidence).toBe("medium");
+  });
+
+  it("drops to low confidence once the last session is older than the window", () => {
+    // Three months off — sick, injured, travelling. Every number in the summary is
+    // still describing January, so it stops being evidence about this week: the
+    // engine reads low confidence as "unknown" and its PR push goes quiet.
+    const e = buildTrainingEvaluation(block(), "2026-04-22");
+    expect(e.confidence).toBe("low");
+  });
+
+  it("silence still isn't a decline — the trend stays as it was measured", () => {
+    // The other half of the asymmetry: not logging must never READ as getting
+    // weaker, so stalledWeeks stays anchored to the last log and the trend keeps
+    // saying what the data said. Only confidence moves.
+    expect(buildTrainingEvaluation(block(), "2026-04-22").trend).toBe("improving");
+  });
+
+  it("no logs at all is unknown, not stale", () => {
+    const empty = computeStrengthSummary({});
+    expect(empty.lastLogDate).toBeNull();
+    expect(buildTrainingEvaluation(empty, "2026-04-22").confidence).toBe("low");
   });
 });
 

@@ -11,7 +11,7 @@ import { localDateStr } from "@shared/lib/date";
  * would either false-alarm on weight (logged every few days) or let week-old
  * recovery data slip into the Decision Engine.
  */
-export type MetricKind = "sync" | "recovery" | "weight" | "bodyComp";
+export type MetricKind = "sync" | "recovery" | "weight" | "bodyComp" | "training";
 
 /**
  * maxFreshDays = the largest whole-day age still treated as current.
@@ -27,35 +27,44 @@ export type MetricKind = "sync" | "recovery" | "weight" | "bodyComp";
  *                  Pure UX safety net: never fires if you log daily.
  *   bodyComp  10 — BIA body-fat / lean mass. Weekly and noisy; <7 would
  *                  false-alarm. Pure UX safety net.
+ *   training  14 — the latest logged SET, of any lift. A whole missed week is
+ *                  normal (deload, travel, a bad week); two consecutive missed
+ *                  weeks is not a gap in the rhythm, it's the rhythm having
+ *                  stopped. Trust-critical like `recovery`: it's the line the
+ *                  Decision Engine gates the training verdict on, so a months-old
+ *                  block can't still be telling you to chase a PR.
  */
 const MAX_FRESH_DAYS: Record<MetricKind, number> = {
   sync: 1,
   recovery: 2,
   weight: 4,
   bodyComp: 10,
+  training: 14,
 };
 
 type Freshness = "fresh" | "stale" | "absent";
 
 /** Whole calendar days between an ISO date (YYYY-MM-DD) and today, computed the
  *  same way everywhere so boundaries never disagree. Both sides parse as UTC
- *  midnight, so the diff is an exact day count independent of time-of-day. */
-export function daysSince(isoDate: string): number {
-  return Math.round((Date.parse(localDateStr()) - Date.parse(isoDate)) / 86_400_000);
+ *  midnight, so the diff is an exact day count independent of time-of-day.
+ *  `today` is injectable for the pure modules (they take "now" from their caller
+ *  rather than reading the clock); every UI caller omits it. */
+export function daysSince(isoDate: string, today: string = localDateStr()): number {
+  return Math.round((Date.parse(today) - Date.parse(isoDate)) / 86_400_000);
 }
 
 /** Freshness verdict for a metric's latest reading date. A missing date →
  *  "absent" (no reading at all): callers MUST treat this as unknown, never as a
  *  problem — no data ≠ bad news. Only a present-but-old reading is "stale". */
-function freshnessOf(kind: MetricKind, isoDate: string | null | undefined): Freshness {
+function freshnessOf(kind: MetricKind, isoDate: string | null | undefined, today?: string): Freshness {
   if (!isoDate) return "absent";
-  return daysSince(isoDate) > MAX_FRESH_DAYS[kind] ? "stale" : "fresh";
+  return daysSince(isoDate, today) > MAX_FRESH_DAYS[kind] ? "stale" : "fresh";
 }
 
 /** True only when a reading exists AND is past its kind's freshness window.
  *  Absent data returns false (unknown ≠ stale). */
-export function isStale(kind: MetricKind, isoDate: string | null | undefined): boolean {
-  return freshnessOf(kind, isoDate) === "stale";
+export function isStale(kind: MetricKind, isoDate: string | null | undefined, today?: string): boolean {
+  return freshnessOf(kind, isoDate, today) === "stale";
 }
 
 /** Human "x ago" label: today / yesterday / N days ago / N weeks ago. */

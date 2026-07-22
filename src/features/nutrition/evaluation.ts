@@ -89,7 +89,10 @@ export interface EvaluateInput {
   now: Date;
 }
 
-const KCAL_PER_KG = 7700;
+/** Energy density of body mass — the constant that converts a weekly rate into a
+ *  daily kcal gap. Exported so the engine sizes its thresholds off the same
+ *  number rather than re-deriving 7700 with its own rounding. */
+export const KCAL_PER_KG = 7700;
 export const WINDOW_DAYS = 21;
 /** Minimum weight readings in the window before a trend can be fit (mirrors
  *  theilSenSlope's own guard). Below this, `evaluate` falls back to

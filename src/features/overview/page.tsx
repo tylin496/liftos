@@ -33,7 +33,7 @@ import { useSessionUser, useIsReadOnly } from "@app/layout/SessionContext";
 import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { dismissRecoveryDirective } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
-import { paceLabel, paceTone, rateTone, cutEtaLabel } from "@features/nutrition/recommendation";
+import { paceLabel, paceTone, rateTone, cutEtaLabel, NO_ACTION_TITLE } from "@features/nutrition/recommendation";
 import { CONSIDER_ENTER_COUNT, type Recommendation } from "@features/overview/recommendations";
 import type { Goal, BulkGoal, GoalStatusEvaluation, BulkGoalStatusEvaluation } from "./goal";
 import { phaseKindFromName, phaseDirection, weightMetricDirection } from "@features/nutrition/logic";
@@ -565,7 +565,7 @@ function SystemCard({
   // Command center: only surface the card when there's something to act on.
   // "No action needed" means nothing to do, so the whole banner (and its
   // divider) disappears rather than sitting there confirming nothing's wrong.
-  if (rec.title === "No action needed") return null;
+  if (rec.title === NO_ACTION_TITLE) return null;
   // A dismissible directive (only a systemic recovery dip — sick/travel the app
   // can't infer) splits the banner: the body still navigates, and a subordinate
   // ✕ snoozes it. Nested buttons are invalid, so the container is a plain div.
