@@ -535,6 +535,67 @@ describe("buildTrainingEvaluation — leader (the lift the Capitalize rung names
     expect(buildTrainingEvaluation(s).leader).toBeNull();
   });
 
+  it("drops a climber whose latest top set collapsed against its own norm", () => {
+    // Bench climbs cleanly on score — 70→72→74→76, every session a new best — so
+    // the session-to-session view sees nothing but headroom. Within the last
+    // session it went 8 then 4: it usually sheds one rep, this time it shed half.
+    // The load was maximal even though the number was a PR, and "push it further"
+    // is the one thing not to say.
+    const s = computeStrengthSummary({
+      bench: [
+        log("2026-01-01", "70*8/7"),
+        log("2026-01-08", "72*8/7"),
+        log("2026-01-15", "74*8/7"),
+        log("2026-01-22", "76*8/4"), // top set fell apart
+      ],
+    });
+    const bench = s.exercises.find((e) => e.slug === "bench")!;
+    expect(bench.dropOff).toBeCloseTo(0.5, 3);
+    expect(bench.dropOffBaseline).toBeCloseTo(0.125, 3); // its own norm: 8→7
+    expect(buildTrainingEvaluation(s).leader).toBeNull();
+  });
+
+  it("keeps a climber whose drop-off is its usual set-to-set fatigue", () => {
+    // Identical climb, and the last session sheds the same rep it always sheds.
+    // Normal fatigue is not overreach — the gate must not read every drop as a wall.
+    const s = computeStrengthSummary({
+      bench: [
+        log("2026-01-01", "70*8/7"),
+        log("2026-01-08", "72*8/7"),
+        log("2026-01-15", "74*8/7"),
+        log("2026-01-22", "76*8/7"),
+      ],
+    });
+    expect(buildTrainingEvaluation(s).leader).toEqual({ name: "Bench", detail: "76 kg × 8" });
+  });
+
+  it("treats missing per-set reps as unknown, not as a clean session", () => {
+    // A bare "8" records no within-session shape at all. Absent data can't convict
+    // a lift that is climbing — silence on the fatigue axis falls back to the climb.
+    const s = computeStrengthSummary({
+      bench: [log("2026-01-01", "70*8"), log("2026-01-08", "72*8"), log("2026-01-15", "74*8"), log("2026-01-22", "76*8")],
+    });
+    const bench = s.exercises.find((e) => e.slug === "bench")!;
+    expect(bench.dropOff).toBeNull();
+    expect(bench.dropOffBaseline).toBeNull();
+    expect(buildTrainingEvaluation(s).leader!.name).toBe("Bench");
+  });
+
+  it("reads drop-off off the day's heaviest set, not a back-off set", () => {
+    const s = computeStrengthSummary({
+      bench: [
+        log("2026-01-01", "70*8/7"),
+        log("2026-01-08", "72*8/7"),
+        log("2026-01-15", "74*8/7"),
+        log("2026-01-22", "76*8/7"), // top set: the one that counts
+        log("2026-01-22", "50*12/4"), // back-off set falling apart says nothing
+      ],
+    });
+    const bench = s.exercises.find((e) => e.slug === "bench")!;
+    expect(bench.dropOff).toBeCloseTo(0.125, 3);
+    expect(buildTrainingEvaluation(s).leader!.name).toBe("Bench");
+  });
+
   it("still names a clean climber that is at its all-time best", () => {
     // The case the rung was built for stays intact: nothing here is a rebound, so
     // the tightened gate must not silence it.

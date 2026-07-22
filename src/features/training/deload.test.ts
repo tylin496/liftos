@@ -20,6 +20,8 @@ function ex(over: Partial<StrengthExercise> = {}): StrengthExercise {
     declining: false,
     recentBests: [88, 85, 84, 82, 80],
     trajectory: { direction: "stable", velocity: 0, confidence: 0.6 },
+    dropOff: null,
+    dropOffBaseline: null,
     lastPRKind: "hypertrophy",
     lastPRDetail: "77 kg × 7",
     ...over,

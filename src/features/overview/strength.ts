@@ -22,6 +22,31 @@ function sessionReps(repsStr: string): number {
   return totalReps(repsStr, 1);
 }
 
+/** Reps drop-off across ONE session's top set: how far the last set fell off the
+ *  first, as a fraction ("16/13" → 0.19). This is the only place the per-set
+ *  detail survives — every other axis in this module runs the reps string through
+ *  maxReps/totalReps, which collapse it to one number and lose exactly the shape
+ *  that says whether the session was submaximal or a wall.
+ *
+ *  null when the session can't say: a bare "8" is the log form's shorthand for the
+ *  same reps across every set (no drop recorded), and a single logged set has
+ *  nothing to fall off from. Null means UNKNOWN and must never be read as 0.
+ *  Ascending segments clamp to 0 rather than going negative. */
+function repsDropOff(repsStr: string): number | null {
+  const segs = String(repsStr || "")
+    .split(/[/\-]/)
+    .map((n) => parseInt(n, 10))
+    .filter((n) => n > 0);
+  if (segs.length < 2 || segs[0] <= 0) return null;
+  return Math.max(0, 1 - segs[segs.length - 1] / segs[0]);
+}
+
+function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
 export type StrengthStatus = "improving" | "stable" | "watch";
 
 export type TrendDirection = "recovering" | "stable" | "declining";
@@ -196,6 +221,15 @@ export interface StrengthExercise {
    *  window — see StrengthTrajectory. Complements `trend` (distance-from-PR):
    *  that says how far below the ceiling, this says which way and how fast. */
   trajectory: StrengthTrajectory;
+  /** How far the LATEST session's top set fell off within itself (see
+   *  repsDropOff) — the one read of intra-session fatigue, i.e. whether that
+   *  session was submaximal or a wall. null = the session logged no per-set reps,
+   *  which is UNKNOWN, not "no drop-off". */
+  dropOff: number | null;
+  /** This lift's own median drop-off across the earlier sessions in the window —
+   *  the yardstick `dropOff` is only ever meaningful against. null when no earlier
+   *  session recorded per-set reps (no norm → no verdict). */
+  dropOffBaseline: number | null;
   /** Which kind of PR the most recent one (at `lastPRDate`) was — drives the
    *  reward icon/label. Compound: new e1RM ceiling ("strength", 🏆) or weight-axis
    *  ("performance", 💪). Isolation: new best-set tonnage ceiling ("hypertrophy",
@@ -306,7 +340,7 @@ export function computeStrengthSummary(
     // Group by date (a day = one session); keep the best on every axis — max e1RM,
     // max best-set tonnage (the two candidate score axes), and max completed weight
     // (the compound Performance-PR axis, used only to reset the stall clock below).
-    const byDate: Record<string, { e1rm: number; tonnage: number; weightKg: number; scoreW: number; topReps: number; ceilingReps: number }> = {};
+    const byDate: Record<string, { e1rm: number; tonnage: number; weightKg: number; scoreW: number; topReps: number; ceilingReps: number; dropOff: number | null }> = {};
     // Assisted lifts read the PR detail in %BW (scoreWeight), not raw kg — the raw
     // net kg is contaminated by bodyweight, the exact thing the %BW axis strips out.
     let isAssisted = slugAssisted ?? false;
@@ -330,7 +364,7 @@ export function computeStrengthSummary(
       const e = strengthScore(sw, p.reps, assistedMode);
       const tng = sw > 0 ? sw * maxReps(p.reps) : 0; // uncapped reps — matches logic.ts toLogEntry
       const tr = sessionReps(p.reps);
-      const cur = byDate[l.log_date] ?? { e1rm: 0, tonnage: 0, weightKg: 0, scoreW: 0, topReps: 0, ceilingReps: 0 };
+      const cur = byDate[l.log_date] ?? { e1rm: 0, tonnage: 0, weightKg: 0, scoreW: 0, topReps: 0, ceilingReps: 0, dropOff: null };
       const heavier = w > cur.weightKg; // track reps of the HEAVIEST set (the PR detail)
       // Round to the same 1-decimal precision the PR loop below compares at
       // (roundedE1) — a raw-float tie check here could split what that loop
@@ -346,6 +380,10 @@ export function computeStrengthSummary(
         // Total reps of the set that hit the day's e1RM ceiling — the reps-tiebreak
         // axis. A higher-e1RM set takes over; a tie keeps the larger rep total.
         ceilingReps: eR > curE1R ? tr : eR === curE1R ? Math.max(cur.ceilingReps, tr) : cur.ceilingReps,
+        // Drop-off belongs to the day's HEAVIEST set — same set topReps/scoreW
+        // describe. A back-off or accessory set falling apart says nothing about
+        // whether the top set was at the limit.
+        dropOff: heavier ? repsDropOff(p.reps) : cur.dropOff,
       };
     }
     // Sort ascending by date so recent/prior slices are correct regardless of
@@ -479,6 +517,15 @@ export function computeStrengthSummary(
     // aligned to their dates so confidence reflects the exact data it summarises.
     const windowDates = datedBests.slice(-8).map(([d]) => d);
     const trajectory = computeTrajectory(sessionBests, windowDates);
+    // Intra-session fatigue, over the same ≤8-session window: what the latest top
+    // set fell off, against what THIS lift normally falls off. Absolute drop-off
+    // is meaningless across lifts and rep schemes (straight sets to failure shed
+    // reps every set by design) — the lift's own median is the only fair yardstick.
+    // Baseline excludes the latest session so it can't be judged against itself.
+    const windowDropOffs = datedBests.slice(-8).map(([, v]) => v.dropOff);
+    const dropOff = windowDropOffs[windowDropOffs.length - 1] ?? null;
+    const priorDropOffs = windowDropOffs.slice(0, -1).filter((d): d is number => d !== null);
+    const dropOffBaseline = priorDropOffs.length ? median(priorDropOffs) : null;
     // Settled: the stall aged past SETTLED_STALL_WEEKS without declining — the
     // hold is the new baseline, so the attention flag expires (it already said
     // its piece for 12 weeks). Declining re-flags regardless of stall age.
@@ -505,6 +552,8 @@ export function computeStrengthSummary(
       declining,
       recentBests: sessionBests.slice(-8),
       trajectory,
+      dropOff,
+      dropOffBaseline,
       lastPRKind,
       lastPRDetail,
       milestoneKg: lastPRMilestone ?? undefined,
@@ -647,11 +696,27 @@ function sustainedClimb(recentBests: number[]): number {
   return slowest >= LEADER_MIN_STEP ? slowest : 0;
 }
 
+/** Drop-off this far (10 points) past the lift's OWN median is no longer normal
+ *  set-to-set fatigue — it's the session hitting a wall. */
+const OVERREACH_EXCESS = 0.1;
+
+/** Did the latest session end at the limit? A top set that shed far more reps
+ *  than this lift usually sheds is the tell that the load was maximal, whatever
+ *  the score says. Between the session-to-session view (sustainedClimb) and this
+ *  within-session one, both have to say "there was room left" before the app tells
+ *  you to push harder. False when either number is missing — an unknown is not
+ *  evidence of overreach, and the fallback must be to trust the climb. */
+function overreached(e: StrengthExercise): boolean {
+  if (e.dropOff === null || e.dropOffBaseline === null) return false;
+  return e.dropOff >= e.dropOffBaseline + OVERREACH_EXCESS;
+}
+
 /** Pick the lift most worth naming: the strongest SUSTAINED climber that isn't on
- *  watch and has a concrete current best to beat — never merely the fastest mover
- *  (see sustainedClimb for why those differ). Null when nothing qualifies (every
- *  lift flat AT its PR, or the only movers are rebound spikes) — the Capitalize
- *  copy then falls back to the count alone, which is the correct silence. */
+ *  watch, didn't end its last session at the wall, and has a concrete current best
+ *  to beat — never merely the fastest mover (see sustainedClimb for why those
+ *  differ). Null when nothing qualifies (every lift flat AT its PR, or the only
+ *  movers are rebound spikes) — the Capitalize copy then falls back to the count
+ *  alone, which is the correct silence. */
 function pickLeader(exercises: StrengthExercise[]): TrainingEvaluation["leader"] {
   const climbers = exercises
     .map((e) => ({ e, climb: sustainedClimb(e.recentBests) }))
@@ -659,6 +724,7 @@ function pickLeader(exercises: StrengthExercise[]): TrainingEvaluation["leader"]
       ({ e, climb }) =>
         e.status !== "watch" &&
         climb > 0 &&
+        !overreached(e) &&
         e.trajectory.confidence >= LEADER_MIN_CONFIDENCE &&
         e.lastPRDetail !== "",
     )

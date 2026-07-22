@@ -26,6 +26,8 @@ function ex(
     declining: dir === "declining",
     recentBests: [100, 100, 100, 100],
     trajectory: { direction: dir, velocity: dir === "stable" ? 0 : -0.05, confidence },
+    dropOff: null,
+    dropOffBaseline: null,
     lastPRKind: "strength",
     lastPRDetail: "",
   };
