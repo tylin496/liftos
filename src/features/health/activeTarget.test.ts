@@ -49,8 +49,44 @@ describe("computeActiveTarget — last-week carry", () => {
     expect(v.today.target).toBe(0);
   });
 
-  it("null readings in the previous week are skipped, not zeroed into the sum", () => {
+  it("an unsynced previous-week day leaves BOTH sides of the carry", () => {
+    // 6 days × 700 = 4200 measured, judged against 6 × 500 = 3000 → 1200 carried.
+    // Charging the unmeasured 7th day (4200 vs 3500 → 700) would delete 500 kcal
+    // of real surplus purely because a sync didn't run.
     const v = compute([...days(6, 6, 700), row("2026-07-12", null), ...days(13, 2, 500)]);
-    expect(v.carriedFromLastWeek).toBe(700); // 6 × 700 = 4200 vs 3500
+    expect(v.carriedFromLastWeek).toBe(1200);
+  });
+});
+
+describe("computeActiveTarget — unsynced days", () => {
+  // Clock is Wed 2026-07-15: Mon 13 and Tue 14 have elapsed.
+  it("a missed sync does not raise the remaining days' ask", () => {
+    // Only Tuesday synced. The week's goal covers the 6 days we can account for
+    // (3000), not 7 — so the ask holds at the flat 500 instead of jumping to 600
+    // the way a zeroed Monday would make it.
+    const v = compute([row("2026-07-14", 500)]);
+    expect(v.missedDays).toBe(1);
+    expect(v.syncedPastDays).toBe(1);
+    expect(v.today.target).toBe(500); // (3000 − 500) / 5
+  });
+
+  it("a row that exists with no reading counts as missed, same as no row", () => {
+    const v = compute([row("2026-07-13", null), row("2026-07-14", 500)]);
+    expect(v.missedDays).toBe(1);
+    expect(v.today.target).toBe(500);
+  });
+
+  it("a real shortfall still raises the ask — only unmeasured days are excused", () => {
+    // Both days synced, both low. Nothing is missing, so the week stays a 7-day
+    // goal and the deficit lands where it should.
+    const v = compute([...days(13, 2, 100)]);
+    expect(v.missedDays).toBe(0);
+    expect(v.today.target).toBe(660); // (3500 − 200) / 5
+  });
+
+  it("a fully unsynced week asks the flat daily target, never a pile-up", () => {
+    const v = compute([]);
+    expect(v.missedDays).toBe(2);
+    expect(v.today.target).toBe(500); // (2500 − 0) / 5
   });
 });

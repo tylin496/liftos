@@ -28,6 +28,14 @@ export interface ActiveTargetView {
    *  from last week's RAW total vs the flat goal, so credit spent (or unused)
    *  last week doesn't compound forward. */
   carriedFromLastWeek: number;
+  /** Days Mon→yesterday that have an active reading. The week's goal is scaled
+   *  to these, not to the calendar — see missedDays. */
+  syncedPastDays: number;
+  /** Elapsed days this week with no reading at all. Excluded from both sides of
+   *  the week's accounting: a day we didn't measure is neither credit nor debt.
+   *  Consumers comparing a total against a goal must scale by the days actually
+   *  covered, or an unsynced day reads as a day of doing nothing. */
+  missedDays: number;
 
   /** Today's floating target — the ring. Rises/falls with the rest of the
    *  week's pace so far, so a banked surplus quietly lowers today's ask and a
@@ -81,12 +89,20 @@ export function computeActiveTarget(
 
   // Only "through yesterday" — today's partial reading isn't banked yet, it's
   // what the floating target below is asking for.
-  const accruedThroughYesterday = metrics
-    .filter(
-      (m) =>
-        m.metric_date >= mondayISO && m.metric_date < todayISO && m.active_energy_kcal != null,
-    )
-    .reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
+  const syncedPast = metrics.filter(
+    (m) => m.metric_date >= mondayISO && m.metric_date < todayISO && m.active_energy_kcal != null,
+  );
+  const accruedThroughYesterday = syncedPast.reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
+
+  // Days this week we have NO reading for at all — the sync didn't run, so we
+  // know nothing about them. They must leave the week's accounting entirely
+  // rather than count as zero: a day with no data is not a day with no
+  // movement. Holding the week's goal at 7 days while the numerator silently
+  // loses one is the same debt-snowball the surplus-only carry below exists to
+  // prevent, except invisible — one missed sync would quietly raise every
+  // remaining day's ask for the rest of the week.
+  const daysElapsed = weekday - 1;
+  const missedDays = Math.max(0, daysElapsed - syncedPast.length);
 
   // Last week's surplus rolls forward as credit against this week's goal.
   // Surplus only (a shortfall doesn't raise this week's ask — debt snowballs
@@ -95,18 +111,25 @@ export function computeActiveTarget(
   const prevMondayISO = localDateStr(
     new Date(new Date(`${mondayISO}T12:00:00`).getTime() - 7 * 86400000),
   );
-  const lastWeekTotal = metrics
-    .filter(
-      (m) =>
-        m.metric_date >= prevMondayISO && m.metric_date < mondayISO && m.active_energy_kcal != null,
-    )
-    .reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
-  const carriedFromLastWeek = Math.max(0, Math.round(lastWeekTotal - activeTargetPerDay * 7));
+  const lastWeekSynced = metrics.filter(
+    (m) =>
+      m.metric_date >= prevMondayISO && m.metric_date < mondayISO && m.active_energy_kcal != null,
+  );
+  const lastWeekTotal = lastWeekSynced.reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
+  // Judged against the days last week we actually measured, for the same reason
+  // as missedDays above — an unsynced day must not manufacture a phantom
+  // shortfall that silently cancels a real surplus.
+  const carriedFromLastWeek = Math.max(
+    0,
+    Math.round(lastWeekTotal - activeTargetPerDay * lastWeekSynced.length),
+  );
 
   // Today's floating target: what's left of the weekly goal, spread across
   // today + the days after it. Banking active on prior days lowers this;
-  // falling behind raises it — the number the ring is actually built on.
-  const weeklyGoalTotal = activeTargetPerDay * 7;
+  // falling behind raises it — the number the ring is actually built on. The
+  // goal covers only the days we can account for: 7 minus the ones with no
+  // reading (see missedDays).
+  const weeklyGoalTotal = activeTargetPerDay * (7 - missedDays);
   const daysRemainingInclToday = 8 - weekday;
   const todayTarget = Math.max(
     0,
@@ -132,6 +155,8 @@ export function computeActiveTarget(
     weekday,
     accruedThroughYesterday: Math.round(accruedThroughYesterday),
     carriedFromLastWeek,
+    syncedPastDays: syncedPast.length,
+    missedDays,
     today: {
       target: todayTarget,
       accrued: Math.round(todayAccrued),

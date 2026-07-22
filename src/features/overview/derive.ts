@@ -31,18 +31,35 @@ export function weekActiveTotal(metrics: BodyMetric[], mondayISO: string): numbe
     .reduce((s, m) => s + (m.active_energy_kcal ?? 0), 0);
 }
 
+/** Days in the Mon→Sun week from `mondayISO` that carry an active reading. The
+ *  denominator for any total-vs-goal comparison over that week — an unsynced day
+ *  contributes 0 to the total, so charging it against the goal would read as a
+ *  day of doing nothing rather than a day we didn't measure. */
+export function weekSyncedDays(metrics: BodyMetric[], mondayISO: string): number {
+  const next = shiftISODays(mondayISO, 7);
+  return metrics.filter(
+    (m) => m.metric_date >= mondayISO && m.metric_date < next && m.active_energy_kcal != null,
+  ).length;
+}
+
 /** Footer balance vs the flat pace. Current week: the live "through yesterday
  *  vs flat pace" running figure, plus last week's carried surplus — the same
  *  credit the floating target eases by, so the readout matches the ring. A
- *  completed past week: its full-week total vs the 7-day goal (a retrospective
- *  settle — that week's own surplus, NOT zeroed when it was spent the week
- *  after). `pastWeekTotal` is ignored for the current week — pass
- *  weekActiveTotal(metrics, mondayISO) for a past week. */
-export function weekBanked(view: ActiveTargetView, isCurrentWeek: boolean, pastWeekTotal: number): number {
+ *  completed past week: its total vs the goal for the days it actually covered
+ *  (a retrospective settle — that week's own surplus, NOT zeroed when it was
+ *  spent the week after). `pastWeekTotal`/`pastWeekDays` are ignored for the
+ *  current week — pass weekActiveTotal/weekSyncedDays(metrics, mondayISO) for a
+ *  past week. Both sides scale to measured days only, matching the ring. */
+export function weekBanked(
+  view: ActiveTargetView,
+  isCurrentWeek: boolean,
+  pastWeekTotal: number,
+  pastWeekDays: number,
+): number {
   const perDay = view.activeTargetPerDay;
   return isCurrentWeek
-    ? view.carriedFromLastWeek + view.accruedThroughYesterday - perDay * (view.weekday - 1)
-    : Math.round(pastWeekTotal - perDay * 7);
+    ? view.carriedFromLastWeek + view.accruedThroughYesterday - perDay * view.syncedPastDays
+    : Math.round(pastWeekTotal - perDay * pastWeekDays);
 }
 
 /** Banked-figure tone; ±30 kcal deadband (same anti-flicker bar as position). */

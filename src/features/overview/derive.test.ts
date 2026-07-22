@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  activeTargetPosition, weekActiveTotal, weekBanked, bankedTone, weekStripCells,
+  activeTargetPosition, weekActiveTotal, weekSyncedDays, weekBanked, bankedTone, weekStripCells,
   phasePlanNote, cutStageLabel, bulkStageLabel, nextCutStageLabel, weightLineTone, accelArrowTone,
   buildSparkGeometry, SPARK_W, SPARK_PAD,
 } from "./derive";
@@ -12,16 +12,21 @@ import type { GoalStatusEvaluation } from "./goal";
 const metric = (metric_date: string, active_energy_kcal: number | null) =>
   ({ metric_date, active_energy_kcal }) as unknown as BodyMetric;
 
-const view = (over: Partial<ActiveTargetView> & { today?: Partial<ActiveTargetView["today"]> }): ActiveTargetView =>
-  ({
+const view = (over: Partial<ActiveTargetView> & { today?: Partial<ActiveTargetView["today"]> }): ActiveTargetView => {
+  const weekday = over.weekday ?? 2;
+  return {
     activeTargetPerDay: 500,
     mondayISO: "2026-07-13",
-    weekday: 2,
+    weekday,
     accruedThroughYesterday: 500,
     carriedFromLastWeek: 0,
+    // Default: every elapsed day synced. Override syncedPastDays to model a gap.
+    syncedPastDays: weekday - 1,
+    missedDays: 0,
     today: { target: 500, accrued: 250, synced: true, lastSyncDate: "2026-07-14", ...(over.today ?? {}) },
     ...over,
-  }) as unknown as ActiveTargetView;
+  } as unknown as ActiveTargetView;
+};
 
 const goalStatus = (reached: boolean, targetBodyFatPct: number | null): GoalStatusEvaluation =>
   ({ reached, targetBodyFatPct, bodyFat14dAvg: null }) as unknown as GoalStatusEvaluation;
@@ -58,16 +63,44 @@ describe("weekBanked", () => {
   it("current week = accrued-through-yesterday minus flat pace for elapsed days", () => {
     // weekday 3 (Wed) → 2 elapsed days; 900 accrued vs 2×500 flat = −100.
     const v = view({ weekday: 3, accruedThroughYesterday: 900 });
-    expect(weekBanked(v, true, 0)).toBe(-100);
+    expect(weekBanked(v, true, 0, 0)).toBe(-100);
   });
   it("current week includes last week's carried surplus (matches the eased ring)", () => {
     // Same −100 running figure as above, +300 carried in → net +200.
     const v = view({ weekday: 3, accruedThroughYesterday: 900, carriedFromLastWeek: 300 });
-    expect(weekBanked(v, true, 0)).toBe(200);
+    expect(weekBanked(v, true, 0, 0)).toBe(200);
   });
-  it("past week = full-week total minus the 7-day goal, rounded", () => {
+  it("past week = total minus the goal for the days it covered, rounded", () => {
     const v = view({});
-    expect(weekBanked(v, false, 3700)).toBe(200); // 3700 − 3500
+    expect(weekBanked(v, false, 3700, 7)).toBe(200); // 3700 − 7×500
+  });
+
+  it("current week charges only the days that synced, not the calendar", () => {
+    // Fri (weekday 5) → 4 elapsed days, but one never synced. The 1500 accrued
+    // is judged against 3×500, not 4×500 — the missing day is neither credit nor
+    // debt. Charging it would read −500 and quietly raise every remaining ask.
+    const v = view({ weekday: 5, accruedThroughYesterday: 1500, syncedPastDays: 3 });
+    expect(weekBanked(v, true, 0, 0)).toBe(0);
+  });
+  it("past week with a gap settles against its measured days", () => {
+    // 6 synced days totalling 3200 vs 6×500 = +200. Against a flat 7-day goal
+    // the same week would read −300 purely because a sync didn't run.
+    const v = view({});
+    expect(weekBanked(v, false, 3200, 6)).toBe(200);
+  });
+});
+
+describe("weekSyncedDays", () => {
+  it("counts in-week days with a reading, ignoring nulls and out-of-week rows", () => {
+    const metrics = [
+      metric("2026-07-12", 999),  // Sunday before — excluded
+      metric("2026-07-13", 400),  // Mon
+      metric("2026-07-15", 600),  // Wed
+      metric("2026-07-16", null), // synced row, no reading — not a covered day
+      metric("2026-07-19", 300),  // Sun
+      metric("2026-07-20", 999),  // next Mon — excluded
+    ];
+    expect(weekSyncedDays(metrics, "2026-07-13")).toBe(3);
   });
 });
 

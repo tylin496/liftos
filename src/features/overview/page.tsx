@@ -43,7 +43,7 @@ import {
   fmtTopbarDate, shiftISODays, fmtWeekRange, fmtDayLabel, daysSince, fmt1kg, greeting,
 } from "./format";
 import {
-  activeTargetPosition, weekActiveTotal, weekBanked, bankedTone, weekStripCells,
+  activeTargetPosition, weekActiveTotal, weekSyncedDays, weekBanked, bankedTone, weekStripCells,
   phasePlanNote, cutStageLabel, bulkStageLabel, nextCutStageLabel, weightLineTone, accelArrowTone, buildSparkGeometry,
   SPARK_W, SPARK_H, SPARK_PAD,
 } from "./derive";
@@ -374,10 +374,13 @@ function ActiveTargetCard({
 
   // Footer balance. Current week: the live "through yesterday vs flat pace"
   // running figure the floating target is built from. A past (completed) week:
-  // its final full-week total vs the 7-day goal — a retrospective settle.
+  // its total vs the goal for the days it actually covered — a retrospective
+  // settle. Both sides scale to synced days; an unsynced day is not a zero day.
   const pastWeekTotal =
     view && !isCurrentWeek && viewedMonday ? weekActiveTotal(metrics, viewedMonday) : 0;
-  const banked = view ? weekBanked(view, isCurrentWeek, pastWeekTotal) : 0;
+  const pastWeekDays =
+    view && !isCurrentWeek && viewedMonday ? weekSyncedDays(metrics, viewedMonday) : 0;
+  const banked = view ? weekBanked(view, isCurrentWeek, pastWeekTotal, pastWeekDays) : 0;
   const banktone = bankedTone(banked);
 
   // The week's anchor day — today for the current week, the same weekday N weeks
@@ -1928,7 +1931,11 @@ export function OverviewPage() {
   // Log-intake shortcut banner — same collapse-out choreography as the System
   // banner, its own exit instance so the two clear independently. Read-only
   // viewers can't log, so they never see the to-do.
-  const intakePrompt = !readOnly && data?.intakePending === true;
+  // At most ONE banner is ever on screen: the engine directive outranks the
+  // data-entry to-do, and the to-do waits for the directive's collapse-out to
+  // finish (systemExit.mounted) before entering — never a two-card stack.
+  const intakePrompt =
+    !readOnly && data?.intakePending === true && rec == null && !systemExit.mounted;
   const intakeExit = useExitTransition(intakePrompt, DUR_EXIT);
 
   const header = (
