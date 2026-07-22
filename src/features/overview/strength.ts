@@ -610,27 +610,62 @@ export interface TrainingEvaluation {
   leader: { name: string; detail: string } | null;
 }
 
-/** A climber's trajectory must clear this confidence for its velocity to be
+/** A climber's trajectory must clear this confidence for its climb to be
  *  trustworthy enough to NAME in a directive — below it the recent window is too
  *  sparse/shallow to single the lift out. */
 const LEADER_MIN_CONFIDENCE = 0.4;
 
-/** Pick the lift most worth naming: the fastest trusted climber that isn't on
- *  watch and has a concrete current best to beat. Trajectory velocity is only
- *  non-zero on a trusted consecutive up-run (see computeTrajectory), so this
- *  never manufactures a mover from the asymmetric log. Null when nothing
- *  qualifies (e.g. every lift sitting flat AT its PR). */
+/** Each step of the climb must clear this (1%) — below it the "run" is e1RM float,
+ *  not accumulation. Deliberately under RECOVERY_MIN_RATIO's 2%: that gate spans a
+ *  whole run, this one is per step. */
+const LEADER_MIN_STEP = 0.01;
+
+/** The rate a lift has PROVEN IT CAN REPEAT: the smaller of the two steps across
+ *  its last three sessions, and only when both are genuinely up. 0 for every other
+ *  shape.
+ *
+ *  Why not `trajectory.velocity`: that is anchored on the run's trough (see
+ *  computeTrajectory), which is right for "is this lift climbing back" but exactly
+ *  backwards for "which lift should I push hardest". Trough-anchoring makes the
+ *  deepest dip the biggest number — 90→70→100 scores 0.43 while a steady
+ *  95→100→105 scores 0.105 — so ranking on it structurally hands the directive to
+ *  a lift that just sprang off a low point onto a one-session peak. That shape is
+ *  a max attempt: the headroom was just SPENT, and the honest next move is to
+ *  consolidate, not to chase it. Two consecutive submaximal steps are the opposite
+ *  claim — headroom still on the table — and that is what earns a "push it" call.
+ *
+ *  Taking the MIN of the two steps (not the total) keeps the ranking on the
+ *  repeatable rate: 100→101→130 (one small step + one lunge) must not outrank
+ *  100→105→110. */
+function sustainedClimb(recentBests: number[]): number {
+  if (recentBests.length < 3) return 0;
+  const [prior, mid, latest] = recentBests.slice(-3);
+  if (prior <= 0 || mid <= 0) return 0;
+  const step1 = mid / prior - 1;
+  const step2 = latest / mid - 1;
+  const slowest = Math.min(step1, step2);
+  return slowest >= LEADER_MIN_STEP ? slowest : 0;
+}
+
+/** Pick the lift most worth naming: the strongest SUSTAINED climber that isn't on
+ *  watch and has a concrete current best to beat — never merely the fastest mover
+ *  (see sustainedClimb for why those differ). Null when nothing qualifies (every
+ *  lift flat AT its PR, or the only movers are rebound spikes) — the Capitalize
+ *  copy then falls back to the count alone, which is the correct silence. */
 function pickLeader(exercises: StrengthExercise[]): TrainingEvaluation["leader"] {
   const climbers = exercises
+    .map((e) => ({ e, climb: sustainedClimb(e.recentBests) }))
     .filter(
-      (e) =>
+      ({ e, climb }) =>
         e.status !== "watch" &&
-        e.trajectory.velocity > 0 &&
+        climb > 0 &&
         e.trajectory.confidence >= LEADER_MIN_CONFIDENCE &&
         e.lastPRDetail !== "",
     )
-    .sort((a, b) => b.trajectory.velocity - a.trajectory.velocity);
-  return climbers.length ? { name: climbers[0].name, detail: climbers[0].lastPRDetail } : null;
+    .sort((a, b) => b.climb - a.climb);
+  return climbers.length
+    ? { name: climbers[0].e.name, detail: climbers[0].e.lastPRDetail }
+    : null;
 }
 
 export function buildTrainingEvaluation(summary: StrengthSummary): TrainingEvaluation {

@@ -498,3 +498,49 @@ describe("computeStrengthSummary — settled stalls (attention expiry)", () => {
     expect(squat.needsAttention).toBe(true);
   });
 });
+
+describe("buildTrainingEvaluation — leader (the lift the Capitalize rung names)", () => {
+  it("names the steady climber, never the lift that dipped and sprang to a peak", () => {
+    // The regression this gate exists for. Bench dropped to 85 and came back at
+    // 120 — one session, straight to an all-time high. Trajectory velocity is
+    // trough-anchored, so bench scores 0.41 against squat's 0.10 and would be
+    // named "push it further" on the exact session that spent its headroom.
+    // Squat added ~5 kg a week with room left over: that is the repeatable one.
+    const s = computeStrengthSummary({
+      squat: [log("2026-01-01", "100*5"), log("2026-01-08", "105*5"), log("2026-01-15", "110*5"), log("2026-01-22", "115*5")],
+      bench: [log("2026-01-01", "100*5"), log("2026-01-08", "105*5"), log("2026-01-15", "85*5"), log("2026-01-22", "120*5")],
+    });
+    const bench = s.exercises.find((e) => e.slug === "bench")!;
+    expect(bench.status).not.toBe("watch"); // at its all-time best → passes every other gate
+    expect(bench.trajectory.velocity).toBeGreaterThan(
+      s.exercises.find((e) => e.slug === "squat")!.trajectory.velocity,
+    ); // …and still outranks squat on raw velocity
+    expect(buildTrainingEvaluation(s).leader).toEqual({ name: "Squat", detail: "115 kg × 5" });
+  });
+
+  it("ranks on the slowest step, so one lunge never outranks a consistent climb", () => {
+    // Bench: +2 kg then +28. Squat: +5 every week. Bench's total climb is far
+    // bigger, but only 2 kg of it is a rate it has shown twice.
+    const s = computeStrengthSummary({
+      squat: [log("2026-01-01", "100*5"), log("2026-01-08", "105*5"), log("2026-01-15", "110*5"), log("2026-01-22", "115*5")],
+      bench: [log("2026-01-01", "90*5"), log("2026-01-08", "100*5"), log("2026-01-15", "102*5"), log("2026-01-22", "130*5")],
+    });
+    expect(buildTrainingEvaluation(s).leader!.name).toBe("Squat");
+  });
+
+  it("stays null when the only climbers are rebounds — silence over a wrong name", () => {
+    const s = computeStrengthSummary({
+      bench: [log("2026-01-01", "100*5"), log("2026-01-08", "105*5"), log("2026-01-15", "85*5"), log("2026-01-22", "120*5")],
+    });
+    expect(buildTrainingEvaluation(s).leader).toBeNull();
+  });
+
+  it("still names a clean climber that is at its all-time best", () => {
+    // The case the rung was built for stays intact: nothing here is a rebound, so
+    // the tightened gate must not silence it.
+    const s = computeStrengthSummary({
+      bench: [log("2026-01-01", "70*8"), log("2026-01-08", "72*8"), log("2026-01-15", "74*8"), log("2026-01-22", "76*8")],
+    });
+    expect(buildTrainingEvaluation(s).leader).toEqual({ name: "Bench", detail: "76 kg × 8" });
+  });
+});
