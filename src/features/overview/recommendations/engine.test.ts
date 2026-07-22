@@ -72,11 +72,14 @@ const training = (
   trend: TrainingEvaluation["trend"],
   confidence: TrainingEvaluation["confidence"] = "high",
   watch = trend === "declining" ? 2 : 0,
+  leader: TrainingEvaluation["leader"] = null,
 ): TrainingEvaluation => ({
   trend,
   confidence,
   watch,
+  improving: trend === "improving" ? 4 - watch : 0,
   total: 4,
+  leader,
 });
 
 const leanMass = (
@@ -205,7 +208,21 @@ describe("Decision Engine — precedence ladder", () => {
       recovery: recovery("Ready"),
       training: training("improving"),
     });
+    // No trusted climber to name → the concrete count carries the directive.
     expect(rec?.title).toBe("Add weight this week");
+    expect(rec?.subtitle).toContain("4 of 4 lifts at their best");
+    expect(rec?.source).toBe("training");
+  });
+
+  it("4: names the leading lift + its current best when one is climbing", () => {
+    const rec = decide({
+      nutrition: nutrition({ status: "on_target", confidence: "high" }),
+      recovery: recovery("Ready"),
+      training: training("improving", "high", 0, { name: "Squat", detail: "140 kg × 5" }),
+    });
+    expect(rec?.title).toBe("Push Squat past 140 kg × 5");
+    expect(rec?.subtitle).toContain("Squat's climbing fastest");
+    expect(rec?.subtitle).toContain("beat your 140 kg × 5");
     expect(rec?.source).toBe("training");
   });
 

@@ -596,15 +596,49 @@ export interface TrainingEvaluation {
   confidence: "low" | "medium" | "high";
   /** Lifts sitting below PR (from the summary) — surfaced for wording/debug. */
   watch: number;
+  /** Lifts at or above their all-time best (status "improving") — the concrete
+   *  count the Capitalize rung reports so its copy states a fact, not a slogan. */
+  improving: number;
   /** Lifts with enough data to judge (≥4 sessions). */
   total: number;
+  /** The single lift most worth naming when everything's green — the fastest
+   *  TRUSTED climber (a real consecutive-run velocity, not a fuzzy slope), with
+   *  its current best to beat. Null when no lift shows a trusted climb with a
+   *  concrete PR detail — the Capitalize copy then falls back to the count alone.
+   *  Lets the "add weight" directive point at a specific lift + target instead of
+   *  restating progressive overload. */
+  leader: { name: string; detail: string } | null;
+}
+
+/** A climber's trajectory must clear this confidence for its velocity to be
+ *  trustworthy enough to NAME in a directive — below it the recent window is too
+ *  sparse/shallow to single the lift out. */
+const LEADER_MIN_CONFIDENCE = 0.4;
+
+/** Pick the lift most worth naming: the fastest trusted climber that isn't on
+ *  watch and has a concrete current best to beat. Trajectory velocity is only
+ *  non-zero on a trusted consecutive up-run (see computeTrajectory), so this
+ *  never manufactures a mover from the asymmetric log. Null when nothing
+ *  qualifies (e.g. every lift sitting flat AT its PR). */
+function pickLeader(exercises: StrengthExercise[]): TrainingEvaluation["leader"] {
+  const climbers = exercises
+    .filter(
+      (e) =>
+        e.status !== "watch" &&
+        e.trajectory.velocity > 0 &&
+        e.trajectory.confidence >= LEADER_MIN_CONFIDENCE &&
+        e.lastPRDetail !== "",
+    )
+    .sort((a, b) => b.trajectory.velocity - a.trajectory.velocity);
+  return climbers.length ? { name: climbers[0].name, detail: climbers[0].lastPRDetail } : null;
 }
 
 export function buildTrainingEvaluation(summary: StrengthSummary): TrainingEvaluation {
   const { improving, watch, total, exercises } = summary;
+  const leader = pickLeader(exercises);
   // Fewer than two judgeable lifts → we can't claim a trend. Neutral + low
   // confidence so the engine never fires a training-dependent tier off noise.
-  if (total < 2) return { trend: "holding", confidence: "low", watch, total };
+  if (total < 2) return { trend: "holding", confidence: "low", watch, improving, total, leader };
 
   // A lift counts toward decline only when it's both below PR (watch) AND has
   // carried that gap for ≥3 weeks — a settled drop, not a fresh dip.
@@ -628,5 +662,5 @@ export function buildTrainingEvaluation(summary: StrengthSummary): TrainingEvalu
   else if (improving > total / 2 && stalledWatch === 0) trend = "improving";
   else trend = "holding";
 
-  return { trend, confidence, watch, total };
+  return { trend, confidence, watch, improving, total, leader };
 }

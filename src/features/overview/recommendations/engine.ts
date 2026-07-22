@@ -380,13 +380,22 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
   // rather than after the default (which would always pre-empt it).
   const nut = ctx.nutrition ? nutritionProvider(ctx) : null;
   const nutIdle = !nut || nut.title === "No action needed";
-  if (nutIdle && recoveryState(r) === "good" && trn === "improving") {
+  if (nutIdle && recoveryState(r) === "good" && trn === "improving" && ctx.training) {
+    const t = ctx.training;
+    // State-as-fact, not a slogan: lead with the concrete count of lifts at their
+    // best (info the user doesn't already hold), then — when one lift shows a
+    // trusted climb — name it and its current best to beat, so "add weight" points
+    // at a specific target instead of restating progressive overload. No leader →
+    // the count carries it and we nudge a top set without naming numbers.
+    const atBest =
+      t.improving > 0 ? `${t.improving} of ${t.total} lifts at their best` : "your lifts are trending up";
     return {
       source: "training",
       priority: 50,
-      title: "Add weight this week",
-      subtitle:
-        "Recovery's fully back and every lift is trending up — the rare week it all lines up, so push a top set past last time instead of matching it",
+      title: t.leader ? `Push ${t.leader.name} past ${t.leader.detail}` : "Add weight this week",
+      subtitle: t.leader
+        ? `Recovery's fully back and ${atBest} — ${t.leader.name}'s climbing fastest, so this is the week to beat your ${t.leader.detail}`
+        : `Recovery's fully back and ${atBest} — the rare week it all lines up, so add a rep or a small plate to a top set`,
     };
   }
 
