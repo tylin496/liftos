@@ -63,8 +63,14 @@ never reads as zero — it collects a couple hundred kcal of evening and overnig
 wear. An earlier 3× threshold let exactly that through as a "measured" value.
 
 **Step floor.** When a past day has no usable active reading but ≥1000 steps,
-active energy is derived at **34 kcal / 1000 steps** and the row is marked
-`active_energy_estimated = true`. Below 1000 steps the phone probably wasn't
+active energy is derived at **34 kcal / 1000 steps** — plus whatever the watch
+did record before it was dropped — and the row is marked
+`active_energy_estimated = true`. The two cover different parts of the day: a
+partial-wear reading comes from the evening and the overnight sleep block, while
+the floor prices walking done earlier with the watch off. Adding them can't
+double-count, because a day only reaches this path when the floor exceeds the
+reading by 1.5×, and a watch actually worn for those steps would itself have
+logged at least the floor. Below 1000 steps the phone probably wasn't
 carried either, so the day stays a no-reading (which every average skips) rather
 than a fabricated near-zero. A floor never overwrites a measured value — except a
 stored one that fails the same cross-check — and a later measured sync clears the

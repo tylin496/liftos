@@ -439,8 +439,7 @@ Deno.serve(async (req) => {
       // No usable watch reading — fall back to the step floor. Never over a value
       // that was actually measured: a later re-sync of the same day can carry
       // steps but no active energy, and that must not demote a real reading.
-      const estimate = floor;
-      if (estimate !== null) {
+      if (floor !== null) {
         const { data: existing } = await supabase
           .from("health_metrics")
           .select("active_energy_kcal, active_energy_estimated")
@@ -458,8 +457,22 @@ Deno.serve(async (req) => {
             ? (existing.active_energy_kcal as number)
             : null;
         const hasMeasured =
-          storedMeasured !== null && estimate <= storedMeasured * STEP_CROSSCHECK_RATIO;
+          storedMeasured !== null && floor <= storedMeasured * STEP_CROSSCHECK_RATIO;
         if (!hasMeasured) {
+          // Add back whatever the watch DID record before it was dropped. The two
+          // cover different parts of the day: a partial-wear reading comes from
+          // the evening and the overnight sleep block, while the floor prices the
+          // walking done earlier with the watch off. Keeping only the floor throws
+          // away real measured energy.
+          //
+          // This can't double-count, and the trigger condition is what guarantees
+          // it: a day only lands here when floor > 1.5x the reading, and a watch
+          // that had actually been on for those steps would itself have logged at
+          // least the floor. So the dropped reading contains little of the walking
+          // the floor prices. Still a floor — deliberately below the truth, just
+          // less far below.
+          const measuredPart = droppedActive ?? storedMeasured ?? 0;
+          const estimate = floor + measuredPart;
           record.active_energy_kcal = estimate;
           record.active_energy_estimated = true;
           estimatedActive = estimate;
