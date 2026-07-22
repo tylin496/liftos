@@ -387,6 +387,9 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
     // trusted climb — name it and its current best to beat, so "add weight" points
     // at a specific target instead of restating progressive overload. No leader →
     // the count carries it and we nudge a top set without naming numbers.
+    // "Climbing steadily, with room left" is the literal claim pickLeader verifies
+    // (consecutive submaximal steps + no set collapse) — NOT "climbing fastest",
+    // which is what it used to say and is now precisely the lift it rules out.
     const atBest =
       t.improving > 0 ? `${t.improving} of ${t.total} lifts at their best` : "your lifts are trending up";
     return {
@@ -394,7 +397,7 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
       priority: 50,
       title: t.leader ? `Push ${t.leader.name} past ${t.leader.detail}` : "Add weight this week",
       subtitle: t.leader
-        ? `Recovery's fully back and ${atBest} — ${t.leader.name}'s climbing fastest, so this is the week to beat your ${t.leader.detail}`
+        ? `Recovery's fully back and ${atBest} — ${t.leader.name}'s climbing steadily with room left, so this is the week to beat your ${t.leader.detail}`
         : `Recovery's fully back and ${atBest} — the rare week it all lines up, so add a rep or a small plate to a top set`,
     };
   }

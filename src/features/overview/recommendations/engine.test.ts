@@ -221,7 +221,7 @@ describe("Decision Engine — precedence ladder", () => {
       training: training("improving", "high", 0, { name: "Squat", detail: "140 kg × 5" }),
     });
     expect(rec?.title).toBe("Push Squat past 140 kg × 5");
-    expect(rec?.subtitle).toContain("Squat's climbing fastest");
+    expect(rec?.subtitle).toContain("Squat's climbing steadily with room left");
     expect(rec?.subtitle).toContain("beat your 140 kg × 5");
     expect(rec?.source).toBe("training");
   });
