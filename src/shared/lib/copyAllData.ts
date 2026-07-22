@@ -505,9 +505,25 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       retentionPct: +(x.trend * 100).toFixed(1),
       weeksSinceImprovement: x.stalledWeeks,
     }));
-  const improvingCount = [...strengthBySlug.values()].filter(
+  // Two DIFFERENT counts that used to be conflated under the name `improvingCount`:
+  //
+  //  • unflaggedCount — the third leg of the problem-state partition
+  //    (unflagged + attention + settled = tracked). "Nothing wrong here", which
+  //    includes a lift stable below peak and one visibly rebounding from a dip.
+  //    Real export 2026-07-22: 9, because Leg Curl (73.5% retention, rebounding)
+  //    and a stable Assisted Pull-up both count as unflagged.
+  //  • atPeakCount — lifts AT their all-time best (status "improving", retention
+  //    ≥ 99.7%). Same export: 7.
+  //
+  // The old name asserted the second while computing the first, so a reader of an
+  // export whose header says "audit it against the data above" would conclude 9
+  // lifts were at their best when 7 were — and would find the System card citing
+  // "7 of 10" with no way to reconcile the two. atPeakCount is that reconciliation:
+  // it's the exact number the Capitalize directive quotes.
+  const unflaggedCount = [...strengthBySlug.values()].filter(
     (x) => !x.needsAttention && !x.settled,
   ).length;
+  const atPeakCount = [...strengthBySlug.values()].filter((x) => x.status === "improving").length;
 
   // Muscle-cluster fatigue: several lifts of one primary muscle sliding together
   // in the same block — a systemic signal a per-lift read can't see. Riding on
@@ -622,12 +638,15 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
       // Definitions a reader of THIS block needs (they otherwise live only in
       // distant docstrings): retentionPct here and in training[].performance is
       // the same current ÷ peak on the lift's scoring axis.
-      note: "retentionPct = current ÷ peak on the lift's scoring axis (compound: e1RM; isolation: best-set tonnage; assisted: %bodyweight). trajectory.velocityPct = % change of the recent session-best vs its anchor session (recovering: window min, declining: window max) over the recent-sessions window — not kg, not per-week.",
+      note: "retentionPct = current ÷ peak on the lift's scoring axis (compound: e1RM; isolation: best-set tonnage; assisted: %bodyweight). trajectory.velocityPct = % change of the recent session-best vs its anchor session (recovering: window min, declining: window max) over the recent-sessions window — not kg, not per-week. unflaggedCount = lifts neither flagged for attention nor settled below peak (the partition unflaggedCount + needsAttentionCount + settledBelowPeak = exercisesTracked); it includes lifts holding or rebounding BELOW their peak, so it is not a count of lifts improving. atPeakCount = lifts at their all-time best (retention ≥ 99.7%) — the number the app's own directive quotes.",
       // How to read training[].logs — without this, a day with one entry reads
       // as a one-lift session (it isn't; unlogged lifts ran at prior numbers).
       loggingModel: TRAINING_LOGGING_MODEL,
-      exercisesTracked: improvingCount + trainingAttention.length + settledBelowPeak.length,
-      improvingCount,
+      exercisesTracked: unflaggedCount + trainingAttention.length + settledBelowPeak.length,
+      // Renamed from `improvingCount` in schema 3.2 — it never counted lifts that
+      // were improving. The two now say what they measure; see their derivation.
+      unflaggedCount,
+      atPeakCount,
       needsAttentionCount: trainingAttention.length,
       attention: trainingAttention,
       // Chronic stalls that aged out of the attention list (stable ≥12 wks below
@@ -772,7 +791,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
 
   const buildPayload = (logsPerEx: number) => ({
     source: "LiftOS",
-    schema: 3.1,
+    // 3.2: training.improvingCount → unflaggedCount (it never counted improving
+    // lifts) + new atPeakCount. buildTrainingJson stays 3.1 — untouched shape.
+    schema: 3.2,
     units: unitsFor(OVERVIEW_UNIT_KEYS),
     dataSpan: overviewWindow, // total span of ALL data (see windowOf); distinct from per-section windowDays
     summary: {
