@@ -15,7 +15,12 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--vr-tight);
+  /* --vr-block (not --vr-tight): the eyebrow → first metric line reads ~13px,
+     matching the Overview cards' ~12px optical eyebrow→hero gap so the two card
+     families share one rhythm. The row is 15px tall (freshness tag) with the
+     13px eyebrow centred, so ~1px slack already sits below it; 12 + 1 ≈ 13.
+     Shared by every Health card — one change keeps all four aligned. */
+  margin-bottom: var(--vr-block);
 }
 
 /* Right cluster on a trend card's title row: freshness tag + the open-trend
