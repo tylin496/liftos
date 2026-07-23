@@ -151,7 +151,7 @@ function drillLines(ex: StrengthExercise, status: LiftStatus): { action: string 
       // longer travels up to the spotlight demanding action every week.
       if (ex.settled) {
         const wk = `${ex.stalledWeeks} ${ex.stalledWeeks === 1 ? "wk" : "wks"}`;
-        return { action: null, state: `${state} · ${wk}` };
+        return { action: null, state: `${state} ${wk}` };
       }
       return { action: null, state };
     }
@@ -343,7 +343,7 @@ export function StrengthHealthCard({
     <span className="ov-th-ret-count">
       {onTrack} of {strength.total} tracked lifts on track{trendSuffix(trend)}
       {variant === "full" && recentPRCount > 0 && (
-        <span className="ov-th-pr-clause"> <span className="ov-th-pr-nowrap">🏆 {recentPRCount} PR{recentPRCount === 1 ? "" : "s"} in 30d</span></span>
+        <span className="ov-th-pr-clause"><span className="ov-th-pr-nowrap">🏆 {recentPRCount} PR{recentPRCount === 1 ? "" : "s"} in 30d</span></span>
       )}
     </span>
   );
@@ -386,7 +386,7 @@ export function StrengthHealthCard({
     const steadyCount = strength.total - flagged.length - settledCount;
     const prsThisWeek = strength.exercises.filter((ex) => liftStatus(ex, nowMs) === "pr").length;
     const prClause = prsThisWeek > 0 && (
-      <span className="ov-th-pr-clause"> <span className="ov-th-pr-nowrap">🏆 {prsThisWeek} {prsThisWeek === 1 ? "PR" : "PRs"} this week</span></span>
+      <span className="ov-th-pr-clause"><span className="ov-th-pr-nowrap">🏆 {prsThisWeek} {prsThisWeek === 1 ? "PR" : "PRs"} this week</span></span>
     );
 
     return (
@@ -426,7 +426,10 @@ export function StrengthHealthCard({
         <div className="ov-th-steady-summary">
           {flagged.length === 0 && settledCount === 0
             ? `All ${strength.total} lifts on track`
-            : `– ${steadyCount} steady${settledCount > 0 ? ` · ${settledCount} below best` : ""}`}
+            : `– ${steadyCount} steady`}
+          {(flagged.length !== 0 || settledCount !== 0) && settledCount > 0 && (
+            <span className="ov-th-below-best">{settledCount} below best</span>
+          )}
           {prClause}
         </div>
       </button>
