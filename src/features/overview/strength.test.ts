@@ -678,4 +678,42 @@ describe("buildTrainingEvaluation — leader (the lift the Capitalize rung names
     });
     expect(buildTrainingEvaluation(s).leader!.name).toBe("Bench");
   });
+
+  describe("upcoming-split filter — the named lift must be one you train next", () => {
+    // Two clean climbers, squat the stronger (+5/wk vs bench +3/wk). Squat is a legs
+    // lift, bench a push lift — so which one gets named depends on the next session.
+    const twoClimbers = () =>
+      computeStrengthSummary({
+        squat: [log("2026-01-01", "100*5"), log("2026-01-08", "105*5"), log("2026-01-15", "110*5"), log("2026-01-22", "115*5")],
+        bench: [log("2026-01-01", "60*5"), log("2026-01-08", "63*5"), log("2026-01-15", "66*5"), log("2026-01-22", "69*5")],
+      });
+    const splitBySlug = { squat: "legs", bench: "push" };
+
+    it("names the block's strongest climber when there's no split context", () => {
+      expect(buildTrainingEvaluation(twoClimbers()).leader!.name).toBe("Squat");
+    });
+
+    it("names the upcoming split's lift, not the stronger climber in another split", () => {
+      // Next session is push → bench is named even though squat out-climbs it.
+      expect(buildTrainingEvaluation(twoClimbers(), undefined, { split: "push", splitBySlug }).leader).toEqual({
+        name: "Bench",
+        detail: "69 kg × 5",
+      });
+    });
+
+    it("stays silent when no climber is in the upcoming split", () => {
+      // Next session is pull → neither lift is trainable then, so no lift to name.
+      expect(buildTrainingEvaluation(twoClimbers(), undefined, { split: "pull", splitBySlug }).leader).toBeNull();
+    });
+
+    it("treats an unmapped lift as out-of-split (can't promise it's next)", () => {
+      expect(
+        buildTrainingEvaluation(twoClimbers(), undefined, { split: "push", splitBySlug: {} }).leader,
+      ).toBeNull();
+    });
+
+    it("null upcoming split falls back to the block-wide pick (no rotation known)", () => {
+      expect(buildTrainingEvaluation(twoClimbers(), undefined, { split: null, splitBySlug }).leader!.name).toBe("Squat");
+    });
+  });
 });

@@ -15,6 +15,8 @@ import { series, buildRecoveryEvaluation, sanitizeMetrics } from "@features/heal
 import type { BodyMetric } from "@features/health/api";
 import { computeTdeeWindows } from "@features/health/tdee";
 import { computeStrengthSummary, buildTrainingEvaluation } from "@features/overview/strength";
+import { nextSessionSplit } from "@features/training/logic";
+import { SPLITS } from "@features/training/seed";
 import {
   buildLeanMassEvaluation,
   buildGoalStatus,
@@ -233,7 +235,9 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
     // recompute, so these two reads are NOT in the throw-on-error guard.
     supabase
       .from("training_logs")
-      .select("exercise_slug, raw, log_date")
+      // bonus + created_at are for the split-rotation read (nextSessionSplit):
+      // bonus sets don't advance the rotation, created_at breaks a same-date tie.
+      .select("exercise_slug, raw, log_date, bonus, created_at")
       // Exclude "repeat last session" clones: they mark a maintained day but
       // carry no new strength signal, so the engine's decline/stall verdict must
       // read them out (same treatment as the Training Health card).
@@ -242,7 +246,9 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
     // slug + archived + compound: archived filters the training slice, compound
     // picks the score axis (e1RM vs tonnage) so the engine's decline verdict
     // matches the Training Health card instead of judging isolation lifts on e1RM.
-    supabase.from("exercises").select("slug, archived, compound, assisted_mode"),
+    // split: which lift is in the upcoming session, so the Capitalize leader names
+    // one the user trains next (see nextSessionSplit).
+    supabase.from("exercises").select("slug, archived, compound, assisted_mode, split"),
     // Prior surfaced recommendation — feeds the engine's exit-hysteresis so a
     // marginal signal wobble can't flip the weekly directive. A plain read; null
     // before the first evaluation ever ran.
@@ -317,7 +323,28 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
       (bySlug[l.exercise_slug] ??= []).push(l);
     }
     strengthSummary = computeStrengthSummary(bySlug, compoundSlugs, undefined, true, assistedSlugs);
-    training = buildTrainingEvaluation(strengthSummary);
+
+    // Upcoming session's split — so the Capitalize leader names a lift the user
+    // trains NEXT, not an abstract block-wide pick. Rotation reads the raw logs
+    // (bonus sets are skipped inside nextSessionSplit); the slug→split map comes
+    // from the roster. No split data / unmappable latest lift → upcomingSplit null
+    // → pickLeader applies no filter (block-wide strongest climber, as before).
+    const splitBySlug: Record<string, string> = {};
+    for (const e of archivedRes.data ?? []) {
+      if (e.split) splitBySlug[e.slug] = e.split;
+    }
+    const rotationLogs: Record<string, NonNullable<typeof logsRes.data>> = {};
+    for (const l of logsRes.data ?? []) {
+      if (!l.exercise_slug) continue;
+      (rotationLogs[l.exercise_slug] ??= []).push(l);
+    }
+    const upcomingSplit = nextSessionSplit(
+      (archivedRes.data ?? []).flatMap((e) => (e.split ? [{ slug: e.slug, split: e.split }] : [])),
+      rotationLogs,
+      SPLITS.map((s) => s.id),
+      localDateStrDaysAgo(0),
+    );
+    training = buildTrainingEvaluation(strengthSummary, undefined, { split: upcomingSplit, splitBySlug });
   }
 
   // Phase slice (plateau triggers — evaluation only, the engine owns the policy)

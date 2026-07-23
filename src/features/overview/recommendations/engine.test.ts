@@ -288,16 +288,17 @@ describe("Decision Engine — precedence ladder", () => {
   });
 
   // ─ Tier 3 / 4 — Sustain vs Capitalize ───────────────────────────────────────
-  it("4: on plan + recovery strong + lifts rising → push for a PR", () => {
+  it("4: on plan + recovery strong + lifts rising but NO named leader → stays a quiet sustain", () => {
     const rec = decide({
       nutrition: nutrition({ status: "on_target", confidence: "high" }),
       recovery: recovery("Ready"),
       training: training("improving"),
     });
-    // No trusted climber to name → the concrete count carries the directive.
-    expect(rec?.title).toBe("Add weight this week");
-    expect(rec?.subtitle).toContain("4 of 4 lifts at their best");
-    expect(rec?.source).toBe("training");
+    // Without a specific lift + a number to beat, "add weight this week" would just
+    // restate progressive overload — confirmation, not a decision. So Capitalize does
+    // NOT fire; it falls through to nutrition's sustain (No action needed → no card).
+    expect(rec?.title).not.toBe("Add weight this week");
+    expect(rec?.title).toBe("No action needed");
   });
 
   it("4: names the leading lift + its current best when one is climbing", () => {

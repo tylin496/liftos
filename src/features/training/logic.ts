@@ -1015,7 +1015,9 @@ export function computeWeeklyVolumeTrend(
  *  `null` = no logs yet or unmappable slug: keep the caller's current split. */
 export function nextSessionSplit(
   exercises: { slug: string; split: string }[],
-  logsBySlug: Record<string, TrainingLog[]>,
+  // Only the four fields the rotation actually reads — so a narrow-select caller
+  // (the engine's evaluationApi) can pass its rows without the full Row shape.
+  logsBySlug: Record<string, Pick<TrainingLog, "exercise_slug" | "log_date" | "created_at" | "bonus">[]>,
   splitIds: readonly string[],
   today: string,
 ): string | null {
@@ -1023,7 +1025,7 @@ export function nextSessionSplit(
   // so its head is that lift's latest; the overall latest is the max of heads.
   // Bonus sets are skipped: a rest-day extra isn't a session, so it must not
   // advance the rotation past the split actually trained last.
-  let latest: TrainingLog | null = null;
+  let latest: Pick<TrainingLog, "exercise_slug" | "log_date" | "created_at" | "bonus"> | null = null;
   for (const list of Object.values(logsBySlug)) {
     const head = list.find((l) => !l.bonus);
     if (!head) continue;

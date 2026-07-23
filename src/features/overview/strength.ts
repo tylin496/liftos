@@ -760,23 +760,35 @@ function climbIsStale(e: StrengthExercise, blockLast: string | null): boolean {
  *  beat — never merely the fastest mover (see sustainedClimb for why those
  *  differ). `blockLast` = the newest log across the whole block (summary
  *  .lastLogDate), the reference the per-lift idle check measures against. Null
- *  when nothing qualifies (every lift flat AT its PR, holding stale, or the only
- *  movers are rebound spikes) — the Capitalize copy then falls back to the count
- *  alone, which is the correct silence. */
+ *  when nothing qualifies (every lift flat AT its PR, holding stale, the only
+ *  movers are rebound spikes, or none of the climbers is in the upcoming split) —
+ *  the Capitalize rung then stays silent rather than manufacture a vague
+ *  "add weight" with no lift to name, which is the correct silence. */
 function pickLeader(
   exercises: StrengthExercise[],
   blockLast: string | null,
+  /** The upcoming session's split + a slug→split map. When present, the leader is
+   *  HARD-filtered to lifts in that split: "add weight this week" is only worth
+   *  saying about a lift you'll actually train next, otherwise the named target is
+   *  abstract. A lift whose slug isn't in the map is treated as out-of-split (its
+   *  split is unknown, so we can't promise it's next). Absent (`split` null) = the
+   *  caller has no rotation context → no filter, the block-wide strongest climber
+   *  wins, which is the export/legacy behaviour. */
+  upcoming?: { split: string | null; splitBySlug: Record<string, string> },
 ): TrainingEvaluation["leader"] {
+  const inUpcomingSplit = ({ e }: { e: StrengthExercise }) =>
+    !upcoming || upcoming.split == null || upcoming.splitBySlug[e.slug] === upcoming.split;
   const climbers = exercises
     .map((e) => ({ e, climb: sustainedClimb(e.recentBests) }))
     .filter(
-      ({ e, climb }) =>
-        e.status !== "watch" &&
-        climb > 0 &&
-        !overreached(e) &&
-        !climbIsStale(e, blockLast) &&
-        e.trajectory.confidence >= LEADER_MIN_CONFIDENCE &&
-        e.lastPRDetail !== "",
+      (c) =>
+        c.e.status !== "watch" &&
+        c.climb > 0 &&
+        !overreached(c.e) &&
+        !climbIsStale(c.e, blockLast) &&
+        c.e.trajectory.confidence >= LEADER_MIN_CONFIDENCE &&
+        c.e.lastPRDetail !== "" &&
+        inUpcomingSplit(c),
     )
     .sort((a, b) => b.climb - a.climb);
   return climbers.length
@@ -789,9 +801,13 @@ export function buildTrainingEvaluation(
   /** Today (YYYY-MM-DD) — injected so this stays pure/testable. Omitted = read
    *  the clock, which is what every non-test caller wants. */
   today?: string,
+  /** The upcoming session's split + slug→split map — passed straight to pickLeader
+   *  so the named lift is one the user trains next. Omitted (export/legacy) → no
+   *  split filter, block-wide strongest climber. */
+  upcoming?: { split: string | null; splitBySlug: Record<string, string> },
 ): TrainingEvaluation {
   const { improving, watch, attention, total, exercises } = summary;
-  const leader = pickLeader(exercises, summary.lastLogDate);
+  const leader = pickLeader(exercises, summary.lastLogDate, upcoming);
   // Fewer than two judgeable lifts → we can't claim a trend. Neutral + low
   // confidence so the engine never fires a training-dependent tier off noise.
   if (total < 2)
