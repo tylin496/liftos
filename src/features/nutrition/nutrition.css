@@ -129,7 +129,9 @@
 }
 
 /* Hold state — no current→new change, so the target is a single supporting
-   value at the same size as .ni-prog-*, not a competing hero. */
+   value at the same size as .ni-prog-*, not a competing hero. Its ink sits at
+   --ink-2 to match the tenure line's day count (.ni-conf-day) — same quiet
+   supporting-fact tier, one notch below the headline hero. */
 .ni-hero {
   display: flex;
   align-items: center;
@@ -141,7 +143,7 @@
   font-family: var(--font-mono);
   font-size: var(--metric-md);
   font-weight: 700;
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -388,6 +390,11 @@
 .ni-status-dot.status-gold { background: var(--gold); box-shadow: var(--gold-glow); }
 .ni-status-dot.status-warn { background: var(--warn); }
 .ni-status-dot.status-bad  { background: var(--bad); }
+/* Confidence ramp (trust axis, never a verdict): Medium sits between the
+   neutral grey and full green — a muted grey-green — so the dot brightens
+   toward --good as the reading earns trust. Low uses --neutral below. */
+.ni-status-dot.status-mid     { background: color-mix(in srgb, var(--good) 45%, var(--ink-4)); }
+.ni-status-dot.status-neutral { background: var(--ink-4); }
 
 /* Observed-rate delta arrow — trails the value (app-wide delta-after-value
    convention, matches the Overview Weight card's Rate arrow) and shares its
