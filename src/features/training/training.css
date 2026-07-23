@@ -417,6 +417,22 @@
   display: block;
 }
 
+/* A just-uploaded photo is committed but not yet published (see SmartImage's
+   retry). Fill the slot with the card's own skeleton shimmer while it lands, so
+   a reload inside the deploy window reads as "photo processing", not "no photo".
+   Same gradient/animation as .ex-card.loading-card so the two never diverge. */
+.ex-ident--pending {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 0%,
+    color-mix(in srgb, var(--ink-4) 19%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 10%, transparent) 100%
+  );
+  background-size: 300% 100%;
+  border-radius: var(--radius-sm);
+  animation: skel-fade var(--dur-shimmer) ease-in-out infinite;
+}
+
 /* ── PR display ──────────────────────────────────────────────────────────────*/
 .ex-pr-inline {
   margin-bottom: var(--vr-tight);

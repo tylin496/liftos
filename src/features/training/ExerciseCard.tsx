@@ -68,26 +68,73 @@ export function ChartGlyph({ className }: { className?: string }) {
   );
 }
 
+// A just-committed exercise photo isn't fetchable the instant the upload
+// returns: the worker commits it to the repo, then GitHub Pages has to rebuild
+// and publish before the URL resolves (~45s). In-session the blob preview
+// covers that gap, but a reload during the window lands on the committed URL
+// while it still 404s. Retry that transient miss on a schedule spanning the
+// deploy window (with a cache-bust so the browser refetches) so the photo
+// appears on its own instead of leaving the slot blank until a manual reload.
+// ~63s total, comfortably past a normal Pages deploy.
+const IMG_RETRY_DELAYS_MS = [3000, 4000, 5000, 6000, 8000, 10000, 12000, 15000];
+
 function SmartImage({
   src,
   alt,
   className,
+  // Only true when `src` is a committed image_url the DB says exists — a 404 is
+  // then a publish-lag to wait out, not a missing image. The bundled-default
+  // fallback path passes false: its 404 means "no photo", show nothing.
+  retryPending = false,
 }: {
   src: string;
   alt?: string;
   className?: string;
+  retryPending?: boolean;
 }) {
   const [ok, setOk] = useState(true);
-  useEffect(() => setOk(true), [src]);
-  if (!src || !ok) return null;
+  const [attempt, setAttempt] = useState(0); // cache-bust counter across retries
+  const [givenUp, setGivenUp] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setOk(true);
+    setAttempt(0);
+    setGivenUp(false);
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, [src]);
+
+  if (!src) return null;
+  if (!ok) {
+    // Hold a shimmer placeholder in the slot only while retries remain on a
+    // committed image; otherwise (fallback 404, or retries exhausted) render
+    // nothing, exactly as before.
+    return retryPending && !givenUp ? (
+      <div className={`${className ?? ""} ex-ident--pending`} aria-hidden />
+    ) : null;
+  }
+
+  const url = attempt > 0 ? `${src}${src.includes("?") ? "&" : "?"}r=${attempt}` : src;
   return (
     <img
-      key={src}
-      src={src}
+      key={url}
+      src={url}
       alt={alt ?? ""}
       className={className}
       loading="lazy"
-      onError={() => setOk(false)}
+      onError={() => {
+        setOk(false);
+        if (retryPending && attempt < IMG_RETRY_DELAYS_MS.length) {
+          timerRef.current = window.setTimeout(() => {
+            setAttempt((a) => a + 1);
+            setOk(true); // remount the img with a fresh cache-bust
+          }, IMG_RETRY_DELAYS_MS[attempt]);
+        } else {
+          setGivenUp(true);
+        }
+      }}
     />
   );
 }
@@ -833,7 +880,12 @@ function ExerciseCardImpl({
             </div>
           </div>
           <div className="ex-ident-wrap">
-            <SmartImage src={imgSrc} alt="" className="ex-ident" />
+            <SmartImage
+              src={imgSrc}
+              alt=""
+              className="ex-ident"
+              retryPending={imgSrc === exercise.image_url}
+            />
           </div>
         </div>
       )}
