@@ -108,7 +108,18 @@
   display: flex;
   flex-direction: column;
   gap: var(--vr-snug);
-  margin-top: var(--vr-section);
+  /* --vr-block (not --vr-section): the eyebrow → hero break matches the sibling
+     Overview cards (Cut Journey's .goal-hero, Weight); --vr-section read as an
+     oversized gap next to them. Full variant only — the card is gap:0 here so
+     the margin IS the break. */
+  margin-top: var(--vr-block);
+}
+
+/* Snapshot card spaces its blocks with the container's flex gap (--space-3 ==
+   --vr-block), so the hero's own margin-top would stack on top of it and double
+   the eyebrow → hero break. Drop it here; the gap alone gives the 12px. */
+.ov-training-health--nav .ov-th-ret-hero {
+  margin-top: 0;
 }
 
 .ov-th-hero-row {
@@ -294,13 +305,18 @@
   color: var(--ink-3);
 }
 
+.ov-th-below-best {
+  margin-left: var(--space-3);
+}
+
 .ov-th-pr-clause {
+  margin-left: var(--space-3);
   color: var(--gold);
   text-shadow: var(--gold-glow);
 }
 
 /* Trophy + count wrap as one unit — a 🏆 stranded at a line end reads as
-   detached from its clause. The " · " separator stays OUTSIDE the nowrap
+   detached from its clause. The clause's left margin sits OUTSIDE the nowrap
    span so the line can still break before the whole clause. */
 .ov-th-pr-nowrap {
   white-space: nowrap;

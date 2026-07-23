@@ -129,7 +129,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  margin-top: var(--vr-block);
+  /* --vr-loose (8), not --vr-block (12): matches .goal-hero — the head is a 20px
+     row (large › chevron) with align-items:center, so the eyebrow floats ~3.5px
+     above its bottom. 8 + 3.5 ≈ 11.5px, the shared optical gap. */
+  margin-top: var(--vr-loose);
 }
 
 .ov-active-target-ring-body {
@@ -778,7 +781,12 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-top: var(--vr-block);
+  /* --vr-loose (8), not --vr-block (12): .goal-head is a 20px row (the "Day N"
+     counter is taller than the 11px eyebrow) with align-items:center, so the
+     eyebrow already floats ~3.5px above the row's bottom edge. 8 + 3.5 ≈ 11.5px
+     absolute — the SAME optical eyebrow→hero gap as the Weight card. A raw 12
+     here renders 15.5px, visibly looser than its neighbours. */
+  margin-top: var(--vr-loose);
 }
 
 .goal-hero-left {
