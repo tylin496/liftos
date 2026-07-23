@@ -644,4 +644,38 @@ describe("buildTrainingEvaluation — leader (the lift the Capitalize rung names
     });
     expect(buildTrainingEvaluation(s).leader).toEqual({ name: "Bench", detail: "76 kg × 8" });
   });
+
+  it("drops a climber that stopped moving while the rest of the block trained on (RDL case)", () => {
+    // Bench climbed cleanly and its last change IS the block's newest log → named.
+    // Then a second lift (squat) keeps logging two more weeks. Bench's last three
+    // CHANGE events still read as a climb — repeat sessions log nothing — but it
+    // hasn't moved in 21 days while the block trained on. That's a hold at a
+    // ceiling, not a climb to push. The reference is the block's last activity,
+    // not the wall clock, so a whole-block deload wouldn't wrongly trip it.
+    const s = computeStrengthSummary({
+      bench: [log("2026-01-01", "70*8"), log("2026-01-08", "72*8"), log("2026-01-15", "74*8"), log("2026-01-22", "76*8")],
+      squat: [
+        log("2026-01-01", "100*5"), log("2026-01-08", "102*5"), log("2026-01-15", "104*5"),
+        log("2026-01-22", "106*5"), log("2026-01-29", "108*5"), log("2026-02-05", "110*5"),
+      ],
+    });
+    // Bench's last log (01-22) is 14 days behind the block's newest (02-05) → stale.
+    expect(buildTrainingEvaluation(s).leader!.name).toBe("Squat");
+  });
+
+  it("keeps a climber whose last change is the block's newest log", () => {
+    // Same two lifts, but bench also logged the most recent session (a repeat that
+    // still refreshes lastLogDate is not possible via computeStrengthSummary, so
+    // give it a real final change). Bench moved most recently → not stale, and it
+    // out-climbs squat, so it's named.
+    const s = computeStrengthSummary({
+      bench: [
+        log("2026-01-01", "70*8"), log("2026-01-15", "74*8"), log("2026-01-29", "78*8"), log("2026-02-05", "82*8"),
+      ],
+      squat: [
+        log("2026-01-01", "100*5"), log("2026-01-08", "101*5"), log("2026-01-15", "102*5"), log("2026-02-05", "103*5"),
+      ],
+    });
+    expect(buildTrainingEvaluation(s).leader!.name).toBe("Bench");
+  });
 });

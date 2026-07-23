@@ -9,7 +9,7 @@
 import { parse, score } from "@features/training/parser";
 import { strengthScore, maxReps, totalReps, scoreWeight, type ScoreMode } from "@features/training/logic";
 import { milestoneReached } from "@features/training/milestone";
-import { isStale } from "@shared/lib/freshness";
+import { isStale, daysSince } from "@shared/lib/freshness";
 
 /** Reps for the local reps-tiebreak — NOT training/logic.ts's totalReps, which
  *  multiplies a bare number ("7") by the exercise's real set count. This module
@@ -733,13 +733,40 @@ function overreached(e: StrengthExercise): boolean {
   return e.dropOff >= e.dropOffBaseline + OVERREACH_EXCESS;
 }
 
+/** A lift whose last CHANGE is older than this (days), measured against the whole
+ *  block's last activity — not the wall clock — is no longer climbing, it's
+ *  holding at a ceiling it stopped moving. ~one PPL rotation: a lift untouched
+ *  while the rest of the block trained on has plateaued for the purpose of a
+ *  "push it further" call, whatever its last three change-events looked like. */
+const LEADER_MAX_IDLE_DAYS = 7;
+
+/** Is this lift's climb stale relative to the block? sustainedClimb reads
+ *  `recentBests`, which are CHANGE events — a lift that hit a new best and then
+ *  repeated it unchanged for weeks logs nothing new, so its last three events
+ *  still read as a climb long after it stopped moving (repeat sessions are
+ *  invisible here by design — see the export's loggingModel). The lift's own
+ *  `lastLogDate` vs the block's newest is the missing recency: it asks "has this
+ *  lift moved while everything else kept training?", which the wall clock can't —
+ *  the whole block could be legitimately mid-deload. blockLast null (no logs at
+ *  all) can't judge staleness → never stale. */
+function climbIsStale(e: StrengthExercise, blockLast: string | null): boolean {
+  if (!blockLast) return false;
+  return daysSince(e.lastLogDate, blockLast) > LEADER_MAX_IDLE_DAYS;
+}
+
 /** Pick the lift most worth naming: the strongest SUSTAINED climber that isn't on
- *  watch, didn't end its last session at the wall, and has a concrete current best
- *  to beat — never merely the fastest mover (see sustainedClimb for why those
- *  differ). Null when nothing qualifies (every lift flat AT its PR, or the only
+ *  watch, didn't end its last session at the wall, is still ACTIVELY moving (not
+ *  holding at a ceiling it reached weeks ago), and has a concrete current best to
+ *  beat — never merely the fastest mover (see sustainedClimb for why those
+ *  differ). `blockLast` = the newest log across the whole block (summary
+ *  .lastLogDate), the reference the per-lift idle check measures against. Null
+ *  when nothing qualifies (every lift flat AT its PR, holding stale, or the only
  *  movers are rebound spikes) — the Capitalize copy then falls back to the count
  *  alone, which is the correct silence. */
-function pickLeader(exercises: StrengthExercise[]): TrainingEvaluation["leader"] {
+function pickLeader(
+  exercises: StrengthExercise[],
+  blockLast: string | null,
+): TrainingEvaluation["leader"] {
   const climbers = exercises
     .map((e) => ({ e, climb: sustainedClimb(e.recentBests) }))
     .filter(
@@ -747,6 +774,7 @@ function pickLeader(exercises: StrengthExercise[]): TrainingEvaluation["leader"]
         e.status !== "watch" &&
         climb > 0 &&
         !overreached(e) &&
+        !climbIsStale(e, blockLast) &&
         e.trajectory.confidence >= LEADER_MIN_CONFIDENCE &&
         e.lastPRDetail !== "",
     )
@@ -763,7 +791,7 @@ export function buildTrainingEvaluation(
   today?: string,
 ): TrainingEvaluation {
   const { improving, watch, attention, total, exercises } = summary;
-  const leader = pickLeader(exercises);
+  const leader = pickLeader(exercises, summary.lastLogDate);
   // Fewer than two judgeable lifts → we can't claim a trend. Neutral + low
   // confidence so the engine never fires a training-dependent tier off noise.
   if (total < 2)
