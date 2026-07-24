@@ -409,6 +409,27 @@ function ExerciseCardImpl({
   const visibleCount = showAll ? filteredDesc.length : Math.min(2, filteredDesc.length);
   const visible = filteredDesc.slice(0, visibleCount);
 
+  // Render order for the history list: this lift's own visible sets, plus a
+  // one-line marker for each date another lift covered its slot. The own-log
+  // rows keep their index into `visible` (`vi`), so every PR / delta /
+  // reveal-stagger read below is untouched — a marker is never a baseline.
+  // Collapsed, only markers at or after the oldest shown set are woven in, so
+  // the two-row summary can't be pushed off by old ones.
+  type HistoryRow =
+    | { kind: "log"; log: TrainingLog; vi: number }
+    | { kind: "covered"; log: TrainingLog };
+  const historyRows = useMemo<HistoryRow[]>(() => {
+    const covered = filterByTime(standIns, timeFilter).filter((l) => !deletedLogIds.has(l.id));
+    const floor = showAll ? "" : (visible[visible.length - 1]?.log_date ?? "");
+    const rows: HistoryRow[] = visible.map((log, vi) => ({ kind: "log", log, vi }));
+    for (const log of covered) {
+      if (log.log_date >= floor) rows.push({ kind: "covered", log });
+    }
+    return rows.sort((a, b) =>
+      a.log.log_date < b.log.log_date ? 1 : a.log.log_date > b.log.log_date ? -1 : 0,
+    );
+  }, [visible, standIns, timeFilter, deletedLogIds, showAll]);
+
   // Which log form to show: follow the most recent entry's kind, but for an
   // exercise with no logs yet honour its declared assisted_mode — otherwise the
   // "Assisted mode" flag set at creation (incl. the seeded Assisted Pull-up)
@@ -994,10 +1015,31 @@ function ExerciseCardImpl({
       {/* ── History ── */}
       {editingMode !== "meta" && (
         <div className="ex-history">
-        {filteredDesc.length === 0 ? (
+        {historyRows.length === 0 ? (
           <div className="empty-row">No sets yet — log your first below</div>
         ) : (
-          visible.map((log, vi) => {
+          historyRows.map((row) => {
+            // A date this lift's slot was covered by another. Deliberately just
+            // the date and who covered it — the set's load and reps belong to
+            // the lift that performed it and live on ITS record (and, when that
+            // lift is archived, in the Archived section, which is also where it
+            // can be deleted). Putting them here would read as a set of THIS
+            // lift in a card whose whole job is one lift's own progression.
+            if (row.kind === "covered") {
+              const ctd = timelineDate(row.log.log_date ?? "");
+              return (
+                <div className="hist-covered-row" key={row.log.id}>
+                  <span className="hist-date">
+                    <span className="hist-date-mon">{ctd.mon}</span>
+                    <span className="hist-date-day mono">{ctd.day}</span>
+                  </span>
+                  <span className="hist-covered-text">
+                    Covered by {subNameOf(row.log.exercise_slug)}
+                  </span>
+                </div>
+              );
+            }
+            const { log, vi } = row;
             // prIndex is index in filteredAsc; vi 0 = newest = last in asc
             const ascIdx = filteredAsc.length - 1 - vi;
             const isPR = ascIdx === prIndexInFiltered;

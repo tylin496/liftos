@@ -1138,6 +1138,24 @@
   color: var(--accent);
 }
 
+/* "Covered by X" — a date this lift's slot was filled by another lift. A fact
+   about this lift's record (it was NOT trained that day), not a set of it, so
+   it carries no load, reps, delta or PR: the numbers live on the lift that
+   performed them. Same grid as .hist-row so the date column stays aligned. */
+.hist-covered-row {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.hist-covered-text {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+  font-style: italic;
+}
+
 /* Stand-in picker — marks the set as a stand-in for another lift in the
    split (the machine was taken). A <select>, i.e. an editable control, so it
    takes the input face per the grey-surface rule: --bg-input + border + focus
