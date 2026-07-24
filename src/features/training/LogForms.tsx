@@ -14,6 +14,7 @@ import {
   repsStringToValues,
   composeRepsMulti,
   trimExtraEmptyReps,
+  parseAssist,
   useScrollAboveKeyboard,
   useWeightAdjuster,
   useAssistAdjuster,
@@ -528,7 +529,7 @@ export function AddAssistedForm({
       });
   }, []);
 
-  const parsedAssist = parseFloat(assistance) || 0;
+  const parsedAssist = parseAssist(assistance);
   const parsedBw = parseFloat(bodyweight) || 0;
   const effectiveLoad =
     parsedBw > 0 && parsedAssist > 0 ? +(parsedBw - parsedAssist).toFixed(2) : null;
@@ -703,7 +704,7 @@ export function InlineEditAssistedEntry({
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
 
-  const parsedAssist = parseFloat(assistance) || 0;
+  const parsedAssist = parseAssist(assistance);
   const parsedBw = parseFloat(bodyweight) || 0;
   const effectiveLoad =
     parsedBw > 0 && parsedAssist > 0 ? +(parsedBw - parsedAssist).toFixed(2) : null;

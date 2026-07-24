@@ -1,5 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { normalizeTarget } from "./logFormHelpers";
+import { normalizeTarget, parseAssist } from "./logFormHelpers";
+
+describe("parseAssist — assistance takes the same arithmetic as the weight hero", () => {
+  it("evaluates expressions, not just the leading number", () => {
+    expect(parseAssist("19+5")).toBe(24);
+    expect(parseAssist("12x2")).toBe(24);
+    expect(parseAssist("19.5")).toBe(19.5);
+  });
+
+  it("reads blank / half-typed / non-positive input as 0", () => {
+    expect(parseAssist("")).toBe(0);
+    expect(parseAssist("19+")).toBe(0);
+    expect(parseAssist("-5")).toBe(0);
+  });
+});
 
 describe("normalizeTarget — canonicalize to the 'reps × sets' convention", () => {
   it("unifies the multiply sign and spacing", () => {

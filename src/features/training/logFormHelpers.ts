@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { CSSProperties, Dispatch, RefObject, SetStateAction } from "react";
 import type { Exercise } from "./api";
+import { evalArith, normalize } from "./parser";
 import { localDateStr } from "@shared/lib/date";
 import { getActiveScroller } from "@app/layout/activeScroller";
 
@@ -114,6 +115,16 @@ export function useWeightAdjuster(
   }
 
   return { weightRef, adjustWeight, appendToken };
+}
+
+/**
+ * Assistance accepts the same arithmetic as the weight hero ("19+5", "12×2"),
+ * so a two-pin stack can be typed as it's loaded. A half-typed expression
+ * ("19+") reads as 0 — the preview and submit gate stay closed until it's valid.
+ */
+export function parseAssist(expr: string): number {
+  const v = evalArith(normalize(expr));
+  return Number.isFinite(v) && v > 0 ? +v.toFixed(2) : 0;
 }
 
 /** Shared +/− stepper for assistance-kg inputs. */
