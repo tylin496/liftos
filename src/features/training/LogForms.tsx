@@ -15,6 +15,7 @@ import {
   composeRepsMulti,
   trimExtraEmptyReps,
   parseAssist,
+  assistTerm,
   useScrollAboveKeyboard,
   useWeightAdjuster,
   useAssistAdjuster,
@@ -493,9 +494,11 @@ export function AddAssistedForm({
 }) {
   const n = Math.max(MIN_SET_COUNT, setCount);
   const lastParsed = lastLog?.raw ? parse(lastLog.raw) : null;
-  const lastAssist = lastParsed?.assisted?.assist ?? null;
+  // Seed from the assist term as typed ("19+5"), mirroring how the non-assisted
+  // form prefills the previous weight expression rather than its value.
+  const lastAssist = lastParsed?.assisted?.expr ?? null;
 
-  const [assistance, setAssistance] = useState(lastAssist != null ? String(lastAssist) : "");
+  const [assistance, setAssistance] = useState(lastAssist ?? "");
   // Prefer the latest Health measurement (fetched below); seed from the last
   // bodyweight entered on a prior assisted set so logging isn't blocked when
   // Health has no weight yet.
@@ -541,7 +544,7 @@ export function AddAssistedForm({
     e.preventDefault();
     if (!isValid || effectiveLoad === null || submitting) return;
     localStorage.setItem(LAST_BW_KEY, String(parsedBw));
-    const raw = normalize(`${parsedBw}-(${parsedAssist}) *${reps}`);
+    const raw = normalize(`${parsedBw}-(${assistTerm(assistance, parsedAssist)}) *${reps}`);
     const saved = await onAdd(raw, date, note.trim(), bonus);
     if (!saved) return; // keep the typed set for a retry
     setAssistance("");
@@ -692,7 +695,7 @@ export function InlineEditAssistedEntry({
   const segCount = initial?.reps ? String(initial.reps).split(/[/\-]/).length : 0;
   const n = Math.max(MIN_SET_COUNT, setCount, segCount);
   const [assistance, setAssistance] = useState(
-    String(initial?.assisted?.assist ?? log.assistance ?? ""),
+    String(initial?.assisted?.expr ?? log.assistance ?? ""),
   );
   const [bodyweight, setBodyweight] = useState(
     String(initial?.assisted?.bw ?? log.bodyweight ?? ""),
@@ -715,7 +718,7 @@ export function InlineEditAssistedEntry({
   function save(e: React.FormEvent) {
     e.preventDefault();
     if (!isValid || submitting) return;
-    const raw = normalize(`${parsedBw}-(${parsedAssist}) *${reps}`);
+    const raw = normalize(`${parsedBw}-(${assistTerm(assistance, parsedAssist)}) *${reps}`);
     onSave(raw, log.log_date ?? "", note.trim());
   }
 

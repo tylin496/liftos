@@ -15,7 +15,8 @@ export interface Parsed {
   reps: string;
   notes: string;
   unit: "kg" | "lbs" | "lb" | null;
-  assisted: { bw: number; assist: number } | null;
+  /** `expr` is the assist term as typed ("19+5"); `assist` is it evaluated. */
+  assisted: { bw: number; assist: number; expr: string } | null;
 }
 
 // NOTE: `x`→`×` is global so weight expressions like "27x2" evaluate. This also
@@ -108,7 +109,7 @@ export function parse(raw: string): Parsed | null {
     // Negative assistance is nonsensical (would make the lift heavier than
     // bodyweight) — reject rather than silently reinterpreting as a plain lift.
     if (!Number.isFinite(bw) || !Number.isFinite(assist) || assist < 0) return null;
-    assisted = { bw, assist };
+    assisted = { bw, assist, expr: am[2].trim() };
   }
 
   // A negative resolved weight is nonsensical (mirrors the negative-assist

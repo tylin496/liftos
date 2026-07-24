@@ -1,5 +1,24 @@
 import { describe, it, expect } from "vitest";
-import { normalizeTarget, parseAssist } from "./logFormHelpers";
+import { normalizeTarget, parseAssist, assistTerm } from "./logFormHelpers";
+import { parse } from "./parser";
+
+describe("assistTerm — the assist survives in the raw string as typed", () => {
+  it("keeps an expression, and round-trips through the parser", () => {
+    expect(assistTerm("19+5", 24)).toBe("19+5");
+    expect(assistTerm("12x2", 24)).toBe("12×2");
+    expect(parse(`91.05-(${assistTerm("19+5", 24)}) *8`)!.assisted).toEqual({
+      bw: 91.05,
+      assist: 24,
+      expr: "19+5",
+    });
+  });
+
+  it("collapses to the value when the term can't survive the wrapper", () => {
+    // Nested parens would break the `bw-(assist)` match the parser needs.
+    expect(assistTerm("(19+5)*2", 48)).toBe("48");
+    expect(assistTerm("", 0)).toBe("0");
+  });
+});
 
 describe("parseAssist — assistance takes the same arithmetic as the weight hero", () => {
   it("evaluates expressions, not just the leading number", () => {

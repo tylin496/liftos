@@ -127,6 +127,18 @@ export function parseAssist(expr: string): number {
   return Number.isFinite(v) && v > 0 ? +v.toFixed(2) : 0;
 }
 
+/**
+ * The assist term written into the raw string. A typed expression is kept
+ * verbatim ("91.05-(19+5) *8") so history and the edit form read back what was
+ * set on the machine, exactly like a non-assisted weight expression. Nested
+ * parens can't survive the `bw-(assist)` wrapper the parser matches, so those
+ * collapse to the evaluated value.
+ */
+export function assistTerm(expr: string, parsed: number): string {
+  const t = normalize(expr);
+  return t && !/[()]/.test(t) && parseAssist(t) === parsed ? t : String(parsed);
+}
+
 /** Shared +/− stepper for assistance-kg inputs. */
 export function useAssistAdjuster(
   setAssistance: Dispatch<SetStateAction<string>>,

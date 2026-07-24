@@ -64,9 +64,15 @@ describe("parse", () => {
 
   it("extracts assisted bodyweight − assistance", () => {
     const p = parse("97.19-(26) *8");
-    expect(p!.assisted).toEqual({ bw: 97.19, assist: 26 });
+    expect(p!.assisted).toEqual({ bw: 97.19, assist: 26, expr: "26" });
     expect(p!.weight).toBeCloseTo(71.19, 2);
     expect(p!.reps).toBe("8");
+  });
+
+  it("keeps the assist term as typed alongside its value", () => {
+    const p = parse("91.05-(19+5) *8");
+    expect(p!.assisted).toEqual({ bw: 91.05, assist: 24, expr: "19+5" });
+    expect(p!.weight).toBeCloseTo(67.05, 2);
   });
 
   it("returns null for empty or unparseable input", () => {

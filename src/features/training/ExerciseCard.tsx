@@ -940,15 +940,24 @@ function ExerciseCardImpl({
             const delta =
               isPR || !prevLog || vi !== 0 ? null : computeHistDelta(log, prevLog, sc, mode, am);
             const isAssisted = log.kind === "assisted";
-            // Assisted history renders off the denormalized kind/assistance/bodyweight
-            // columns when present, else falls back to parsing the raw expression:
-            // rows logged as "92.99-(31)" before those columns existed carry the same
-            // bw/assist losslessly in the string, so they show identically with no data
-            // migration. (Scoring/PR already read the parse, so only this display was
-            // inconsistent for those old rows.)
-            const assistedParse = isAssisted ? null : parse(log.raw ?? "");
+            // Assisted history reads bw/assist off the denormalized columns when
+            // present, else off the raw expression: rows logged as "92.99-(31)"
+            // before those columns existed carry the same values losslessly in the
+            // string, so they show identically with no data migration. The parse
+            // also carries the assist term as typed, which no column holds.
+            const assistedParse = parse(log.raw ?? "");
             const histAssist = log.assistance ?? assistedParse?.assisted?.assist ?? null;
             const histBw = log.bodyweight ?? assistedParse?.assisted?.bw ?? null;
+            // An assist typed as an expression ("19+5") reads back as typed, like
+            // a non-assisted weight expression — the resolved side of the row is
+            // the %BW score, so the raw kg it evaluates to isn't repeated.
+            const histAssistExpr = assistedParse?.assisted?.expr ?? null;
+            const histAssistTerm =
+              histAssistExpr && !/^\d+(?:\.\d+)?$/.test(histAssistExpr)
+                ? histAssistExpr
+                : histAssist != null
+                  ? fmtWeightNum(histAssist)
+                  : "";
             const isExpanded = expandedLogId === log.id && !isEditing;
             // Tap-to-reveal: this set's score and how much of the all-time PR it
             // holds — on the lift's OWN axis (compound → e1RM, isolation → best-set
@@ -1022,7 +1031,7 @@ function ExerciseCardImpl({
                   <span className="hist-expr">
                     {histBw != null && histAssist != null ? (
                       <span className="hist-assisted-wrap">
-                        <strong className="expr-weight-primary">{fmtWeightNum(histAssist)}</strong>
+                        <strong className="expr-weight-primary">{histAssistTerm}</strong>
                         <span className="expr-sep">=</span>
                         {/* Lifted load reads in %BW (net / bodyweight), the same axis
                             the score, delta, and detail drawer use — an assisted lift's
