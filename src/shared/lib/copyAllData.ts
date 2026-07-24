@@ -795,9 +795,11 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
     phaseKind === "bulk" ? "Lean bulk" :
     phaseKind != null ? "Fat loss" : null;
 
-  // Same as buildTrainingJson: dataSpan must reflect only the active exercises
-  // we actually emit, so an archived lift's log dates don't skew the window.
-  const activeSlugs = new Set(exercises.filter((e) => !e.archived).map((e) => e.slug));
+  // Same as buildTrainingJson: dataSpan must reflect only the exercises we
+  // actually emit, so an archived lift's log dates don't skew the window —
+  // but an archived stand-in IS emitted, and the day it covered a slot is real
+  // training, so `inExport` (not a bare !archived) is the right filter.
+  const activeSlugs = new Set(exercises.filter(inExport).map((e) => e.slug));
   const overviewWindow = windowOf([
     ...metrics.map((m) => m.metric_date),
     ...sortedEntries.map((e) => e.entry_date),

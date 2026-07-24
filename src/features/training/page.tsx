@@ -1504,6 +1504,7 @@ function TrainingPageInner() {
                   substituteOptions.filter((o) => o.assistedMode === !!ex.assisted_mode)
                 }
                 standIns={standInsBySlot[ex.slug] ?? EMPTY_LOGS}
+                nameBySlug={nameBySlug}
               />
             );
           })}

@@ -211,6 +211,10 @@ export interface ExerciseCardProps {
   // that performed it, and its record lives there (and in the export). Read
   // only to stop a second stand-in being logged onto a slot already covered.
   standIns?: TrainingLog[];
+  // Account-wide slug → name, for naming a stand-in whose lift isn't in this
+  // split's picker (moved splits since). Page-level and memoized, so it stays
+  // a stable prop.
+  nameBySlug?: ReadonlyMap<string, string>;
 }
 
 function ExerciseCardImpl({
@@ -233,6 +237,7 @@ function ExerciseCardImpl({
   repeatedLogs,
   substituteOptions,
   standIns = NO_LOGS,
+  nameBySlug,
 }: ExerciseCardProps) {
   const toast = useToast();
   const celebration = useCelebration();
@@ -249,10 +254,12 @@ function ExerciseCardImpl({
     () => (substituteOptions ?? []).filter((s) => s.slug !== exercise.slug),
     [substituteOptions, exercise.slug],
   );
-  // Names a stand-in row. Falls back to the slug for a lift since renamed out
-  // of the split — the row must still say what covered the slot.
+  // Names a stand-in. Reads the account-wide map first: substituteOptions is
+  // scoped to this split, so a lift that has since been moved to another one
+  // would otherwise surface its raw slug. Falls back to the slug only when the
+  // exercise is truly gone — the row must still say what covered the slot.
   const subNameOf = (slug: string) =>
-    (substituteOptions ?? []).find((s) => s.slug === slug)?.name ?? slug;
+    nameBySlug?.get(slug) ?? (substituteOptions ?? []).find((s) => s.slug === slug)?.name ?? slug;
 
   // While any edit/add form on this card is open, hold the tab-swipe lock so a
   // horizontal drag doesn't sail off to the next tab (losing the in-progress
@@ -418,17 +425,24 @@ function ExerciseCardImpl({
   type HistoryRow =
     | { kind: "log"; log: TrainingLog; vi: number }
     | { kind: "covered"; log: TrainingLog };
+  const coveredInFilter = useMemo(
+    () => filterByTime(standIns, timeFilter).filter((l) => !deletedLogIds.has(l.id)),
+    [standIns, timeFilter, deletedLogIds],
+  );
   const historyRows = useMemo<HistoryRow[]>(() => {
-    const covered = filterByTime(standIns, timeFilter).filter((l) => !deletedLogIds.has(l.id));
     const floor = showAll ? "" : (visible[visible.length - 1]?.log_date ?? "");
     const rows: HistoryRow[] = visible.map((log, vi) => ({ kind: "log", log, vi }));
-    for (const log of covered) {
+    for (const log of coveredInFilter) {
       if (log.log_date >= floor) rows.push({ kind: "covered", log });
     }
     return rows.sort((a, b) =>
       a.log.log_date < b.log.log_date ? 1 : a.log.log_date > b.log.log_date ? -1 : 0,
     );
-  }, [visible, standIns, timeFilter, deletedLogIds, showAll]);
+  }, [visible, coveredInFilter, showAll]);
+  // Drives "View all N" — covered rows are collapsed by the same floor as the
+  // sets, so they must be counted by it too, or an older one hides with no
+  // affordance to reach it.
+  const entryCount = filteredDesc.length + coveredInFilter.length;
 
   // Which log form to show: follow the most recent entry's kind, but for an
   // exercise with no logs yet honour its declared assisted_mode — otherwise the
@@ -1368,7 +1382,7 @@ function ExerciseCardImpl({
       {/* ── Footer: Log set link + View all ── */}
       {editingMode !== "meta" &&
         editingMode !== "logset" &&
-        (!readOnly && editingLogId == null || filteredDesc.length > 2) && (
+        (!readOnly && editingLogId == null || entryCount > 2) && (
         <div className="ex-footer">
           {!readOnly && editingLogId == null && (
             <button
@@ -1380,7 +1394,7 @@ function ExerciseCardImpl({
               <span className="ex-log-text">Log set</span>
             </button>
           )}
-          {filteredDesc.length > 2 && (
+          {entryCount > 2 && (
             <button
               type="button"
               className="ex-view-all"
@@ -1393,7 +1407,7 @@ function ExerciseCardImpl({
                 }
               }}
             >
-              {showAll ? "Recent only" : `View all ${filteredDesc.length}`}
+              {showAll ? "Recent only" : `View all ${entryCount}`}
             </button>
           )}
         </div>
