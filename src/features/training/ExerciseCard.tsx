@@ -165,6 +165,10 @@ function scrollIntoViewInterruptible(el: Element) {
   setTimeout(cleanup, 1000);
 }
 
+// Stable empty default for the optional stand-in list, so a card without any
+// keeps the same prop identity across renders (same reason page.tsx has one).
+const NO_LOGS: TrainingLog[] = Object.freeze([]) as unknown as TrainingLog[];
+
 export interface ExerciseCardProps {
   exercise: Exercise;
   logs: TrainingLog[]; // newest-first (as returned by fetchLogsBySlug)
@@ -198,10 +202,15 @@ export interface ExerciseCardProps {
   // them handed in separately: a real log on a maintained day supersedes its
   // clone instead of silently stacking a second row on the date.
   repeatedLogs: TrainingLog[];
-  // The split's other lifts (slug + name), for the add form's "instead of"
-  // picker — the commercial-gym case where a machine is taken and an
-  // alternative fills that lift's slot for the day. See migration 0026.
-  siblings?: SubstituteOption[];
+  // Alternatives that can fill this lift's slot when the machine is taken —
+  // the split's other lifts, active or archived. Picking one files the set
+  // under IT with substitutes = this slug. See migration 0026.
+  substituteOptions?: SubstituteOption[];
+  // Sets logged by other lifts that stood in for THIS one (their `substitutes`
+  // points here). Not this lift's history — they're listed separately, out of
+  // its stats — but they must be visible somewhere, and the slot they filled is
+  // the only place that reads right.
+  standIns?: TrainingLog[];
 }
 
 function ExerciseCardImpl({
@@ -222,7 +231,8 @@ function ExerciseCardImpl({
   bodyweightKg = null,
   bonusDefault = false,
   repeatedLogs,
-  siblings,
+  substituteOptions,
+  standIns = NO_LOGS,
 }: ExerciseCardProps) {
   const toast = useToast();
   const celebration = useCelebration();
@@ -236,14 +246,13 @@ function ExerciseCardImpl({
   // A lift can't stand in for itself — the page hands every card the whole
   // split, each drops itself.
   const subOptions = useMemo(
-    () => (siblings ?? []).filter((s) => s.slug !== exercise.slug),
-    [siblings, exercise.slug],
+    () => (substituteOptions ?? []).filter((s) => s.slug !== exercise.slug),
+    [substituteOptions, exercise.slug],
   );
-  // Names the history rows' "instead of X" marker. Falls back to the slug for a
-  // lift that has since been archived or renamed out of the split — the row
-  // must still say what it stood in for.
+  // Names a stand-in row. Falls back to the slug for a lift since renamed out
+  // of the split — the row must still say what covered the slot.
   const subNameOf = (slug: string) =>
-    (siblings ?? []).find((s) => s.slug === slug)?.name ?? slug;
+    (substituteOptions ?? []).find((s) => s.slug === slug)?.name ?? slug;
 
   // While any edit/add form on this card is open, hold the tab-swipe lock so a
   // horizontal drag doesn't sail off to the next tab (losing the in-progress
@@ -254,6 +263,16 @@ function ExerciseCardImpl({
   const [menuOpen, setMenuOpen] = useState(false);
   const [prFlash, setPrFlash] = useState(false);
   const [deletedLogIds, setDeletedLogIds] = useState<Set<string>>(new Set());
+  // Same time filter as the history above (a stand-in is part of the same
+  // record), minus rows inside their undo window.
+  const visibleStandIns = useMemo(
+    () =>
+      filterByTime(standIns, timeFilter)
+        .filter((l) => !deletedLogIds.has(l.id))
+        .sort((a, b) => (a.log_date < b.log_date ? 1 : -1)),
+    [standIns, timeFilter, deletedLogIds],
+  );
+
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string>();
   const [localImageUrl, setLocalImageUrl] = useState<string>();
@@ -416,9 +435,45 @@ function ExerciseCardImpl({
     date: string,
     note: string,
     bonus: boolean,
-    substitutes: string | null = null,
+    substitute: string | null = null,
   ): Promise<boolean> {
     if (submitting) return false;
+    // A stand-in: another lift filled THIS card's slot today. The row is filed
+    // under that lift (its numbers are its own — 54 kg written into a 100 kg
+    // lift's history would read as a collapse); this card only records that its
+    // slot was covered. So none of the PR / milestone / celebration machinery
+    // below applies — it all judges against this card's history, which the set
+    // never joins.
+    if (substitute) {
+      const opt = subOptions.find((o) => o.slug === substitute);
+      if (standIns.some((l) => l.log_date === date && !deletedLogIds.has(l.id))) {
+        haptic("error");
+        toast("This slot already has a stand-in that day", "error");
+        return false;
+      }
+      setSubmitting(true);
+      try {
+        await addLog({
+          slug: substitute,
+          raw,
+          date,
+          note: note || undefined,
+          bonus,
+          substitutes: exercise.slug,
+        });
+        setEditingMode("view");
+        haptic("success");
+        toast(`Logged ${opt?.name ?? "stand-in"} — stood in for ${exercise.name}`, "success");
+        onLogged();
+        return true;
+      } catch (err) {
+        haptic("error");
+        toast(String((err as Error)?.message ?? err), "error");
+        return false;
+      } finally {
+        setSubmitting(false);
+      }
+    }
     // One entry per exercise per day — every set for the day lives in a single
     // drop-set entry, so a second same-day log is always a mistake. Instead of
     // bouncing the user off to find that entry, open its inline editor directly
@@ -461,7 +516,7 @@ function ExerciseCardImpl({
         date,
         note: note || undefined,
         bonus,
-        substitutes: substitutes ?? undefined,
+
       });
       setEditingMode("view");
       // A logged set IS a completed set — confirm it with the shared "set
@@ -1074,11 +1129,16 @@ function ExerciseCardImpl({
                     {log.bonus && (
                       <span className="hist-bonus-tag">bonus</span>
                     )}
+                    {/* This lift's own set, performed as a stand-in for another
+                        (normally only visible when the alternative is still on
+                        the active roster — an archived one lives in its slot's
+                        card instead). */}
                     {log.substitutes && (
                       <span className="hist-bonus-tag">
-                        instead of {subNameOf(log.substitutes)}
+                        stood in for {subNameOf(log.substitutes)}
                       </span>
                     )}
+
                     {log.note && (
                       <span className="hist-note">{log.note}</span>
                     )}
@@ -1241,6 +1301,44 @@ function ExerciseCardImpl({
         </div>
       )}
 
+      {/* ── Days another lift covered this slot ── */}
+      {/* Kept out of the history list above on purpose: these sets belong to a
+          different lift and never touch this one's stats, PR or trend. But the
+          slot they filled is the only place they read right, so they're listed
+          here — muted, no delta, no PR — with a delete for a mis-logged one. */}
+      {visibleStandIns.length > 0 && (
+        <div className="ex-standins">
+          {visibleStandIns.map((log) => {
+            const td = timelineDate(log.log_date ?? "");
+            return (
+              <div className="ex-standin-row" key={log.id}>
+                <span className="hist-date">
+                  <span className="hist-date-mon">{td.mon}</span>
+                  <span className="hist-date-day mono">{td.day}</span>
+                </span>
+                <span className="ex-standin-body">
+                  <span className="ex-standin-name">{subNameOf(log.exercise_slug)}</span>
+                  <span className="ex-standin-expr">
+                    <ExprDisplay raw={log.raw} histMode />
+                  </span>
+                </span>
+                <span className="ex-standin-tag">stood in</span>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="ex-standin-del"
+                    aria-label="Delete stand-in entry"
+                    onClick={() => handleDelete(log)}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* ── Log set form (owner only) ── */}
       {/* Wrapped in the editor drawer so the add form unfolds (height 0fr→1fr)
           on open, same as inline-edit. is-add zeroes the inner padding so the
@@ -1256,7 +1354,7 @@ function ExerciseCardImpl({
                 onCancel={() => setEditingMode("view")}
                 submitting={submitting}
                 defaultBonus={bonusDefault}
-                siblings={subOptions}
+                substituteOptions={subOptions}
               />
             ) : (
               <AddEntryForm
@@ -1266,7 +1364,7 @@ function ExerciseCardImpl({
                 onCancel={() => setEditingMode("view")}
                 submitting={submitting}
                 defaultBonus={bonusDefault}
-                siblings={subOptions}
+                substituteOptions={subOptions}
               />
             )}
           </div>

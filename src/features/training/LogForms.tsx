@@ -286,35 +286,46 @@ function AssistedPreviewBar({ load, reps, assist }: { load: number | null; reps:
   );
 }
 
-/** A lift this set could have stood in for — the split's other exercises. */
+/** An alternative that can fill this lift's slot for one session — the split's
+ *  other lifts, ACTIVE OR ARCHIVED (a machine you only reach for when yours is
+ *  taken belongs in the archive, not on the daily roster). Carries the
+ *  alternative's own prefill and set count: the set is logged against IT, so
+ *  seeding from the card's lift would offer the wrong numbers. */
 export interface SubstituteOption {
   slug: string;
   name: string;
+  /** The alternative's most recent log, for the weight prefill. */
+  lastRaw: string;
+  setCount: number;
+  /** Read by the page to offer only alternatives whose log shape matches the
+   *  card's form (assisted writes `bw-(assist)`, plain writes a load). */
+  assistedMode?: boolean;
 }
 
-// Date chip + Bonus toggle + "instead of" picker — the add forms' top bar.
+// Date chip + Bonus toggle + stand-in picker — the add forms' top bar.
 // Bonus marks a rest-day extra: the set's own volume counts, but the day is not
 // a session of the split (no roster carry-forward, no rotation advance, still a
-// rest day). "Instead of" marks a stand-in: the machine was taken, so this set
-// fills another lift's slot in the session — that lift doesn't carry forward
-// that day, and this one never carries forward at all. The two are mutually
-// exclusive: a rest-day extra replaces nothing.
+// rest day). The picker marks a stand-in: the machine was taken, so this SLOT
+// was filled by another lift. The set is then logged against that lift (its
+// numbers are its own — writing 54 kg into a 100 kg lift's history would read
+// as a collapse), and this card's lift stops carrying forward for that date.
+// The two are mutually exclusive: a rest-day extra replaces nothing.
 function LogTopbar({
   date,
   setDate,
   bonus,
   setBonus,
-  substitutes,
-  setSubstitutes,
-  siblings = [],
+  substitute,
+  setSubstitute,
+  options = [],
 }: {
   date: string;
   setDate: (v: string) => void;
   bonus: boolean;
   setBonus: (v: boolean) => void;
-  substitutes: string | null;
-  setSubstitutes: (v: string | null) => void;
-  siblings?: SubstituteOption[];
+  substitute: string | null;
+  setSubstitute: (v: string | null) => void;
+  options?: SubstituteOption[];
 }) {
   const isToday = date === todayStr();
   return (
@@ -333,27 +344,27 @@ function LogTopbar({
         aria-pressed={bonus}
         aria-label="Bonus set — counts its volume only, not a session"
         onClick={() => {
-          if (!bonus) setSubstitutes(null);
+          if (!bonus) setSubstitute(null);
           setBonus(!bonus);
         }}
       >
         Bonus
       </button>
-      {siblings.length > 0 && (
+      {options.length > 0 && (
         <select
-          className={`log-sub-chip${substitutes ? " is-set" : ""}`}
-          value={substitutes ?? ""}
-          aria-label="Performed instead of another lift"
+          className={`log-sub-chip${substitute ? " is-set" : ""}`}
+          value={substitute ?? ""}
+          aria-label="Another lift filled this slot today"
           onChange={(e) => {
             const v = e.target.value || null;
-            setSubstitutes(v);
+            setSubstitute(v);
             if (v) setBonus(false);
           }}
         >
-          <option value="">Instead of…</option>
-          {siblings.map((s) => (
+          <option value="">Did another lift…</option>
+          {options.map((s) => (
             <option key={s.slug} value={s.slug}>
-              instead of {s.name}
+              did {s.name} instead
             </option>
           ))}
         </select>
@@ -423,30 +434,40 @@ export function AddEntryForm({
   onCancel,
   submitting = false,
   defaultBonus = false,
-  siblings,
+  substituteOptions,
 }: {
   setCount: number;
   lastRaw: string;
   /** Resolves true only when the log actually persisted — the form clears on
    *  true and RETAINS the typed set on false (network drop, duplicate day), so
-   *  an error toast never costs the user their input. */
+   *  an error toast never costs the user their input. `substitute` is the slug
+   *  the set should actually be filed under when another lift filled this
+   *  card's slot; null for an ordinary set. */
   onAdd: (
     raw: string,
     date: string,
     note: string,
     bonus: boolean,
-    substitutes: string | null,
+    substitute: string | null,
   ) => Promise<boolean>;
   onCancel: () => void;
   submitting?: boolean;
   /** Smart default for the Bonus toggle (exercise out of rotation today) —
    *  seeds the state only; the user can always flip it. */
   defaultBonus?: boolean;
-  /** The split's other lifts — populates the "instead of" picker. */
-  siblings?: SubstituteOption[];
+  /** Alternatives that can fill this lift's slot — populates the picker. */
+  substituteOptions?: SubstituteOption[];
 }) {
-  const n = Math.max(MIN_SET_COUNT, setCount);
-  const lastParsed = lastRaw ? parse(lastRaw) : null;
+  const [substitute, setSubstitute] = useState<string | null>(null);
+  const picked = substituteOptions?.find((o) => o.slug === substitute) ?? null;
+  // Everything the form seeds and shapes follows the lift being LOGGED: pick a
+  // stand-in and the prefill, set count and rep boxes become that lift's, since
+  // that's whose history the row joins.
+  const n = Math.max(MIN_SET_COUNT, picked ? picked.setCount : setCount);
+  const lastParsed = (() => {
+    const src = picked ? picked.lastRaw : lastRaw;
+    return src ? parse(src) : null;
+  })();
   const [weightExpr, setWeightExpr] = useState(lastParsed?.weightExpr ?? "");
   const defaultRep = lastParsed?.reps ? String(lastParsed.reps).split(/[/\-]/)[0] ?? "" : "";
   const [repValues, setRepValues] = useState(() => emptyRepValues(n));
@@ -454,9 +475,21 @@ export function AddEntryForm({
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
   const [bonus, setBonus] = useState(defaultBonus);
-  const [substitutes, setSubstitutes] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
+
+  // Switching target re-seeds the set from that lift's own last log. Done on
+  // the change itself (not in an effect) so a half-typed set is never silently
+  // rewritten by an unrelated re-render.
+  function pickSubstitute(slug: string | null) {
+    const next = slug ? substituteOptions?.find((o) => o.slug === slug) ?? null : null;
+    const seed = next ? next.lastRaw : lastRaw;
+    const seedParsed = seed ? parse(seed) : null;
+    setSubstitute(slug);
+    setWeightExpr(seedParsed?.weightExpr ?? "");
+    setRepValues(emptyRepValues(Math.max(MIN_SET_COUNT, next ? next.setCount : setCount)));
+    setUnit(isLbUnit(seedParsed?.unit) ? "lbs" : "kg");
+  }
 
   const suffix = unit === "lbs" ? " lbs" : "";
   const reps = composeRepsMulti(trimExtraEmptyReps(repValues, n), defaultRep);
@@ -476,13 +509,13 @@ export function AddEntryForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValid || submitting) return;
-    const saved = await onAdd(raw, date, note.trim(), bonus, substitutes);
+    const saved = await onAdd(raw, date, note.trim(), bonus, substitute);
     if (!saved) return; // keep the typed set for a retry
     setWeightExpr("");
     setRepValues(emptyRepValues(n));
     setNote("");
     setBonus(defaultBonus);
-    setSubstitutes(null);
+    setSubstitute(null);
   }
 
   return (
@@ -492,9 +525,9 @@ export function AddEntryForm({
         setDate={setDate}
         bonus={bonus}
         setBonus={setBonus}
-        substitutes={substitutes}
-        setSubstitutes={setSubstitutes}
-        siblings={siblings}
+        substitute={substitute}
+        setSubstitute={pickSubstitute}
+        options={substituteOptions}
       />
 
       <WeightZone
@@ -518,7 +551,7 @@ export function AddEntryForm({
       <NoteField value={note} onChange={setNote} />
 
       <LogFormFooter
-        primaryLabel="Log set"
+        primaryLabel={picked ? `Log ${picked.name}` : "Log set"}
         submitting={submitting}
         disabled={!isValid || submitting}
         onCancel={onCancel}
@@ -538,7 +571,7 @@ export function AddAssistedForm({
   onCancel,
   submitting = false,
   defaultBonus = false,
-  siblings,
+  substituteOptions,
 }: {
   setCount: number;
   lastLog: TrainingLog | null;
@@ -549,17 +582,24 @@ export function AddAssistedForm({
     date: string,
     note: string,
     bonus: boolean,
-    substitutes: string | null,
+    substitute: string | null,
   ) => Promise<boolean>;
   onCancel: () => void;
   submitting?: boolean;
   /** Same contract as AddEntryForm.defaultBonus. */
   defaultBonus?: boolean;
-  /** Same contract as AddEntryForm.siblings. */
-  siblings?: SubstituteOption[];
+  /** Same contract as AddEntryForm.substituteOptions. The page only offers
+   *  alternatives that are themselves assisted-mode: this form writes the
+   *  `bw-(assist)` shape, which a plain-load lift can't hold. */
+  substituteOptions?: SubstituteOption[];
 }) {
-  const n = Math.max(MIN_SET_COUNT, setCount);
-  const lastParsed = lastLog?.raw ? parse(lastLog.raw) : null;
+  const [substitute, setSubstitute] = useState<string | null>(null);
+  const picked = substituteOptions?.find((o) => o.slug === substitute) ?? null;
+  const n = Math.max(MIN_SET_COUNT, picked ? picked.setCount : setCount);
+  const lastParsed = (() => {
+    const src = picked ? picked.lastRaw : (lastLog?.raw ?? "");
+    return src ? parse(src) : null;
+  })();
   // Seed from the assist term as typed ("19+5"), mirroring how the non-assisted
   // form prefills the previous weight expression rather than its value.
   const lastAssist = lastParsed?.assisted?.expr ?? null;
@@ -579,9 +619,18 @@ export function AddAssistedForm({
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
   const [bonus, setBonus] = useState(defaultBonus);
-  const [substitutes, setSubstitutes] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
+
+  // Re-seed the assist term from the lift now being logged (see AddEntryForm's
+  // pickSubstitute — same rule, and bodyweight is shared so it stays put).
+  function pickSubstitute(slug: string | null) {
+    const next = slug ? substituteOptions?.find((o) => o.slug === slug) ?? null : null;
+    const seed = next ? next.lastRaw : (lastLog?.raw ?? "");
+    setSubstitute(slug);
+    setAssistance((seed ? parse(seed) : null)?.assisted?.expr ?? "");
+    setRepValues(emptyRepValues(Math.max(MIN_SET_COUNT, next ? next.setCount : setCount)));
+  }
 
   useEffect(() => {
     supabase
@@ -612,9 +661,9 @@ export function AddAssistedForm({
     if (!isValid || effectiveLoad === null || submitting) return;
     localStorage.setItem(LAST_BW_KEY, String(parsedBw));
     const raw = normalize(`${parsedBw}-(${assistTerm(assistance, parsedAssist)}) *${reps}`);
-    const saved = await onAdd(raw, date, note.trim(), bonus, substitutes);
+    const saved = await onAdd(raw, date, note.trim(), bonus, substitute);
     if (!saved) return; // keep the typed set for a retry
-    setSubstitutes(null);
+    setSubstitute(null);
     setAssistance("");
     setRepValues(emptyRepValues(n));
     setNote("");
@@ -628,9 +677,9 @@ export function AddAssistedForm({
         setDate={setDate}
         bonus={bonus}
         setBonus={setBonus}
-        substitutes={substitutes}
-        setSubstitutes={setSubstitutes}
-        siblings={siblings}
+        substitute={substitute}
+        setSubstitute={pickSubstitute}
+        options={substituteOptions}
       />
 
       <AssistedWeightZone
@@ -655,7 +704,7 @@ export function AddAssistedForm({
       <NoteField value={note} onChange={setNote} />
 
       <LogFormFooter
-        primaryLabel="Log set"
+        primaryLabel={picked ? `Log ${picked.name}` : "Log set"}
         submitting={submitting}
         disabled={!isValid || submitting}
         onCancel={onCancel}

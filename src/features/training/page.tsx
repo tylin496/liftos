@@ -877,13 +877,38 @@ function TrainingPageInner() {
     [exercises, split],
   );
 
-  // Options for each card's "instead of" picker: the split's other active
-  // lifts. Built once per split (not per card) so the memoized cards keep a
-  // stable prop; each card drops itself from the list when it renders.
+  // Options for each card's stand-in picker: the split's lifts, ACTIVE AND
+  // ARCHIVED. The archive is where an alternative you only reach for when your
+  // machine is taken belongs — it keeps its history and its own PR chain, but
+  // stays off the daily roster and out of carry-forward. Each option carries
+  // the prefill and set count the form needs, since the set is logged against
+  // the alternative, not against the card it was picked on. Built once per
+  // split (not per card) so the memoized cards keep a stable prop; each card
+  // drops itself when it renders.
   const substituteOptions = useMemo(
-    () => activeExercises.map((e) => ({ slug: e.slug, name: e.name })),
-    [activeExercises],
+    () =>
+      [...activeExercises, ...archivedExercises].map((e) => ({
+        slug: e.slug,
+        name: e.name,
+        lastRaw: (strengthLogs[e.slug] ?? EMPTY_LOGS).find((l) => l.raw)?.raw ?? "",
+        setCount: defaultSetCount(e),
+        assistedMode: !!e.assisted_mode,
+      })),
+    [activeExercises, archivedExercises, strengthLogs],
   );
+
+  // Stand-in sets grouped by the slot they filled — i.e. keyed by the
+  // SUBSTITUTED lift, not by the lift that performed them, which is how the
+  // card that owns the slot finds them.
+  const standInsBySlot = useMemo(() => {
+    const out: Record<string, TrainingLog[]> = {};
+    for (const arr of Object.values(strengthLogs)) {
+      for (const l of arr) {
+        if (l.substitutes) (out[l.substitutes] ??= []).push(l);
+      }
+    }
+    return out;
+  }, [strengthLogs]);
 
   // "Trained, nothing new" — the latest log of every active exercise in this
   // split that has history. Repeating these is what marks today's session as
@@ -1374,7 +1399,13 @@ function TrainingPageInner() {
                 bodyweightKg={bodyweightKg}
                 bonusDefault={expectedSplit != null && ex.split !== expectedSplit}
                 repeatedLogs={repeatedLogs[ex.slug] ?? EMPTY_LOGS}
-                siblings={substituteOptions}
+                substituteOptions={
+                  // The assisted form writes the `bw-(assist)` shape and the
+                  // plain form writes a load — an alternative can only fill
+                  // this slot if it takes the same shape.
+                  substituteOptions.filter((o) => o.assistedMode === !!ex.assisted_mode)
+                }
+                standIns={standInsBySlot[ex.slug] ?? EMPTY_LOGS}
               />
             );
           })}

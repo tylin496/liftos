@@ -1138,7 +1138,61 @@
   color: var(--accent);
 }
 
-/* "Instead of" picker — marks the set as a stand-in for another lift in the
+/* ── Stand-ins: days another lift filled this slot ───────────────────────────*/
+/* Deliberately quieter than the history rows above — these sets belong to a
+   different lift and carry no verdict here (no PR, no delta, no score). The
+   separating rule is the same hairline the history rows use. */
+.ex-standins {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--rule);
+}
+
+.ex-standin-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.ex-standin-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-hairline);
+  flex: 1;
+  min-width: 0;
+}
+
+.ex-standin-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+/* The expression renders through ExprDisplay (same as history), so it only
+   needs to be dimmed as a whole — it isn't this lift's number. */
+.ex-standin-expr {
+  opacity: 0.75;
+}
+
+.ex-standin-tag {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.ex-standin-del {
+  border: none;
+  background: none;
+  color: var(--ink-4);
+  font-size: var(--text-sm);
+  padding: var(--space-1);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Stand-in picker — marks the set as a stand-in for another lift in the
    split (the machine was taken). A <select>, i.e. an editable control, so it
    takes the input face per the grey-surface rule: --bg-input + border + focus
    ring, matching the date chip beside it. Unset reads as a muted prompt. */
