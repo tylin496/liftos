@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   activeTargetPosition, weekActiveTotal, weekSyncedDays, weekBanked, bankedTone, weekStripCells,
-  phasePlanNote, cutStageLabel, bulkStageLabel, nextCutStageLabel, weightLineTone, accelArrowTone,
+  phasePlanNote, cutStageLabel, bulkStageLabel, projectedBulkCeiling, nextCutStageLabel, weightLineTone, accelArrowTone,
   buildSparkGeometry, SPARK_W, SPARK_PAD,
 } from "./derive";
 import type { BodyMetric } from "@features/health/api";
@@ -194,6 +194,25 @@ describe("cutStageLabel", () => {
   it("bulk stage names its ceiling, bare until configured", () => {
     expect(bulkStageLabel(21)).toBe("Lean Bulk → 21% cap");
     expect(bulkStageLabel(null)).toBe("Lean Bulk");
+  });
+  it("borrows the projected ceiling before a bulk exists, marked approximate", () => {
+    expect(bulkStageLabel(null, 21)).toBe("Lean Bulk → ~21% cap");
+  });
+  it("a saved ceiling wins over the projection", () => {
+    expect(bulkStageLabel(20, 21)).toBe("Lean Bulk → 20% cap");
+  });
+});
+
+describe("projectedBulkCeiling", () => {
+  it("offers the cut target plus the fat budget", () => {
+    expect(projectedBulkCeiling(18)).toBe(21);
+  });
+  it("clamps to the ceiling field's own range", () => {
+    expect(projectedBulkCeiling(29)).toBe(30);
+    expect(projectedBulkCeiling(4)).toBe(8);
+  });
+  it("projects nothing without a target", () => {
+    expect(projectedBulkCeiling(null)).toBeNull();
   });
 });
 

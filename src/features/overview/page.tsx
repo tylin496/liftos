@@ -44,7 +44,7 @@ import {
 } from "./format";
 import {
   activeTargetPosition, weekActiveTotal, weekSyncedDays, weekBanked, bankedTone, weekStripCells,
-  phasePlanNote, cutStageLabel, bulkStageLabel, nextCutStageLabel, weightLineTone, accelArrowTone, buildSparkGeometry,
+  phasePlanNote, cutStageLabel, bulkStageLabel, projectedBulkCeiling, nextCutStageLabel, weightLineTone, accelArrowTone, buildSparkGeometry,
   SPARK_W, SPARK_H, SPARK_PAD,
 } from "./derive";
 import "./overview.css";
@@ -792,7 +792,10 @@ function PhasePlanSection({
   // not yet made, so any figure would be invented.
   const note = phasePlanNote(kind, goalStatus, bulkGoalStatus, n, phase.triggers.length, CONSIDER_ENTER_COUNT, hadBulk);
   const cutLabel = cutStageLabel(goalStatus.targetBodyFatPct);
-  const bulkLabel = bulkStageLabel(bulkGoalStatus?.bfCeilingPct ?? null);
+  const bulkLabel = bulkStageLabel(
+    bulkGoalStatus?.bfCeilingPct ?? null,
+    projectedBulkCeiling(goalStatus.targetBodyFatPct),
+  );
   const nextCutLabel = nextCutStageLabel(goalStatus.targetBodyFatPct);
 
   return (
@@ -1379,8 +1382,10 @@ function BulkBaselineCard({
   onSaved,
 }: {
   metrics: BodyMetric[];
-  /** Prefill for the ceiling — the cut target + a few pp when configured. */
-  defaultCeiling: number;
+  /** Prefill for the ceiling — the cut target + a few pp. Null when there's no
+   *  target to project from: the field opens empty rather than inventing a
+   *  budget out of nothing. */
+  defaultCeiling: number | null;
   /** Only names where the prefill came from; null hides that line and leaves
    *  the field a plain default. The ceiling is a choice, so the number is
    *  offered, never decided — this says what it was offered from. */
@@ -1388,7 +1393,7 @@ function BulkBaselineCard({
   onSaved: () => void;
 }) {
   const [date, setDate] = useState("");
-  const [ceiling, setCeiling] = useState(String(defaultCeiling));
+  const [ceiling, setCeiling] = useState(defaultCeiling != null ? String(defaultCeiling) : "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -2029,7 +2034,7 @@ export function OverviewPage() {
           <BulkBaselineCard
             key="cut"
             metrics={data.metrics}
-            defaultCeiling={Math.min(30, Math.max(8, (data.targetBodyFat ?? 18) + 3))}
+            defaultCeiling={projectedBulkCeiling(data.targetBodyFat)}
             targetBodyFat={data.targetBodyFat}
             onSaved={() => void load()}
           />

@@ -152,10 +152,30 @@ export function cutStageLabel(targetBodyFatPct: number | null): string {
   return targetBodyFatPct != null ? `Cut → ${targetBodyFatPct}% BF` : "Cut";
 }
 
+/** The fat budget a lean bulk is offered by default: the cut target plus this,
+ *  clamped to the ceiling field's own range. It is a starting point for the
+ *  BulkBaselineCard's prefill and for the roadmap's projected label — never a
+ *  saved value. Setting the bulk is what commits a ceiling. */
+const BULK_CEILING_MARGIN_PP = 3;
+
+export function projectedBulkCeiling(targetBodyFatPct: number | null): number | null {
+  if (targetBodyFatPct == null) return null;
+  return Math.min(30, Math.max(8, targetBodyFatPct + BULK_CEILING_MARGIN_PP));
+}
+
 /** Same endpoint-naming for the Lean Bulk stage — its endpoint is the body-fat
- *  CEILING ("Lean Bulk → 21% cap"), bare "Lean Bulk" until one is configured. */
-export function bulkStageLabel(bfCeilingPct: number | null): string {
-  return bfCeilingPct != null ? `Lean Bulk → ${bfCeilingPct}% cap` : "Lean Bulk";
+ *  CEILING ("Lean Bulk → 21% cap"). Before a bulk exists there is nothing saved
+ *  to name, so the stage borrows the projected ceiling and marks it approximate
+ *  ("→ ~21% cap"): the road reads end-to-end from day one, and the tilde is what
+ *  keeps a projection from passing as a decision. Bare "Lean Bulk" only when
+ *  even the cut target is unset — then there's nothing to project from. */
+export function bulkStageLabel(
+  bfCeilingPct: number | null,
+  projectedCeilingPct: number | null = null,
+): string {
+  if (bfCeilingPct != null) return `Lean Bulk → ${bfCeilingPct}% cap`;
+  if (projectedCeilingPct != null) return `Lean Bulk → ~${projectedCeilingPct}% cap`;
+  return "Lean Bulk";
 }
 
 /** The road's 4th waypoint — the cut AFTER the bulk, closing the cycle. Same
