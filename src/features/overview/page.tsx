@@ -24,7 +24,7 @@ import { ActivityRing, OverflowRing } from "@shared/components/ActivityRing";
 import { HeadlineCountUp } from "@shared/components/AnimatedNumber";
 import "@shared/components/activityRing.css";
 import { PageTopBar } from "@shared/components/PageTopBar";
-import { useSettingsSheet } from "@app/layout/SettingsSheetContext";
+import { useSettingsSheet, type SettingsRow } from "@app/layout/SettingsSheetContext";
 import { buildAllDataJson, EXPORT_HEALTH_DAYS, EXPORT_NUTRITION_DAYS } from "@shared/lib/copyAllData";
 import { useTabActivity } from "@app/layout/TabActivityContext";
 import { useNav } from "@app/layout/NavContext";
@@ -367,7 +367,7 @@ function ActiveTargetCard({
     return (
       <section className="page-card ov-active-target">
         <div className="page-eyebrow" style={{ margin: 0 }}>Active target</div>
-        <button type="button" className="ov-active-target-setup" onClick={openSettings}>
+        <button type="button" className="ov-active-target-setup" onClick={() => openSettings()}>
           Set a maintenance TDEE goal to see your daily active target
         </button>
       </section>
@@ -576,16 +576,26 @@ const REC_ANCHOR: Record<string, string> = {
   // "Add activity" is an active-energy move → the Energy card's model row, the
   // same landing Overview's own Active Target card uses.
   [INCREASE_ACTIVITY_TITLE]: "health-energy-card",
-  // Every "move the calorie plan" directive → the Insight card, the one place a
-  // new target is actually applied (its Apply button). The tab's top card is the
+  // A nudge to the SAME plan by a step the engine already sized → the Insight
+  // card, where that number is one Apply button away. The tab's top card is the
   // day form, which is where you LOG the plan, not where you change it.
   [REVIEW_TARGET_TITLE]: "nutrition-insight-card",
   [REDUCE_DEFICIT_TITLE]: "nutrition-insight-card",
   [REDUCE_SURPLUS_TITLE]: "nutrition-insight-card",
-  [START_MAINTENANCE_TITLE]: "nutrition-insight-card",
-  [START_CUT_TITLE]: "nutrition-insight-card",
-  [CONSIDER_MAINTENANCE_TITLE]: "nutrition-insight-card",
-  [CONSIDER_BREAK_TITLE]: "nutrition-insight-card",
+};
+
+// Phase directives are the exception to the tab model: "start maintenance" /
+// "start the cut" ask for a DIFFERENT plan, not a step within this one, and the
+// only control for that is the Settings sheet's Intake goal row (the intake vs
+// TDEE gap is what defines the phase). The Insight card can't serve them — its
+// Apply button only ever offers the engine's own step, and on these rungs it
+// often offers nothing. So the banner opens the sheet on that row, in place: no
+// tab change, and closing it drops you back on the directive that sent you.
+const REC_SETTINGS_ROW: Record<string, SettingsRow> = {
+  [START_MAINTENANCE_TITLE]: "intake",
+  [START_CUT_TITLE]: "intake",
+  [CONSIDER_MAINTENANCE_TITLE]: "intake",
+  [CONSIDER_BREAK_TITLE]: "intake",
 };
 
 function SystemCard({
@@ -1946,6 +1956,9 @@ let lastOverviewUserId: string | null = null;
 export function OverviewPage() {
   const activity = useTabActivity();
   const nav = useNav();
+  // The System banner's phase directives open Settings on the Intake row rather
+  // than navigating a tab (see REC_SETTINGS_ROW).
+  const { openSettings } = useSettingsSheet();
   const user = useSessionUser();
   const readOnly = useIsReadOnly();
 
@@ -2023,6 +2036,11 @@ export function OverviewPage() {
           rec={shownRec}
           closing={systemExit.closing}
           onNav={() => {
+            const row = REC_SETTINGS_ROW[shownRec.title];
+            if (row) {
+              openSettings(row);
+              return;
+            }
             const anchor = REC_ANCHOR[shownRec.title];
             nav(REC_TAB[shownRec.source], anchor ? { scrollTo: anchor } : undefined);
           }}

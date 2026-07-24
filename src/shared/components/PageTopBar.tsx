@@ -140,7 +140,9 @@ export function PageTopBar({
         <button
           type="button"
           className="page-topbar-avatar-btn"
-          onClick={openSettings}
+          // Wrapped: openSettings takes an optional focus-row, and a bare
+          // handler reference would hand it the click event.
+          onClick={() => openSettings()}
           aria-label={
             ring
               ? `Settings — today's active target ${ring.today.accrued}/${ring.today.target} kcal`

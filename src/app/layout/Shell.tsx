@@ -154,8 +154,8 @@ function fireArrival(el: HTMLElement) {
 // Single Settings sheet instance for the whole app — both PageTopBar's avatar
 // (per screen) and anything else that calls openSettings() share this one.
 function GlobalSettingsSheet() {
-  const { open, closeSettings } = useSettingsSheet();
-  return <SettingsSheet open={open} onClose={closeSettings} />;
+  const { open, closeSettings, focusRow } = useSettingsSheet();
+  return <SettingsSheet open={open} onClose={closeSettings} focusRow={focusRow} />;
 }
 
 export function Shell({ session }: { session: Session }) {

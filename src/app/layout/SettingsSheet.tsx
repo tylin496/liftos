@@ -12,10 +12,11 @@ import { phaseFromDeficit, trainingMonthsFromStart } from "@features/nutrition/l
 import { maybeClosePhase } from "@shared/lib/phaseReport";
 import { useTheme, type ThemePreference } from "@shared/lib/theme";
 import { useIsReadOnly } from "./SessionContext";
+import type { SettingsRow } from "./SettingsSheetContext";
 import logoUrl from "@shared/assets/logo.png";
 import { version as APP_VERSION } from "../../../package.json";
 
-type RowKey = "protein" | "intake" | "targettdee" | "height" | "start" | "bf";
+type RowKey = SettingsRow;
 
 const APPEARANCE_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "light", label: "Light" },
@@ -95,7 +96,18 @@ function Stepper({
   );
 }
 
-function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => void }) {
+function SheetInner({
+  closing,
+  onClose,
+  focusRow,
+}: {
+  closing: boolean;
+  onClose: () => void;
+  /** Row to open already in edit mode (a deep-link from the caller that sent the
+   *  user here). SheetInner mounts fresh on every open, so this seeds state
+   *  directly — no effect, no flash of the collapsed row. */
+  focusRow?: SettingsRow | null;
+}) {
   const { config, setConfig } = useNutritionConfig();
   const toast = useToast();
   const readOnly = useIsReadOnly();
@@ -109,7 +121,9 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   const [sex, setSex] = useState<"" | "male" | "female">("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editingRow, setEditingRow] = useState<RowKey | null>(null);
+  // Viewers see config values but can't edit them, so a focus request from a
+  // deep-link is ignored for them — same rule editRow() enforces on tap.
+  const [editingRow, setEditingRow] = useState<RowKey | null>(readOnly ? null : (focusRow ?? null));
 
   const sheetRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -445,8 +459,16 @@ function SheetInner({ closing, onClose }: { closing: boolean; onClose: () => voi
   );
 }
 
-export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SettingsSheet({
+  open,
+  onClose,
+  focusRow,
+}: {
+  open: boolean;
+  onClose: () => void;
+  focusRow?: SettingsRow | null;
+}) {
   const { mounted, closing } = useExitTransition(open);
   if (!mounted) return null;
-  return <SheetInner closing={closing} onClose={onClose} />;
+  return <SheetInner closing={closing} onClose={onClose} focusRow={focusRow} />;
 }
