@@ -39,7 +39,7 @@ const MAX_TRAINING_LOGS_PER_EXERCISE = 15;
 // LLM never mistakes "only squat has an entry today" for "only squat was trained".
 // Same convention as the rest of the app: absent log = maintained, never zero.
 const TRAINING_LOGGING_MODEL =
-  "A lift gets a new entry only when its numbers change. On any date where at least one lift of a split has an entry, the ENTIRE split was trained that day — lifts without an entry were performed at their last logged numbers, not skipped. A day where the whole split repeated unchanged is recorded via a repeat marker and omitted from these logs entirely (no new strength signal), so absence of entries never means absence of training. Exception: a log flagged bonus:true is a rest-day extra of that one lift — it does NOT mean its split was trained that day, adds only its own volume, and does not advance the split rotation.";
+  "A lift gets a new entry only when its numbers change. On any date where at least one lift of a split has an entry, the ENTIRE split was trained that day — lifts without an entry were performed at their last logged numbers, not skipped. A day where the whole split repeated unchanged is recorded via a repeat marker and omitted from these logs entirely (no new strength signal), so absence of entries never means absence of training. Exception: a log flagged bonus:true is a rest-day extra of that one lift — it does NOT mean its split was trained that day, adds only its own volume, and does not advance the split rotation. Exception: a log flagged substitutes:\"<slug>\" is a stand-in — that lift was performed IN PLACE OF the named one for that date (the usual cause is a busy machine). On that date the named lift was NOT trained and must NOT be carried forward at its last numbers; the stand-in covers the slot with its own volume, and it is a one-off, so it must not be carried forward to any other date either. A lift marked rosterStatus:\"archived\" is off the daily roster and appears only for the dates it stood in.";
 
 /** A structured "why this status" for a strength lift, read straight off the same
  *  settled flags the Training card uses — so the export reader shows a reason
@@ -667,10 +667,22 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
   // Training trend sheet uses). Metrics are ascending, so the last weight wins.
   const latestBodyweight = metrics.filter((m) => m.weight_kg != null).at(-1)?.weight_kg ?? null;
 
+  // Slugs that stood in for another lift at least once. An archived lift is off
+  // the roster, but a day it covered someone's slot is real training the reader
+  // must see — without it the substituted lift looks merely un-logged, and the
+  // no-log-means-maintained rule would resurrect it at its old numbers on a day
+  // it wasn't trained (the exact false volume `substitutes` exists to prevent).
+  const standInSlugs = new Set<string>();
+  for (const arr of Object.values(allLogsBySlug)) {
+    for (const e of arr) if (e.log.substitutes) standInSlugs.add(e.log.exercise_slug);
+  }
+  const inExport = (ex: { slug: string; archived?: boolean | null }) =>
+    !ex.archived || standInSlugs.has(ex.slug);
+
   const buildTraining = (logsPerEx: number) =>
     SPLITS.map((split) => {
       const splitExercises = exercises.filter(
-        (ex) => ex.split === split.id && !ex.archived,
+        (ex) => ex.split === split.id && inExport(ex),
       );
       const exerciseData = splitExercises.map((ex) => {
         const allParsed = allLogsBySlug[ex.slug] ?? [];
@@ -706,6 +718,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
           // Stable identifier — set at creation, never changes if the exercise is
           // renamed. Use this (not `name`) to track an exercise across edits.
           slug: ex.slug,
+          // Present only on a lift that is off the daily roster and appears here
+          // solely for the slots it stood in (see loggingModel).
+          ...(ex.archived ? { rosterStatus: "archived" as const } : {}),
           target: ex.target ?? null,
           // One performance object so every reader keys off a single source:
           // `metric` names the scoring axis (compound → e1RM, isolation → best-set
@@ -753,6 +768,9 @@ export async function buildAllDataJson(healthDays = EXPORT_HEALTH_DAYS, nutritio
               reps: p?.reps ?? null,
               // Rest-day extra (see loggingModel): this lift alone, not a split day.
               ...(l.bonus ? { bonus: true } : {}),
+              // Stand-in (see loggingModel): performed in place of this slug,
+              // which therefore did NOT carry forward on this date.
+              ...(l.substitutes ? { substitutes: l.substitutes } : {}),
               ...(isVol
                 ? { volume: p && sw != null ? +(sw * maxReps(p.reps)).toFixed(1) : null }
                 : { e1rm: p && sw != null ? +epley1RM(sw, p.reps).toFixed(1) : null }),
@@ -1164,13 +1182,24 @@ export async function buildTrainingJson(): Promise<string> {
     ).exercises.map((x) => [x.slug, x]),
   );
 
+  // Slugs that stood in for another lift at least once — see buildAllDataJson's
+  // note: an archived lift's stand-in days are real training the reader needs,
+  // or the substituted lift reads as merely un-logged and gets maintained
+  // forward at numbers it never lifted that day.
+  const standInSlugs = new Set<string>();
+  for (const arr of Object.values(strengthLogsBySlug)) {
+    for (const l of arr) if (l.substitutes) standInSlugs.add(l.exercise_slug);
+  }
+  const inExport = (ex: { slug: string; archived?: boolean | null }) =>
+    !ex.archived || standInSlugs.has(ex.slug);
+
   // Slugs of exercises that survive the archived filter — dataSpan below must
-  // measure only the same active exercises we actually emit, otherwise an
-  // archived lift's oldest/newest log would skew the reported window.
-  const activeSlugs = new Set(exercises.filter((e) => !e.archived).map((e) => e.slug));
+  // measure only the same exercises we actually emit, otherwise an archived
+  // lift's oldest/newest log would skew the reported window.
+  const activeSlugs = new Set(exercises.filter(inExport).map((e) => e.slug));
 
   const splits = SPLITS.map((split) => {
-    const splitExercises = exercises.filter((ex) => ex.split === split.id && !ex.archived);
+    const splitExercises = exercises.filter((ex) => ex.split === split.id && inExport(ex));
     const exerciseData = splitExercises.map((ex) => {
       // fetchLogsBySlug is newest-first; reverse to ascending for stats/logs.
       // Repeat-marker clones are excluded (see strengthLogsBySlug above).
@@ -1192,6 +1221,9 @@ export async function buildTrainingJson(): Promise<string> {
         // Stable identifier — set at creation, never changes if the exercise is
         // renamed. Use this (not `name`) to track an exercise across edits.
         slug: ex.slug,
+        // Present only on a lift that is off the daily roster and appears here
+        // solely for the slots it stood in (see loggingModel).
+        ...(ex.archived ? { rosterStatus: "archived" as const } : {}),
         target: ex.target ?? null,
         performance: {
           metric: isVol ? "volume" : "e1rm",
@@ -1227,6 +1259,9 @@ export async function buildTrainingJson(): Promise<string> {
             reps: p?.reps ?? null,
             // Rest-day extra (see loggingModel): this lift alone, not a split day.
             ...(l.bonus ? { bonus: true } : {}),
+            // Stand-in (see loggingModel): performed in place of this slug,
+            // which therefore did NOT carry forward on this date.
+            ...(l.substitutes ? { substitutes: l.substitutes } : {}),
             ...(isVol
               ? { volume: p && sw != null ? +(sw * maxReps(p.reps)).toFixed(1) : null }
               : { e1rm: p && sw != null ? +epley1RM(sw, p.reps).toFixed(1) : null }),
