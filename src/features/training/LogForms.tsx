@@ -286,19 +286,35 @@ function AssistedPreviewBar({ load, reps, assist }: { load: number | null; reps:
   );
 }
 
-// Date chip + Bonus toggle — the add forms' top bar. Bonus marks a rest-day
-// extra: the set's own volume counts, but the day is not a session of the
-// split (no roster carry-forward, no rotation advance, still a rest day).
+/** A lift this set could have stood in for — the split's other exercises. */
+export interface SubstituteOption {
+  slug: string;
+  name: string;
+}
+
+// Date chip + Bonus toggle + "instead of" picker — the add forms' top bar.
+// Bonus marks a rest-day extra: the set's own volume counts, but the day is not
+// a session of the split (no roster carry-forward, no rotation advance, still a
+// rest day). "Instead of" marks a stand-in: the machine was taken, so this set
+// fills another lift's slot in the session — that lift doesn't carry forward
+// that day, and this one never carries forward at all. The two are mutually
+// exclusive: a rest-day extra replaces nothing.
 function LogTopbar({
   date,
   setDate,
   bonus,
   setBonus,
+  substitutes,
+  setSubstitutes,
+  siblings = [],
 }: {
   date: string;
   setDate: (v: string) => void;
   bonus: boolean;
   setBonus: (v: boolean) => void;
+  substitutes: string | null;
+  setSubstitutes: (v: string | null) => void;
+  siblings?: SubstituteOption[];
 }) {
   const isToday = date === todayStr();
   return (
@@ -316,10 +332,32 @@ function LogTopbar({
         className={`log-bonus-chip${bonus ? " on" : ""}`}
         aria-pressed={bonus}
         aria-label="Bonus set — counts its volume only, not a session"
-        onClick={() => setBonus(!bonus)}
+        onClick={() => {
+          if (!bonus) setSubstitutes(null);
+          setBonus(!bonus);
+        }}
       >
         Bonus
       </button>
+      {siblings.length > 0 && (
+        <select
+          className={`log-sub-chip${substitutes ? " is-set" : ""}`}
+          value={substitutes ?? ""}
+          aria-label="Performed instead of another lift"
+          onChange={(e) => {
+            const v = e.target.value || null;
+            setSubstitutes(v);
+            if (v) setBonus(false);
+          }}
+        >
+          <option value="">Instead of…</option>
+          {siblings.map((s) => (
+            <option key={s.slug} value={s.slug}>
+              instead of {s.name}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }
@@ -385,18 +423,27 @@ export function AddEntryForm({
   onCancel,
   submitting = false,
   defaultBonus = false,
+  siblings,
 }: {
   setCount: number;
   lastRaw: string;
   /** Resolves true only when the log actually persisted — the form clears on
    *  true and RETAINS the typed set on false (network drop, duplicate day), so
    *  an error toast never costs the user their input. */
-  onAdd: (raw: string, date: string, note: string, bonus: boolean) => Promise<boolean>;
+  onAdd: (
+    raw: string,
+    date: string,
+    note: string,
+    bonus: boolean,
+    substitutes: string | null,
+  ) => Promise<boolean>;
   onCancel: () => void;
   submitting?: boolean;
   /** Smart default for the Bonus toggle (exercise out of rotation today) —
    *  seeds the state only; the user can always flip it. */
   defaultBonus?: boolean;
+  /** The split's other lifts — populates the "instead of" picker. */
+  siblings?: SubstituteOption[];
 }) {
   const n = Math.max(MIN_SET_COUNT, setCount);
   const lastParsed = lastRaw ? parse(lastRaw) : null;
@@ -407,6 +454,7 @@ export function AddEntryForm({
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
   const [bonus, setBonus] = useState(defaultBonus);
+  const [substitutes, setSubstitutes] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
 
@@ -428,17 +476,26 @@ export function AddEntryForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValid || submitting) return;
-    const saved = await onAdd(raw, date, note.trim(), bonus);
+    const saved = await onAdd(raw, date, note.trim(), bonus, substitutes);
     if (!saved) return; // keep the typed set for a retry
     setWeightExpr("");
     setRepValues(emptyRepValues(n));
     setNote("");
     setBonus(defaultBonus);
+    setSubstitutes(null);
   }
 
   return (
     <form className="add-form log-redesign" ref={formRef} onSubmit={submit}>
-      <LogTopbar date={date} setDate={setDate} bonus={bonus} setBonus={setBonus} />
+      <LogTopbar
+        date={date}
+        setDate={setDate}
+        bonus={bonus}
+        setBonus={setBonus}
+        substitutes={substitutes}
+        setSubstitutes={setSubstitutes}
+        siblings={siblings}
+      />
 
       <WeightZone
         weightRef={weightRef}
@@ -481,16 +538,25 @@ export function AddAssistedForm({
   onCancel,
   submitting = false,
   defaultBonus = false,
+  siblings,
 }: {
   setCount: number;
   lastLog: TrainingLog | null;
   /** Same contract as AddEntryForm.onAdd: true = persisted (clear the form),
    *  false = failed/bounced (retain the typed set). */
-  onAdd: (raw: string, date: string, note: string, bonus: boolean) => Promise<boolean>;
+  onAdd: (
+    raw: string,
+    date: string,
+    note: string,
+    bonus: boolean,
+    substitutes: string | null,
+  ) => Promise<boolean>;
   onCancel: () => void;
   submitting?: boolean;
   /** Same contract as AddEntryForm.defaultBonus. */
   defaultBonus?: boolean;
+  /** Same contract as AddEntryForm.siblings. */
+  siblings?: SubstituteOption[];
 }) {
   const n = Math.max(MIN_SET_COUNT, setCount);
   const lastParsed = lastLog?.raw ? parse(lastLog.raw) : null;
@@ -513,6 +579,7 @@ export function AddAssistedForm({
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
   const [bonus, setBonus] = useState(defaultBonus);
+  const [substitutes, setSubstitutes] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   useScrollAboveKeyboard(formRef);
 
@@ -545,8 +612,9 @@ export function AddAssistedForm({
     if (!isValid || effectiveLoad === null || submitting) return;
     localStorage.setItem(LAST_BW_KEY, String(parsedBw));
     const raw = normalize(`${parsedBw}-(${assistTerm(assistance, parsedAssist)}) *${reps}`);
-    const saved = await onAdd(raw, date, note.trim(), bonus);
+    const saved = await onAdd(raw, date, note.trim(), bonus, substitutes);
     if (!saved) return; // keep the typed set for a retry
+    setSubstitutes(null);
     setAssistance("");
     setRepValues(emptyRepValues(n));
     setNote("");
@@ -555,7 +623,15 @@ export function AddAssistedForm({
 
   return (
     <form className="add-form log-redesign" ref={formRef} onSubmit={submit}>
-      <LogTopbar date={date} setDate={setDate} bonus={bonus} setBonus={setBonus} />
+      <LogTopbar
+        date={date}
+        setDate={setDate}
+        bonus={bonus}
+        setBonus={setBonus}
+        substitutes={substitutes}
+        setSubstitutes={setSubstitutes}
+        siblings={siblings}
+      />
 
       <AssistedWeightZone
         assistRef={assistRef}

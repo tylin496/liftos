@@ -415,6 +415,7 @@ export type Database = {
           raw: string | null
           reps: string | null
           repeated: boolean
+          substitutes: string | null
           unit: string
           user_id: string
           weight_kg: number | null
@@ -432,6 +433,7 @@ export type Database = {
           raw?: string | null
           reps?: string | null
           repeated?: boolean
+          substitutes?: string | null
           unit?: string
           user_id: string
           weight_kg?: number | null
@@ -449,6 +451,7 @@ export type Database = {
           raw?: string | null
           reps?: string | null
           repeated?: boolean
+          substitutes?: string | null
           unit?: string
           user_id?: string
           weight_kg?: number | null

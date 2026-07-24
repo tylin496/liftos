@@ -606,26 +606,42 @@ type WeekRow = {
   bonus?: boolean;
 };
 
+/** One stand-in set (training_logs.substitutes): the lift that was actually
+ *  performed, and the roster slug it replaced for that one date. */
+type Substitution = {
+  date: string;
+  /** The roster slug that was NOT trained that day. */
+  replaced: string;
+  ex: WeeklyVolumeExercise;
+  log: TrainingLog;
+};
+
 function weekExerciseRows(
   logs: Record<string, TrainingLog[]>,
   roster: WeeklyVolumeExercise[],
   weekStart: string,
 ): WeekRow[] {
   const bySplit = new Map<string, WeeklyVolumeExercise[]>();
+  const splitOf = new Map<string, string>();
   for (const ex of roster) {
     const arr = bySplit.get(ex.split) ?? [];
     arr.push(ex);
     bySplit.set(ex.split, arr);
+    splitOf.set(ex.slug, ex.split);
   }
 
   // Most recent set for `slug` on or before `date` — logs are newest-first, so
   // the first entry within range wins. A bonus row is an extra, not a state:
   // it never carries forward, so the only one a session may read is one dated
   // on the session's own day (whose volume the bonus pass below then skips,
-  // keeping it counted exactly once).
+  // keeping it counted exactly once). A substitute row isn't a state either —
+  // and unlike a bonus it isn't even this lift's own slot, so it's never a
+  // carry source at all; the substitution pass below counts it once, on its
+  // own day, against the split it stood in for.
   const latestUpTo = (slug: string, date: string): TrainingLog | null => {
     for (const l of logs[slug] ?? []) {
       if (!l.log_date || l.log_date > date) continue;
+      if (l.substitutes) continue;
       if (l.bonus && l.log_date !== date) continue;
       return l;
     }
@@ -633,20 +649,44 @@ function weekExerciseRows(
   };
 
   const weekEndExcl = addDays(weekStart, 7);
+  const inWeek = (d: string | null) => !!d && d >= weekStart && d < weekEndExcl;
+
+  // The week's stand-ins, and the (date → replaced slugs) index the carry-
+  // forward pass consults. A substitution is an *explicit* "not this one
+  // today", so it suppresses 沒記就是維持 for that slug on that date only —
+  // silence still means maintained everywhere else.
+  const subs: Substitution[] = [];
+  const replacedOn = new Map<string, Set<string>>();
+  for (const ex of roster) {
+    for (const l of logs[ex.slug] ?? []) {
+      if (!l.substitutes || !inWeek(l.log_date)) continue;
+      subs.push({ date: l.log_date, replaced: l.substitutes, ex, log: l });
+      const set = replacedOn.get(l.log_date) ?? new Set<string>();
+      set.add(l.substitutes);
+      replacedOn.set(l.log_date, set);
+    }
+  }
+
   // split -> the distinct dates that split was trained this week. Bonus sets
   // don't qualify: a lone rest-day extra must not turn its day into a session
-  // that drags the whole roster's carry-forward volume along.
+  // that drags the whole roster's carry-forward volume along. A substitute set
+  // does qualify, but under the split it stood in for — the session happened,
+  // and the stand-in's own split (if it even has a meaningful one) is not what
+  // was trained.
   const trained = new Map<string, Set<string>>();
+  const markTrained = (split: string, date: string) => {
+    const set = trained.get(split) ?? new Set<string>();
+    set.add(date);
+    trained.set(split, set);
+  };
   for (const ex of roster) {
     for (const l of logs[ex.slug] ?? []) {
       const d = l.log_date;
-      if (d && !l.bonus && d >= weekStart && d < weekEndExcl) {
-        const set = trained.get(ex.split) ?? new Set<string>();
-        set.add(d);
-        trained.set(ex.split, set);
-      }
+      if (!inWeek(d) || l.bonus || l.substitutes) continue;
+      markTrained(ex.split, d);
     }
   }
+  for (const s of subs) markTrained(splitOf.get(s.replaced) ?? s.ex.split, s.date);
 
   const rows: WeekRow[] = [];
   for (const [split, dates] of trained) {
@@ -656,10 +696,25 @@ function weekExerciseRows(
         // A retired lift doesn't ride along on sessions after its last log —
         // its history ends where its records end.
         if (ex.activeUntil && date > ex.activeUntil) continue;
+        // Someone stood in for it today: the slot is already accounted for.
+        if (replacedOn.get(date)?.has(ex.slug)) continue;
         const src = latestUpTo(ex.slug, date);
         if (src) rows.push({ date, split, ex, volumeKg: logVolume(src, ex.setCount, ex.assistedMode) });
       }
     }
+  }
+
+  // Stand-ins ride in the slot they filled: exactly the logged volume, in the
+  // substituted lift's split, on that day only. Nothing carries — an
+  // occasional alternative is not a roster member, so it must never inflate a
+  // later session of that split.
+  for (const s of subs) {
+    rows.push({
+      date: s.date,
+      split: splitOf.get(s.replaced) ?? s.ex.split,
+      ex: s.ex,
+      volumeKg: logVolume(s.log, s.ex.setCount, s.ex.assistedMode),
+    });
   }
 
   // Bonus sets ride on top: exactly the logged volume, nothing carried. A day
@@ -742,6 +797,7 @@ function maintainedWeekRows(
     }
     return r;
   };
+  const splitOf = new Map(roster.map((ex) => [ex.slug, ex.split]));
   const out: WeekRow[] = [];
   for (const split of new Set(roster.map((ex) => ex.split))) {
     // The split's most recent logged week on or before `weekStart` — the week
@@ -750,9 +806,12 @@ function maintainedWeekRows(
     // week later silence maintains (that would read as a volume crash).
     let effective: string | null = null;
     for (const ex of roster) {
-      if (ex.split !== split) continue;
       for (const l of logs[ex.slug] ?? []) {
         if (!l.log_date || l.bonus) continue;
+        // A stand-in belongs to the split it filled a slot in, not to whatever
+        // split the alternative itself is filed under (see weekExerciseRows).
+        const logSplit = l.substitutes ? splitOf.get(l.substitutes) ?? ex.split : ex.split;
+        if (logSplit !== split) continue;
         const w = weekStartMonday(l.log_date);
         if (w <= weekStart && (effective === null || w > effective)) effective = w;
       }
@@ -764,7 +823,10 @@ function maintainedWeekRows(
             r.split === split &&
             // Bonus rows are one-off extras, not a state — 沒記就是維持
             // maintains sessions, never snacks. This week's own bonus rows are
-            // re-added below.
+            // re-added below. (Substitution rows are deliberately NOT filtered:
+            // a stand-in *replaced* a slot rather than adding one, so inheriting
+            // the week verbatim is what "same as last time" means — dropping it
+            // would read as a volume crash the user never trained.)
             !r.bonus &&
             // Inheritance carries a week's shape forward, but never a retired
             // lift past its archival: keep it only while the target week still
@@ -1017,7 +1079,10 @@ export function nextSessionSplit(
   exercises: { slug: string; split: string }[],
   // Only the four fields the rotation actually reads — so a narrow-select caller
   // (the engine's evaluationApi) can pass its rows without the full Row shape.
-  logsBySlug: Record<string, Pick<TrainingLog, "exercise_slug" | "log_date" | "created_at" | "bonus">[]>,
+  logsBySlug: Record<
+    string,
+    Pick<TrainingLog, "exercise_slug" | "log_date" | "created_at" | "bonus" | "substitutes">[]
+  >,
   splitIds: readonly string[],
   today: string,
 ): string | null {
@@ -1025,7 +1090,10 @@ export function nextSessionSplit(
   // so its head is that lift's latest; the overall latest is the max of heads.
   // Bonus sets are skipped: a rest-day extra isn't a session, so it must not
   // advance the rotation past the split actually trained last.
-  let latest: Pick<TrainingLog, "exercise_slug" | "log_date" | "created_at" | "bonus"> | null = null;
+  let latest: Pick<
+    TrainingLog,
+    "exercise_slug" | "log_date" | "created_at" | "bonus" | "substitutes"
+  > | null = null;
   for (const list of Object.values(logsBySlug)) {
     const head = list.find((l) => !l.bonus);
     if (!head) continue;
@@ -1038,7 +1106,10 @@ export function nextSessionSplit(
     }
   }
   if (!latest) return null;
-  const lastSlug = latest.exercise_slug;
+  // A stand-in was performed inside the substituted lift's session, so the
+  // rotation follows that lift's split — not whatever split the alternative
+  // itself happens to be filed under.
+  const lastSlug = latest.substitutes ?? latest.exercise_slug;
   const split = exercises.find((e) => e.slug === lastSlug)?.split;
   const idx = split ? splitIds.indexOf(split) : -1;
   if (idx === -1) return null;

@@ -555,3 +555,113 @@ describe("bonus sets — volume counts, the day is not a session", () => {
     expect(nextSessionSplit(rosterEx, logs, IDS, "2026-07-18")).toBe("legs");
   });
 });
+
+// ─── substitutions (the machine was taken) ───────────────────────────────────
+
+const sublog = (date: string, raw: string, replaced: string): TrainingLog =>
+  ({ log_date: date, raw, substitutes: replaced }) as TrainingLog;
+
+// "cable" is the occasional stand-in for "curl": on the roster (it needs a
+// setCount / assisted axis to be scored) but only ever logged as a substitute.
+const subRoster = [...pullRoster, { slug: "cable", split: "pull", setCount: 1, assistedMode: false }];
+
+describe("substitutions — the stand-in takes the slot, not an extra one", () => {
+  it("replaces the substituted lift's carry-forward instead of adding to it", () => {
+    // 6/30 full session (row 1000 + curl 500). On 7/8 the curl machine was
+    // taken → cable 540 stood in. The day is row 1000 + cable 540 = 1540; the
+    // curl's 500 must NOT also ride along (that's the double count).
+    const logs = {
+      row: [vlog("2026-07-08", "100*10"), vlog("2026-06-30", "100*10")],
+      curl: [vlog("2026-06-30", "50*10")],
+      cable: [sublog("2026-07-08", "54*10", "curl")],
+    };
+    const stat = computeWeeklyVolume(logs, subRoster, TODAY);
+    expect(stat.thisWeekKg).toBe(1540);
+    expect(stat.thisWeekSessions).toEqual([
+      { date: "2026-07-08", split: "pull", volumeKg: 1540, deltaPct: expect.any(Number) },
+    ]);
+  });
+
+  it("suppresses 沒記就是維持 for that date only — the lift resumes next session", () => {
+    // Same substitution on 7/6, then an ordinary 7/8 session. The curl's 500
+    // comes back on 7/8 from its own last real log (6/30): a stand-in is a
+    // one-day event, never an archival.
+    const logs = {
+      row: [vlog("2026-07-08", "100*10"), vlog("2026-07-06", "100*10"), vlog("2026-06-30", "100*10")],
+      curl: [vlog("2026-06-30", "50*10")],
+      cable: [sublog("2026-07-06", "54*10", "curl")],
+    };
+    const stat = computeWeeklyVolume(logs, subRoster, TODAY);
+    const byDate = Object.fromEntries(stat.thisWeekSessions.map((s) => [s.date, s]));
+    expect(byDate["2026-07-06"].volumeKg).toBe(1540); // row + cable, no curl
+    expect(byDate["2026-07-08"].volumeKg).toBe(1500); // row + curl, no cable
+  });
+
+  it("never carries the stand-in forward — one appearance, one count", () => {
+    // cable stood in on 6/30 only. The 7/8 session must not inherit it, or
+    // every later session of the split would be inflated by a lift the user
+    // did once because a machine was busy.
+    const logs = {
+      row: [vlog("2026-07-08", "100*10"), vlog("2026-06-30", "100*10")],
+      curl: [vlog("2026-07-08", "50*10"), vlog("2026-06-22", "50*10")],
+      cable: [sublog("2026-06-30", "54*10", "curl")],
+    };
+    const stat = computeWeeklyVolume(logs, subRoster, TODAY);
+    expect(stat.thisWeekKg).toBe(1500); // row 1000 + curl 500 — no cable
+  });
+
+  it("a substitute-only day still counts as a session of the split it filled", () => {
+    // The whole session was one lift and it was a stand-in: the day is a pull
+    // session, so the rest of the roster carries forward around it.
+    const logs = {
+      row: [vlog("2026-06-30", "100*10")],
+      curl: [vlog("2026-06-30", "50*10")],
+      cable: [sublog("2026-07-08", "54*10", "curl")],
+    };
+    const stat = computeWeeklyVolume(logs, subRoster, TODAY);
+    expect(stat.thisWeekSessions).toEqual([
+      { date: "2026-07-08", split: "pull", volumeKg: 1540, deltaPct: expect.any(Number) },
+    ]);
+  });
+
+  it("files the stand-in under the split it filled, not its own", () => {
+    // The alternative happens to live on the push roster (a chest-supported
+    // machine, say). Standing in for a pull lift puts its volume in the pull
+    // session — the split that was actually trained.
+    const roster = [...pullRoster, { slug: "cable", split: "push", setCount: 1, assistedMode: false }];
+    const logs = {
+      row: [vlog("2026-07-08", "100*10")],
+      curl: [vlog("2026-06-30", "50*10")],
+      cable: [sublog("2026-07-08", "54*10", "curl")],
+    };
+    const stat = computeWeeklyVolume(logs, roster, TODAY);
+    expect(stat.thisWeekSessions).toEqual([
+      { date: "2026-07-08", split: "pull", volumeKg: 1540, deltaPct: expect.any(Number) },
+    ]);
+  });
+
+  it("a maintained week inherits the substituted shape, not a hole", () => {
+    // Week 6/22: curl alone (500). Week 6/29: row 1000 + cable 540 standing in
+    // for the curl = 1540. Week 7/6: no logs → maintains 1540, not 1000. The
+    // slot was filled, so silence must not read the swap as a volume crash.
+    const logs = {
+      row: [vlog("2026-06-30", "100*10")],
+      curl: [vlog("2026-06-22", "50*10")],
+      cable: [sublog("2026-06-30", "54*10", "curl")],
+    };
+    const stat = computeWeeklyVolume(logs, subRoster, "2026-07-17");
+    expect(stat.weeksCounted).toBe(3);
+    expect(stat.avgWeekKg).toBeCloseTo((500 + 1540 + 1540) / 3, 5);
+  });
+
+  it("advances the rotation off the split the stand-in filled, not its own", () => {
+    // "bench" lives on push, but on 7/17 it stood in for a pull lift. The last
+    // session was pull → legs is next, not the split bench is filed under.
+    const logs = {
+      bench: [
+        withSlug("bench", { ...slog("2026-07-17", "t1"), substitutes: "row" }),
+      ],
+    };
+    expect(nextSessionSplit(rosterEx, logs, IDS, "2026-07-18")).toBe("legs");
+  });
+});

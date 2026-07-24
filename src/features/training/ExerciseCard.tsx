@@ -34,6 +34,7 @@ import { scrollRevealClear } from "@app/layout/revealScroll";
 import { CLEAR_AFTER_SHEEN, DUR_EXIT } from "@shared/lib/motion";
 import { defaultSetCount } from "./logFormHelpers";
 import { AddEntryForm, AddAssistedForm, InlineEditEntry, InlineEditAssistedEntry } from "./LogForms";
+import type { SubstituteOption } from "./LogForms";
 import { useExitTransition } from "@shared/hooks/useExitTransition";
 import { useCelebration } from "@shared/components/Celebration";
 import { haptic } from "@shared/lib/haptics";
@@ -197,6 +198,10 @@ export interface ExerciseCardProps {
   // them handed in separately: a real log on a maintained day supersedes its
   // clone instead of silently stacking a second row on the date.
   repeatedLogs: TrainingLog[];
+  // The split's other lifts (slug + name), for the add form's "instead of"
+  // picker — the commercial-gym case where a machine is taken and an
+  // alternative fills that lift's slot for the day. See migration 0026.
+  siblings?: SubstituteOption[];
 }
 
 function ExerciseCardImpl({
@@ -217,6 +222,7 @@ function ExerciseCardImpl({
   bodyweightKg = null,
   bonusDefault = false,
   repeatedLogs,
+  siblings,
 }: ExerciseCardProps) {
   const toast = useToast();
   const celebration = useCelebration();
@@ -226,6 +232,18 @@ function ExerciseCardImpl({
 
   const [editingMode, setEditingMode] = useState<EditingMode>("view");
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
+
+  // A lift can't stand in for itself — the page hands every card the whole
+  // split, each drops itself.
+  const subOptions = useMemo(
+    () => (siblings ?? []).filter((s) => s.slug !== exercise.slug),
+    [siblings, exercise.slug],
+  );
+  // Names the history rows' "instead of X" marker. Falls back to the slug for a
+  // lift that has since been archived or renamed out of the split — the row
+  // must still say what it stood in for.
+  const subNameOf = (slug: string) =>
+    (siblings ?? []).find((s) => s.slug === slug)?.name ?? slug;
 
   // While any edit/add form on this card is open, hold the tab-swipe lock so a
   // horizontal drag doesn't sail off to the next tab (losing the in-progress
@@ -393,7 +411,13 @@ function ExerciseCardImpl({
 
   /** Resolves true only when the log persisted — the add form clears on true
    *  and retains the typed set on false (see AddEntryForm.onAdd). */
-  async function handleAdd(raw: string, date: string, note: string, bonus: boolean): Promise<boolean> {
+  async function handleAdd(
+    raw: string,
+    date: string,
+    note: string,
+    bonus: boolean,
+    substitutes: string | null = null,
+  ): Promise<boolean> {
     if (submitting) return false;
     // One entry per exercise per day — every set for the day lives in a single
     // drop-set entry, so a second same-day log is always a mistake. Instead of
@@ -437,6 +461,7 @@ function ExerciseCardImpl({
         date,
         note: note || undefined,
         bonus,
+        substitutes: substitutes ?? undefined,
       });
       setEditingMode("view");
       // A logged set IS a completed set — confirm it with the shared "set
@@ -1049,6 +1074,11 @@ function ExerciseCardImpl({
                     {log.bonus && (
                       <span className="hist-bonus-tag">bonus</span>
                     )}
+                    {log.substitutes && (
+                      <span className="hist-bonus-tag">
+                        instead of {subNameOf(log.substitutes)}
+                      </span>
+                    )}
                     {log.note && (
                       <span className="hist-note">{log.note}</span>
                     )}
@@ -1226,6 +1256,7 @@ function ExerciseCardImpl({
                 onCancel={() => setEditingMode("view")}
                 submitting={submitting}
                 defaultBonus={bonusDefault}
+                siblings={subOptions}
               />
             ) : (
               <AddEntryForm
@@ -1235,6 +1266,7 @@ function ExerciseCardImpl({
                 onCancel={() => setEditingMode("view")}
                 submitting={submitting}
                 defaultBonus={bonusDefault}
+                siblings={subOptions}
               />
             )}
           </div>

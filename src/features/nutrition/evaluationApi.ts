@@ -237,7 +237,7 @@ export async function recomputeAndPersist(): Promise<NutritionStateFull> {
       .from("training_logs")
       // bonus + created_at are for the split-rotation read (nextSessionSplit):
       // bonus sets don't advance the rotation, created_at breaks a same-date tie.
-      .select("exercise_slug, raw, log_date, bonus, created_at")
+      .select("exercise_slug, raw, log_date, bonus, substitutes, created_at")
       // Exclude "repeat last session" clones: they mark a maintained day but
       // carry no new strength signal, so the engine's decline/stall verdict must
       // read them out (same treatment as the Training Health card).

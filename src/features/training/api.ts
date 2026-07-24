@@ -108,10 +108,15 @@ export interface NewLog {
    *  its split — no roster carry-forward, no rotation advance, no training-day
    *  flag for recovery. */
   bonus?: boolean;
+  /** Stand-in marker (see migration 0026): the slug this set was performed
+   *  *instead of* — the machine was taken. A real record of the lift that was
+   *  done, but in weekly volume it takes the substituted lift's slot for that
+   *  date rather than adding a second one, and never carries forward. */
+  substitutes?: string;
 }
 
 /** Parse lifting notation and insert a set. */
-export async function addLog({ slug, raw, date, note, bonus }: NewLog): Promise<TrainingLog> {
+export async function addLog({ slug, raw, date, note, bonus, substitutes }: NewLog): Promise<TrainingLog> {
   const parsed = parse(raw);
   if (!parsed || !Number.isFinite(parsed.weight)) {
     throw new Error(`Couldn't parse "${raw}" — try e.g. 100*8 or 97-(25)*8`);
@@ -130,8 +135,10 @@ export async function addLog({ slug, raw, date, note, bonus }: NewLog): Promise<
     assistance: parsed.assisted?.assist ?? null,
     bodyweight: parsed.assisted?.bw ?? null,
     // Only sent when set, so ordinary logging keeps working against a database
-    // that hasn't applied migration 0023 yet (the column default covers false).
+    // that hasn't applied migration 0023 / 0026 yet (the column defaults cover
+    // false / null).
     ...(bonus ? { bonus: true } : {}),
+    ...(substitutes ? { substitutes } : {}),
   };
   const { data, error } = await supabase
     .from("training_logs")
@@ -209,6 +216,8 @@ export interface LogPatch {
   kind?: string;
   assistance?: number | null;
   bodyweight?: number | null;
+  /** null clears the stand-in marker (the set was an ordinary one after all). */
+  substitutes?: string | null;
 }
 
 export async function updateLog(id: string, patch: LogPatch): Promise<TrainingLog> {

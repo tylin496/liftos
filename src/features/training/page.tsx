@@ -33,6 +33,7 @@ import { inferMuscleGroup, resolveMuscleBySlug } from "./muscleGroup";
 import { StrengthHealthCard } from "./StrengthHealthCard";
 import { WeeklyVolumeCard } from "./WeeklyVolumeCard";
 import { computeStrengthSummary } from "@features/overview/api";
+import { recomputeAndPersist } from "@features/nutrition/evaluationApi";
 import { defaultSetCount, inferAssisted, normalizeTarget, useScrollAboveKeyboard } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
 import { fmtWeightNum } from "./ExprDisplay";
@@ -52,6 +53,11 @@ import { EditIcon } from "./EditIcon";
 import "./training.css";
 
 const copyTrainingData = () => buildTrainingJson();
+
+// Quiet window after a log before the Decision Engine recomputes. Long enough to
+// swallow a repeat-session replay (a dozen rows in one tick), short enough that
+// the fresh directive is already written by the time the user reaches Overview.
+const ENGINE_RECOMPUTE_DEBOUNCE_MS = 3000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SmartStretchImage
@@ -739,11 +745,36 @@ function TrainingPageInner() {
     }
   }, []);
 
+  // Logging moves the Decision Engine's inputs: a session advances the split
+  // rotation (the Capitalize rung names a lift in the UPCOMING split, so the one
+  // just trained must stop being the leader) and shifts every strength
+  // trajectory. Nothing else wakes the engine mid-visit — the only other
+  // recompute triggers are an intake save, a config change, and app open — so
+  // without this the Overview SystemCard keeps showing the pre-session directive
+  // until the next cold start.
+  //
+  // Trailing-debounced. This coalesces bursts, not a whole gym session: the
+  // repeat-session button replays a dozen rows through onLogAdded at once, and
+  // each recompute is six queries plus an upsert. Sets logged minutes apart do
+  // recompute individually — that's the point, the directive stays live — and
+  // the engine's exit-hysteresis keeps a mid-session write from flapping.
+  // Deliberately NOT cancelled on unmount: leaving the tab right after the last
+  // set is the common case, and the callback touches no React state.
+  const engineRecomputeRef = useRef<number | null>(null);
+  const scheduleEngineRecompute = useCallback(() => {
+    if (engineRecomputeRef.current != null) clearTimeout(engineRecomputeRef.current);
+    engineRecomputeRef.current = window.setTimeout(() => {
+      engineRecomputeRef.current = null;
+      void recomputeAndPersist().catch(() => {});
+    }, ENGINE_RECOMPUTE_DEBOUNCE_MS);
+  }, []);
+
   const reloadLogs = useCallback(() => {
+    scheduleEngineRecompute();
     fetchLogsBySlug()
       .then(setLogs)
       .catch((e) => setError(String((e as Error)?.message ?? e)));
-  }, []);
+  }, [scheduleEngineRecompute]);
 
   // Optimistic insert for a freshly-added set — avoids a full-table refetch
   // on the app's most frequent action. Edits/deletes still go through
@@ -771,6 +802,7 @@ function TrainingPageInner() {
   }, [logs]);
 
   const onLogAdded = useCallback((log: TrainingLog) => {
+    scheduleEngineRecompute();
     setLogs((prev) => {
       const existing = prev[log.exercise_slug] ?? [];
       // Keep the slug's list newest-first by log_date so a back-dated set lands
@@ -785,7 +817,7 @@ function TrainingPageInner() {
           : [...existing.slice(0, at), log, ...existing.slice(at)];
       return { ...prev, [log.exercise_slug]: next };
     });
-  }, []);
+  }, [scheduleEngineRecompute]);
 
   useEffect(() => {
     let active = true;
@@ -843,6 +875,14 @@ function TrainingPageInner() {
   const archivedExercises = useMemo(
     () => (exercises ?? []).filter((e) => e.split === split && e.archived),
     [exercises, split],
+  );
+
+  // Options for each card's "instead of" picker: the split's other active
+  // lifts. Built once per split (not per card) so the memoized cards keep a
+  // stable prop; each card drops itself from the list when it renders.
+  const substituteOptions = useMemo(
+    () => activeExercises.map((e) => ({ slug: e.slug, name: e.name })),
+    [activeExercises],
   );
 
   // "Trained, nothing new" — the latest log of every active exercise in this
@@ -1334,6 +1374,7 @@ function TrainingPageInner() {
                 bodyweightKg={bodyweightKg}
                 bonusDefault={expectedSplit != null && ex.split !== expectedSplit}
                 repeatedLogs={repeatedLogs[ex.slug] ?? EMPTY_LOGS}
+                siblings={substituteOptions}
               />
             );
           })}
