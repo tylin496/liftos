@@ -570,8 +570,19 @@ const REC_TAB: Record<Recommendation["source"], TabId> = {
 // tab landing, which is correct when the tab's FIRST card is already the answer:
 // "Prioritize recovery" → Health's Recovery card, "Hit your current target" →
 // Nutrition's day card, and a training push → the split list holding the lift.
+//
+// None of these carry `expand`, on purpose: a landing opens a sheet only when
+// the card it lands on can't answer the sentence that sent you there (the
+// log-intake shortcut needs the FORM open; Insight's pace chevron is itself a
+// "show me the chart" affordance). A trend sheet is the same data one layer
+// bigger AND deliberately verdict-free, so auto-opening one drops a judged
+// directive into an unjudged view — the user dismisses it back onto the card
+// they were always headed for. The Settings sheet is the one exception below,
+// and it's a different thing: a control no card carries, not a bigger view.
 const REC_ANCHOR: Record<string, string> = {
-  // Arguing from lean mass → the lean-mass evidence.
+  // Arguing from lean mass → the lean-mass evidence. Scroll only: the card is
+  // already 12 weeks of 14-day beads inside a ±0.5kg maintenance band, so the
+  // 60-day slide the directive is claiming is drawn on the card itself.
   [HOLD_CUTS_TITLE]: "health-lean-mass-card",
   // "Add activity" is an active-energy move → the Energy card's model row, the
   // same landing Overview's own Active Target card uses.
