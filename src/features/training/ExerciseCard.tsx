@@ -207,9 +207,9 @@ export interface ExerciseCardProps {
   // under IT with substitutes = this slug. See migration 0026.
   substituteOptions?: SubstituteOption[];
   // Sets logged by other lifts that stood in for THIS one (their `substitutes`
-  // points here). Never rendered on this card — a stand-in belongs to the lift
-  // that performed it, and its record lives there (and in the export). Read
-  // only to stop a second stand-in being logged onto a slot already covered.
+  // points here). Not this lift's history — they're listed separately, out of
+  // its stats — but they must be visible somewhere, and the slot they filled is
+  // the only place that reads right.
   standIns?: TrainingLog[];
 }
 
@@ -263,6 +263,16 @@ function ExerciseCardImpl({
   const [menuOpen, setMenuOpen] = useState(false);
   const [prFlash, setPrFlash] = useState(false);
   const [deletedLogIds, setDeletedLogIds] = useState<Set<string>>(new Set());
+  // Same time filter as the history above (a stand-in is part of the same
+  // record), minus rows inside their undo window.
+  const visibleStandIns = useMemo(
+    () =>
+      filterByTime(standIns, timeFilter)
+        .filter((l) => !deletedLogIds.has(l.id))
+        .sort((a, b) => (a.log_date < b.log_date ? 1 : -1)),
+    [standIns, timeFilter, deletedLogIds],
+  );
+
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string>();
   const [localImageUrl, setLocalImageUrl] = useState<string>();
@@ -408,6 +418,27 @@ function ExerciseCardImpl({
   const filteredDesc = useMemo(() => [...filteredAsc].reverse(), [filteredAsc]);
   const visibleCount = showAll ? filteredDesc.length : Math.min(2, filteredDesc.length);
   const visible = filteredDesc.slice(0, visibleCount);
+
+  // Render order for the history list: this lift's own visible sets, with any
+  // stand-in rows woven in by date. The own-log rows keep their index into
+  // `visible` (`vi`), so every PR / delta / reveal-stagger read below is
+  // untouched — a stand-in is a marker in the timeline, never a baseline.
+  // Collapsed, only stand-ins at or after the oldest shown set are woven in, so
+  // the two-row summary can't be pushed off by old ones.
+  type HistoryRow =
+    | { kind: "log"; log: TrainingLog; vi: number }
+    | { kind: "standin"; log: TrainingLog };
+  const historyRows = useMemo<HistoryRow[]>(() => {
+    const floor = showAll ? "" : (visible[visible.length - 1]?.log_date ?? "");
+    const rows: HistoryRow[] = visible.map((log, vi) => ({ kind: "log", log, vi }));
+    for (const log of visibleStandIns) {
+      if (log.log_date >= floor) rows.push({ kind: "standin", log });
+    }
+    return rows.sort((a, b) => (a.log.log_date < b.log.log_date ? 1 : a.log.log_date > b.log.log_date ? -1 : 0));
+  }, [visible, visibleStandIns, showAll]);
+  // "View all N" counts everything the expanded list will show — a stand-in is
+  // an entry on this slot's record too.
+  const entryCount = filteredDesc.length + visibleStandIns.length;
 
   // Which log form to show: follow the most recent entry's kind, but for an
   // exercise with no logs yet honour its declared assisted_mode — otherwise the
@@ -994,10 +1025,42 @@ function ExerciseCardImpl({
       {/* ── History ── */}
       {editingMode !== "meta" && (
         <div className="ex-history">
-        {filteredDesc.length === 0 ? (
+        {historyRows.length === 0 ? (
           <div className="empty-row">No sets yet — log your first below</div>
         ) : (
-          visible.map((log, vi) => {
+          historyRows.map((row) => {
+            // A day another lift covered this slot. Rendered inline so the list
+            // stays in date order, but deliberately quieter: the set belongs to
+            // a different lift and never touches this one's stats, PR or trend.
+            if (row.kind === "standin") {
+              const std = timelineDate(row.log.log_date ?? "");
+              return (
+                <div className="ex-standin-row" key={row.log.id}>
+                  <span className="hist-date">
+                    <span className="hist-date-mon">{std.mon}</span>
+                    <span className="hist-date-day mono">{std.day}</span>
+                  </span>
+                  <span className="ex-standin-body">
+                    <span className="ex-standin-name">{subNameOf(row.log.exercise_slug)}</span>
+                    <span className="ex-standin-expr">
+                      <ExprDisplay raw={row.log.raw} histMode />
+                    </span>
+                  </span>
+                  <span className="ex-standin-tag">stood in</span>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      className="ex-standin-del"
+                      aria-label="Delete stand-in entry"
+                      onClick={() => handleDelete(row.log)}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              );
+            }
+            const { log, vi } = row;
             // prIndex is index in filteredAsc; vi 0 = newest = last in asc
             const ascIdx = filteredAsc.length - 1 - vi;
             const isPR = ascIdx === prIndexInFiltered;
@@ -1326,7 +1389,7 @@ function ExerciseCardImpl({
       {/* ── Footer: Log set link + View all ── */}
       {editingMode !== "meta" &&
         editingMode !== "logset" &&
-        (!readOnly && editingLogId == null || filteredDesc.length > 2) && (
+        (!readOnly && editingLogId == null || entryCount > 2) && (
         <div className="ex-footer">
           {!readOnly && editingLogId == null && (
             <button
@@ -1338,7 +1401,7 @@ function ExerciseCardImpl({
               <span className="ex-log-text">Log set</span>
             </button>
           )}
-          {filteredDesc.length > 2 && (
+          {entryCount > 2 && (
             <button
               type="button"
               className="ex-view-all"
@@ -1351,7 +1414,7 @@ function ExerciseCardImpl({
                 }
               }}
             >
-              {showAll ? "Recent only" : `View all ${filteredDesc.length}`}
+              {showAll ? "Recent only" : `View all ${entryCount}`}
             </button>
           )}
         </div>
