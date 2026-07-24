@@ -2048,11 +2048,14 @@ export function OverviewPage() {
           closing={systemExit.closing}
           onNav={() => {
             const row = REC_SETTINGS_ROW[shownRec.title];
-            if (row) {
+            if (row && !readOnly) {
               openSettings(row);
               return;
             }
-            const anchor = REC_ANCHOR[shownRec.title];
+            // A viewer can't edit the plan, so the sheet would be a dead end —
+            // they fall back to the Insight card, which at least SHOWS the plan
+            // the directive is arguing about.
+            const anchor = REC_ANCHOR[shownRec.title] ?? (row ? "nutrition-insight-card" : undefined);
             nav(REC_TAB[shownRec.source], anchor ? { scrollTo: anchor } : undefined);
           }}
           onDismiss={
