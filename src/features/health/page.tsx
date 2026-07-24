@@ -1190,6 +1190,9 @@ export function HealthPage() {
           holds its slot; shows "—" when there's genuinely no body-fat data,
           same as Weight / Body Fat handle a missing value. */}
       <TrendCard
+        // Deep-link anchor for Overview's "Hold off on further cuts" directive —
+        // the banner argues from lean mass, so it lands on the lean-mass evidence.
+        id="health-lean-mass-card"
         loading={!data}
         label="Lean Mass"
         avgLabel="14-day average"

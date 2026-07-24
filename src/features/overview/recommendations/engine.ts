@@ -51,6 +51,9 @@ const REVIEW_TARGET_TITLE = "Review calorie target";
 // (where the directive is produced) and imported so the two can't drift; the rest
 // are produced inline in this file, so their constant and producer are co-located.
 const REDUCE_DEFICIT_TITLE = "Reduce deficit slightly";
+// Exported: Overview's System banner deep-links this one to the Lean Mass card,
+// the card that carries the evidence the directive is arguing from.
+export const HOLD_CUTS_TITLE = "Hold off on further cuts";
 const INCREASE_ACTIVITY_TITLE = "Increase activity";
 const HIT_TARGET_TITLE = "Hit your current target";
 const START_MAINTENANCE_TITLE = "Start maintenance";
@@ -294,7 +297,7 @@ export function decide(ctx: RecContext, prior?: Recommendation | null): Recommen
     return {
       source: "weight",
       priority: 80,
-      title: "Hold off on further cuts",
+      title: HOLD_CUTS_TITLE,
       subtitle:
         "Lean mass has been trending down — pause the deficit and hold calories to protect muscle",
     };

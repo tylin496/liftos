@@ -34,5 +34,5 @@ export function topRecommendation(
   return decide(ctx, prior);
 }
 
-export { CONSIDER_ENTER_COUNT } from "./engine";
+export { CONSIDER_ENTER_COUNT, HOLD_CUTS_TITLE } from "./engine";
 export type { Recommendation, RecSource, RecContext } from "./types";

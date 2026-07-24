@@ -34,7 +34,7 @@ import type { NutritionStateFull } from "@features/nutrition/evaluationApi";
 import { dismissRecoveryDirective } from "@features/nutrition/evaluationApi";
 import { MIN_TREND_POINTS } from "@features/nutrition/evaluation";
 import { paceLabel, paceTone, rateTone, cutEtaLabel, NO_ACTION_TITLE } from "@features/nutrition/recommendation";
-import { CONSIDER_ENTER_COUNT, type Recommendation } from "@features/overview/recommendations";
+import { CONSIDER_ENTER_COUNT, HOLD_CUTS_TITLE, type Recommendation } from "@features/overview/recommendations";
 import type { Goal, BulkGoal, GoalStatusEvaluation, BulkGoalStatusEvaluation } from "./goal";
 import { phaseKindFromName, phaseDirection, weightMetricDirection } from "@features/nutrition/logic";
 import type { PhaseTriggerResult } from "./phaseTriggers";
@@ -550,6 +550,14 @@ const REC_TAB: Record<Recommendation["source"], TabId> = {
   phase: "nutrition",
 };
 
+// A directive whose evidence lives on one specific card lands on that card, not
+// at the top of the tab. Keyed by title (the directive's identity) rather than
+// source: "weight" covers more than one rung, and only this one is arguing from
+// lean mass. Anything unlisted keeps the plain tab landing.
+const REC_ANCHOR: Record<string, string> = {
+  [HOLD_CUTS_TITLE]: "health-lean-mass-card",
+};
+
 function SystemCard({
   rec,
   closing,
@@ -559,7 +567,7 @@ function SystemCard({
   rec: Recommendation;
   /** True while the banner plays its collapse-out exit (see .ov-system-collapse). */
   closing?: boolean;
-  onNav: (tab: TabId) => void;
+  onNav: () => void;
   onDismiss?: () => void;
 }) {
   // Command center: only surface the card when there's something to act on.
@@ -577,7 +585,7 @@ function SystemCard({
   return (
     <div className={`ov-system-collapse${closing ? " is-closing" : ""}`}>
       <div className="page-card ov-system-banner">
-        <button type="button" className="ov-system-main" onClick={() => onNav(REC_TAB[rec.source])}>
+        <button type="button" className="ov-system-main" onClick={onNav}>
           <span className="ov-system-dot" />
           <span className="ov-system-body">
             <span className="ov-system-title">{rec.title}</span>
@@ -1984,7 +1992,10 @@ export function OverviewPage() {
           key="system"
           rec={shownRec}
           closing={systemExit.closing}
-          onNav={(tab) => nav(tab)}
+          onNav={() => {
+            const anchor = REC_ANCHOR[shownRec.title];
+            nav(REC_TAB[shownRec.source], anchor ? { scrollTo: anchor } : undefined);
+          }}
           onDismiss={
             readOnly
               ? undefined
