@@ -616,10 +616,15 @@ type Substitution = {
   log: TrainingLog;
 };
 
+/** `asProgram` reads the week as the PROGRAM was written rather than as it was
+ *  performed: substitutions are ignored, so the substituted lift carries
+ *  forward normally and the stand-in contributes nothing. Only maintained
+ *  (unlogged) weeks use it — see maintainedWeekRows for why. */
 function weekExerciseRows(
   logs: Record<string, TrainingLog[]>,
   roster: WeeklyVolumeExercise[],
   weekStart: string,
+  asProgram = false,
 ): WeekRow[] {
   const bySplit = new Map<string, WeeklyVolumeExercise[]>();
   const splitOf = new Map<string, string>();
@@ -697,7 +702,7 @@ function weekExerciseRows(
         // its history ends where its records end.
         if (ex.activeUntil && date > ex.activeUntil) continue;
         // Someone stood in for it today: the slot is already accounted for.
-        if (replacedOn.get(date)?.has(ex.slug)) continue;
+        if (!asProgram && replacedOn.get(date)?.has(ex.slug)) continue;
         const src = latestUpTo(ex.slug, date);
         if (src) rows.push({ date, split, ex, volumeKg: logVolume(src, ex.setCount, ex.assistedMode) });
       }
@@ -708,13 +713,15 @@ function weekExerciseRows(
   // substituted lift's split, on that day only. Nothing carries — an
   // occasional alternative is not a roster member, so it must never inflate a
   // later session of that split.
-  for (const s of subs) {
-    rows.push({
-      date: s.date,
-      split: splitOf.get(s.replaced) ?? s.ex.split,
-      ex: s.ex,
-      volumeKg: logVolume(s.log, s.ex.setCount, s.ex.assistedMode),
-    });
+  if (!asProgram) {
+    for (const s of subs) {
+      rows.push({
+        date: s.date,
+        split: splitOf.get(s.replaced) ?? s.ex.split,
+        ex: s.ex,
+        volumeKg: logVolume(s.log, s.ex.setCount, s.ex.assistedMode),
+      });
+    }
   }
 
   // Bonus sets ride on top: exactly the logged volume, nothing carried. A day
@@ -789,11 +796,12 @@ function maintainedWeekRows(
   weekStart: string,
   rowsCache: Map<string, WeekRow[]>,
 ): WeekRow[] {
-  const rowsAt = (w: string): WeekRow[] => {
-    let r = rowsCache.get(w);
+  const rowsAt = (w: string, asProgram = false): WeekRow[] => {
+    const key = asProgram ? `${w}|prog` : w;
+    let r = rowsCache.get(key);
     if (!r) {
-      r = weekExerciseRows(logs, roster, w);
-      rowsCache.set(w, r);
+      r = weekExerciseRows(logs, roster, w, asProgram);
+      rowsCache.set(key, r);
     }
     return r;
   };
@@ -818,15 +826,21 @@ function maintainedWeekRows(
     }
     if (effective !== null)
       out.push(
-        ...rowsAt(effective).filter(
+        // Read AS PROGRAMMED: a substitution is an external one-off (the machine
+        // was taken), not a change of plan, and `substitutes` suppresses the
+        // replaced lift for THAT DATE only — a maintained week is a different
+        // date. So silence maintains the program (the substituted lift back at
+        // its own last numbers), never the exception. Inheriting the stand-in
+        // instead would quietly turn one busy machine into a standing swap.
+        // …but only when this week is genuinely unlogged. maintainedWeekRows
+        // runs for EVERY week in the window, and a week that trained itself
+        // (effective === weekStart) must keep what was actually performed.
+        ...rowsAt(effective, effective !== weekStart).filter(
           (r) =>
             r.split === split &&
             // Bonus rows are one-off extras, not a state — 沒記就是維持
             // maintains sessions, never snacks. This week's own bonus rows are
-            // re-added below. (Substitution rows are deliberately NOT filtered:
-            // a stand-in *replaced* a slot rather than adding one, so inheriting
-            // the week verbatim is what "same as last time" means — dropping it
-            // would read as a volume crash the user never trained.)
+            // re-added below.
             !r.bonus &&
             // Inheritance carries a week's shape forward, but never a retired
             // lift past its archival: keep it only while the target week still

@@ -640,10 +640,14 @@ describe("substitutions — the stand-in takes the slot, not an extra one", () =
     ]);
   });
 
-  it("a maintained week inherits the substituted shape, not a hole", () => {
+  it("a maintained week restores the programmed lift, not the stand-in", () => {
     // Week 6/22: curl alone (500). Week 6/29: row 1000 + cable 540 standing in
-    // for the curl = 1540. Week 7/6: no logs → maintains 1540, not 1000. The
-    // slot was filled, so silence must not read the swap as a volume crash.
+    // for the curl = 1540 (the week as PERFORMED). Week 7/6: no logs at all →
+    // maintains the PROGRAM — row 1000 + curl back at its own last numbers
+    // (500) = 1500. A busy machine on one date must not become a standing swap:
+    // `substitutes` suppresses the replaced lift for that date only, and a
+    // maintained week is a different date. Neither 1540 (inherit the exception)
+    // nor 1000 (inherit a hole) is what the user would have trained.
     const logs = {
       row: [vlog("2026-06-30", "100*10")],
       curl: [vlog("2026-06-22", "50*10")],
@@ -651,7 +655,20 @@ describe("substitutions — the stand-in takes the slot, not an extra one", () =
     };
     const stat = computeWeeklyVolume(logs, subRoster, "2026-07-17");
     expect(stat.weeksCounted).toBe(3);
-    expect(stat.avgWeekKg).toBeCloseTo((500 + 1540 + 1540) / 3, 5);
+    // 6/22 as performed (500) + 6/29 as performed (1540) + 7/6 maintained (1500)
+    expect(stat.avgWeekKg).toBeCloseTo((500 + 1540 + 1500) / 3, 5);
+  });
+
+  it("the performed week keeps the stand-in — only maintained weeks read the program", () => {
+    // Guard against the fix leaking backwards: 6/29 was actually trained with
+    // the swap, so its own total stays 1540 (the curl's 500 must NOT reappear).
+    const logs = {
+      row: [vlog("2026-07-08", "100*10")],
+      curl: [vlog("2026-06-22", "50*10")],
+      cable: [sublog("2026-07-08", "54*10", "curl")],
+    };
+    const stat = computeWeeklyVolume(logs, subRoster, TODAY);
+    expect(stat.thisWeekKg).toBe(1540);
   });
 
   it("advances the rotation off the split the stand-in filled, not its own", () => {
