@@ -34,5 +34,17 @@ export function topRecommendation(
   return decide(ctx, prior);
 }
 
-export { CONSIDER_ENTER_COUNT, HOLD_CUTS_TITLE } from "./engine";
+export {
+  CONSIDER_ENTER_COUNT,
+  // Directive identities Overview's System banner deep-links by (REC_ANCHOR).
+  HOLD_CUTS_TITLE,
+  INCREASE_ACTIVITY_TITLE,
+  REVIEW_TARGET_TITLE,
+  REDUCE_DEFICIT_TITLE,
+  REDUCE_SURPLUS_TITLE,
+  START_MAINTENANCE_TITLE,
+  START_CUT_TITLE,
+  CONSIDER_MAINTENANCE_TITLE,
+  CONSIDER_BREAK_TITLE,
+} from "./engine";
 export type { Recommendation, RecSource, RecContext } from "./types";

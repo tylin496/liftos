@@ -45,24 +45,25 @@ import { nutritionProvider } from "./nutrition";
 // nutrition's own "Review calorie target" (reduce) is the slow-side correction the
 // engine defers to when strength is safe — keep the title here so the hysteresis keys
 // on the same string nutritionDecision emits (eventType).
-const REVIEW_TARGET_TITLE = "Review calorie target";
+export const REVIEW_TARGET_TITLE = "Review calorie target";
 
 // Directive titles the hysteresis keys on. RECOVERY_TITLE is owned by recovery.ts
 // (where the directive is produced) and imported so the two can't drift; the rest
 // are produced inline in this file, so their constant and producer are co-located.
-const REDUCE_DEFICIT_TITLE = "Reduce deficit slightly";
-// Exported: Overview's System banner deep-links this one to the Lean Mass card,
-// the card that carries the evidence the directive is arguing from.
+// Exported where Overview's System banner deep-links the directive to a specific
+// card (REC_ANCHOR) — the title is the directive's identity, so the banner and the
+// ladder can't drift apart on a string.
+export const REDUCE_DEFICIT_TITLE = "Reduce deficit slightly";
 export const HOLD_CUTS_TITLE = "Hold off on further cuts";
-const INCREASE_ACTIVITY_TITLE = "Increase activity";
+export const INCREASE_ACTIVITY_TITLE = "Increase activity";
 const HIT_TARGET_TITLE = "Hit your current target";
-const START_MAINTENANCE_TITLE = "Start maintenance";
-const CONSIDER_MAINTENANCE_TITLE = "Consider switching to maintenance";
+export const START_MAINTENANCE_TITLE = "Start maintenance";
+export const CONSIDER_MAINTENANCE_TITLE = "Consider switching to maintenance";
 // Bulk mirrors — same ladder positions as their cut counterparts, gated on
 // isBulking instead of isCutting (mutually exclusive by phase).
-const START_CUT_TITLE = "Start the cut";
-const CONSIDER_BREAK_TITLE = "Consider a maintenance break";
-const REDUCE_SURPLUS_TITLE = "Reduce surplus";
+export const START_CUT_TITLE = "Start the cut";
+export const CONSIDER_BREAK_TITLE = "Consider a maintenance break";
+export const REDUCE_SURPLUS_TITLE = "Reduce surplus";
 
 // Phase policy — how many firing plateau triggers warrant the maintenance
 // suggestion (enter), and how many keep it showing (hold). The triggers
