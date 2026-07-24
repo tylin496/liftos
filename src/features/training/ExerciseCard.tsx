@@ -419,6 +419,27 @@ function ExerciseCardImpl({
   const visibleCount = showAll ? filteredDesc.length : Math.min(2, filteredDesc.length);
   const visible = filteredDesc.slice(0, visibleCount);
 
+  // Render order for the history list: this lift's own visible sets, with any
+  // stand-in rows woven in by date. The own-log rows keep their index into
+  // `visible` (`vi`), so every PR / delta / reveal-stagger read below is
+  // untouched — a stand-in is a marker in the timeline, never a baseline.
+  // Collapsed, only stand-ins at or after the oldest shown set are woven in, so
+  // the two-row summary can't be pushed off by old ones.
+  type HistoryRow =
+    | { kind: "log"; log: TrainingLog; vi: number }
+    | { kind: "standin"; log: TrainingLog };
+  const historyRows = useMemo<HistoryRow[]>(() => {
+    const floor = showAll ? "" : (visible[visible.length - 1]?.log_date ?? "");
+    const rows: HistoryRow[] = visible.map((log, vi) => ({ kind: "log", log, vi }));
+    for (const log of visibleStandIns) {
+      if (log.log_date >= floor) rows.push({ kind: "standin", log });
+    }
+    return rows.sort((a, b) => (a.log.log_date < b.log.log_date ? 1 : a.log.log_date > b.log.log_date ? -1 : 0));
+  }, [visible, visibleStandIns, showAll]);
+  // "View all N" counts everything the expanded list will show — a stand-in is
+  // an entry on this slot's record too.
+  const entryCount = filteredDesc.length + visibleStandIns.length;
+
   // Which log form to show: follow the most recent entry's kind, but for an
   // exercise with no logs yet honour its declared assisted_mode — otherwise the
   // "Assisted mode" flag set at creation (incl. the seeded Assisted Pull-up)
@@ -1004,10 +1025,42 @@ function ExerciseCardImpl({
       {/* ── History ── */}
       {editingMode !== "meta" && (
         <div className="ex-history">
-        {filteredDesc.length === 0 ? (
+        {historyRows.length === 0 ? (
           <div className="empty-row">No sets yet — log your first below</div>
         ) : (
-          visible.map((log, vi) => {
+          historyRows.map((row) => {
+            // A day another lift covered this slot. Rendered inline so the list
+            // stays in date order, but deliberately quieter: the set belongs to
+            // a different lift and never touches this one's stats, PR or trend.
+            if (row.kind === "standin") {
+              const std = timelineDate(row.log.log_date ?? "");
+              return (
+                <div className="ex-standin-row" key={row.log.id}>
+                  <span className="hist-date">
+                    <span className="hist-date-mon">{std.mon}</span>
+                    <span className="hist-date-day mono">{std.day}</span>
+                  </span>
+                  <span className="ex-standin-body">
+                    <span className="ex-standin-name">{subNameOf(row.log.exercise_slug)}</span>
+                    <span className="ex-standin-expr">
+                      <ExprDisplay raw={row.log.raw} histMode />
+                    </span>
+                  </span>
+                  <span className="ex-standin-tag">stood in</span>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      className="ex-standin-del"
+                      aria-label="Delete stand-in entry"
+                      onClick={() => handleDelete(row.log)}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              );
+            }
+            const { log, vi } = row;
             // prIndex is index in filteredAsc; vi 0 = newest = last in asc
             const ascIdx = filteredAsc.length - 1 - vi;
             const isPR = ascIdx === prIndexInFiltered;
@@ -1301,44 +1354,6 @@ function ExerciseCardImpl({
         </div>
       )}
 
-      {/* ── Days another lift covered this slot ── */}
-      {/* Kept out of the history list above on purpose: these sets belong to a
-          different lift and never touch this one's stats, PR or trend. But the
-          slot they filled is the only place they read right, so they're listed
-          here — muted, no delta, no PR — with a delete for a mis-logged one. */}
-      {visibleStandIns.length > 0 && (
-        <div className="ex-standins">
-          {visibleStandIns.map((log) => {
-            const td = timelineDate(log.log_date ?? "");
-            return (
-              <div className="ex-standin-row" key={log.id}>
-                <span className="hist-date">
-                  <span className="hist-date-mon">{td.mon}</span>
-                  <span className="hist-date-day mono">{td.day}</span>
-                </span>
-                <span className="ex-standin-body">
-                  <span className="ex-standin-name">{subNameOf(log.exercise_slug)}</span>
-                  <span className="ex-standin-expr">
-                    <ExprDisplay raw={log.raw} histMode />
-                  </span>
-                </span>
-                <span className="ex-standin-tag">stood in</span>
-                {!readOnly && (
-                  <button
-                    type="button"
-                    className="ex-standin-del"
-                    aria-label="Delete stand-in entry"
-                    onClick={() => handleDelete(log)}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {/* ── Log set form (owner only) ── */}
       {/* Wrapped in the editor drawer so the add form unfolds (height 0fr→1fr)
           on open, same as inline-edit. is-add zeroes the inner padding so the
@@ -1374,7 +1389,7 @@ function ExerciseCardImpl({
       {/* ── Footer: Log set link + View all ── */}
       {editingMode !== "meta" &&
         editingMode !== "logset" &&
-        (!readOnly && editingLogId == null || filteredDesc.length > 2) && (
+        (!readOnly && editingLogId == null || entryCount > 2) && (
         <div className="ex-footer">
           {!readOnly && editingLogId == null && (
             <button
@@ -1386,7 +1401,7 @@ function ExerciseCardImpl({
               <span className="ex-log-text">Log set</span>
             </button>
           )}
-          {filteredDesc.length > 2 && (
+          {entryCount > 2 && (
             <button
               type="button"
               className="ex-view-all"
@@ -1399,7 +1414,7 @@ function ExerciseCardImpl({
                 }
               }}
             >
-              {showAll ? "Recent only" : `View all ${filteredDesc.length}`}
+              {showAll ? "Recent only" : `View all ${entryCount}`}
             </button>
           )}
         </div>

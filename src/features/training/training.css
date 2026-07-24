@@ -1139,19 +1139,15 @@
 }
 
 /* ── Stand-ins: days another lift filled this slot ───────────────────────────*/
-/* Deliberately quieter than the history rows above — these sets belong to a
-   different lift and carry no verdict here (no PR, no delta, no score). The
-   separating rule is the same hairline the history rows use. */
-.ex-standins {
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--rule);
-}
-
+/* Woven into the history list in date order, but deliberately quieter than the
+   rows around them — these sets belong to a different lift and carry no verdict
+   here (no PR, no delta, no score). */
 .ex-standin-row {
-  display: flex;
+  /* Same grid as .hist-row so the date column lines up down the list. */
+  display: grid;
+  grid-template-columns: 40px 1fr auto auto;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding: var(--space-2) 0;
 }
 
