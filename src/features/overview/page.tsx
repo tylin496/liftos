@@ -1375,11 +1375,16 @@ function CutBaselineCard({ metrics, onSaved }: { metrics: BodyMetric[]; onSaved:
 function BulkBaselineCard({
   metrics,
   defaultCeiling,
+  targetBodyFat,
   onSaved,
 }: {
   metrics: BodyMetric[];
   /** Prefill for the ceiling — the cut target + a few pp when configured. */
   defaultCeiling: number;
+  /** Only names where the prefill came from; null hides that line and leaves
+   *  the field a plain default. The ceiling is a choice, so the number is
+   *  offered, never decided — this says what it was offered from. */
+  targetBodyFat: number | null;
   onSaved: () => void;
 }) {
   const [date, setDate] = useState("");
@@ -1430,6 +1435,11 @@ function BulkBaselineCard({
           onChange={(e) => setCeiling(e.target.value)}
         />
       </label>
+      {targetBodyFat != null && (
+        <p className="goal-init-preview">
+          Prefilled from your {targetBodyFat}% cut target + 3 pp — the fat budget this bulk gets.
+        </p>
+      )}
       {date && (
         <p className="goal-init-preview">
           {preview?.bodyFatPct != null
@@ -2020,6 +2030,7 @@ export function OverviewPage() {
             key="cut"
             metrics={data.metrics}
             defaultCeiling={Math.min(30, Math.max(8, (data.targetBodyFat ?? 18) + 3))}
+            targetBodyFat={data.targetBodyFat}
             onSaved={() => void load()}
           />
         ) : (
