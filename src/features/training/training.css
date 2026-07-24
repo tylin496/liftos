@@ -1138,56 +1138,6 @@
   color: var(--accent);
 }
 
-/* ── Stand-ins: days another lift filled this slot ───────────────────────────*/
-/* Woven into the history list in date order, but deliberately quieter than the
-   rows around them — these sets belong to a different lift and carry no verdict
-   here (no PR, no delta, no score). */
-.ex-standin-row {
-  /* Same grid as .hist-row so the date column lines up down the list. */
-  display: grid;
-  grid-template-columns: 40px 1fr auto auto;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) 0;
-}
-
-.ex-standin-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vr-hairline);
-  flex: 1;
-  min-width: 0;
-}
-
-.ex-standin-name {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink-2);
-}
-
-/* The expression renders through ExprDisplay (same as history), so it only
-   needs to be dimmed as a whole — it isn't this lift's number. */
-.ex-standin-expr {
-  opacity: 0.75;
-}
-
-.ex-standin-tag {
-  font-size: var(--text-sm);
-  color: var(--ink-4);
-  font-style: italic;
-  flex-shrink: 0;
-}
-
-.ex-standin-del {
-  border: none;
-  background: none;
-  color: var(--ink-4);
-  font-size: var(--text-sm);
-  padding: var(--space-1);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
 /* Stand-in picker — marks the set as a stand-in for another lift in the
    split (the machine was taken). A <select>, i.e. an editable control, so it
    takes the input face per the grey-surface rule: --bg-input + border + focus
@@ -1901,9 +1851,69 @@
   color: var(--gold);
 }
 
+/* Entry-count toggle — a control, so it takes the pill-button face the row's
+   Restore/Delete already use rather than reading as inert text. */
 .archived-entries.mono {
   font-size: var(--text-sm);
+  color: var(--ink-3);
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.archived-entries.mono:disabled {
   color: var(--ink-4);
+  cursor: default;
+}
+
+.archived-entries.mono.is-open {
+  color: var(--accent);
+}
+
+/* The archived lift's own sets — the only place they can be inspected or
+   removed, since an archived lift has no card in the split. */
+.archived-logs {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--vr-tight);
+}
+
+.archived-log-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+
+.archived-log-date.mono {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+.archived-log-expr {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Same quiet register as the history rows' bonus marker — it explains the row,
+   it isn't a verdict. */
+.archived-log-tag {
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.archived-log-del {
+  border: none;
+  background: none;
+  color: var(--ink-4);
+  font-size: var(--text-sm);
+  padding: var(--space-1);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .archived-actions {

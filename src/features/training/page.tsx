@@ -36,7 +36,8 @@ import { computeStrengthSummary } from "@features/overview/api";
 import { recomputeAndPersist } from "@features/nutrition/evaluationApi";
 import { defaultSetCount, inferAssisted, normalizeTarget, useScrollAboveKeyboard } from "./logFormHelpers";
 import { parse, score, formatRepsDisplay } from "./parser";
-import { fmtWeightNum } from "./ExprDisplay";
+import { ExprDisplay, fmtWeightNum } from "./ExprDisplay";
+import { timelineDate } from "@shared/lib/date";
 import type { TimeFilter } from "./logic";
 import { SegmentedControl } from "@shared/components/SegmentedControl";
 import { PageTopBar } from "@shared/components/PageTopBar";
@@ -455,13 +456,22 @@ function ArchivedSection({
   logs,
   onRestore,
   onDelete,
+  onDeleteLog,
+  nameOf,
 }: {
   exercises: Exercise[];
   logs: Record<string, TrainingLog[]>;
   onRestore: (slug: string) => void;
   onDelete: (slug: string) => void;
+  /** Delete one entry of an archived lift (undo toast, same as everywhere). */
+  onDeleteLog: (log: TrainingLog) => void;
+  /** Resolves a substituted slug to its display name for the "instead of" tag. */
+  nameOf: (slug: string) => string;
 }) {
   const [open, setOpen] = useState(false);
+  // Which archived lift has its entries expanded — one at a time, so the
+  // section stays a short list you scan rather than a wall of history.
+  const [openSlug, setOpenSlug] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   if (!exercises.length) return null;
 
@@ -505,13 +515,56 @@ function ArchivedSection({
               ? `${fmtWeightNum(score(bestParsed))} kg × ${formatRepsDisplay(bestParsed.reps)}`
               : null;
 
+            const entriesOpen = openSlug === ex.slug;
             return (
               <div className="archived-row" key={ex.slug}>
                 <div className="archived-row-head">
                   <span className="archived-name">{ex.name}</span>
                   {prStr && <span className="archived-pr mono">PR: {prStr}</span>}
-                  <span className="archived-entries mono">{exLogs.length} entries</span>
+                  {/* The entry count opens the list. An archived lift has no
+                      card in the split, so this is the only place its own sets
+                      — including any day it stood in for another lift — can be
+                      inspected or removed. */}
+                  <button
+                    type="button"
+                    className={`archived-entries mono${entriesOpen ? " is-open" : ""}`}
+                    aria-expanded={entriesOpen}
+                    disabled={exLogs.length === 0}
+                    onClick={() => setOpenSlug(entriesOpen ? null : ex.slug)}
+                  >
+                    {exLogs.length} entries
+                  </button>
                 </div>
+                {entriesOpen && (
+                  <div className="archived-logs">
+                    {exLogs.map((log) => {
+                      const td = timelineDate(log.log_date ?? "");
+                      return (
+                        <div className="archived-log-row" key={log.id}>
+                          <span className="archived-log-date mono">
+                            {td.mon} {td.day}
+                          </span>
+                          <span className="archived-log-expr">
+                            <ExprDisplay raw={log.raw} histMode />
+                          </span>
+                          {log.substitutes && (
+                            <span className="archived-log-tag">
+                              instead of {nameOf(log.substitutes)}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            className="archived-log-del"
+                            aria-label="Delete entry"
+                            onClick={() => onDeleteLog(log)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="archived-actions">
                   <button type="button" onClick={() => onRestore(ex.slug)}>
                     Restore
@@ -1141,6 +1194,51 @@ function TrainingPageInner() {
     });
   }
 
+  /** Delete one entry of an archived lift, from the Archived section's entry
+   *  list. Same optimistic + 5s-undo convention as every other delete; the
+   *  section reads `logs`, so hiding the row means dropping it from that map.
+   *  This is the only route to a stand-in logged against an archived
+   *  alternative — that lift has no card in the split to delete it from. */
+  function handleDeleteArchivedLog(log: TrainingLog) {
+    const UNDO_MS = 5000;
+    const record = { undone: false, timer: 0 as unknown as ReturnType<typeof setTimeout> };
+    const restore = () =>
+      setLogs((prev) => {
+        const arr = prev[log.exercise_slug] ?? [];
+        if (arr.some((l) => l.id === log.id)) return prev;
+        return {
+          ...prev,
+          // fetchLogsBySlug orders newest-first; re-insert by date so the
+          // restored row lands back where it was.
+          [log.exercise_slug]: [...arr, log].sort((a, b) =>
+            a.log_date < b.log_date ? 1 : a.log_date > b.log_date ? -1 : 0,
+          ),
+        };
+      });
+    setLogs((prev) => ({
+      ...prev,
+      [log.exercise_slug]: (prev[log.exercise_slug] ?? []).filter((l) => l.id !== log.id),
+    }));
+    record.timer = setTimeout(async () => {
+      if (record.undone) return;
+      try {
+        await deleteLog(log.id);
+        await reloadLogs();
+      } catch (err) {
+        restore();
+        toast(String((err as Error)?.message ?? err), "error");
+      }
+    }, UNDO_MS);
+    toast("Entry deleted", "info", UNDO_MS, {
+      label: "Undo",
+      onClick: () => {
+        record.undone = true;
+        clearTimeout(record.timer);
+        restore();
+      },
+    });
+  }
+
   function handleStretchChange(items: StretchItem[]) {
     setStretches((prev) => ({ ...prev, [split]: items }));
   }
@@ -1513,6 +1611,8 @@ function TrainingPageInner() {
           logs={strengthLogs}
           onRestore={handleRestore}
           onDelete={handleDeleteArchived}
+          onDeleteLog={handleDeleteArchivedLog}
+          nameOf={(slug) => (exercises ?? []).find((e) => e.slug === slug)?.name ?? slug}
         />
       )}
 
